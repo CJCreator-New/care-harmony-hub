@@ -6,6 +6,7 @@ import { NurseDashboard } from '@/components/dashboard/NurseDashboard';
 import { ReceptionistDashboard } from '@/components/dashboard/ReceptionistDashboard';
 import { PharmacistDashboard } from '@/components/dashboard/PharmacistDashboard';
 import { LabTechDashboard } from '@/components/dashboard/LabTechDashboard';
+import { PatientDashboard } from '@/components/dashboard/PatientDashboard';
 
 export default function Dashboard() {
   const { primaryRole } = useAuth();
@@ -24,6 +25,8 @@ export default function Dashboard() {
         return <PharmacistDashboard />;
       case 'lab_technician':
         return <LabTechDashboard />;
+      case 'patient':
+        return <PatientDashboard />;
       default:
         return <AdminDashboard />;
     }
