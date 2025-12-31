@@ -529,6 +529,60 @@ export type Database = {
           },
         ]
       }
+      staff_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          hospital_id: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          hospital_id: string
+          id?: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          hospital_id?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_invitations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -688,6 +742,7 @@ export type Database = {
         | "handoff"
         | "completed"
       gender_type: "male" | "female" | "other" | "prefer_not_to_say"
+      invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       priority_level: "low" | "normal" | "high" | "urgent" | "emergency"
     }
     CompositeTypes: {
@@ -843,6 +898,7 @@ export const Constants = {
         "completed",
       ],
       gender_type: ["male", "female", "other", "prefer_not_to_say"],
+      invitation_status: ["pending", "accepted", "expired", "cancelled"],
       priority_level: ["low", "normal", "high", "urgent", "emergency"],
     },
   },
