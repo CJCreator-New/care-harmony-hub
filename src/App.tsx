@@ -22,6 +22,8 @@ import AppointmentsPage from "./pages/appointments/AppointmentsPage";
 import LaboratoryPage from "./pages/laboratory/LaboratoryPage";
 import PharmacyPage from "./pages/pharmacy/PharmacyPage";
 import QueueManagementPage from "./pages/queue/QueueManagementPage";
+import BillingPage from "./pages/billing/BillingPage";
+import InventoryPage from "./pages/inventory/InventoryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -180,9 +182,17 @@ function AppRoutes() {
       <Route
         path="/billing"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={['admin', 'receptionist']}>
+            <BillingPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+            <InventoryPage />
+          </RoleProtectedRoute>
         }
       />
       <Route

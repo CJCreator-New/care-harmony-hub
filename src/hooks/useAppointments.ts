@@ -186,12 +186,22 @@ export function useCheckInAppointment() {
     mutationFn: async (appointmentId: string) => {
       if (!hospital?.id) throw new Error('No hospital context');
 
+      // Get the appointment first to get patient info
+      const { data: appointment, error: aptError } = await supabase
+        .from('appointments')
+        .select('patient_id, priority, doctor_id')
+        .eq('id', appointmentId)
+        .single();
+
+      if (aptError) throw aptError;
+
       // Get next queue number
       const { data: queueNumber, error: queueError } = await supabase
         .rpc('get_next_queue_number', { p_hospital_id: hospital.id });
 
       if (queueError) throw queueError;
 
+      // Update appointment status
       const { data, error } = await supabase
         .from('appointments')
         .update({
@@ -204,10 +214,27 @@ export function useCheckInAppointment() {
         .single();
 
       if (error) throw error;
+
+      // Add patient to the queue
+      const { error: queueInsertError } = await supabase
+        .from('patient_queue')
+        .insert({
+          hospital_id: hospital.id,
+          patient_id: appointment.patient_id,
+          appointment_id: appointmentId,
+          queue_number: queueNumber,
+          priority: appointment.priority || 'normal',
+          status: 'waiting',
+          assigned_to: appointment.doctor_id,
+        });
+
+      if (queueInsertError) throw queueInsertError;
+
       return data as Appointment;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
       toast.success(`Patient checked in - Queue #${data.queue_number}`);
     },
     onError: (error: Error) => {
