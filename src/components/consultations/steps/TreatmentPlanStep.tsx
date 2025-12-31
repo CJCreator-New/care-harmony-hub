@@ -4,11 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, X, Pill, FlaskConical, UserPlus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, X, Pill, FlaskConical, UserPlus, Send, CheckCircle2 } from "lucide-react";
+import { useCreateLabOrder } from "@/hooks/useLabOrders";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface TreatmentPlanStepProps {
   data: Record<string, any>;
   onUpdate: (field: string, value: any) => void;
+  patientId?: string;
+  consultationId?: string;
 }
 
 interface Prescription {
@@ -23,6 +29,8 @@ interface LabOrder {
   test: string;
   priority: string;
   notes: string;
+  isSubmitted?: boolean;
+  labOrderId?: string;
 }
 
 interface Referral {
@@ -31,7 +39,10 @@ interface Referral {
   urgency: string;
 }
 
-export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
+export function TreatmentPlanStep({ data, onUpdate, patientId, consultationId }: TreatmentPlanStepProps) {
+  const { profile } = useAuth();
+  const createLabOrder = useCreateLabOrder();
+
   const [newPrescription, setNewPrescription] = useState<Prescription>({
     medication: "",
     dosage: "",
@@ -39,7 +50,7 @@ export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
     duration: "",
     instructions: "",
   });
-  const [newLabOrder, setNewLabOrder] = useState<LabOrder>({
+  const [newLabOrder, setNewLabOrder] = useState<Omit<LabOrder, 'isSubmitted' | 'labOrderId'>>({
     test: "",
     priority: "routine",
     notes: "",
@@ -51,7 +62,7 @@ export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
   });
 
   const prescriptions = data.prescriptions || [];
-  const labOrders = data.lab_orders || [];
+  const labOrders: LabOrder[] = data.lab_orders || [];
   const referrals = data.referrals || [];
 
   const addPrescription = () => {
@@ -76,16 +87,64 @@ export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
 
   const addLabOrder = () => {
     if (newLabOrder.test.trim()) {
-      onUpdate("lab_orders", [...labOrders, { ...newLabOrder }]);
+      onUpdate("lab_orders", [...labOrders, { ...newLabOrder, isSubmitted: false }]);
       setNewLabOrder({ test: "", priority: "routine", notes: "" });
     }
   };
 
   const removeLabOrder = (index: number) => {
+    const order = labOrders[index];
+    if (order.isSubmitted) {
+      toast.error("Cannot remove a submitted lab order");
+      return;
+    }
     onUpdate(
       "lab_orders",
       labOrders.filter((_: LabOrder, i: number) => i !== index)
     );
+  };
+
+  const submitLabOrder = async (index: number) => {
+    const order = labOrders[index];
+    if (!patientId || !profile?.id) {
+      toast.error("Missing patient or profile information");
+      return;
+    }
+
+    try {
+      const result = await createLabOrder.mutateAsync({
+        hospital_id: profile.hospital_id!,
+        patient_id: patientId,
+        consultation_id: consultationId,
+        test_name: order.test,
+        ordered_by: profile.id,
+        priority: order.priority === 'stat' ? 'emergency' : order.priority === 'urgent' ? 'urgent' : 'normal',
+        status: 'pending',
+      });
+
+      // Update the local state to mark as submitted
+      const updatedOrders = [...labOrders];
+      updatedOrders[index] = { ...order, isSubmitted: true, labOrderId: result.id };
+      onUpdate("lab_orders", updatedOrders);
+      
+      toast.success(`Lab order for "${order.test}" submitted to laboratory`);
+    } catch (error) {
+      // Error is handled by the mutation
+    }
+  };
+
+  const submitAllLabOrders = async () => {
+    const unsubmittedOrders = labOrders.filter(o => !o.isSubmitted);
+    if (unsubmittedOrders.length === 0) {
+      toast.info("All lab orders have already been submitted");
+      return;
+    }
+
+    for (let i = 0; i < labOrders.length; i++) {
+      if (!labOrders[i].isSubmitted) {
+        await submitLabOrder(i);
+      }
+    }
   };
 
   const addReferral = () => {
@@ -101,6 +160,8 @@ export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
       referrals.filter((_: Referral, i: number) => i !== index)
     );
   };
+
+  const unsubmittedCount = labOrders.filter(o => !o.isSubmitted).length;
 
   return (
     <div className="space-y-6">
@@ -196,10 +257,23 @@ export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
       {/* Lab Orders */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FlaskConical className="h-4 w-4" />
-            Lab Orders
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FlaskConical className="h-4 w-4" />
+              Lab Orders
+            </CardTitle>
+            {labOrders.length > 0 && unsubmittedCount > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={submitAllLabOrders}
+                disabled={createLabOrder.isPending}
+              >
+                <Send className="h-4 w-4 mr-1" />
+                Submit All ({unsubmittedCount})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -231,22 +305,50 @@ export function TreatmentPlanStep({ data, onUpdate }: TreatmentPlanStepProps) {
               {labOrders.map((order: LabOrder, index: number) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
+                  className={`flex items-center justify-between p-3 rounded-md ${
+                    order.isSubmitted ? 'bg-success/10 border border-success/20' : 'bg-muted/50'
+                  }`}
                 >
-                  <div>
-                    <p className="font-medium">{order.test}</p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      Priority: {order.priority}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    {order.isSubmitted && (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{order.test}</p>
+                        {order.isSubmitted && (
+                          <Badge variant="success" className="text-xs">Submitted</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        Priority: {order.priority}
+                      </p>
+                    </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removeLabOrder(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {!order.isSubmitted && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => submitLabOrder(index)}
+                          disabled={createLabOrder.isPending}
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Submit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeLabOrder(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
