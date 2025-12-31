@@ -193,7 +193,7 @@ export function useAdvanceConsultationStep() {
       const nextStep = currentStep + 1;
       const nextStatus = CONSULTATION_STEPS[nextStep - 1]?.status || 'completed';
 
-      const updates: Partial<Consultation> = {
+      const updates: Partial<Consultation> & { id: string } = {
         id: consultationId,
         current_step: nextStep,
         status: nextStatus,
