@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 export interface Medication {
   id: string;
@@ -69,13 +70,13 @@ export function useLowStockMedications() {
   });
 }
 
-export function useInventoryStats() {
+export function useMedicationStats() {
   const { hospital } = useAuth();
 
   return useQuery({
-    queryKey: ['inventory-stats', hospital?.id],
+    queryKey: ['medication-stats', hospital?.id],
     queryFn: async () => {
-      if (!hospital?.id) return { total: 0, lowStock: 0, outOfStock: 0 };
+      if (!hospital?.id) return { total: 0, lowStock: 0, outOfStock: 0, expiringSoon: 0 };
 
       const { data, error } = await supabase
         .from('medications')
@@ -86,14 +87,74 @@ export function useInventoryStats() {
       if (error) throw error;
 
       const medications = data as Medication[];
+      const thirtyDays = new Date();
+      thirtyDays.setDate(thirtyDays.getDate() + 30);
+
       return {
         total: medications.length,
-        lowStock: medications.filter(m => m.current_stock < m.minimum_stock && m.current_stock > 0).length,
+        lowStock: medications.filter(m => m.current_stock <= m.minimum_stock && m.current_stock > 0).length,
         outOfStock: medications.filter(m => m.current_stock === 0).length,
+        expiringSoon: medications.filter(m => m.expiry_date && new Date(m.expiry_date) <= thirtyDays).length,
       };
     },
     enabled: !!hospital?.id,
   });
+}
+
+export function useUpdateMedication() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Medication> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('medications')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Medication;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medications'] });
+      queryClient.invalidateQueries({ queryKey: ['medication-stats'] });
+      toast.success('Medication updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update medication: ${error.message}`);
+    },
+  });
+}
+
+export function useMedicationsRealtime() {
+  const queryClient = useQueryClient();
+  const { hospital } = useAuth();
+
+  useEffect(() => {
+    if (!hospital?.id) return;
+
+    const channel = supabase
+      .channel('medications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'medications',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['medications'] });
+          queryClient.invalidateQueries({ queryKey: ['medication-stats'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hospital?.id, queryClient]);
 }
 
 export function useCreateMedication() {
