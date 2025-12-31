@@ -19,6 +19,7 @@ import StaffManagementPage from "./pages/settings/StaffManagementPage";
 import ConsultationsPage from "./pages/consultations/ConsultationsPage";
 import ConsultationWorkflowPage from "./pages/consultations/ConsultationWorkflowPage";
 import AppointmentsPage from "./pages/appointments/AppointmentsPage";
+import LaboratoryPage from "./pages/laboratory/LaboratoryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -161,9 +162,9 @@ function AppRoutes() {
       <Route
         path="/laboratory"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab_technician']}>
+            <LaboratoryPage />
+          </RoleProtectedRoute>
         }
       />
       <Route

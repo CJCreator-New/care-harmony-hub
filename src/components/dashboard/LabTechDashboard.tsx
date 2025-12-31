@@ -13,9 +13,15 @@ import {
   FileText,
   Microscope,
 } from 'lucide-react';
+import { useLabOrders, useLabOrderStats } from '@/hooks/useLabOrders';
 
 export function LabTechDashboard() {
   const { profile } = useAuth();
+  const { data: stats } = useLabOrderStats();
+  const { data: pendingOrders = [] } = useLabOrders('pending');
+  const { data: urgentOrders = [] } = useLabOrders();
+
+  const urgentItems = urgentOrders.filter(o => o.priority === 'urgent' && o.status !== 'completed');
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -65,31 +71,31 @@ export function LabTechDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Orders"
-          value="--"
+          value={stats?.pending ?? 0}
           subtitle="To process"
           icon={FileText}
           variant="warning"
         />
         <StatsCard
           title="In Progress"
-          value="--"
+          value={stats?.inProgress ?? 0}
           subtitle="Currently testing"
           icon={TestTube2}
           variant="primary"
         />
         <StatsCard
           title="Completed Today"
-          value="--"
+          value={stats?.completedToday ?? 0}
           subtitle="Results uploaded"
           icon={CheckCircle2}
           variant="success"
         />
         <StatsCard
-          title="Avg. TAT"
-          value="--"
-          subtitle="Turnaround time"
-          icon={Clock}
-          variant="info"
+          title="Urgent Orders"
+          value={urgentItems.length}
+          subtitle="Need attention"
+          icon={AlertCircle}
+          variant="danger"
         />
       </div>
 
@@ -104,11 +110,32 @@ export function LabTechDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <TestTube2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-1">No pending lab orders</p>
-                <p className="text-sm">New orders will appear here</p>
-              </div>
+              {pendingOrders.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <TestTube2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-1">No pending lab orders</p>
+                  <p className="text-sm">New orders will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingOrders.slice(0, 5).map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="font-medium">{order.test_name}</p>
+                        <p className="text-sm text-muted-foreground">{order.test_category || 'General'}</p>
+                      </div>
+                      <Badge variant={order.priority === 'urgent' ? 'destructive' : 'secondary'}>
+                        {order.priority}
+                      </Badge>
+                    </div>
+                  ))}
+                  {pendingOrders.length > 5 && (
+                    <Button asChild variant="ghost" className="w-full">
+                      <Link to="/laboratory">View all {pendingOrders.length} orders</Link>
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -122,10 +149,21 @@ export function LabTechDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6 text-muted-foreground">
-                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No urgent orders</p>
-              </div>
+              {urgentItems.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No urgent orders</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {urgentItems.slice(0, 3).map((order) => (
+                    <div key={order.id} className="p-2 rounded bg-destructive/10 text-sm">
+                      <p className="font-medium">{order.test_name}</p>
+                      <p className="text-muted-foreground text-xs">{order.status}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
