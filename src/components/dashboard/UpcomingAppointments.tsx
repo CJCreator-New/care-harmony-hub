@@ -1,8 +1,8 @@
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Calendar, Clock, Video, MapPin, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface Appointment {
   id: string;
@@ -59,7 +59,7 @@ const statusStyles = {
   cancelled: 'destructive',
 } as const;
 
-export function UpcomingAppointments() {
+export const UpcomingAppointments = React.forwardRef<HTMLDivElement>((_, ref) => {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -69,7 +69,7 @@ export function UpcomingAppointments() {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
+    <div ref={ref} className="bg-card rounded-xl border border-border overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
@@ -145,4 +145,5 @@ export function UpcomingAppointments() {
       </div>
     </div>
   );
-}
+});
+UpcomingAppointments.displayName = "UpcomingAppointments";
