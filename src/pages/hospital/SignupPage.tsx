@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UserRole } from '@/types/auth';
 
 interface FormErrors {
   [key: string]: string;
@@ -39,12 +40,14 @@ export default function SignupPage() {
   // Admin details
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const { signup } = useAuth();
+  // Role selection
+  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
+
+  const { signup, createHospitalAndProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -72,7 +75,6 @@ export default function SignupPage() {
 
     if (!firstName.trim()) newErrors.firstName = 'First name is required';
     if (!lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!username.trim()) newErrors.username = 'Username is required';
     if (!adminEmail.trim()) newErrors.adminEmail = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
       newErrors.adminEmail = 'Invalid email format';
@@ -105,31 +107,46 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      await signup({
-        hospital: {
-          name: hospitalName,
-          address,
-          city,
-          state,
-          zip,
-          phone,
-          email: hospitalEmail,
-          licenseNumber,
-        },
-        admin: {
-          username,
-          email: adminEmail,
-          password,
-          firstName,
-          lastName,
-        },
-      });
+      // First, create the user account
+      const { error: signupError, userId } = await signup(adminEmail, password, firstName, lastName);
+
+      if (signupError) {
+        toast({
+          title: 'Registration Failed',
+          description: signupError.message || 'Could not create account. Please try again.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Then create the hospital and assign role
+      const { error: hospitalError } = await createHospitalAndProfile({
+        name: hospitalName,
+        address,
+        city,
+        state,
+        zip,
+        phone,
+        email: hospitalEmail,
+        license_number: licenseNumber,
+      }, selectedRole);
+
+      if (hospitalError) {
+        toast({
+          title: 'Setup Failed',
+          description: 'Account created but hospital setup failed. Please contact support.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
 
       toast({
         title: 'Registration Successful!',
-        description: 'Welcome to AROCORD-HIMS. Let\'s set up your roles.',
+        description: 'Welcome to AROCORD-HIMS. Redirecting to dashboard...',
       });
-      navigate('/hospital/profile-setup');
+      navigate('/dashboard');
     } catch (error) {
       toast({
         title: 'Registration Failed',
@@ -374,17 +391,6 @@ export default function SignupPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username *</Label>
-                  <Input
-                    id="username"
-                    placeholder="johndoe"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className={cn(errors.username && 'border-destructive')}
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="adminEmail">Admin Email *</Label>
                   <Input
                     id="adminEmail"
@@ -472,7 +478,7 @@ export default function SignupPage() {
                     {isLoading ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Creating...
+                        Creating Account...
                       </>
                     ) : (
                       'Create Account'

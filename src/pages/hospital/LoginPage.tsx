@@ -24,16 +24,25 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login({ email, password, rememberMe });
-      toast({
-        title: 'Welcome back!',
-        description: 'You have successfully logged in.',
-      });
-      navigate('/dashboard');
+      const { error } = await login(email, password);
+      
+      if (error) {
+        toast({
+          title: 'Login Failed',
+          description: error.message || 'Invalid email or password. Please try again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Welcome back!',
+          description: 'You have successfully logged in.',
+        });
+        navigate('/dashboard');
+      }
     } catch (error) {
       toast({
         title: 'Login Failed',
-        description: 'Invalid email or password. Please try again.',
+        description: 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -181,14 +190,12 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo credentials */}
+          {/* Note about demo */}
           <div className="p-4 rounded-xl bg-muted border border-border">
-            <p className="text-sm font-medium mb-2">Demo Credentials:</p>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p><strong>Admin:</strong> admin@hospital.com / Admin@123</p>
-              <p><strong>Doctor:</strong> doctor@hospital.com / Doctor@123</p>
-              <p><strong>Nurse:</strong> nurse@hospital.com / Nurse@123</p>
-            </div>
+            <p className="text-sm font-medium mb-2">Getting Started:</p>
+            <p className="text-sm text-muted-foreground">
+              Create a new account via the signup page to get started with your hospital.
+            </p>
           </div>
         </div>
       </div>

@@ -1,159 +1,258 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { User, Hospital, AuthState, LoginCredentials, SignupData, UserRole } from '@/types/auth';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { UserRole } from '@/types/auth';
 
-interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
-  logout: () => void;
-  setHospitalRoles: (roles: UserRole[]) => void;
+interface Profile {
+  id: string;
+  user_id: string;
+  hospital_id: string | null;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+}
+
+interface Hospital {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone: string | null;
+  email: string | null;
+  license_number: string | null;
+}
+
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  profile: Profile | null;
+  hospital: Hospital | null;
+  roles: UserRole[];
+  primaryRole: UserRole | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null; userId?: string }>;
+  logout: () => Promise<void>;
+  createHospitalAndProfile: (hospitalData: Partial<Hospital>, role: UserRole) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data for demo
-const mockUsers: Record<string, { user: User; password: string }> = {
-  'admin@hospital.com': {
-    user: {
-      id: '1',
-      email: 'admin@hospital.com',
-      username: 'admin',
-      firstName: 'John',
-      lastName: 'Admin',
-      role: 'admin',
-      hospitalId: 'h1',
-      hospitalName: 'City General Hospital',
-      createdAt: new Date().toISOString(),
-    },
-    password: 'Admin@123',
-  },
-  'doctor@hospital.com': {
-    user: {
-      id: '2',
-      email: 'doctor@hospital.com',
-      username: 'dr.smith',
-      firstName: 'Sarah',
-      lastName: 'Smith',
-      role: 'doctor',
-      hospitalId: 'h1',
-      hospitalName: 'City General Hospital',
-      createdAt: new Date().toISOString(),
-    },
-    password: 'Doctor@123',
-  },
-  'nurse@hospital.com': {
-    user: {
-      id: '3',
-      email: 'nurse@hospital.com',
-      username: 'nurse.jones',
-      firstName: 'Emily',
-      lastName: 'Jones',
-      role: 'nurse',
-      hospitalId: 'h1',
-      hospitalName: 'City General Hospital',
-      createdAt: new Date().toISOString(),
-    },
-    password: 'Nurse@123',
-  },
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    hospital: null,
-    isAuthenticated: false,
-    isLoading: false,
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [roles, setRoles] = useState<UserRole[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = useCallback(async (credentials: LoginCredentials) => {
-    setState(prev => ({ ...prev, isLoading: true }));
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const mockUser = mockUsers[credentials.email];
-    if (mockUser && mockUser.password === credentials.password) {
-      setState({
-        user: mockUser.user,
-        hospital: {
-          id: 'h1',
-          name: 'City General Hospital',
-          address: '123 Medical Center Dr',
-          city: 'New York',
-          state: 'NY',
-          zip: '10001',
-          phone: '+1-555-0123',
-          email: 'info@citygeneralhospital.com',
-          licenseNumber: 'LIC-123456',
-          roles: ['doctor', 'nurse', 'admin', 'receptionist', 'pharmacist', 'lab_technician'],
-          createdAt: new Date().toISOString(),
-        },
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    } else {
-      setState(prev => ({ ...prev, isLoading: false }));
-      throw new Error('Invalid email or password');
+  const fetchUserData = useCallback(async (userId: string) => {
+    try {
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileData) {
+        setProfile(profileData as Profile);
+
+        // Fetch hospital if profile has hospital_id
+        if (profileData.hospital_id) {
+          const { data: hospitalData } = await supabase
+            .from('hospitals')
+            .select('*')
+            .eq('id', profileData.hospital_id)
+            .maybeSingle();
+
+          if (hospitalData) {
+            setHospital(hospitalData as Hospital);
+          }
+        }
+      }
+
+      // Fetch roles
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      if (rolesData) {
+        const userRoles = rolesData.map(r => r.role as UserRole);
+        setRoles(userRoles);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
     }
   }, []);
 
-  const signup = useCallback(async (data: SignupData) => {
-    setState(prev => ({ ...prev, isLoading: true }));
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const newUser: User = {
-      id: crypto.randomUUID(),
-      email: data.admin.email,
-      username: data.admin.username,
-      firstName: data.admin.firstName,
-      lastName: data.admin.lastName,
-      role: 'admin',
-      hospitalId: crypto.randomUUID(),
-      hospitalName: data.hospital.name,
-      createdAt: new Date().toISOString(),
-    };
+  useEffect(() => {
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-    const newHospital: Hospital = {
-      id: newUser.hospitalId!,
-      name: data.hospital.name,
-      address: data.hospital.address,
-      city: data.hospital.city,
-      state: data.hospital.state,
-      zip: data.hospital.zip,
-      phone: data.hospital.phone,
-      email: data.hospital.email,
-      licenseNumber: data.hospital.licenseNumber,
-      roles: [],
-      createdAt: new Date().toISOString(),
-    };
+        if (currentSession?.user) {
+          // Defer data fetching to avoid deadlock
+          setTimeout(() => {
+            fetchUserData(currentSession.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+          setHospital(null);
+          setRoles([]);
+        }
+        setIsLoading(false);
+      }
+    );
 
-    setState({
-      user: newUser,
-      hospital: newHospital,
-      isAuthenticated: true,
-      isLoading: false,
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      if (currentSession?.user) {
+        fetchUserData(currentSession.user.id);
+      }
+      setIsLoading(false);
     });
-  }, []);
 
-  const logout = useCallback(() => {
-    setState({
-      user: null,
-      hospital: null,
-      isAuthenticated: false,
-      isLoading: false,
+    return () => subscription.unsubscribe();
+  }, [fetchUserData]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
+    return { error: error as Error | null };
   }, []);
 
-  const setHospitalRoles = useCallback((roles: UserRole[]) => {
-    setState(prev => ({
-      ...prev,
-      hospital: prev.hospital ? { ...prev.hospital, roles } : null,
-    }));
+  const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
+    });
+
+    if (error) {
+      return { error: error as Error };
+    }
+
+    // Create profile for the new user
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: data.user.id,
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+        });
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
+
+      return { error: null, userId: data.user.id };
+    }
+
+    return { error: null };
   }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setHospital(null);
+    setRoles([]);
+  }, []);
+
+  const createHospitalAndProfile = useCallback(async (hospitalData: Partial<Hospital>, role: UserRole) => {
+    if (!user) return { error: new Error('Not authenticated') };
+
+    try {
+      // Create hospital
+      const { data: newHospital, error: hospitalError } = await supabase
+        .from('hospitals')
+        .insert({
+          name: hospitalData.name || 'My Hospital',
+          address: hospitalData.address,
+          city: hospitalData.city,
+          state: hospitalData.state,
+          zip: hospitalData.zip,
+          phone: hospitalData.phone,
+          email: hospitalData.email,
+          license_number: hospitalData.license_number,
+        })
+        .select()
+        .single();
+
+      if (hospitalError) throw hospitalError;
+
+      // Update profile with hospital_id
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ hospital_id: newHospital.id })
+        .eq('user_id', user.id);
+
+      if (profileError) throw profileError;
+
+      // Create user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user.id,
+          role: role,
+          hospital_id: newHospital.id,
+        });
+
+      if (roleError) throw roleError;
+
+      // Refresh user data
+      await fetchUserData(user.id);
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error creating hospital and profile:', error);
+      return { error: error as Error };
+    }
+  }, [user, fetchUserData]);
+
+  const primaryRole = roles.length > 0 ? roles[0] : null;
 
   return (
-    <AuthContext.Provider value={{ ...state, login, signup, logout, setHospitalRoles }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        hospital,
+        roles,
+        primaryRole,
+        isAuthenticated: !!session,
+        isLoading,
+        login,
+        signup,
+        logout,
+        createHospitalAndProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

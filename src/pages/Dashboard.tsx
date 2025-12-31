@@ -10,13 +10,13 @@ import {
   Calendar,
   Stethoscope,
   Clock,
-  TrendingUp,
-  AlertTriangle,
   CheckCircle2,
+  AlertTriangle,
   Pill,
 } from 'lucide-react';
+import { UserRole } from '@/types/auth';
 
-const roleLabels = {
+const roleLabels: Record<UserRole, string> = {
   admin: 'Administrator',
   doctor: 'Doctor',
   nurse: 'Nurse',
@@ -27,7 +27,7 @@ const roleLabels = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { profile, primaryRole } = useAuth();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -43,15 +43,17 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, {user?.firstName}!
+              {getGreeting()}, {profile?.first_name || 'User'}!
             </h1>
             <p className="text-muted-foreground mt-1">
-              Welcome to your {roleLabels[user?.role || 'admin']} dashboard. Here's what's happening today.
+              Welcome to your {primaryRole ? roleLabels[primaryRole] : 'User'} dashboard. Here's what's happening today.
             </p>
           </div>
-          <Badge variant={user?.role as any} className="w-fit text-sm py-1.5 px-4">
-            {roleLabels[user?.role || 'admin']}
-          </Badge>
+          {primaryRole && (
+            <Badge variant={primaryRole as any} className="w-fit text-sm py-1.5 px-4">
+              {roleLabels[primaryRole]}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -59,32 +61,30 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Total Patients"
-          value="1,234"
-          subtitle="28 new this week"
+          value="--"
+          subtitle="Loading..."
           icon={Users}
-          trend={{ value: 12, isPositive: true }}
           variant="primary"
         />
         <StatsCard
           title="Today's Appointments"
-          value="42"
-          subtitle="8 remaining"
+          value="--"
+          subtitle="Loading..."
           icon={Calendar}
           variant="info"
         />
         <StatsCard
           title="Active Consultations"
-          value="7"
-          subtitle="2 in queue"
+          value="--"
+          subtitle="Loading..."
           icon={Stethoscope}
           variant="success"
         />
         <StatsCard
           title="Avg. Wait Time"
-          value="18 min"
-          subtitle="Target: 15 min"
+          value="--"
+          subtitle="Calculating..."
           icon={Clock}
-          trend={{ value: -5, isPositive: true }}
           variant="warning"
         />
       </div>
@@ -94,28 +94,28 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 border border-success/20">
           <CheckCircle2 className="w-8 h-8 text-success" />
           <div>
-            <p className="text-2xl font-bold">156</p>
+            <p className="text-2xl font-bold">--</p>
             <p className="text-sm text-muted-foreground">Completed Today</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20">
           <Clock className="w-8 h-8 text-warning" />
           <div>
-            <p className="text-2xl font-bold">23</p>
+            <p className="text-2xl font-bold">--</p>
             <p className="text-sm text-muted-foreground">Pending Review</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-xl bg-critical/10 border border-critical/20">
           <AlertTriangle className="w-8 h-8 text-critical" />
           <div>
-            <p className="text-2xl font-bold">3</p>
+            <p className="text-2xl font-bold">0</p>
             <p className="text-sm text-muted-foreground">Critical Alerts</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-xl bg-pharmacy/10 border border-pharmacy/20">
           <Pill className="w-8 h-8 text-pharmacy" />
           <div>
-            <p className="text-2xl font-bold">89</p>
+            <p className="text-2xl font-bold">--</p>
             <p className="text-sm text-muted-foreground">Prescriptions</p>
           </div>
         </div>
