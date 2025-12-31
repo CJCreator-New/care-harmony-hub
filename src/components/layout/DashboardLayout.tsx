@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
   { label: 'Pharmacy', href: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'] },
   { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'] },
   { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'] },
+  { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'] },
   { label: 'Notifications', href: '/notifications', icon: Bell, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'], badge: '3' },
   { label: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin'] },
   { label: 'Telemedicine', href: '/telemedicine', icon: Video, roles: ['admin', 'doctor', 'patient'] },

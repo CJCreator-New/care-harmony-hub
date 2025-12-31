@@ -4,12 +4,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 
 // Pages
 import LandingPage from "./pages/hospital/LandingPage";
 import LoginPage from "./pages/hospital/LoginPage";
 import SignupPage from "./pages/hospital/SignupPage";
+import ForgotPasswordPage from "./pages/hospital/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/hospital/ResetPasswordPage";
+import JoinPage from "./pages/hospital/JoinPage";
 import Dashboard from "./pages/Dashboard";
+import PatientsPage from "./pages/patients/PatientsPage";
+import StaffManagementPage from "./pages/settings/StaffManagementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -75,6 +81,26 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route
+        path="/hospital/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPasswordPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/hospital/reset-password"
+        element={<ResetPasswordPage />}
+      />
+      <Route
+        path="/hospital/join/:token"
+        element={
+          <PublicRoute>
+            <JoinPage />
+          </PublicRoute>
+        }
+      />
       
       {/* Protected Routes */}
 
@@ -92,9 +118,9 @@ function AppRoutes() {
       <Route
         path="/patients"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+            <PatientsPage />
+          </RoleProtectedRoute>
         }
       />
       <Route
@@ -164,9 +190,17 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <StaffManagementPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/staff"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <StaffManagementPage />
+          </RoleProtectedRoute>
         }
       />
 
