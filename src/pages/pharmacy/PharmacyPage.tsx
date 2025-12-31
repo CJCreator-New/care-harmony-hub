@@ -24,7 +24,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { usePrescriptions, usePrescriptionStats, useDispensePrescription, usePrescriptionsRealtime, Prescription } from '@/hooks/usePrescriptions';
-import { useInventoryStats } from '@/hooks/useMedications';
+import { useMedicationStats } from '@/hooks/useMedications';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PharmacyPage() {
@@ -33,7 +33,7 @@ export default function PharmacyPage() {
 
   const { data: prescriptions = [], isLoading } = usePrescriptions(activeTab === 'all' ? undefined : activeTab);
   const { data: stats } = usePrescriptionStats();
-  const { data: inventoryStats } = useInventoryStats();
+  const { data: inventoryStats } = useMedicationStats();
   const dispenseMutation = useDispensePrescription();
 
   // Enable realtime updates

@@ -14,12 +14,12 @@ import {
   Search,
 } from 'lucide-react';
 import { usePrescriptionStats, usePrescriptionsRealtime } from '@/hooks/usePrescriptions';
-import { useInventoryStats } from '@/hooks/useMedications';
+import { useMedicationStats } from '@/hooks/useMedications';
 
 export function PharmacistDashboard() {
   const { profile } = useAuth();
   const { data: stats } = usePrescriptionStats();
-  const { data: inventoryStats } = useInventoryStats();
+  const { data: inventoryStats } = useMedicationStats();
 
   // Enable realtime updates
   usePrescriptionsRealtime();
