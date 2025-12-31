@@ -20,6 +20,8 @@ import ConsultationsPage from "./pages/consultations/ConsultationsPage";
 import ConsultationWorkflowPage from "./pages/consultations/ConsultationWorkflowPage";
 import AppointmentsPage from "./pages/appointments/AppointmentsPage";
 import LaboratoryPage from "./pages/laboratory/LaboratoryPage";
+import PharmacyPage from "./pages/pharmacy/PharmacyPage";
+import QueueManagementPage from "./pages/queue/QueueManagementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -154,9 +156,17 @@ function AppRoutes() {
       <Route
         path="/pharmacy"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+            <PharmacyPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/queue"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+            <QueueManagementPage />
+          </RoleProtectedRoute>
         }
       />
       <Route

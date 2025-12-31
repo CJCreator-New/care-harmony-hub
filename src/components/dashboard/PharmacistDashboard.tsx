@@ -13,9 +13,16 @@ import {
   FileText,
   Search,
 } from 'lucide-react';
+import { usePrescriptionStats, usePrescriptionsRealtime } from '@/hooks/usePrescriptions';
+import { useInventoryStats } from '@/hooks/useMedications';
 
 export function PharmacistDashboard() {
   const { profile } = useAuth();
+  const { data: stats } = usePrescriptionStats();
+  const { data: inventoryStats } = useInventoryStats();
+
+  // Enable realtime updates
+  usePrescriptionsRealtime();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -65,30 +72,30 @@ export function PharmacistDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Rx"
-          value="--"
+          value={stats?.pending ?? '--'}
           subtitle="To dispense"
           icon={FileText}
           variant="warning"
         />
         <StatsCard
           title="Dispensed Today"
-          value="--"
+          value={stats?.dispensed ?? '--'}
           subtitle="Completed"
           icon={CheckCircle2}
           variant="success"
         />
         <StatsCard
           title="Low Stock Items"
-          value="--"
+          value={inventoryStats?.lowStock ?? '--'}
           subtitle="Need reorder"
           icon={AlertTriangle}
           variant="danger"
         />
         <StatsCard
-          title="Avg. Dispense Time"
-          value="--"
-          subtitle="Minutes"
-          icon={Clock}
+          title="Total Inventory"
+          value={inventoryStats?.total ?? '--'}
+          subtitle="Active items"
+          icon={Package}
           variant="info"
         />
       </div>

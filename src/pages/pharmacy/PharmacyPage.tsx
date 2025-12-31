@@ -1,0 +1,221 @@
+import { useState } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { StatsCard } from '@/components/dashboard/StatsCard';
+import {
+  Pill,
+  Package,
+  CheckCircle2,
+  Clock,
+  Search,
+  AlertTriangle,
+  FileText,
+} from 'lucide-react';
+import { usePrescriptions, usePrescriptionStats, useDispensePrescription, usePrescriptionsRealtime, Prescription } from '@/hooks/usePrescriptions';
+import { useInventoryStats } from '@/hooks/useMedications';
+import { formatDistanceToNow } from 'date-fns';
+
+export default function PharmacyPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('pending');
+
+  const { data: prescriptions = [], isLoading } = usePrescriptions(activeTab === 'all' ? undefined : activeTab);
+  const { data: stats } = usePrescriptionStats();
+  const { data: inventoryStats } = useInventoryStats();
+  const dispenseMutation = useDispensePrescription();
+
+  // Enable realtime updates
+  usePrescriptionsRealtime();
+
+  const filteredPrescriptions = prescriptions.filter((rx) => {
+    const patientName = `${rx.patient?.first_name} ${rx.patient?.last_name}`.toLowerCase();
+    const mrn = rx.patient?.mrn?.toLowerCase() || '';
+    return patientName.includes(searchTerm.toLowerCase()) || mrn.includes(searchTerm.toLowerCase());
+  });
+
+  const handleDispense = async (prescriptionId: string) => {
+    await dispenseMutation.mutateAsync(prescriptionId);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="warning">Pending</Badge>;
+      case 'dispensed':
+        return <Badge variant="success">Dispensed</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Pharmacy</h1>
+          <p className="text-muted-foreground">Manage prescriptions and medications</p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard
+            title="Pending Rx"
+            value={stats?.pending || 0}
+            subtitle="To dispense"
+            icon={FileText}
+            variant="warning"
+          />
+          <StatsCard
+            title="Dispensed Today"
+            value={stats?.dispensed || 0}
+            subtitle="Completed"
+            icon={CheckCircle2}
+            variant="success"
+          />
+          <StatsCard
+            title="Low Stock Items"
+            value={inventoryStats?.lowStock || 0}
+            subtitle="Need reorder"
+            icon={AlertTriangle}
+            variant="danger"
+          />
+          <StatsCard
+            title="Total Inventory"
+            value={inventoryStats?.total || 0}
+            subtitle="Active items"
+            icon={Package}
+            variant="info"
+          />
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by patient name or MRN..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="pending" className="gap-2">
+              <Clock className="h-4 w-4" />
+              Pending
+            </TabsTrigger>
+            <TabsTrigger value="dispensed" className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Dispensed
+            </TabsTrigger>
+            <TabsTrigger value="all" className="gap-2">
+              <Pill className="h-4 w-4" />
+              All
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Pill className="h-5 w-5" />
+                  Prescriptions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : filteredPrescriptions.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-1">No prescriptions found</p>
+                    <p className="text-sm">Prescriptions will appear here when created</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Patient</TableHead>
+                        <TableHead>Medications</TableHead>
+                        <TableHead>Prescribed By</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPrescriptions.map((rx: Prescription) => (
+                        <TableRow key={rx.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {rx.patient?.first_name} {rx.patient?.last_name}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{rx.patient?.mrn}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {rx.items?.slice(0, 2).map((item) => (
+                                <p key={item.id} className="text-sm">
+                                  {item.medication_name} - {item.dosage}
+                                </p>
+                              ))}
+                              {(rx.items?.length || 0) > 2 && (
+                                <p className="text-sm text-muted-foreground">
+                                  +{(rx.items?.length || 0) - 2} more
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            Dr. {rx.prescriber?.first_name} {rx.prescriber?.last_name}
+                          </TableCell>
+                          <TableCell>
+                            {formatDistanceToNow(new Date(rx.created_at), { addSuffix: true })}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(rx.status)}</TableCell>
+                          <TableCell className="text-right">
+                            {rx.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleDispense(rx.id)}
+                                disabled={dispenseMutation.isPending}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                Dispense
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </DashboardLayout>
+  );
+}
