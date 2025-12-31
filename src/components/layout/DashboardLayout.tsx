@@ -82,16 +82,16 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { profile, hospital, primaryRole, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const filteredNavItems = navItems.filter(
-    item => user && item.roles.includes(user.role)
+    item => primaryRole && item.roles.includes(primaryRole)
   );
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/hospital');
   };
 
@@ -169,17 +169,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="p-4 border-t border-sidebar-border">
             <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent">
               <Avatar className="h-10 w-10 border-2 border-sidebar-primary">
-                <AvatarImage src={user?.avatar} />
+                <AvatarImage src={profile?.avatar_url || undefined} />
                 <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
-                  {user ? getInitials(user.firstName, user.lastName) : 'U'}
+                  {profile ? getInitials(profile.first_name, profile.last_name) : 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-sidebar-accent-foreground truncate">
-                  {user?.firstName} {user?.lastName}
+                  {profile?.first_name} {profile?.last_name}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 truncate">
-                  {user?.hospitalName}
+                  {hospital?.name}
                 </p>
               </div>
             </div>
@@ -226,14 +226,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatar} />
+                      <AvatarImage src={profile?.avatar_url || undefined} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                        {user ? getInitials(user.firstName, user.lastName) : 'U'}
+                        {profile ? getInitials(profile.first_name, profile.last_name) : 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="hidden md:block text-left">
                       <p className="text-sm font-medium">
-                        {user?.firstName} {user?.lastName}
+                        {profile?.first_name} {profile?.last_name}
                       </p>
                     </div>
                     <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -242,11 +242,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
-                      <p className="text-xs text-muted-foreground">{user?.email}</p>
-                      <Badge variant={user ? roleColors[user.role] as any : 'default'} className="w-fit mt-1">
-                        {user ? roleLabels[user.role] : 'User'}
-                      </Badge>
+                      <p className="text-sm font-medium">{profile?.first_name} {profile?.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                      {primaryRole && (
+                        <Badge variant={roleColors[primaryRole] as any} className="w-fit mt-1">
+                          {roleLabels[primaryRole]}
+                        </Badge>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

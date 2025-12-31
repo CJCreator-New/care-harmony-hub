@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LandingPage from "./pages/hospital/LandingPage";
 import LoginPage from "./pages/hospital/LoginPage";
 import SignupPage from "./pages/hospital/SignupPage";
-import ProfileSetupPage from "./pages/hospital/ProfileSetupPage";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
@@ -77,15 +76,7 @@ function AppRoutes() {
         }
       />
       
-      {/* Profile Setup (requires auth but not full setup) */}
-      <Route
-        path="/hospital/profile-setup"
-        element={
-          <ProtectedRoute>
-            <ProfileSetupPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Protected Routes */}
 
       {/* Protected Routes */}
       <Route
