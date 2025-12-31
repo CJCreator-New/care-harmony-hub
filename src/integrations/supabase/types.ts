@@ -298,6 +298,97 @@ export type Database = {
         }
         Relationships: []
       }
+      lab_orders: {
+        Row: {
+          collected_at: string | null
+          collected_by: string | null
+          completed_at: string | null
+          consultation_id: string | null
+          created_at: string
+          hospital_id: string
+          id: string
+          normal_range: string | null
+          ordered_at: string
+          ordered_by: string
+          patient_id: string
+          priority: Database["public"]["Enums"]["priority_level"] | null
+          processed_by: string | null
+          result_notes: string | null
+          results: Json | null
+          sample_type: string | null
+          status: string
+          test_category: string | null
+          test_name: string
+          updated_at: string
+        }
+        Insert: {
+          collected_at?: string | null
+          collected_by?: string | null
+          completed_at?: string | null
+          consultation_id?: string | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          normal_range?: string | null
+          ordered_at?: string
+          ordered_by: string
+          patient_id: string
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          processed_by?: string | null
+          result_notes?: string | null
+          results?: Json | null
+          sample_type?: string | null
+          status?: string
+          test_category?: string | null
+          test_name: string
+          updated_at?: string
+        }
+        Update: {
+          collected_at?: string | null
+          collected_by?: string | null
+          completed_at?: string | null
+          consultation_id?: string | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          normal_range?: string | null
+          ordered_at?: string
+          ordered_by?: string
+          patient_id?: string
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          processed_by?: string | null
+          result_notes?: string | null
+          results?: Json | null
+          sample_type?: string | null
+          status?: string
+          test_category?: string | null
+          test_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_orders_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_orders_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_queue: {
         Row: {
           appointment_id: string | null
