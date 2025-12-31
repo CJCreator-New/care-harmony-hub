@@ -25,6 +25,10 @@ import QueueManagementPage from "./pages/queue/QueueManagementPage";
 import BillingPage from "./pages/billing/BillingPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
 import ReportsPage from "./pages/reports/ReportsPage";
+import PatientAppointmentsPage from "./pages/patient/PatientAppointmentsPage";
+import PatientPrescriptionsPage from "./pages/patient/PatientPrescriptionsPage";
+import PatientLabResultsPage from "./pages/patient/PatientLabResultsPage";
+import PatientMedicalHistoryPage from "./pages/patient/PatientMedicalHistoryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -201,6 +205,39 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin']}>
             <ReportsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      {/* Patient Portal Routes */}
+      <Route
+        path="/patient/appointments"
+        element={
+          <RoleProtectedRoute allowedRoles={['patient']}>
+            <PatientAppointmentsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/prescriptions"
+        element={
+          <RoleProtectedRoute allowedRoles={['patient']}>
+            <PatientPrescriptionsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/lab-results"
+        element={
+          <RoleProtectedRoute allowedRoles={['patient']}>
+            <PatientLabResultsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/medical-history"
+        element={
+          <RoleProtectedRoute allowedRoles={['patient']}>
+            <PatientMedicalHistoryPage />
           </RoleProtectedRoute>
         }
       />

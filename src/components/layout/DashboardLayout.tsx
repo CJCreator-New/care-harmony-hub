@@ -48,7 +48,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'] },
   { label: 'Patients', href: '/patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
-  { label: 'Appointments', href: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'patient'] },
+  { label: 'Appointments', href: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
   { label: 'Queue', href: '/queue', icon: ClipboardList, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
   { label: 'Consultations', href: '/consultations', icon: Stethoscope, roles: ['admin', 'doctor', 'nurse'] },
   { label: 'Pharmacy', href: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'] },
@@ -58,6 +58,11 @@ const navItems: NavItem[] = [
   { label: 'Reports', href: '/reports', icon: FileText, roles: ['admin'] },
   { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'] },
   { label: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
+  // Patient Portal Links
+  { label: 'My Appointments', href: '/patient/appointments', icon: Calendar, roles: ['patient'] },
+  { label: 'My Prescriptions', href: '/patient/prescriptions', icon: Pill, roles: ['patient'] },
+  { label: 'Lab Results', href: '/patient/lab-results', icon: TestTube2, roles: ['patient'] },
+  { label: 'Medical History', href: '/patient/medical-history', icon: FileText, roles: ['patient'] },
 ];
 
 const roleColors: Record<UserRole, string> = {
