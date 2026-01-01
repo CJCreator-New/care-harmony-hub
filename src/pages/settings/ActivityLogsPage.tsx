@@ -99,11 +99,11 @@ const actionColors: Record<string, string> = {
 };
 
 export default function ActivityLogsPage() {
-  const [actionFilter, setActionFilter] = useState<string>('');
+  const [actionFilter, setActionFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: logs, isLoading } = useActivityLogs({
-    actionType: actionFilter || undefined,
+    actionType: actionFilter === 'all' ? undefined : actionFilter,
     limit: 200,
   });
 
@@ -178,7 +178,7 @@ export default function ActivityLogsPage() {
                   <SelectValue placeholder="Filter by action" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Actions</SelectItem>
+                  <SelectItem value="all">All Actions</SelectItem>
                   <SelectItem value="login">Logins</SelectItem>
                   <SelectItem value="patient_view">Patient Views</SelectItem>
                   <SelectItem value="patient_create">Patient Created</SelectItem>
