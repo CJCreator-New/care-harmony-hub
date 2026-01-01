@@ -24,6 +24,9 @@ export type Database = {
           hospital_id: string | null
           id: string
           ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          severity: string | null
           user_agent: string | null
           user_id: string
         }
@@ -36,6 +39,9 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          severity?: string | null
           user_agent?: string | null
           user_id: string
         }
@@ -48,6 +54,9 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          severity?: string | null
           user_agent?: string | null
           user_id?: string
         }
@@ -71,12 +80,14 @@ export type Database = {
       appointments: {
         Row: {
           appointment_type: string
+          cancellation_reason: string | null
           check_in_time: string | null
           created_at: string
           created_by: string | null
           doctor_id: string | null
           duration_minutes: number | null
           end_time: string | null
+          follow_up_required: boolean | null
           hospital_id: string
           id: string
           notes: string | null
@@ -84,20 +95,26 @@ export type Database = {
           priority: Database["public"]["Enums"]["priority_level"] | null
           queue_number: number | null
           reason_for_visit: string | null
+          reminder_sent: boolean | null
+          reminder_sent_at: string | null
+          room_number: string | null
           scheduled_date: string
           scheduled_time: string
           start_time: string | null
           status: Database["public"]["Enums"]["appointment_status"] | null
           updated_at: string
+          waitlist_position: number | null
         }
         Insert: {
           appointment_type: string
+          cancellation_reason?: string | null
           check_in_time?: string | null
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
           duration_minutes?: number | null
           end_time?: string | null
+          follow_up_required?: boolean | null
           hospital_id: string
           id?: string
           notes?: string | null
@@ -105,20 +122,26 @@ export type Database = {
           priority?: Database["public"]["Enums"]["priority_level"] | null
           queue_number?: number | null
           reason_for_visit?: string | null
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          room_number?: string | null
           scheduled_date: string
           scheduled_time: string
           start_time?: string | null
           status?: Database["public"]["Enums"]["appointment_status"] | null
           updated_at?: string
+          waitlist_position?: number | null
         }
         Update: {
           appointment_type?: string
+          cancellation_reason?: string | null
           check_in_time?: string | null
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
           duration_minutes?: number | null
           end_time?: string | null
+          follow_up_required?: boolean | null
           hospital_id?: string
           id?: string
           notes?: string | null
@@ -126,11 +149,15 @@ export type Database = {
           priority?: Database["public"]["Enums"]["priority_level"] | null
           queue_number?: number | null
           reason_for_visit?: string | null
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          room_number?: string | null
           scheduled_date?: string
           scheduled_time?: string
           start_time?: string | null
           status?: Database["public"]["Enums"]["appointment_status"] | null
           updated_at?: string
+          waitlist_position?: number | null
         }
         Relationships: [
           {
@@ -496,8 +523,11 @@ export type Database = {
           completed_at: string | null
           consultation_id: string | null
           created_at: string
+          critical_notified: boolean | null
+          critical_notified_at: string | null
           hospital_id: string
           id: string
+          is_critical: boolean | null
           normal_range: string | null
           ordered_at: string
           ordered_by: string
@@ -507,8 +537,10 @@ export type Database = {
           result_notes: string | null
           results: Json | null
           sample_type: string | null
+          specimen_type: string | null
           status: string
           test_category: string | null
+          test_code: string | null
           test_name: string
           updated_at: string
         }
@@ -518,8 +550,11 @@ export type Database = {
           completed_at?: string | null
           consultation_id?: string | null
           created_at?: string
+          critical_notified?: boolean | null
+          critical_notified_at?: string | null
           hospital_id: string
           id?: string
+          is_critical?: boolean | null
           normal_range?: string | null
           ordered_at?: string
           ordered_by: string
@@ -529,8 +564,10 @@ export type Database = {
           result_notes?: string | null
           results?: Json | null
           sample_type?: string | null
+          specimen_type?: string | null
           status?: string
           test_category?: string | null
+          test_code?: string | null
           test_name: string
           updated_at?: string
         }
@@ -540,8 +577,11 @@ export type Database = {
           completed_at?: string | null
           consultation_id?: string | null
           created_at?: string
+          critical_notified?: boolean | null
+          critical_notified_at?: string | null
           hospital_id?: string
           id?: string
+          is_critical?: boolean | null
           normal_range?: string | null
           ordered_at?: string
           ordered_by?: string
@@ -551,8 +591,10 @@ export type Database = {
           result_notes?: string | null
           results?: Json | null
           sample_type?: string | null
+          specimen_type?: string | null
           status?: string
           test_category?: string | null
+          test_code?: string | null
           test_name?: string
           updated_at?: string
         }
@@ -576,6 +618,108 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_records: {
+        Row: {
+          consultation_id: string | null
+          created_at: string
+          data: Json | null
+          description: string | null
+          hospital_id: string
+          id: string
+          is_confidential: boolean | null
+          onset_date: string | null
+          patient_id: string
+          record_type: string
+          recorded_by: string | null
+          resolution_date: string | null
+          severity: string | null
+          source: string | null
+          status: string | null
+          title: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          consultation_id?: string | null
+          created_at?: string
+          data?: Json | null
+          description?: string | null
+          hospital_id: string
+          id?: string
+          is_confidential?: boolean | null
+          onset_date?: string | null
+          patient_id: string
+          record_type: string
+          recorded_by?: string | null
+          resolution_date?: string | null
+          severity?: string | null
+          source?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          consultation_id?: string | null
+          created_at?: string
+          data?: Json | null
+          description?: string | null
+          hospital_id?: string
+          id?: string
+          is_confidential?: boolean | null
+          onset_date?: string | null
+          patient_id?: string
+          record_type?: string
+          recorded_by?: string | null
+          resolution_date?: string | null
+          severity?: string | null
+          source?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_records_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_records_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_records_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_records_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_records_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -645,6 +789,82 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          category: string | null
+          created_at: string
+          expires_at: string | null
+          hospital_id: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          priority: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          action_url?: string | null
+          category?: string | null
+          created_at?: string
+          expires_at?: string | null
+          hospital_id: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          priority?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          action_url?: string | null
+          category?: string | null
+          created_at?: string
+          expires_at?: string | null
+          hospital_id?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          priority?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "notifications_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1026,43 +1246,61 @@ export type Database = {
       }
       prescriptions: {
         Row: {
+          allergy_alerts: Json | null
           consultation_id: string | null
           created_at: string
           dispensed_at: string | null
           dispensed_by: string | null
+          drug_interactions: Json | null
           hospital_id: string
           id: string
           notes: string | null
           patient_id: string
           prescribed_by: string
+          priority: string | null
           status: string
           updated_at: string
+          verification_required: boolean | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
+          allergy_alerts?: Json | null
           consultation_id?: string | null
           created_at?: string
           dispensed_at?: string | null
           dispensed_by?: string | null
+          drug_interactions?: Json | null
           hospital_id: string
           id?: string
           notes?: string | null
           patient_id: string
           prescribed_by: string
+          priority?: string | null
           status?: string
           updated_at?: string
+          verification_required?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
+          allergy_alerts?: Json | null
           consultation_id?: string | null
           created_at?: string
           dispensed_at?: string | null
           dispensed_by?: string | null
+          drug_interactions?: Json | null
           hospital_id?: string
           id?: string
           notes?: string | null
           patient_id?: string
           prescribed_by?: string
+          priority?: string | null
           status?: string
           updated_at?: string
+          verification_required?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -1096,6 +1334,13 @@ export type Database = {
           {
             foreignKeyName: "prescriptions_prescribed_by_fkey"
             columns: ["prescribed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescriptions_verified_by_fkey"
+            columns: ["verified_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1199,6 +1444,50 @@ export type Database = {
             columns: ["invited_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_config: {
+        Row: {
+          category: string | null
+          config_key: string
+          config_value: Json
+          created_at: string
+          description: string | null
+          hospital_id: string
+          id: string
+          is_sensitive: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          config_key: string
+          config_value?: Json
+          created_at?: string
+          description?: string | null
+          hospital_id: string
+          id?: string
+          is_sensitive?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          config_key?: string
+          config_value?: Json
+          created_at?: string
+          description?: string | null
+          hospital_id?: string
+          id?: string
+          is_sensitive?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_config_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -97,10 +99,16 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { profile, hospital, primaryRole, logout } = useAuth();
+  const { profile, hospital, primaryRole, logout, isAuthenticated } = useAuth();
   const { logActivity } = useActivityLog();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // HIPAA-compliant session timeout - 30 min inactivity auto-logout
+  useSessionTimeout({
+    enabled: isAuthenticated,
+    onTimeout: () => navigate('/hospital/login'),
+  });
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -249,10 +257,7 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
             <div className="flex items-center gap-3">
               {/* Notifications */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-              </Button>
+              <NotificationCenter />
 
               {/* User menu */}
               <DropdownMenu>
