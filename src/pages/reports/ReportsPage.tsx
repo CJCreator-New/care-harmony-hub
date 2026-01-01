@@ -1,24 +1,27 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  BarChart3,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Stethoscope,
   Pill,
   DollarSign,
   Users,
-  FileText,
   Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { useReportStats, useDailyBreakdown } from '@/hooks/useReports';
+import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
+import { exportToCSV, exportToPDF } from '@/utils/reportExport';
 import {
   BarChart,
   Bar,
@@ -36,6 +39,25 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<'7' | '14' | '30'>('7');
   const { data: stats, isLoading: statsLoading } = useReportStats();
   const { data: dailyData, isLoading: dailyLoading } = useDailyBreakdown(parseInt(period));
+  const { hospital } = useAuth();
+
+  const handleExportCSV = () => {
+    exportToCSV({
+      stats,
+      dailyData,
+      period,
+      hospitalName: hospital?.name || 'Hospital',
+    });
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF({
+      stats,
+      dailyData,
+      period,
+      hospitalName: hospital?.name || 'Hospital',
+    });
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -61,10 +83,24 @@ export default function ReportsPage() {
             <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
             <p className="text-muted-foreground">View daily and weekly summaries</p>
           </div>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export Report
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Export Report
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                <FileText className="h-4 w-4" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Summary Cards */}
