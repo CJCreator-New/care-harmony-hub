@@ -53,19 +53,50 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
     try {
       let hospitalId = profile?.hospital_id;
 
-      // Step 1: Create hospital if missing
+      // Older accounts may not have a profile row yet
+      if (!profile) {
+        const meta = (user.user_metadata || {}) as Record<string, unknown>;
+        const firstName = typeof meta.first_name === 'string' && meta.first_name.trim()
+          ? meta.first_name.trim()
+          : 'User';
+        const lastName = typeof meta.last_name === 'string' && meta.last_name.trim()
+          ? meta.last_name.trim()
+          : 'Account';
+        const email = user.email;
+
+        if (!email) {
+          throw new Error('Account email is missing; cannot create profile.');
+        }
+
+        const { error: profileCreateError } = await supabase.from('profiles').insert({
+          user_id: user.id,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+        });
+
+        if (profileCreateError && profileCreateError.code !== '23505') {
+          console.error('Profile creation error:', profileCreateError);
+          throw new Error(`Failed to create profile: ${profileCreateError.message}`);
+        }
+      }
+
       if (!hospitalId) {
-        const { data: newHospital, error: hospitalError } = await supabase
+        const newHospitalId = crypto.randomUUID();
+
+        const { error: hospitalError } = await supabase
           .from('hospitals')
-          .insert({ name: hospitalName.trim() || 'My Hospital' })
-          .select()
-          .single();
+          .insert({
+            id: newHospitalId,
+            name: hospitalName.trim() || 'My Hospital',
+          });
 
         if (hospitalError) {
           console.error('Hospital creation error:', hospitalError);
           throw new Error(`Failed to create hospital: ${hospitalError.message}`);
         }
-        hospitalId = newHospital.id;
+
+        hospitalId = newHospitalId;
 
         // Update profile with hospital_id
         const { error: profileError } = await supabase
