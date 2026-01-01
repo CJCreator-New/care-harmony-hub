@@ -77,6 +77,102 @@ export type Database = {
           },
         ]
       }
+      appointment_requests: {
+        Row: {
+          alternate_date: string | null
+          alternate_time: string | null
+          appointment_type: string
+          created_appointment_id: string | null
+          created_at: string
+          doctor_id: string | null
+          hospital_id: string
+          id: string
+          notes: string | null
+          patient_id: string
+          preferred_date: string
+          preferred_time: string | null
+          reason_for_visit: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alternate_date?: string | null
+          alternate_time?: string | null
+          appointment_type: string
+          created_appointment_id?: string | null
+          created_at?: string
+          doctor_id?: string | null
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          patient_id: string
+          preferred_date: string
+          preferred_time?: string | null
+          reason_for_visit?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alternate_date?: string | null
+          alternate_time?: string | null
+          appointment_type?: string
+          created_appointment_id?: string | null
+          created_at?: string
+          doctor_id?: string | null
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          preferred_date?: string
+          preferred_time?: string | null
+          reason_for_visit?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_requests_created_appointment_id_fkey"
+            columns: ["created_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_requests_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_requests_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_requests_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_type: string
@@ -788,6 +884,73 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          hospital_id: string
+          id: string
+          is_read: boolean
+          parent_message_id: string | null
+          patient_id: string | null
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          hospital_id: string
+          id?: string
+          is_read?: boolean
+          parent_message_id?: string | null
+          patient_id?: string | null
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          is_read?: boolean
+          parent_message_id?: string | null
+          patient_id?: string | null
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
         ]
