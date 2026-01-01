@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
+  const { logActivity } = useActivityLog();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -33,6 +35,9 @@ export default function LoginPage() {
           variant: 'destructive',
         });
       } else {
+        // Log successful login
+        logActivity({ actionType: 'login', details: { email } });
+
         toast({
           title: 'Welcome back!',
           description: 'You have successfully logged in.',

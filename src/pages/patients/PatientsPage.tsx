@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +69,7 @@ const genderLabels: Record<string, string> = {
 export default function PatientsPage() {
   const { profile } = useAuth();
   const { canCreatePatients } = usePermissions();
+  const { logActivity } = useActivityLog();
   const { toast } = useToast();
 
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -312,7 +314,17 @@ export default function PatientsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              logActivity({
+                                actionType: 'patient_view',
+                                entityType: 'patient',
+                                entityId: patient.id,
+                                details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
+                              });
+                              toast({ title: 'Patient view logged', description: `Viewing ${patient.first_name} ${patient.last_name}` });
+                            }}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View Profile
                           </DropdownMenuItem>
