@@ -14,6 +14,7 @@ import ForgotPasswordPage from "./pages/hospital/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/hospital/ResetPasswordPage";
 import JoinPage from "./pages/hospital/JoinPage";
 import ProfileSetupPage from "./pages/hospital/ProfileSetupPage";
+import AccountSetupPage from "./pages/hospital/AccountSetupPage";
 import Dashboard from "./pages/Dashboard";
 import PatientsPage from "./pages/patients/PatientsPage";
 import StaffManagementPage from "./pages/settings/StaffManagementPage";
@@ -37,9 +38,9 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Protected Route Component
+// Protected Route Component - redirects to setup if account incomplete
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, profile, hospital, roles } = useAuth();
 
   if (isLoading) {
     return (
@@ -51,6 +52,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/hospital/login" replace />;
+  }
+
+  // Check if setup is incomplete
+  const needsSetup = !profile || !hospital || roles.length === 0;
+  if (needsSetup) {
+    return <Navigate to="/hospital/account-setup" replace />;
   }
 
   return <>{children}</>;
@@ -126,7 +133,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+      <Route
+        path="/hospital/account-setup"
+        element={<AccountSetupPage />}
+      />
       {/* Protected Routes */}
 
       {/* Protected Routes */}
