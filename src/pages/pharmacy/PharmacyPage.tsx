@@ -23,20 +23,32 @@ import {
   Search,
   AlertTriangle,
   FileText,
+  RefreshCw,
+  XCircle,
 } from 'lucide-react';
 import { usePrescriptions, usePrescriptionStats, useDispensePrescription, usePrescriptionsRealtime, Prescription } from '@/hooks/usePrescriptions';
 import { useMedicationStats } from '@/hooks/useMedications';
-import { formatDistanceToNow } from 'date-fns';
+import { useHospitalRefillRequests, useUpdateRefillRequest } from '@/hooks/useRefillRequests';
+import { formatDistanceToNow, format, parseISO } from 'date-fns';
 
 export default function PharmacyPage() {
   const { logActivity } = useActivityLog();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
+  const [refillTab, setRefillTab] = useState<'pending' | 'processed'>('pending');
 
   const { data: prescriptions = [], isLoading } = usePrescriptions(activeTab === 'all' ? undefined : activeTab);
   const { data: stats } = usePrescriptionStats();
   const { data: inventoryStats } = useMedicationStats();
   const dispenseMutation = useDispensePrescription();
+  
+  // Refill requests
+  const { data: pendingRefills = [] } = useHospitalRefillRequests(refillTab === 'pending' ? 'pending' : undefined);
+  const { data: processedRefills = [] } = useHospitalRefillRequests(refillTab === 'processed' ? undefined : undefined);
+  const updateRefillMutation = useUpdateRefillRequest();
+  const refillsToShow = refillTab === 'pending' 
+    ? pendingRefills.filter(r => r.status === 'pending')
+    : pendingRefills.filter(r => r.status !== 'pending');
 
   // Enable realtime updates
   usePrescriptionsRealtime();
@@ -60,6 +72,10 @@ export default function PharmacyPage() {
     });
   };
 
+  const handleRefillAction = async (requestId: string, action: 'approved' | 'denied' | 'fulfilled') => {
+    await updateRefillMutation.mutateAsync({ requestId, status: action });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -68,6 +84,21 @@ export default function PharmacyPage() {
         return <Badge variant="success">Dispensed</Badge>;
       case 'cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getRefillStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="warning">Pending</Badge>;
+      case 'approved':
+        return <Badge className="bg-info/10 text-info border-info/20">Approved</Badge>;
+      case 'denied':
+        return <Badge variant="destructive">Denied</Badge>;
+      case 'fulfilled':
+        return <Badge variant="success">Fulfilled</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -99,18 +130,18 @@ export default function PharmacyPage() {
             variant="success"
           />
           <StatsCard
+            title="Refill Requests"
+            value={pendingRefills.filter(r => r.status === 'pending').length}
+            subtitle="Pending review"
+            icon={RefreshCw}
+            variant="info"
+          />
+          <StatsCard
             title="Low Stock Items"
             value={inventoryStats?.lowStock || 0}
             subtitle="Need reorder"
             icon={AlertTriangle}
             variant="danger"
-          />
-          <StatsCard
-            title="Total Inventory"
-            value={inventoryStats?.total || 0}
-            subtitle="Active items"
-            icon={Package}
-            variant="info"
           />
         </div>
 
@@ -138,13 +169,127 @@ export default function PharmacyPage() {
               <CheckCircle2 className="h-4 w-4" />
               Dispensed
             </TabsTrigger>
+            <TabsTrigger value="refills" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Refill Requests
+              {pendingRefills.filter(r => r.status === 'pending').length > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {pendingRefills.filter(r => r.status === 'pending').length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="all" className="gap-2">
               <Pill className="h-4 w-4" />
               All
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="mt-6">
+          <TabsContent value="refills" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Refill Requests
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={refillTab} onValueChange={(v) => setRefillTab(v as 'pending' | 'processed')}>
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="pending">Pending</TabsTrigger>
+                    <TabsTrigger value="processed">Processed</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {refillsToShow.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-1">No {refillTab} refill requests</p>
+                    <p className="text-sm">Refill requests from patients will appear here</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Patient</TableHead>
+                        <TableHead>Medications</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Requested</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {refillsToShow.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {request.patient?.first_name} {request.patient?.last_name}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{request.patient?.mrn}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {request.prescription?.items?.slice(0, 2).map((item, idx) => (
+                                <p key={idx} className="text-sm">
+                                  {item.medication_name} - {item.dosage}
+                                </p>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-sm max-w-[200px] truncate">
+                              {request.reason || 'No reason provided'}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            {format(parseISO(request.requested_at), 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell>{getRefillStatusBadge(request.status)}</TableCell>
+                          <TableCell className="text-right">
+                            {request.status === 'pending' && (
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRefillAction(request.id, 'approved')}
+                                  disabled={updateRefillMutation.isPending}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleRefillAction(request.id, 'denied')}
+                                  disabled={updateRefillMutation.isPending}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Deny
+                                </Button>
+                              </div>
+                            )}
+                            {request.status === 'approved' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleRefillAction(request.id, 'fulfilled')}
+                                disabled={updateRefillMutation.isPending}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                Mark Fulfilled
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value={activeTab === 'refills' ? 'never' : activeTab} className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
