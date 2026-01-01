@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
@@ -14,15 +15,30 @@ import {
   Heart,
   Bell,
 } from 'lucide-react';
+import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
+import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
+import { useQueue } from '@/hooks/useQueue';
 
 export function NurseDashboard() {
   const { profile } = useAuth();
+  const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  
+  const { data: vitalsCount } = useTodayVitalsCount();
+  const { data: queueData } = useQueue();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const waitingPatients = queueData?.filter(q => q.status === 'waiting') || [];
+
+  const handleRecordVitals = (patient: any) => {
+    setSelectedPatient(patient);
+    setIsVitalsModalOpen(true);
   };
 
   return (
@@ -50,11 +66,9 @@ export function NurseDashboard() {
           <UserCheck className="h-4 w-4 mr-2" />
           Call Next Patient
         </Button>
-        <Button variant="outline" asChild>
-          <Link to="/patients">
-            <Heart className="h-4 w-4 mr-2" />
-            Record Vitals
-          </Link>
+        <Button onClick={() => setIsVitalsModalOpen(true)}>
+          <Heart className="h-4 w-4 mr-2" />
+          Record Vitals
         </Button>
         <Button variant="outline" asChild>
           <Link to="/consultations">
@@ -68,14 +82,14 @@ export function NurseDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Patients Waiting"
-          value="--"
+          value={waitingPatients.length.toString()}
           subtitle="In queue"
           icon={Users}
           variant="warning"
         />
         <StatsCard
           title="Vitals Recorded"
-          value="--"
+          value={vitalsCount?.toString() || '0'}
           subtitle="Today"
           icon={Heart}
           variant="success"
@@ -136,6 +150,12 @@ export function NurseDashboard() {
           </Card>
         </div>
       </div>
+
+      <RecordVitalsModal
+        open={isVitalsModalOpen}
+        onOpenChange={setIsVitalsModalOpen}
+        patient={selectedPatient}
+      />
     </>
   );
 }

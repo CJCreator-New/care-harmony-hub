@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { usePrescriptionStats, usePrescriptionsRealtime } from '@/hooks/usePrescriptions';
 import { useMedicationStats } from '@/hooks/useMedications';
+import { LowStockAlert } from '@/components/inventory/LowStockAlert';
 
 export function PharmacistDashboard() {
   const { profile } = useAuth();
@@ -58,9 +59,11 @@ export function PharmacistDashboard() {
             Pending Prescriptions
           </Link>
         </Button>
-        <Button variant="outline">
-          <Package className="h-4 w-4 mr-2" />
-          Manage Inventory
+        <Button variant="outline" asChild>
+          <Link to="/inventory">
+            <Package className="h-4 w-4 mr-2" />
+            Manage Inventory
+          </Link>
         </Button>
         <Button variant="outline">
           <Search className="h-4 w-4 mr-2" />
@@ -120,21 +123,7 @@ export function PharmacistDashboard() {
           </Card>
         </div>
         <div className="space-y-6">
-          {/* Inventory Alerts */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-                Inventory Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-6 text-muted-foreground">
-                <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">All items in stock</p>
-              </div>
-            </CardContent>
-          </Card>
+          <LowStockAlert />
 
           {/* Quick Stats */}
           <Card>
@@ -147,15 +136,19 @@ export function PharmacistDashboard() {
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Total Items</span>
-                <span className="font-medium">--</span>
+                <span className="font-medium">{inventoryStats?.total ?? '--'}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Low Stock</span>
-                <span className="font-medium text-warning">--</span>
+                <span className="font-medium text-warning">{inventoryStats?.lowStock ?? '--'}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Out of Stock</span>
-                <span className="font-medium text-destructive">--</span>
+                <span className="font-medium text-destructive">{inventoryStats?.outOfStock ?? '--'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Expiring Soon</span>
+                <span className="font-medium text-orange-500">{inventoryStats?.expiringSoon ?? '--'}</span>
               </div>
             </CardContent>
           </Card>

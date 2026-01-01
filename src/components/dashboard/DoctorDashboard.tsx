@@ -15,10 +15,13 @@ import {
   TestTube2,
   Video,
   Play,
+  MessageSquare,
 } from 'lucide-react';
+import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
 
 export function DoctorDashboard() {
   const { profile } = useAuth();
+  const { data: unreadCount } = useUnreadMessagesCount();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -64,6 +67,15 @@ export function DoctorDashboard() {
           <Link to="/telemedicine">
             <Video className="h-4 w-4 mr-2" />
             Telemedicine
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to="/messages">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Messages
+            {unreadCount && unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-2">{unreadCount}</Badge>
+            )}
           </Link>
         </Button>
       </div>
