@@ -13,6 +13,7 @@ import SignupPage from "./pages/hospital/SignupPage";
 import ForgotPasswordPage from "./pages/hospital/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/hospital/ResetPasswordPage";
 import JoinPage from "./pages/hospital/JoinPage";
+import ProfileSetupPage from "./pages/hospital/ProfileSetupPage";
 import Dashboard from "./pages/Dashboard";
 import PatientsPage from "./pages/patients/PatientsPage";
 import StaffManagementPage from "./pages/settings/StaffManagementPage";
@@ -112,6 +113,14 @@ function AppRoutes() {
           <PublicRoute>
             <JoinPage />
           </PublicRoute>
+        }
+      />
+      <Route
+        path="/hospital/profile-setup"
+        element={
+          <ProtectedRoute>
+            <ProfileSetupPage />
+          </ProtectedRoute>
         }
       />
       
