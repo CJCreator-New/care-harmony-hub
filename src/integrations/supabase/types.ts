@@ -427,6 +427,63 @@ export type Database = {
           },
         ]
       }
+      doctor_availability: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          doctor_id: string
+          end_time: string
+          hospital_id: string
+          id: string
+          is_active: boolean | null
+          is_telemedicine: boolean | null
+          slot_duration_minutes: number | null
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          doctor_id: string
+          end_time: string
+          hospital_id: string
+          id?: string
+          is_active?: boolean | null
+          is_telemedicine?: boolean | null
+          slot_duration_minutes?: number | null
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          doctor_id?: string
+          end_time?: string
+          hospital_id?: string
+          id?: string
+          is_active?: boolean | null
+          is_telemedicine?: boolean | null
+          slot_duration_minutes?: number | null
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_availability_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_availability_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospitals: {
         Row: {
           address: string | null
@@ -1557,6 +1614,137 @@ export type Database = {
           },
         ]
       }
+      purchase_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_name: string
+          medication_id: string | null
+          purchase_order_id: string
+          quantity: number
+          received_quantity: number | null
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_name: string
+          medication_id?: string | null
+          purchase_order_id: string
+          quantity?: number
+          received_quantity?: number | null
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_name?: string
+          medication_id?: string | null
+          purchase_order_id?: string
+          quantity?: number
+          received_quantity?: number | null
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          expected_delivery_date: string | null
+          hospital_id: string
+          id: string
+          notes: string | null
+          order_number: string
+          ordered_at: string
+          ordered_by: string | null
+          received_at: string | null
+          received_by: string | null
+          status: string
+          supplier_id: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expected_delivery_date?: string | null
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          order_number: string
+          ordered_at?: string
+          ordered_by?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          supplier_id: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expected_delivery_date?: string | null
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          order_number?: string
+          ordered_at?: string
+          ordered_by?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: string
+          supplier_id?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_ordered_by_fkey"
+            columns: ["ordered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invitations: {
         Row: {
           accepted_at: string | null
@@ -1611,6 +1799,68 @@ export type Database = {
           },
         ]
       }
+      suppliers: {
+        Row: {
+          address: string | null
+          city: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          hospital_id: string
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          state: string | null
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          hospital_id: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          hospital_id?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_config: {
         Row: {
           category: string | null
@@ -1648,6 +1898,67 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "system_config_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_slots: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          doctor_id: string
+          end_time: string
+          hospital_id: string
+          id: string
+          is_booked: boolean | null
+          is_telemedicine: boolean | null
+          slot_date: string
+          start_time: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          doctor_id: string
+          end_time: string
+          hospital_id: string
+          id?: string
+          is_booked?: boolean | null
+          is_telemedicine?: boolean | null
+          slot_date: string
+          start_time: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          doctor_id?: string
+          end_time?: string
+          hospital_id?: string
+          id?: string
+          is_booked?: boolean | null
+          is_telemedicine?: boolean | null
+          slot_date?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_slots_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_slots_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_slots_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
@@ -1776,6 +2087,7 @@ export type Database = {
         Returns: string
       }
       generate_mrn: { Args: { hospital_id: string }; Returns: string }
+      generate_po_number: { Args: { p_hospital_id: string }; Returns: string }
       get_next_queue_number: {
         Args: { p_hospital_id: string }
         Returns: number
