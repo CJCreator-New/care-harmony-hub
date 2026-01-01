@@ -33,7 +33,11 @@ import {
   Clock,
   CheckCircle2,
   Loader2,
+  Edit,
+  UserX,
 } from 'lucide-react';
+import { EditStaffModal } from '@/components/staff/EditStaffModal';
+import { DeactivateStaffDialog } from '@/components/staff/DeactivateStaffDialog';
 import { UserRole } from '@/types/auth';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -43,6 +47,7 @@ interface StaffMember {
   first_name: string;
   last_name: string;
   email: string;
+  phone: string | null;
   avatar_url: string | null;
   roles: UserRole[];
   created_at: string;
@@ -86,6 +91,9 @@ export default function StaffManagementPage() {
   } = useStaffInvitations();
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'staff' | 'invitations'>('staff');
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -128,6 +136,7 @@ export default function StaffManagementPage() {
         first_name: p.first_name,
         last_name: p.last_name,
         email: p.email,
+        phone: p.phone,
         avatar_url: p.avatar_url,
         roles: (roles || [])
           .filter(r => r.user_id === p.user_id)
@@ -337,8 +346,25 @@ export default function StaffManagementPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Change Role</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedStaff(member);
+                                setEditModalOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedStaff(member);
+                                setDeactivateDialogOpen(true);
+                              }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <UserX className="h-4 w-4 mr-2" />
+                              Deactivate
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -430,6 +456,20 @@ export default function StaffManagementPage() {
         open={inviteModalOpen}
         onOpenChange={setInviteModalOpen}
         onSuccess={() => loadInvitations()}
+      />
+
+      <EditStaffModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        staff={selectedStaff}
+        onSuccess={loadStaffMembers}
+      />
+
+      <DeactivateStaffDialog
+        open={deactivateDialogOpen}
+        onOpenChange={setDeactivateDialogOpen}
+        staff={selectedStaff}
+        onSuccess={loadStaffMembers}
       />
     </DashboardLayout>
   );

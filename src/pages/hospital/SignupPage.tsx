@@ -144,9 +144,9 @@ export default function SignupPage() {
 
       toast({
         title: 'Registration Successful!',
-        description: 'Welcome to AROCORD-HIMS. Redirecting to dashboard...',
+        description: 'Welcome to AROCORD-HIMS. Let\'s configure your hospital...',
       });
-      navigate('/dashboard');
+      navigate('/hospital/profile-setup');
     } catch (error) {
       toast({
         title: 'Registration Failed',
