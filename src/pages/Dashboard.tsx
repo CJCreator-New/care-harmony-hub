@@ -61,7 +61,7 @@ export default function Dashboard() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout testRole={testRole}>
       {renderDashboard()}
       <RoleSwitcher 
         currentRole={activeRole as RoleKey} 
