@@ -59,6 +59,13 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "activity_logs_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       appointments: {
