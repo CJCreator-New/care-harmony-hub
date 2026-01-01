@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog';
 import {
   Home,
   Users,
@@ -91,9 +92,22 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const filteredNavItems = navItems.filter(
     item => primaryRole && item.roles.includes(primaryRole)
@@ -210,17 +224,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </button>
               
               {/* Search */}
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-muted rounded-lg w-80">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-muted rounded-lg w-80 hover:bg-muted/80 transition-colors"
+              >
                 <Search className="w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search patients, appointments..."
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
+                <span className="flex-1 text-left text-sm text-muted-foreground">
+                  Search patients, appointments...
+                </span>
                 <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border bg-background px-1.5 font-mono text-xs text-muted-foreground">
                   ⌘K
                 </kbd>
-              </div>
+              </button>
             </div>
 
             <div className="flex items-center gap-3">
@@ -281,6 +296,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Global Search Dialog */}
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }

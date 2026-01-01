@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Pill, Calendar, User, Clock } from 'lucide-react';
+import { Pill, Calendar, User, RefreshCw } from 'lucide-react';
 import { usePatientPrescriptions } from '@/hooks/usePatientPortal';
+import { usePatientRefillRequests } from '@/hooks/useRefillRequests';
+import { RefillRequestModal } from '@/components/prescriptions/RefillRequestModal';
 import { format, parseISO } from 'date-fns';
 
 const statusColors: Record<string, string> = {
@@ -13,16 +16,64 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
+const refillStatusColors: Record<string, string> = {
+  pending: 'bg-warning/10 text-warning border-warning/20',
+  approved: 'bg-info/10 text-info border-info/20',
+  denied: 'bg-destructive/10 text-destructive border-destructive/20',
+  fulfilled: 'bg-success/10 text-success border-success/20',
+};
+
 export default function PatientPrescriptionsPage() {
   const { data: prescriptions = [], isLoading } = usePatientPrescriptions();
+  const { data: refillRequests = [] } = usePatientRefillRequests();
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+
+  const hasPendingRefill = (prescriptionId: string) => {
+    return refillRequests.some(
+      (r) => r.prescription_id === prescriptionId && r.status === 'pending'
+    );
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Prescriptions</h1>
-          <p className="text-muted-foreground">View your medication prescriptions</p>
+          <p className="text-muted-foreground">View your medication prescriptions and request refills</p>
         </div>
+
+        {/* Pending Refill Requests */}
+        {refillRequests.filter((r) => r.status === 'pending').length > 0 && (
+          <Card className="border-warning/50 bg-warning/5">
+            <CardHeader className="pb-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Pending Refill Requests
+              </h3>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {refillRequests
+                  .filter((r) => r.status === 'pending')
+                  .map((request) => (
+                    <div key={request.id} className="flex items-center justify-between p-3 bg-background rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          {request.prescription?.items?.map((i) => i.medication_name).join(', ')}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Requested {format(parseISO(request.requested_at), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                      <Badge className={refillStatusColors[request.status]}>
+                        {request.status}
+                      </Badge>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="space-y-4">
@@ -58,9 +109,24 @@ export default function PatientPrescriptionsPage() {
                         </div>
                       )}
                     </div>
-                    <Badge className={statusColors[rx.status] || statusColors.pending}>
-                      {rx.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={statusColors[rx.status] || statusColors.pending}>
+                        {rx.status}
+                      </Badge>
+                      {rx.status === 'dispensed' && !hasPendingRefill(rx.id) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedPrescription(rx)}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Request Refill
+                        </Button>
+                      )}
+                      {hasPendingRefill(rx.id) && (
+                        <Badge variant="secondary">Refill Pending</Badge>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -104,6 +170,19 @@ export default function PatientPrescriptionsPage() {
           </div>
         )}
       </div>
+
+      {selectedPrescription && (
+        <RefillRequestModal
+          open={!!selectedPrescription}
+          onOpenChange={(open) => !open && setSelectedPrescription(null)}
+          prescription={{
+            id: selectedPrescription.id,
+            patient_id: selectedPrescription.patient_id,
+            hospital_id: selectedPrescription.hospital_id,
+            items: selectedPrescription.items,
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
