@@ -36,9 +36,18 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null; userId?: string }>;
+  signup: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string
+  ) => Promise<{ error: Error | null; userId?: string }>;
   logout: () => Promise<void>;
-  createHospitalAndProfile: (hospitalData: Partial<Hospital>, role: UserRole) => Promise<{ error: Error | null }>;
+  createHospitalAndProfile: (
+    hospitalData: Partial<Hospital>,
+    role: UserRole,
+    userIdOverride?: string
+  ) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -183,56 +192,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles([]);
   }, []);
 
-  const createHospitalAndProfile = useCallback(async (hospitalData: Partial<Hospital>, role: UserRole) => {
-    if (!user) return { error: new Error('Not authenticated') };
+  const createHospitalAndProfile = useCallback(
+    async (hospitalData: Partial<Hospital>, role: UserRole, userIdOverride?: string) => {
+      const effectiveUserId = userIdOverride ?? user?.id ?? session?.user?.id;
+      if (!effectiveUserId) return { error: new Error('Not authenticated') };
 
-    try {
-      // Create hospital
-      const { data: newHospital, error: hospitalError } = await supabase
-        .from('hospitals')
-        .insert({
-          name: hospitalData.name || 'My Hospital',
-          address: hospitalData.address,
-          city: hospitalData.city,
-          state: hospitalData.state,
-          zip: hospitalData.zip,
-          phone: hospitalData.phone,
-          email: hospitalData.email,
-          license_number: hospitalData.license_number,
-        })
-        .select()
-        .single();
+      try {
+        // Create hospital
+        const { data: newHospital, error: hospitalError } = await supabase
+          .from('hospitals')
+          .insert({
+            name: hospitalData.name || 'My Hospital',
+            address: hospitalData.address,
+            city: hospitalData.city,
+            state: hospitalData.state,
+            zip: hospitalData.zip,
+            phone: hospitalData.phone,
+            email: hospitalData.email,
+            license_number: hospitalData.license_number,
+          })
+          .select()
+          .single();
 
-      if (hospitalError) throw hospitalError;
+        if (hospitalError) throw hospitalError;
 
-      // Update profile with hospital_id
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ hospital_id: newHospital.id })
-        .eq('user_id', user.id);
+        // Update profile with hospital_id
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ hospital_id: newHospital.id })
+          .eq('user_id', effectiveUserId);
 
-      if (profileError) throw profileError;
+        if (profileError) throw profileError;
 
-      // Create user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
+        // Create user role
+        const { error: roleError } = await supabase.from('user_roles').insert({
+          user_id: effectiveUserId,
           role: role,
           hospital_id: newHospital.id,
         });
 
-      if (roleError) throw roleError;
+        if (roleError) throw roleError;
 
-      // Refresh user data
-      await fetchUserData(user.id);
+        // Refresh user data
+        await fetchUserData(effectiveUserId);
 
-      return { error: null };
-    } catch (error) {
-      console.error('Error creating hospital and profile:', error);
-      return { error: error as Error };
-    }
-  }, [user, fetchUserData]);
+        return { error: null };
+      } catch (error) {
+        console.error('Error creating hospital and profile:', error);
+        return { error: error as Error };
+      }
+    },
+    [user, session, fetchUserData]
+  );
 
   const primaryRole = roles.length > 0 ? roles[0] : null;
 

@@ -121,16 +121,20 @@ export default function SignupPage() {
       }
 
       // Then create the hospital and assign role
-      const { error: hospitalError } = await createHospitalAndProfile({
-        name: hospitalName,
-        address,
-        city,
-        state,
-        zip,
-        phone,
-        email: hospitalEmail,
-        license_number: licenseNumber,
-      }, selectedRole);
+      const { error: hospitalError } = await createHospitalAndProfile(
+        {
+          name: hospitalName,
+          address,
+          city,
+          state,
+          zip,
+          phone,
+          email: hospitalEmail,
+          license_number: licenseNumber,
+        },
+        selectedRole,
+        userId
+      );
 
       if (hospitalError) {
         toast({
