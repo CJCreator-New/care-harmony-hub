@@ -91,9 +91,10 @@ const roleLabels: Record<UserRole, string> = {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  testRole?: 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient' | null;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, logout } = useAuth();
@@ -113,8 +114,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Use test role for navigation if provided, otherwise use actual role
+  const activeRole = testRole || primaryRole;
+  
   const filteredNavItems = navItems.filter(
-    item => primaryRole && item.roles.includes(primaryRole)
+    item => activeRole && item.roles.includes(activeRole)
   );
 
   const handleLogout = async () => {
