@@ -155,6 +155,7 @@ export function NurseDashboard() {
         open={isVitalsModalOpen}
         onOpenChange={setIsVitalsModalOpen}
         patient={selectedPatient}
+        showPatientSelector={!selectedPatient}
       />
     </>
   );

@@ -36,6 +36,7 @@ import PatientLabResultsPage from "./pages/patient/PatientLabResultsPage";
 import PatientMedicalHistoryPage from "./pages/patient/PatientMedicalHistoryPage";
 import PatientMessagesPage from "./pages/patient/PatientMessagesPage";
 import DoctorMessagesPage from "./pages/messaging/DoctorMessagesPage";
+import TelemedicinePage from "./pages/telemedicine/TelemedicinePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -284,9 +285,9 @@ function AppRoutes() {
       <Route
         path="/telemedicine"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}>
+            <TelemedicinePage />
+          </RoleProtectedRoute>
         }
       />
       <Route
