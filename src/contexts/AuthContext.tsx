@@ -198,10 +198,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!effectiveUserId) return { error: new Error('Not authenticated') };
 
       try {
-        // Create hospital
-        const { data: newHospital, error: hospitalError } = await supabase
+        // Create hospital (avoid RETURNING so RLS doesn't block reading the row before membership)
+        const newHospitalId = crypto.randomUUID();
+        const { error: hospitalError } = await supabase
           .from('hospitals')
           .insert({
+            id: newHospitalId,
             name: hospitalData.name || 'My Hospital',
             address: hospitalData.address,
             city: hospitalData.city,
@@ -210,16 +212,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: hospitalData.phone,
             email: hospitalData.email,
             license_number: hospitalData.license_number,
-          })
-          .select()
-          .single();
+          });
 
         if (hospitalError) throw hospitalError;
 
         // Update profile with hospital_id
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ hospital_id: newHospital.id })
+          .update({ hospital_id: newHospitalId })
           .eq('user_id', effectiveUserId);
 
         if (profileError) throw profileError;
@@ -228,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error: roleError } = await supabase.from('user_roles').insert({
           user_id: effectiveUserId,
           role: role,
-          hospital_id: newHospital.id,
+          hospital_id: newHospitalId,
         });
 
         if (roleError) throw roleError;
