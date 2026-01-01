@@ -44,6 +44,7 @@ import {
   useMedicationsRealtime,
   Medication,
 } from "@/hooks/useMedications";
+import { ReorderSystemCard } from "@/components/inventory/ReorderSystemCard";
 
 export default function InventoryPage() {
   useMedicationsRealtime();
@@ -104,6 +105,9 @@ export default function InventoryPage() {
             Add Medication
           </Button>
         </div>
+
+        {/* Reorder System Card */}
+        <ReorderSystemCard />
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
