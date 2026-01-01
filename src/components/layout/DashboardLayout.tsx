@@ -58,7 +58,9 @@ const navItems: NavItem[] = [
   { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'] },
   { label: 'Reports', href: '/reports', icon: FileText, roles: ['admin'] },
   { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'] },
-  { label: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
+  { label: 'Staff Performance', href: '/settings/performance', icon: BarChart3, roles: ['admin'] },
+  { label: 'Activity Logs', href: '/settings/activity', icon: Activity, roles: ['admin'] },
+  { label: 'Hospital Settings', href: '/settings', icon: Settings, roles: ['admin'] },
   // Patient Portal Links
   { label: 'My Appointments', href: '/patient/appointments', icon: Calendar, roles: ['patient'] },
   { label: 'My Prescriptions', href: '/patient/prescriptions', icon: Pill, roles: ['patient'] },
