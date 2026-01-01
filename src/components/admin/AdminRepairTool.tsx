@@ -61,7 +61,10 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
           .select()
           .single();
 
-        if (hospitalError) throw hospitalError;
+        if (hospitalError) {
+          console.error('Hospital creation error:', hospitalError);
+          throw new Error(`Failed to create hospital: ${hospitalError.message}`);
+        }
         hospitalId = newHospital.id;
 
         // Update profile with hospital_id
@@ -70,7 +73,10 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
           .update({ hospital_id: hospitalId })
           .eq('user_id', user.id);
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          throw new Error(`Failed to update profile: ${profileError.message}`);
+        }
       }
 
       // Step 2: Create admin role if missing
@@ -90,20 +96,23 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
             hospital_id: hospitalId,
           });
 
-          if (roleError) throw roleError;
+          if (roleError) {
+            console.error('Role creation error:', roleError);
+            throw new Error(`Failed to create admin role: ${roleError.message}`);
+          }
         }
       }
 
       toast({
         title: 'Account repaired!',
-        description: 'Your admin access has been configured. Please refresh the page.',
+        description: 'Your admin access has been configured. Refreshing...',
       });
 
       setDialogOpen(false);
       onSuccess?.();
 
       // Force page reload to refresh auth context
-      setTimeout(() => window.location.reload(), 1500);
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
       console.error('Repair failed:', error);
       toast({
@@ -122,9 +131,9 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
 
   if (!needsRepair) {
     return (
-      <Card className="border-success/50 bg-success/5">
+      <Card className="border-green-500/50 bg-green-500/5">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-success">
+          <CardTitle className="flex items-center gap-2 text-green-600">
             <CheckCircle2 className="h-5 w-5" />
             Account Configured
           </CardTitle>
@@ -139,9 +148,9 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
   }
 
   return (
-    <Card className="border-warning/50 bg-warning/5">
+    <Card className="border-yellow-500/50 bg-yellow-500/5">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-warning">
+        <CardTitle className="flex items-center gap-2 text-yellow-600">
           <AlertTriangle className="h-5 w-5" />
           Account Setup Incomplete
         </CardTitle>
@@ -193,7 +202,7 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
               </ul>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
