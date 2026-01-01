@@ -34,6 +34,7 @@ import PatientAppointmentsPage from "./pages/patient/PatientAppointmentsPage";
 import PatientPrescriptionsPage from "./pages/patient/PatientPrescriptionsPage";
 import PatientLabResultsPage from "./pages/patient/PatientLabResultsPage";
 import PatientMedicalHistoryPage from "./pages/patient/PatientMedicalHistoryPage";
+import PatientMessagesPage from "./pages/patient/PatientMessagesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -260,6 +261,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['patient']}>
             <PatientMedicalHistoryPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/messages"
+        element={
+          <RoleProtectedRoute allowedRoles={['patient']}>
+            <PatientMessagesPage />
           </RoleProtectedRoute>
         }
       />
