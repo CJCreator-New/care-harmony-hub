@@ -1,20 +1,24 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Pill, FlaskConical, UserPlus, Send, CheckCircle2 } from "lucide-react";
+import { Plus, X, Pill, FlaskConical, UserPlus, Send, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useCreateLabOrder } from "@/hooks/useLabOrders";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { checkPrescriptionSafety } from "@/hooks/usePrescriptionSafety";
+import { PrescriptionSafetyAlerts } from "@/components/prescriptions/PrescriptionSafetyAlerts";
 
 interface TreatmentPlanStepProps {
   data: Record<string, any>;
   onUpdate: (field: string, value: any) => void;
   patientId?: string;
   consultationId?: string;
+  patientAllergies?: string[];
+  patientMedications?: string[];
 }
 
 interface Prescription {
@@ -39,7 +43,14 @@ interface Referral {
   urgency: string;
 }
 
-export function TreatmentPlanStep({ data, onUpdate, patientId, consultationId }: TreatmentPlanStepProps) {
+export function TreatmentPlanStep({ 
+  data, 
+  onUpdate, 
+  patientId, 
+  consultationId,
+  patientAllergies = [],
+  patientMedications = [],
+}: TreatmentPlanStepProps) {
   const { profile } = useAuth();
   const createLabOrder = useCreateLabOrder();
 
@@ -64,6 +75,33 @@ export function TreatmentPlanStep({ data, onUpdate, patientId, consultationId }:
   const prescriptions = data.prescriptions || [];
   const labOrders: LabOrder[] = data.lab_orders || [];
   const referrals = data.referrals || [];
+
+  // Calculate safety alerts for all prescriptions
+  const safetyAlerts = useMemo(() => {
+    const allAllergyAlerts: any[] = [];
+    const allDrugInteractions: any[] = [];
+    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication));
+    
+    for (const rx of prescriptions) {
+      const otherMeds = currentMeds.filter((m: string) => m !== rx.medication);
+      const safety = checkPrescriptionSafety(rx.medication, patientAllergies, otherMeds);
+      allAllergyAlerts.push(...safety.allergyAlerts);
+      allDrugInteractions.push(...safety.drugInteractions);
+    }
+
+    return {
+      allergyAlerts: allAllergyAlerts,
+      drugInteractions: allDrugInteractions,
+      hasWarnings: allAllergyAlerts.length > 0 || allDrugInteractions.length > 0,
+    };
+  }, [prescriptions, patientAllergies, patientMedications]);
+
+  // Check new prescription before adding
+  const newPrescriptionSafety = useMemo(() => {
+    if (!newPrescription.medication.trim()) return null;
+    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication));
+    return checkPrescriptionSafety(newPrescription.medication, patientAllergies, currentMeds);
+  }, [newPrescription.medication, prescriptions, patientAllergies, patientMedications]);
 
   const addPrescription = () => {
     if (newPrescription.medication.trim()) {
@@ -190,9 +228,32 @@ export function TreatmentPlanStep({ data, onUpdate, patientId, consultationId }:
           <CardTitle className="text-base flex items-center gap-2">
             <Pill className="h-4 w-4" />
             Prescriptions
+            {safetyAlerts.hasWarnings && (
+              <Badge variant="destructive" className="ml-2">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Safety Alert
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Safety Alerts */}
+          {safetyAlerts.hasWarnings && (
+            <PrescriptionSafetyAlerts
+              allergyAlerts={safetyAlerts.allergyAlerts}
+              drugInteractions={safetyAlerts.drugInteractions}
+            />
+          )}
+
+          {/* New Prescription Safety Preview */}
+          {newPrescriptionSafety && !newPrescriptionSafety.isSafe && (
+            <PrescriptionSafetyAlerts
+              allergyAlerts={newPrescriptionSafety.allergyAlerts}
+              drugInteractions={newPrescriptionSafety.drugInteractions}
+              className="border border-warning/20 rounded-md p-3 bg-warning/5"
+            />
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
             <Input
               placeholder="Medication"
@@ -200,6 +261,7 @@ export function TreatmentPlanStep({ data, onUpdate, patientId, consultationId }:
               onChange={(e) =>
                 setNewPrescription({ ...newPrescription, medication: e.target.value })
               }
+              className={newPrescriptionSafety && !newPrescriptionSafety.isSafe ? 'border-warning' : ''}
             />
             <Input
               placeholder="Dosage"
@@ -222,7 +284,11 @@ export function TreatmentPlanStep({ data, onUpdate, patientId, consultationId }:
                 setNewPrescription({ ...newPrescription, duration: e.target.value })
               }
             />
-            <Button type="button" onClick={addPrescription}>
+            <Button 
+              type="button" 
+              onClick={addPrescription}
+              variant={newPrescriptionSafety?.requiresVerification ? 'destructive' : 'default'}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>

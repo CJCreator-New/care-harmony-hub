@@ -1,1 +1,10 @@
 project_id = "wmxtzkrkscjwixafumym"
+
+[functions.send-notification]
+verify_jwt = true
+
+[functions.appointment-reminders]
+verify_jwt = false
+
+[functions.lab-critical-values]
+verify_jwt = false
