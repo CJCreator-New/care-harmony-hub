@@ -35,6 +35,9 @@ import {
   Loader2,
   Edit,
   UserX,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { EditStaffModal } from '@/components/staff/EditStaffModal';
 import { DeactivateStaffDialog } from '@/components/staff/DeactivateStaffDialog';
@@ -99,6 +102,20 @@ export default function StaffManagementPage() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [invitations, setInvitations] = useState<StaffInvitation[]>([]);
   const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  const getJoinLink = (token: string) => `${window.location.origin}/hospital/join/${token}`;
+
+  const copyInviteLink = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(getJoinLink(token));
+      setCopiedToken(token);
+      toast({ title: 'Link copied!', description: 'Share this link with the staff member.' });
+      setTimeout(() => setCopiedToken(null), 2000);
+    } catch {
+      toast({ title: 'Failed to copy', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     if (profile?.hospital_id) {
@@ -427,6 +444,22 @@ export default function StaffManagementPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => copyInviteLink(invitation.token)}
+                            >
+                              {copiedToken === invitation.token ? (
+                                <Check className="h-4 w-4 mr-2 text-success" />
+                              ) : (
+                                <Copy className="h-4 w-4 mr-2" />
+                              )}
+                              Copy Link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => window.open(getJoinLink(invitation.token), '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Open Link
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleResendInvitation(invitation.id)}
                             >

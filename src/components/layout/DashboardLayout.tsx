@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +97,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, logout } = useAuth();
+  const { logActivity } = useActivityLog();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -116,6 +118,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   );
 
   const handleLogout = async () => {
+    logActivity({ actionType: 'logout' });
     await logout();
     navigate('/hospital');
   };

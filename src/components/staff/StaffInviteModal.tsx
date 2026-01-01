@@ -27,9 +27,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useStaffInvitations } from '@/hooks/useStaffInvitations';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { useToast } from '@/hooks/use-toast';
 import { UserRole } from '@/types/auth';
-import { Loader2, Mail, UserPlus } from 'lucide-react';
+import { Loader2, Mail, UserPlus, Copy, Check, ExternalLink } from 'lucide-react';
 
 const inviteSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -54,8 +55,11 @@ const roleDescriptions: Record<string, string> = {
 
 export function StaffInviteModal({ open, onOpenChange, onSuccess }: StaffInviteModalProps) {
   const { createInvitation, isLoading } = useStaffInvitations();
+  const { logActivity } = useActivityLog();
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>('');
+  const [inviteSuccess, setInviteSuccess] = useState<{ email: string; token: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const form = useForm<InviteFormData>({
     resolver: zodResolver(inviteSchema),
@@ -64,6 +68,19 @@ export function StaffInviteModal({ open, onOpenChange, onSuccess }: StaffInviteM
       role: undefined,
     },
   });
+
+  const getJoinLink = (token: string) => `${window.location.origin}/hospital/join/${token}`;
+
+  const copyToClipboard = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(getJoinLink(token));
+      setCopied(true);
+      toast({ title: 'Link copied!', description: 'Share this link with the staff member.' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Failed to copy', description: 'Please copy the link manually.', variant: 'destructive' });
+    }
+  };
 
   const onSubmit = async (data: InviteFormData) => {
     const result = await createInvitation({
@@ -80,106 +97,167 @@ export function StaffInviteModal({ open, onOpenChange, onSuccess }: StaffInviteM
       return;
     }
 
-    toast({
-      title: 'Invitation sent',
-      description: `An invitation has been sent to ${data.email}`,
+    // Log activity
+    logActivity({
+      actionType: 'staff_invite',
+      entityType: 'staff_invitation',
+      entityId: result.data?.id,
+      details: { email: data.email, role: data.role },
     });
 
-    form.reset();
-    setSelectedRole('');
-    onOpenChange(false);
+    setInviteSuccess({ email: data.email, token: result.data?.token || '' });
     onSuccess?.();
   };
 
+  const handleClose = () => {
+    form.reset();
+    setSelectedRole('');
+    setInviteSuccess(null);
+    setCopied(false);
+    onOpenChange(false);
+  };
+
+  const handleInviteAnother = () => {
+    form.reset();
+    setSelectedRole('');
+    setInviteSuccess(null);
+    setCopied(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-primary" />
-            Invite Staff Member
-          </DialogTitle>
-          <DialogDescription>
-            Send an invitation to add a new staff member to your hospital.
-          </DialogDescription>
-        </DialogHeader>
+        {inviteSuccess ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-success" />
+                Invitation Sent!
+              </DialogTitle>
+              <DialogDescription>
+                Share this link with <strong>{inviteSuccess.email}</strong> to join your hospital.
+              </DialogDescription>
+            </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        {...field}
-                        type="email"
-                        placeholder="staff@example.com"
-                        className="pl-10"
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      setSelectedRole(value);
-                    }}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="doctor">Doctor</SelectItem>
-                      <SelectItem value="nurse">Nurse</SelectItem>
-                      <SelectItem value="receptionist">Receptionist</SelectItem>
-                      <SelectItem value="pharmacist">Pharmacist</SelectItem>
-                      <SelectItem value="lab_technician">Lab Technician</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {selectedRole && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                {roleDescriptions[selectedRole]}
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={getJoinLink(inviteSuccess.token)}
+                  className="font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => copyToClipboard(inviteSuccess.token)}
+                >
+                  {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                </Button>
               </div>
-            )}
 
-            <div className="flex justify-end gap-3 pt-4">
               <Button
-                type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                className="w-full"
+                onClick={() => window.open(getJoinLink(inviteSuccess.token), '_blank')}
               >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Send Invitation
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open Join Page
               </Button>
             </div>
-          </form>
-        </Form>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={handleInviteAnother}>
+                Invite Another
+              </Button>
+              <Button onClick={handleClose}>Done</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-primary" />
+                Invite Staff Member
+              </DialogTitle>
+              <DialogDescription>
+                Send an invitation to add a new staff member to your hospital.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            type="email"
+                            placeholder="staff@example.com"
+                            className="pl-10"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedRole(value);
+                        }}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="doctor">Doctor</SelectItem>
+                          <SelectItem value="nurse">Nurse</SelectItem>
+                          <SelectItem value="receptionist">Receptionist</SelectItem>
+                          <SelectItem value="pharmacist">Pharmacist</SelectItem>
+                          <SelectItem value="lab_technician">Lab Technician</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {selectedRole && (
+                  <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                    {roleDescriptions[selectedRole]}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Invitation
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -4,6 +4,7 @@ import { StatsCard } from './StatsCard';
 import { PatientQueue } from './PatientQueue';
 import { UpcomingAppointments } from './UpcomingAppointments';
 import { RecentActivity } from './RecentActivity';
+import { AdminRepairTool } from '@/components/admin/AdminRepairTool';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,7 +21,8 @@ import {
 } from 'lucide-react';
 
 export function AdminDashboard() {
-  const { profile } = useAuth();
+  const { profile, hospital, roles } = useAuth();
+  const needsRepair = !hospital || !roles.includes('admin');
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -48,6 +50,13 @@ export function AdminDashboard() {
         </div>
       </div>
 
+      {/* Account Repair Tool (shown if setup incomplete) */}
+      {needsRepair && (
+        <div className="mb-8">
+          <AdminRepairTool />
+        </div>
+      )}
+
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button asChild>
@@ -57,7 +66,7 @@ export function AdminDashboard() {
           </Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link to="/analytics">
+          <Link to="/reports">
             <BarChart3 className="h-4 w-4 mr-2" />
             View Analytics
           </Link>

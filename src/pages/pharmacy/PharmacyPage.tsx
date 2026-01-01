@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { StatsCard } from '@/components/dashboard/StatsCard';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import {
   Pill,
   Package,
@@ -28,6 +29,7 @@ import { useMedicationStats } from '@/hooks/useMedications';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PharmacyPage() {
+  const { logActivity } = useActivityLog();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
 
@@ -45,8 +47,17 @@ export default function PharmacyPage() {
     return patientName.includes(searchTerm.toLowerCase()) || mrn.includes(searchTerm.toLowerCase());
   });
 
-  const handleDispense = async (prescriptionId: string) => {
-    await dispenseMutation.mutateAsync(prescriptionId);
+  const handleDispense = async (prescription: Prescription) => {
+    await dispenseMutation.mutateAsync(prescription.id);
+    logActivity({
+      actionType: 'prescription_dispense',
+      entityType: 'prescription',
+      entityId: prescription.id,
+      details: {
+        patientName: `${prescription.patient?.first_name} ${prescription.patient?.last_name}`,
+        patientMRN: prescription.patient?.mrn,
+      },
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -198,7 +209,7 @@ export default function PharmacyPage() {
                             {rx.status === 'pending' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleDispense(rx.id)}
+                                onClick={() => handleDispense(rx)}
                                 disabled={dispenseMutation.isPending}
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
