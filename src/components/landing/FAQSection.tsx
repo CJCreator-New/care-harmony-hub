@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import {
   Accordion,
@@ -92,7 +93,12 @@ export function FAQSection() {
   return (
     <section id="faq" className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
+        <motion.div 
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
           <Badge variant="secondary" className="mb-4">FAQ</Badge>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Frequently Asked Questions
@@ -100,11 +106,18 @@ export function FAQSection() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Have questions about our hospital management platform?
           </p>
-        </div>
+        </motion.div>
 
         <div className="max-w-4xl mx-auto">
           {faqCategories.map((category, categoryIndex) => (
-            <div key={category.category} className="mb-8">
+            <motion.div 
+              key={category.category} 
+              className="mb-8"
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: categoryIndex * 0.1 }}
+            >
               <h3 className="text-lg font-semibold mb-4 text-primary">
                 {category.category}
               </h3>
@@ -113,37 +126,53 @@ export function FAQSection() {
                   <AccordionItem
                     key={index}
                     value={`${categoryIndex}-${index}`}
-                    className="bg-card border border-border rounded-lg px-4"
+                    className="bg-card border border-border rounded-lg px-4 data-[state=open]:border-primary/50 transition-colors"
                   >
-                    <AccordionTrigger className="hover:no-underline text-left">
+                    <AccordionTrigger className="hover:no-underline text-left [&[data-state=open]>svg]:rotate-180">
                       {item.q}
                     </AccordionTrigger>
                     <AccordionContent className="text-muted-foreground">
-                      {item.a}
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {item.a}
+                      </motion.div>
                     </AccordionContent>
                   </AccordionItem>
                 ))}
               </Accordion>
-            </div>
+            </motion.div>
           ))}
 
           {/* Security Certifications Box */}
-          <div className="mt-12 p-6 rounded-2xl bg-card border border-border">
+          <motion.div 
+            className="mt-12 p-6 rounded-2xl bg-card border border-border"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
             <h3 className="text-lg font-semibold mb-4 text-center">
               Security & Compliance Certifications
             </h3>
             <div className="flex flex-wrap items-center justify-center gap-4">
-              {certifications.map((cert) => (
-                <div
+              {certifications.map((cert, index) => (
+                <motion.div
                   key={cert.name}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
                 >
                   <cert.icon className="w-4 h-4 text-success" />
                   <span className="text-sm font-medium">{cert.name}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
