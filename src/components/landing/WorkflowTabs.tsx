@@ -8,9 +8,13 @@ import {
   Scissors,
   Pill,
   Settings,
-  ArrowRight,
   Zap,
 } from 'lucide-react';
+import { OutpatientMockup } from './workflow-mockups/OutpatientMockup';
+import { InpatientMockup } from './workflow-mockups/InpatientMockup';
+import { OTMockup } from './workflow-mockups/OTMockup';
+import { PharmacyLabMockup } from './workflow-mockups/PharmacyLabMockup';
+import { AdminMockup } from './workflow-mockups/AdminMockup';
 
 const workflows = [
   {
@@ -19,6 +23,7 @@ const workflows = [
     icon: Users,
     title: 'Seamless Patient Consultation Flow',
     highlight: '60% faster patient processing',
+    mockup: OutpatientMockup,
     steps: [
       { number: 1, title: 'Registration', description: 'Quick patient check-in with smart queue management' },
       { number: 2, title: 'Consultation', description: 'Doctor reviews history and examines patient' },
@@ -32,6 +37,7 @@ const workflows = [
     icon: Bed,
     title: 'Unified Ward Management',
     highlight: '40% improvement in care coordination',
+    mockup: InpatientMockup,
     steps: [
       { number: 1, title: 'Admission', description: 'Bed allocation and admission documentation' },
       { number: 2, title: 'Ward Notes', description: 'Daily rounds and progress documentation' },
@@ -45,6 +51,7 @@ const workflows = [
     icon: Scissors,
     title: 'Surgical Theatre Management',
     highlight: 'Reduce scheduling conflicts by 90%',
+    mockup: OTMockup,
     steps: [
       { number: 1, title: 'Consent', description: 'Digital consent forms and pre-op checklists' },
       { number: 2, title: 'Scheduling', description: 'OT calendar with resource allocation' },
@@ -58,6 +65,7 @@ const workflows = [
     icon: Pill,
     title: 'Integrated Lab and Pharmacy',
     highlight: 'Zero manual test order errors',
+    mockup: PharmacyLabMockup,
     steps: [
       { number: 1, title: 'Test Orders', description: 'Electronic lab orders from consultation' },
       { number: 2, title: 'Results', description: 'Automated result entry and alerts' },
@@ -71,6 +79,7 @@ const workflows = [
     icon: Settings,
     title: 'Hospital-wide Administration',
     highlight: '100% HIPAA audit compliance',
+    mockup: AdminMockup,
     steps: [
       { number: 1, title: 'User Management', description: 'Role-based access control and permissions' },
       { number: 2, title: 'Dashboards', description: 'Financial and operational analytics' },
@@ -83,6 +92,7 @@ const workflows = [
 export function WorkflowTabs() {
   const [activeTab, setActiveTab] = useState('outpatient');
   const activeWorkflow = workflows.find((w) => w.id === activeTab) || workflows[0];
+  const MockupComponent = activeWorkflow.mockup;
 
   return (
     <section className="py-20 bg-background">
@@ -157,25 +167,35 @@ export function WorkflowTabs() {
                 </div>
               </div>
 
-              {/* Right - Screenshot Placeholder */}
-              <div className="relative">
-                <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-primary/10 to-info/10 border border-border overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <activeWorkflow.icon className="w-16 h-16 text-primary/30 mx-auto mb-4" />
-                      <p className="text-muted-foreground text-sm">
-                        {activeWorkflow.label} Workflow Screenshot
-                      </p>
+              {/* Right - Mockup Screenshot */}
+              <motion.div 
+                className="relative"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+              >
+                <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-muted/50 to-muted border border-border overflow-hidden shadow-xl">
+                  {/* Browser Chrome */}
+                  <div className="absolute top-0 left-0 right-0 h-8 bg-muted/80 backdrop-blur-sm flex items-center gap-2 px-3 border-b border-border z-10">
+                    <div className="w-3 h-3 rounded-full bg-destructive/60" />
+                    <div className="w-3 h-3 rounded-full bg-warning/60" />
+                    <div className="w-3 h-3 rounded-full bg-success/60" />
+                    <div className="flex-1 mx-3">
+                      <div className="h-4 bg-background/50 rounded-md max-w-[200px] mx-auto flex items-center justify-center">
+                        <span className="text-[9px] text-muted-foreground">app.medflow.com/{activeWorkflow.id}</span>
+                      </div>
                     </div>
                   </div>
-                  {/* Decorative elements */}
-                  <div className="absolute top-4 left-4 right-4 h-8 rounded bg-muted/50 flex items-center gap-2 px-3">
-                    <div className="w-3 h-3 rounded-full bg-destructive/50" />
-                    <div className="w-3 h-3 rounded-full bg-warning/50" />
-                    <div className="w-3 h-3 rounded-full bg-success/50" />
+                  
+                  {/* Mockup Content */}
+                  <div className="h-full">
+                    <MockupComponent />
                   </div>
                 </div>
-              </div>
+
+                {/* Decorative glow */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 via-transparent to-info/10 rounded-3xl blur-2xl -z-10" />
+              </motion.div>
             </motion.div>
           </AnimatePresence>
         </Tabs>
