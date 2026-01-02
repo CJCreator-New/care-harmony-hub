@@ -484,6 +484,92 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          consultation_id: string | null
+          created_at: string
+          description: string | null
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          hospital_id: string
+          id: string
+          is_confidential: boolean | null
+          mime_type: string | null
+          patient_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          consultation_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          hospital_id: string
+          id?: string
+          is_confidential?: boolean | null
+          mime_type?: string | null
+          patient_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          consultation_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          hospital_id?: string
+          id?: string
+          is_confidential?: boolean | null
+          mime_type?: string | null
+          patient_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospitals: {
         Row: {
           address: string | null
@@ -1931,6 +2017,70 @@ export type Database = {
           },
         ]
       }
+      reorder_rules: {
+        Row: {
+          auto_reorder: boolean | null
+          created_at: string
+          hospital_id: string
+          id: string
+          is_active: boolean | null
+          last_auto_order_date: string | null
+          medication_id: string
+          preferred_supplier_id: string | null
+          reorder_point: number
+          reorder_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          auto_reorder?: boolean | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          is_active?: boolean | null
+          last_auto_order_date?: string | null
+          medication_id: string
+          preferred_supplier_id?: string | null
+          reorder_point?: number
+          reorder_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          auto_reorder?: boolean | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          is_active?: boolean | null
+          last_auto_order_date?: string | null
+          medication_id?: string
+          preferred_supplier_id?: string | null
+          reorder_point?: number
+          reorder_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reorder_rules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reorder_rules_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reorder_rules_preferred_supplier_id_fkey"
+            columns: ["preferred_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invitations: {
         Row: {
           accepted_at: string | null
@@ -1981,6 +2131,83 @@ export type Database = {
             columns: ["invited_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          auto_order_created: boolean | null
+          created_at: string
+          current_quantity: number
+          hospital_id: string
+          id: string
+          medication_id: string
+          purchase_order_id: string | null
+          resolved_at: string | null
+          status: string
+          threshold_quantity: number
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          auto_order_created?: boolean | null
+          created_at?: string
+          current_quantity: number
+          hospital_id: string
+          id?: string
+          medication_id: string
+          purchase_order_id?: string | null
+          resolved_at?: string | null
+          status?: string
+          threshold_quantity: number
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          auto_order_created?: boolean | null
+          created_at?: string
+          current_quantity?: number
+          hospital_id?: string
+          id?: string
+          medication_id?: string
+          purchase_order_id?: string | null
+          resolved_at?: string | null
+          status?: string
+          threshold_quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_alerts_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_alerts_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_alerts_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_alerts_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
         ]
