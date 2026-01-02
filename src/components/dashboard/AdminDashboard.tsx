@@ -1,23 +1,22 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { StatsCard } from './StatsCard';
 import { PatientQueue } from './PatientQueue';
 import { UpcomingAppointments } from './UpcomingAppointments';
 import { RecentActivity } from './RecentActivity';
 import { AdminRepairTool } from '@/components/admin/AdminRepairTool';
+import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
+import { ResourceManagement } from '@/components/admin/ResourceManagement';
+import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
+import { StaffOnboardingWizard } from '@/components/admin/StaffOnboardingWizard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
-  Calendar,
-  Stethoscope,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  Pill,
-  UserPlus,
   BarChart3,
   Settings,
+  Building2,
+  Bed,
 } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -59,16 +58,11 @@ export function AdminDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button asChild>
-          <Link to="/settings/staff">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Manage Staff
-          </Link>
-        </Button>
+        <StaffOnboardingWizard />
         <Button variant="outline" asChild>
           <Link to="/reports">
             <BarChart3 className="h-4 w-4 mr-2" />
-            View Analytics
+            View Reports
           </Link>
         </Button>
         <Button variant="outline" asChild>
@@ -79,80 +73,42 @@ export function AdminDashboard() {
         </Button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard
-          title="Total Patients"
-          value="--"
-          subtitle="Loading..."
-          icon={Users}
-          variant="primary"
-        />
-        <StatsCard
-          title="Today's Appointments"
-          value="--"
-          subtitle="Loading..."
-          icon={Calendar}
-          variant="info"
-        />
-        <StatsCard
-          title="Active Staff"
-          value="--"
-          subtitle="Loading..."
-          icon={Users}
-          variant="success"
-        />
-        <StatsCard
-          title="Avg. Wait Time"
-          value="--"
-          subtitle="Calculating..."
-          icon={Clock}
-          variant="warning"
-        />
+      {/* Analytics */}
+      <div className="mb-8">
+        <AdminAnalytics />
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 border border-success/20">
-          <CheckCircle2 className="w-8 h-8 text-success" />
-          <div>
-            <p className="text-2xl font-bold">--</p>
-            <p className="text-sm text-muted-foreground">Completed Today</p>
+      {/* Tabbed Management Section */}
+      <Tabs defaultValue="overview" className="mb-8">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="resources" className="flex items-center gap-2">
+            <Bed className="h-4 w-4" />
+            Resources
+          </TabsTrigger>
+          <TabsTrigger value="departments" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Departments
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" className="mt-6">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <PatientQueue />
+              <UpcomingAppointments />
+            </div>
+            <div>
+              <RecentActivity />
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20">
-          <Clock className="w-8 h-8 text-warning" />
-          <div>
-            <p className="text-2xl font-bold">--</p>
-            <p className="text-sm text-muted-foreground">In Progress</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-critical/10 border border-critical/20">
-          <AlertTriangle className="w-8 h-8 text-critical" />
-          <div>
-            <p className="text-2xl font-bold">0</p>
-            <p className="text-sm text-muted-foreground">Critical Alerts</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-pharmacy/10 border border-pharmacy/20">
-          <Pill className="w-8 h-8 text-pharmacy" />
-          <div>
-            <p className="text-2xl font-bold">--</p>
-            <p className="text-sm text-muted-foreground">Prescriptions</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <PatientQueue />
-          <UpcomingAppointments />
-        </div>
-        <div>
-          <RecentActivity />
-        </div>
-      </div>
+        </TabsContent>
+        <TabsContent value="resources" className="mt-6">
+          <ResourceManagement />
+        </TabsContent>
+        <TabsContent value="departments" className="mt-6">
+          <DepartmentManagement />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
