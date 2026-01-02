@@ -1187,6 +1187,103 @@ export type Database = {
           },
         ]
       }
+      medication_administrations: {
+        Row: {
+          administered_at: string
+          administered_by: string
+          created_at: string
+          dosage: string
+          hospital_id: string
+          id: string
+          medication_name: string
+          notes: string | null
+          patient_id: string
+          prescription_id: string | null
+          prescription_item_id: string | null
+          route: string | null
+          scheduled_time: string | null
+          status: string
+          witness_id: string | null
+        }
+        Insert: {
+          administered_at?: string
+          administered_by: string
+          created_at?: string
+          dosage: string
+          hospital_id: string
+          id?: string
+          medication_name: string
+          notes?: string | null
+          patient_id: string
+          prescription_id?: string | null
+          prescription_item_id?: string | null
+          route?: string | null
+          scheduled_time?: string | null
+          status?: string
+          witness_id?: string | null
+        }
+        Update: {
+          administered_at?: string
+          administered_by?: string
+          created_at?: string
+          dosage?: string
+          hospital_id?: string
+          id?: string
+          medication_name?: string
+          notes?: string | null
+          patient_id?: string
+          prescription_id?: string | null
+          prescription_item_id?: string | null
+          route?: string | null
+          scheduled_time?: string | null
+          status?: string
+          witness_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_administrations_administered_by_fkey"
+            columns: ["administered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_prescription_item_id_fkey"
+            columns: ["prescription_item_id"]
+            isOneToOne: false
+            referencedRelation: "prescription_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medication_administrations_witness_id_fkey"
+            columns: ["witness_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medications: {
         Row: {
           batch_number: string | null
@@ -1395,6 +1492,99 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      patient_prep_checklists: {
+        Row: {
+          allergies_verified: boolean | null
+          appointment_id: string | null
+          chief_complaint_recorded: boolean | null
+          completed_at: string | null
+          consent_obtained: boolean | null
+          created_at: string
+          hospital_id: string
+          id: string
+          medications_reviewed: boolean | null
+          notes: string | null
+          nurse_id: string | null
+          patient_id: string
+          queue_entry_id: string | null
+          ready_for_doctor: boolean | null
+          updated_at: string
+          vitals_completed: boolean | null
+        }
+        Insert: {
+          allergies_verified?: boolean | null
+          appointment_id?: string | null
+          chief_complaint_recorded?: boolean | null
+          completed_at?: string | null
+          consent_obtained?: boolean | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          medications_reviewed?: boolean | null
+          notes?: string | null
+          nurse_id?: string | null
+          patient_id: string
+          queue_entry_id?: string | null
+          ready_for_doctor?: boolean | null
+          updated_at?: string
+          vitals_completed?: boolean | null
+        }
+        Update: {
+          allergies_verified?: boolean | null
+          appointment_id?: string | null
+          chief_complaint_recorded?: boolean | null
+          completed_at?: string | null
+          consent_obtained?: boolean | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          medications_reviewed?: boolean | null
+          notes?: string | null
+          nurse_id?: string | null
+          patient_id?: string
+          queue_entry_id?: string | null
+          ready_for_doctor?: boolean | null
+          updated_at?: string
+          vitals_completed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_prep_checklists_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_prep_checklists_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_prep_checklists_nurse_id_fkey"
+            columns: ["nurse_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_prep_checklists_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_prep_checklists_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "patient_queue"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2222,6 +2412,79 @@ export type Database = {
             columns: ["preferred_supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_handovers: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          critical_patients: Json | null
+          handover_time: string | null
+          hospital_id: string
+          id: string
+          incoming_nurse_id: string | null
+          notes: string | null
+          outgoing_nurse_id: string
+          pending_tasks: Json | null
+          shift_date: string
+          shift_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          critical_patients?: Json | null
+          handover_time?: string | null
+          hospital_id: string
+          id?: string
+          incoming_nurse_id?: string | null
+          notes?: string | null
+          outgoing_nurse_id: string
+          pending_tasks?: Json | null
+          shift_date?: string
+          shift_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          critical_patients?: Json | null
+          handover_time?: string | null
+          hospital_id?: string
+          id?: string
+          incoming_nurse_id?: string | null
+          notes?: string | null
+          outgoing_nurse_id?: string
+          pending_tasks?: Json | null
+          shift_date?: string
+          shift_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_handovers_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_handovers_incoming_nurse_id_fkey"
+            columns: ["incoming_nurse_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_handovers_outgoing_nurse_id_fkey"
+            columns: ["outgoing_nurse_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

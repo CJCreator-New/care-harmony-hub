@@ -14,18 +14,27 @@ import {
   UserCheck,
   Heart,
   Bell,
+  Pill,
+  ClipboardList,
 } from 'lucide-react';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
+import { ShiftHandoverModal } from '@/components/nurse/ShiftHandoverModal';
+import { MedicationAdministrationModal } from '@/components/nurse/MedicationAdministrationModal';
 import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
 import { useQueue } from '@/hooks/useQueue';
+import { usePendingHandovers, usePatientChecklists } from '@/hooks/useNurseWorkflow';
 
 export function NurseDashboard() {
   const { profile } = useAuth();
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [handoverMode, setHandoverMode] = useState<'create' | 'view' | null>(null);
+  const [isMedModalOpen, setIsMedModalOpen] = useState(false);
   
   const { data: vitalsCount } = useTodayVitalsCount();
   const { data: queueData } = useQueue();
+  const { data: pendingHandovers = [] } = usePendingHandovers();
+  const { data: checklists = [] } = usePatientChecklists();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -35,11 +44,7 @@ export function NurseDashboard() {
   };
 
   const waitingPatients = queueData?.filter(q => q.status === 'waiting') || [];
-
-  const handleRecordVitals = (patient: any) => {
-    setSelectedPatient(patient);
-    setIsVitalsModalOpen(true);
-  };
+  const readyForDoctor = checklists.filter(c => c.ready_for_doctor).length;
 
   return (
     <>
@@ -54,7 +59,7 @@ export function NurseDashboard() {
               Patient queue and vitals management.
             </p>
           </div>
-          <Badge variant="nurse" className="w-fit text-sm py-1.5 px-4">
+          <Badge variant="secondary" className="w-fit text-sm py-1.5 px-4">
             Nurse
           </Badge>
         </div>
@@ -62,20 +67,25 @@ export function NurseDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button>
-          <UserCheck className="h-4 w-4 mr-2" />
-          Call Next Patient
-        </Button>
         <Button onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
           Record Vitals
         </Button>
-        <Button variant="outline" asChild>
-          <Link to="/consultations">
-            <Activity className="h-4 w-4 mr-2" />
-            Active Consultations
-          </Link>
+        <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
+          <Pill className="h-4 w-4 mr-2" />
+          Administer Medication
         </Button>
+        <Button variant="outline" onClick={() => setHandoverMode('create')}>
+          <ClipboardList className="h-4 w-4 mr-2" />
+          Create Handover
+        </Button>
+        {pendingHandovers.length > 0 && (
+          <Button variant="outline" onClick={() => setHandoverMode('view')}>
+            <Bell className="h-4 w-4 mr-2" />
+            View Handovers
+            <Badge variant="destructive" className="ml-2">{pendingHandovers.length}</Badge>
+          </Button>
+        )}
       </div>
 
       {/* Stats Grid */}
@@ -95,17 +105,17 @@ export function NurseDashboard() {
           variant="success"
         />
         <StatsCard
-          title="Active Consults"
-          value="--"
-          subtitle="In progress"
-          icon={Activity}
+          title="Ready for Doctor"
+          value={readyForDoctor.toString()}
+          subtitle="Prep complete"
+          icon={CheckCircle2}
           variant="primary"
         />
         <StatsCard
-          title="Avg. Wait Time"
-          value="--"
-          subtitle="Current"
-          icon={Clock}
+          title="Pending Handovers"
+          value={pendingHandovers.length.toString()}
+          subtitle="Need acknowledgment"
+          icon={ClipboardList}
           variant="info"
         />
       </div>
@@ -116,46 +126,46 @@ export function NurseDashboard() {
           <PatientQueue />
         </div>
         <div className="space-y-6">
-          {/* Tasks */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
-                Pending Tasks
+                <Activity className="h-5 w-5 text-primary" />
+                Quick Actions
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
-                <Clock className="h-5 w-5 text-warning" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Vitals Due</p>
-                  <p className="text-xs text-muted-foreground">3 patients waiting</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10 border border-success/20">
-                <CheckCircle2 className="h-5 w-5 text-success" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Pre-consult Complete</p>
-                  <p className="text-xs text-muted-foreground">5 patients ready</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
-                <Activity className="h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Doctor Handoffs</p>
-                  <p className="text-xs text-muted-foreground">2 pending</p>
-                </div>
-              </div>
+              <Button className="w-full justify-start" variant="outline" asChild>
+                <Link to="/queue">
+                  <Users className="h-4 w-4 mr-2" />
+                  Manage Queue
+                </Link>
+              </Button>
+              <Button className="w-full justify-start" variant="outline" asChild>
+                <Link to="/consultations">
+                  <Activity className="h-4 w-4 mr-2" />
+                  Active Consultations
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
 
+      {/* Modals */}
       <RecordVitalsModal
         open={isVitalsModalOpen}
         onOpenChange={setIsVitalsModalOpen}
         patient={selectedPatient}
         showPatientSelector={!selectedPatient}
+      />
+      <ShiftHandoverModal
+        open={handoverMode !== null}
+        onOpenChange={(open) => !open && setHandoverMode(null)}
+        mode={handoverMode || 'create'}
+      />
+      <MedicationAdministrationModal
+        open={isMedModalOpen}
+        onOpenChange={setIsMedModalOpen}
       />
     </>
   );
