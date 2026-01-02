@@ -427,6 +427,57 @@ export type Database = {
           },
         ]
       }
+      departments: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          description: string | null
+          head_of_department: string | null
+          hospital_id: string
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          head_of_department?: string | null
+          hospital_id: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          head_of_department?: string | null
+          hospital_id?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_head_of_department_fkey"
+            columns: ["head_of_department"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_availability: {
         Row: {
           created_at: string
@@ -566,6 +617,82 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_resources: {
+        Row: {
+          capacity: number | null
+          code: string | null
+          created_at: string | null
+          current_patient_id: string | null
+          department_id: string | null
+          floor: string | null
+          hospital_id: string
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          resource_type: string
+          status: string | null
+          updated_at: string | null
+          wing: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          code?: string | null
+          created_at?: string | null
+          current_patient_id?: string | null
+          department_id?: string | null
+          floor?: string | null
+          hospital_id: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          resource_type: string
+          status?: string | null
+          updated_at?: string | null
+          wing?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          code?: string | null
+          created_at?: string | null
+          current_patient_id?: string | null
+          department_id?: string | null
+          floor?: string | null
+          hospital_id?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          resource_type?: string
+          status?: string | null
+          updated_at?: string | null
+          wing?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_resources_current_patient_id_fkey"
+            columns: ["current_patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_resources_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_resources_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
@@ -2095,6 +2222,83 @@ export type Database = {
             columns: ["preferred_supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_schedules: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          department_id: string | null
+          end_time: string
+          hospital_id: string
+          id: string
+          notes: string | null
+          shift_date: string
+          shift_type: string | null
+          staff_id: string
+          start_time: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          department_id?: string | null
+          end_time: string
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          shift_date: string
+          shift_type?: string | null
+          staff_id: string
+          start_time: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          department_id?: string | null
+          end_time?: string
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          shift_date?: string
+          shift_type?: string | null
+          staff_id?: string
+          start_time?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_schedules_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_schedules_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_schedules_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
