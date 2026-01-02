@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Testimonial } from '@/components/ui/design-testimonial';
 import {
   Activity,
   Shield,
@@ -204,8 +205,21 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-8">
+            <Badge variant="secondary" className="mb-4">Trusted by Healthcare Leaders</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              What Our Clients Say
+            </h2>
+          </div>
+          <Testimonial />
+        </div>
+      </section>
+
       {/* Security Section */}
-      <section id="security" className="py-20">
+      <section id="security" className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
