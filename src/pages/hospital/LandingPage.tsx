@@ -9,13 +9,13 @@ import {
   Stethoscope,
   Pill,
   TestTube2,
-  BarChart3,
   Video,
   Clock,
   CheckCircle2,
   ArrowRight,
   Building2,
   UserPlus,
+  Heart,
 } from 'lucide-react';
 
 const features = [
@@ -119,19 +119,39 @@ export default function LandingPage() {
               From patient registration to billing, manage everything in one place.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <Button size="xl" variant="hero" asChild className="w-full sm:w-auto">
-                <Link to="/hospital/signup">
-                  <Building2 className="w-5 h-5 mr-2" />
-                  Register Your Hospital
-                </Link>
-              </Button>
-              <Button size="xl" variant="outline" asChild className="w-full sm:w-auto">
-                <Link to="/hospital/login">
-                  <UserPlus className="w-5 h-5 mr-2" />
-                  Existing Hospital Login
-                </Link>
-              </Button>
+            <div className="flex flex-col items-center gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              {/* Primary Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+                <Button size="xl" variant="hero" asChild className="w-full sm:w-auto">
+                  <Link to="/hospital/signup">
+                    <Building2 className="w-5 h-5 mr-2" />
+                    Register Your Hospital
+                  </Link>
+                </Button>
+                <Button size="xl" variant="outline" asChild className="w-full sm:w-auto">
+                  <Link to="/hospital/login">
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    Staff / Hospital Login
+                  </Link>
+                </Button>
+              </div>
+              
+              {/* Secondary Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+                <Button variant="ghost" size="lg" asChild className="text-primary hover:text-primary/80">
+                  <Link to="/patient-login">
+                    <Heart className="w-4 h-4 mr-2" />
+                    Patient Portal Login
+                  </Link>
+                </Button>
+                <span className="hidden sm:block text-muted-foreground">|</span>
+                <Button variant="ghost" size="lg" asChild>
+                  <Link to="/quick-access">
+                    Quick Role Access
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
 

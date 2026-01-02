@@ -1844,11 +1844,17 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           email: string
+          failed_login_attempts: number | null
           first_name: string
           hospital_id: string | null
           id: string
+          is_staff: boolean | null
+          last_login: string | null
           last_name: string
+          locked_until: string | null
           phone: string | null
+          security_answer: string | null
+          security_question: string | null
           updated_at: string
           user_id: string
         }
@@ -1856,11 +1862,17 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           email: string
+          failed_login_attempts?: number | null
           first_name: string
           hospital_id?: string | null
           id?: string
+          is_staff?: boolean | null
+          last_login?: string | null
           last_name: string
+          locked_until?: string | null
           phone?: string | null
+          security_answer?: string | null
+          security_question?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1868,11 +1880,17 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           email?: string
+          failed_login_attempts?: number | null
           first_name?: string
           hospital_id?: string | null
           id?: string
+          is_staff?: boolean | null
+          last_login?: string | null
           last_name?: string
+          locked_until?: string | null
           phone?: string | null
+          security_answer?: string | null
+          security_question?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2603,6 +2621,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_failed_login: { Args: { _user_id: string }; Returns: undefined }
+      is_account_locked: { Args: { _user_id: string }; Returns: boolean }
+      reset_failed_login: { Args: { _user_id: string }; Returns: undefined }
       user_belongs_to_hospital: {
         Args: { _hospital_id: string; _user_id: string }
         Returns: boolean

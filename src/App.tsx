@@ -15,6 +15,9 @@ import ResetPasswordPage from "./pages/hospital/ResetPasswordPage";
 import JoinPage from "./pages/hospital/JoinPage";
 import ProfileSetupPage from "./pages/hospital/ProfileSetupPage";
 import AccountSetupPage from "./pages/hospital/AccountSetupPage";
+import QuickAccessPage from "./pages/hospital/QuickAccessPage";
+import PatientRegisterPage from "./pages/patient/PatientRegisterPage";
+import PatientLoginPage from "./pages/patient/PatientLoginPage";
 import Dashboard from "./pages/Dashboard";
 import PatientsPage from "./pages/patients/PatientsPage";
 import StaffManagementPage from "./pages/settings/StaffManagementPage";
@@ -128,6 +131,26 @@ function AppRoutes() {
         element={
           <PublicRoute>
             <JoinPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/quick-access"
+        element={<QuickAccessPage />}
+      />
+      <Route
+        path="/patient-register"
+        element={
+          <PublicRoute>
+            <PatientRegisterPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/patient-login"
+        element={
+          <PublicRoute>
+            <PatientLoginPage />
           </PublicRoute>
         }
       />
