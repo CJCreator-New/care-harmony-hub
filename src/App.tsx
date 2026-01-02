@@ -37,6 +37,8 @@ import PatientMedicalHistoryPage from "./pages/patient/PatientMedicalHistoryPage
 import PatientMessagesPage from "./pages/patient/PatientMessagesPage";
 import DoctorMessagesPage from "./pages/messaging/DoctorMessagesPage";
 import TelemedicinePage from "./pages/telemedicine/TelemedicinePage";
+import SuppliersPage from "./pages/suppliers/SuppliersPage";
+import SchedulingPage from "./pages/scheduling/SchedulingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -319,6 +321,22 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin']}>
             <ActivityLogsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/suppliers"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+            <SuppliersPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/scheduling"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'receptionist']}>
+            <SchedulingPage />
           </RoleProtectedRoute>
         }
       />

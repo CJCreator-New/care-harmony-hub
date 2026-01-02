@@ -2,21 +2,69 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
-
-    <!-- TODO: Update og:title to match your application name -->
-    <meta property="og:title" content="Lovable App" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- Primary Meta Tags -->
+    <title>MediCare HMS - Hospital Management System</title>
+    <meta name="title" content="MediCare HMS - Hospital Management System" />
+    <meta name="description" content="Comprehensive Hospital Management System for healthcare facilities. Manage patients, appointments, prescriptions, and more." />
+    <meta name="author" content="MediCare HMS" />
+    <meta name="keywords" content="hospital management, healthcare, patient management, appointments, prescriptions, medical records" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MediCare HMS" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#0ea5e9" />
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://medicare-hms.lovable.app/" />
+    <meta property="og:title" content="MediCare HMS - Hospital Management System" />
+    <meta property="og:description" content="Comprehensive Hospital Management System for healthcare facilities. Manage patients, appointments, prescriptions, and more." />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:url" content="https://medicare-hms.lovable.app/" />
+    <meta name="twitter:title" content="MediCare HMS - Hospital Management System" />
+    <meta name="twitter:description" content="Comprehensive Hospital Management System for healthcare facilities." />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- Prevent zooming on input focus (iOS) -->
+    <style>
+      input, select, textarea {
+        font-size: 16px;
+      }
+      
+      /* Safe area insets for notched devices */
+      body {
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      
+      /* Prevent pull-to-refresh on mobile */
+      html, body {
+        overscroll-behavior-y: contain;
+      }
+      
+      /* Smooth scrolling */
+      html {
+        scroll-behavior: smooth;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      /* Touch-friendly tap targets */
+      button, a, [role="button"] {
+        touch-action: manipulation;
+      }
+    </style>
   </head>
 
   <body>

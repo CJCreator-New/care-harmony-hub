@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,9 @@ import {
   Line,
   Legend,
 } from 'recharts';
+import { StaffPerformanceChart } from '@/components/reports/StaffPerformanceChart';
+import { MonthlyTrendsChart } from '@/components/reports/MonthlyTrendsChart';
+import { AppointmentTypePieChart } from '@/components/reports/AppointmentTypePieChart';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'7' | '14' | '30'>('7');
@@ -102,6 +106,17 @@ export default function ReportsPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Tabs for different report views */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+            <TabsTrigger value="staff" className="text-xs sm:text-sm">Staff Performance</TabsTrigger>
+            <TabsTrigger value="trends" className="text-xs sm:text-sm">Monthly Trends</TabsTrigger>
+            <TabsTrigger value="appointments" className="text-xs sm:text-sm">Appointments</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -377,6 +392,20 @@ export default function ReportsPage() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="staff" className="space-y-6">
+            <StaffPerformanceChart />
+          </TabsContent>
+
+          <TabsContent value="trends" className="space-y-6">
+            <MonthlyTrendsChart />
+          </TabsContent>
+
+          <TabsContent value="appointments" className="space-y-6">
+            <AppointmentTypePieChart />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
