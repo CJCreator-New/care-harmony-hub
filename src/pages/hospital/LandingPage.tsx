@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Testimonial } from '@/components/ui/design-testimonial';
+import { Hero } from '@/components/ui/hero';
 import {
   Activity,
   Shield,
@@ -96,83 +97,71 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-info/5" />
-        <div className="absolute top-20 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-info/10 rounded-full blur-3xl" />
+      <Hero
+        gradient={true}
+        blur={true}
+        title={
+          <>
+            Modern Healthcare
+            <br />
+            <span className="text-primary">Information Management</span>
+          </>
+        }
+        subtitle="Streamline your healthcare facility with our comprehensive HIMS solution. From patient registration to billing, manage everything in one place."
+        actions={[
+          {
+            label: "Register Your Hospital",
+            href: "/hospital/signup",
+            variant: "hero",
+            icon: <Building2 className="w-5 h-5 mr-2" />,
+          },
+          {
+            label: "Staff / Hospital Login",
+            href: "/hospital/login",
+            variant: "outline",
+            icon: <UserPlus className="w-5 h-5 mr-2" />,
+          },
+        ]}
+        subtitleClassName="max-w-2xl"
+      >
+        {/* HIPAA Badge */}
+        <Badge variant="secondary" className="mb-6 absolute top-24 left-1/2 -translate-x-1/2">
+          <Shield className="w-3 h-3 mr-1" />
+          HIPAA Compliant Healthcare Platform
+        </Badge>
 
-        <div className="container relative mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <Badge variant="secondary" className="mb-6">
-              <Shield className="w-3 h-3 mr-1" />
-              HIPAA Compliant Healthcare Platform
-            </Badge>
-
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 animate-fade-in">
-              Modern Healthcare
-              <br />
-              <span className="text-primary">Information Management</span>
-            </h1>
-
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Streamline your healthcare facility with our comprehensive HIMS solution. 
-              From patient registration to billing, manage everything in one place.
-            </p>
-
-            <div className="flex flex-col items-center gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              {/* Primary Actions */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-                <Button size="xl" variant="hero" asChild className="w-full sm:w-auto">
-                  <Link to="/hospital/signup">
-                    <Building2 className="w-5 h-5 mr-2" />
-                    Register Your Hospital
-                  </Link>
-                </Button>
-                <Button size="xl" variant="outline" asChild className="w-full sm:w-auto">
-                  <Link to="/hospital/login">
-                    <UserPlus className="w-5 h-5 mr-2" />
-                    Staff / Hospital Login
-                  </Link>
-                </Button>
-              </div>
-              
-              {/* Secondary Actions */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
-                <Button variant="ghost" size="lg" asChild className="text-primary hover:text-primary/80">
-                  <Link to="/patient-login">
-                    <Heart className="w-4 h-4 mr-2" />
-                    Patient Portal Login
-                  </Link>
-                </Button>
-                <span className="hidden sm:block text-muted-foreground">|</span>
-                <Button variant="ghost" size="lg" asChild>
-                  <Link to="/quick-access">
-                    Quick Role Access
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20 max-w-4xl mx-auto">
-            {stats.map((stat, index) => (
-              <div
-                key={stat.label}
-                className="text-center p-6 rounded-xl bg-card border border-border animate-slide-up"
-                style={{ animationDelay: `${0.3 + index * 0.1}s` }}
-              >
-                <div className="text-3xl md:text-4xl font-bold text-primary mb-1">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+        {/* Secondary Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
+          <Button variant="ghost" size="lg" asChild className="text-primary hover:text-primary/80">
+            <Link to="/patient-login">
+              <Heart className="w-4 h-4 mr-2" />
+              Patient Portal Login
+            </Link>
+          </Button>
+          <span className="hidden sm:block text-muted-foreground">|</span>
+          <Button variant="ghost" size="lg" asChild>
+            <Link to="/quick-access">
+              Quick Role Access
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
         </div>
-      </section>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 max-w-4xl mx-auto">
+          {stats.map((stat, index) => (
+            <div
+              key={stat.label}
+              className="text-center p-6 rounded-xl bg-card border border-border"
+            >
+              <div className="text-3xl md:text-4xl font-bold text-primary mb-1">
+                {stat.value}
+              </div>
+              <div className="text-sm text-muted-foreground">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </Hero>
 
       {/* Features Section */}
       <section id="features" className="py-20 bg-muted/30">
