@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
@@ -16,12 +17,18 @@ import {
   Video,
   Play,
   MessageSquare,
+  Pill,
+  ClipboardList,
 } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
+import { useDoctorStats } from '@/hooks/useDoctorStats';
+import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
 
 export function DoctorDashboard() {
   const { profile } = useAuth();
   const { data: unreadCount } = useUnreadMessagesCount();
+  const { data: stats, isLoading: statsLoading } = useDoctorStats();
+  const [showConsultationModal, setShowConsultationModal] = useState(false);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -51,11 +58,9 @@ export function DoctorDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button asChild>
-          <Link to="/consultations">
-            <Play className="h-4 w-4 mr-2" />
-            Start Consultation
-          </Link>
+        <Button onClick={() => setShowConsultationModal(true)}>
+          <Play className="h-4 w-4 mr-2" />
+          Start Consultation
         </Button>
         <Button variant="outline" asChild>
           <Link to="/patients">
@@ -84,28 +89,28 @@ export function DoctorDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Today's Patients"
-          value="--"
+          value={statsLoading ? '--' : String(stats?.todaysPatients || 0)}
           subtitle="Scheduled"
           icon={Users}
           variant="primary"
         />
         <StatsCard
           title="Consultations"
-          value="--"
+          value={statsLoading ? '--' : String(stats?.completedConsultations || 0)}
           subtitle="Completed today"
           icon={Stethoscope}
           variant="success"
         />
         <StatsCard
           title="Pending Labs"
-          value="--"
+          value={statsLoading ? '--' : String(stats?.pendingLabs || 0)}
           subtitle="Awaiting results"
           icon={TestTube2}
           variant="warning"
         />
         <StatsCard
           title="Avg. Duration"
-          value="--"
+          value={statsLoading ? '--' : `${stats?.avgConsultationDuration || 0}m`}
           subtitle="Per consultation"
           icon={Clock}
           variant="info"
@@ -128,31 +133,67 @@ export function DoctorDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div>
-                  <p className="font-medium text-sm">Lab Results to Review</p>
-                  <p className="text-xs text-muted-foreground">3 pending</p>
+              <Link 
+                to="/laboratory" 
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <TestTube2 className="h-4 w-4 text-orange-500" />
+                  <div>
+                    <p className="font-medium text-sm">Lab Results to Review</p>
+                    <p className="text-xs text-muted-foreground">
+                      {statsLoading ? '...' : `${stats?.pendingLabReviews || 0} pending`}
+                    </p>
+                  </div>
                 </div>
-                <Button size="sm" variant="outline">View</Button>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div>
-                  <p className="font-medium text-sm">Prescriptions to Sign</p>
-                  <p className="text-xs text-muted-foreground">2 pending</p>
+                {(stats?.pendingLabReviews || 0) > 0 && (
+                  <Badge variant="secondary">{stats?.pendingLabReviews}</Badge>
+                )}
+              </Link>
+              <Link 
+                to="/pharmacy" 
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Pill className="h-4 w-4 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-sm">Prescriptions Pending</p>
+                    <p className="text-xs text-muted-foreground">
+                      {statsLoading ? '...' : `${stats?.pendingPrescriptions || 0} pending`}
+                    </p>
+                  </div>
                 </div>
-                <Button size="sm" variant="outline">Review</Button>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div>
-                  <p className="font-medium text-sm">Follow-up Notes</p>
-                  <p className="text-xs text-muted-foreground">5 due today</p>
+                {(stats?.pendingPrescriptions || 0) > 0 && (
+                  <Badge variant="secondary">{stats?.pendingPrescriptions}</Badge>
+                )}
+              </Link>
+              <Link 
+                to="/consultations" 
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="h-4 w-4 text-green-500" />
+                  <div>
+                    <p className="font-medium text-sm">Follow-up Notes</p>
+                    <p className="text-xs text-muted-foreground">
+                      {statsLoading ? '...' : `${stats?.pendingFollowUps || 0} due`}
+                    </p>
+                  </div>
                 </div>
-                <Button size="sm" variant="outline">Complete</Button>
-              </div>
+                {(stats?.pendingFollowUps || 0) > 0 && (
+                  <Badge variant="secondary">{stats?.pendingFollowUps}</Badge>
+                )}
+              </Link>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Start Consultation Modal */}
+      <StartConsultationModal 
+        open={showConsultationModal} 
+        onOpenChange={setShowConsultationModal} 
+      />
     </>
   );
 }
