@@ -1,25 +1,40 @@
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Star } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 const testimonials = [
   {
-    quote: "Transformed our patient care coordination completely.",
-    author: "Dr. Sarah Chen",
-    role: "Chief Medical Officer",
-    company: "Metro General Hospital",
+    quote: "We cut our revenue cycle from 60 days to 35 days. The automated insurance claims process alone saves us Rs 40 lakhs annually.",
+    author: "Dr. Rajesh Sharma",
+    role: "Medical Director",
+    company: "Apollo Hospitals, Delhi NCR",
+    metric: "35 days average AR",
+    rating: 5,
   },
   {
-    quote: "The most intuitive healthcare system we've ever implemented.",
-    author: "Marcus Webb",
-    role: "IT Director",
-    company: "City Medical Center",
+    quote: "The system is so intuitive that our nursing staff needed minimal training. Adoption was 95% within 2 weeks. We now process 40% more patients daily.",
+    author: "Priya Menon",
+    role: "Chief Operating Officer",
+    company: "Max Healthcare, Bangalore",
+    metric: "95% adoption in 2 weeks",
+    rating: 5,
   },
   {
-    quote: "Exceptional attention to HIPAA compliance and usability.",
-    author: "Elena Frost",
-    role: "Healthcare Administrator",
-    company: "Regional Health Network",
+    quote: "HIPAA-ready compliance and real-time audit logs give us peace of mind. Our data security posture improved significantly.",
+    author: "Amit Verma",
+    role: "CFO",
+    company: "Fortis Hospitals, Mumbai",
+    metric: "100% audit compliance",
+    rating: 5,
+  },
+  {
+    quote: "Integration with our existing PACS system was seamless. The support team went above and beyond. Highly recommend!",
+    author: "Dr. Kavya Iyer",
+    role: "Head of Diagnostics",
+    company: "Manipal Hospitals, Hyderabad",
+    metric: "Zero integration issues",
+    rating: 5,
   },
 ]
 
@@ -151,14 +166,26 @@ export function Testimonial() {
                   exit={{ opacity: 0, x: 20 }}
                   className="flex items-center gap-4"
                 >
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: 48 }}
-                    className="h-px bg-primary"
-                  />
+                  {/* Avatar */}
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+                    {current.author.split(' ').map(n => n[0]).join('')}
+                  </div>
                   <div>
-                    <p className="font-semibold text-foreground">{current.author}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-foreground">{current.author}</p>
+                      {/* Star Rating */}
+                      <div className="flex">
+                        {[...Array(current.rating || 5)].map((_, i) => (
+                          <Star key={i} className="w-3 h-3 fill-warning text-warning" />
+                        ))}
+                      </div>
+                    </div>
                     <p className="text-sm text-muted-foreground">{current.role}</p>
+                    {current.metric && (
+                      <Badge variant="secondary" className="mt-1 text-xs">
+                        {current.metric}
+                      </Badge>
+                    )}
                   </div>
                 </motion.div>
               </AnimatePresence>
