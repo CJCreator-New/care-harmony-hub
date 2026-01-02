@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   NavigationMenu,
@@ -59,15 +60,52 @@ const featureItems = [
 
 export function NavigationHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isIdle, setIsIdle] = useState(false);
+  const { scrollY } = useScroll();
+  
+  // Animate header height based on scroll
+  const headerHeight = useTransform(scrollY, [0, 100], [64, 56]);
+  const headerBlur = useTransform(scrollY, [0, 100], [8, 16]);
+  const logoRotation = useTransform(scrollY, [0, 500], [0, 5]);
+
+  // Idle pulse effect for CTA
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    const resetIdle = () => {
+      setIsIdle(false);
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setIsIdle(true), 5000);
+    };
+
+    resetIdle();
+    window.addEventListener('mousemove', resetIdle);
+    window.addEventListener('scroll', resetIdle);
+    
+    return () => {
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('scroll', resetIdle);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <motion.header 
+      className="fixed top-0 left-0 right-0 z-50 bg-background/80 border-b border-border"
+      style={{ 
+        height: headerHeight,
+        backdropFilter: `blur(${headerBlur}px)`,
+      }}
+    >
+      <div className="container mx-auto px-4 h-full flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
+          <motion.div 
+            className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary"
+            style={{ rotate: logoRotation }}
+          >
             <Activity className="w-5 h-5 text-primary-foreground" />
-          </div>
+          </motion.div>
           <span className="text-xl font-bold">AROCORD-HIMS</span>
         </Link>
 
@@ -75,21 +113,33 @@ export function NavigationHeader() {
         <NavigationMenu className="hidden lg:flex">
           <NavigationMenuList>
             <NavigationMenuItem>
-              <NavigationMenuTrigger className="bg-transparent">
-                Features
+              <NavigationMenuTrigger className="bg-transparent group">
+                <span className="relative">
+                  Features
+                  <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                </span>
               </NavigationMenuTrigger>
               <NavigationMenuContent>
                 <ul className="grid w-[500px] gap-3 p-4 md:grid-cols-2">
-                  {featureItems.map((item) => (
-                    <li key={item.title}>
+                  {featureItems.map((item, index) => (
+                    <motion.li 
+                      key={item.title}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
                       <NavigationMenuLink asChild>
                         <a
                           href={item.href}
-                          className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
+                          className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors group"
                         >
-                          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
+                          <motion.div 
+                            className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0"
+                            whileHover={{ rotate: 360 }}
+                            transition={{ duration: 0.5 }}
+                          >
                             <item.icon className="w-5 h-5" />
-                          </div>
+                          </motion.div>
                           <div>
                             <div className="font-medium text-sm">{item.title}</div>
                             <p className="text-xs text-muted-foreground line-clamp-2">
@@ -98,38 +148,25 @@ export function NavigationHeader() {
                           </div>
                         </a>
                       </NavigationMenuLink>
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
               </NavigationMenuContent>
             </NavigationMenuItem>
 
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                href="#pricing"
-                className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-              >
-                Pricing
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                href="#security"
-                className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-              >
-                Security
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                href="#faq"
-                className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-              >
-                Resources
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+            {['Pricing', 'Security', 'Resources'].map((item) => (
+              <NavigationMenuItem key={item}>
+                <NavigationMenuLink
+                  href={`#${item.toLowerCase()}`}
+                  className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground relative"
+                >
+                  <span className="relative">
+                    {item === 'Resources' ? 'Resources' : item}
+                    <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                  </span>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            ))}
           </NavigationMenuList>
         </NavigationMenu>
 
@@ -138,12 +175,28 @@ export function NavigationHeader() {
           <Button variant="ghost" asChild>
             <Link to="/hospital/login">Sign In</Link>
           </Button>
-          <Button variant="hero" asChild>
-            <Link to="/hospital/signup">
-              <Stethoscope className="w-4 h-4 mr-2" />
-              Book Demo
-            </Link>
-          </Button>
+          <motion.div
+            animate={isIdle ? {
+              boxShadow: [
+                '0 0 0 0 hsl(var(--primary) / 0.4)',
+                '0 0 0 8px hsl(var(--primary) / 0)',
+                '0 0 0 0 hsl(var(--primary) / 0)',
+              ],
+            } : {}}
+            transition={{
+              duration: 1.5,
+              repeat: isIdle ? Infinity : 0,
+              repeatDelay: 0.5,
+            }}
+            className="rounded-lg"
+          >
+            <Button variant="hero" asChild>
+              <Link to="/hospital/signup">
+                <Stethoscope className="w-4 h-4 mr-2" />
+                Book Demo
+              </Link>
+            </Button>
+          </motion.div>
         </div>
 
         {/* Mobile Menu */}
@@ -165,16 +218,19 @@ export function NavigationHeader() {
               {/* Mobile Nav Links */}
               <div className="flex flex-col gap-2">
                 <div className="text-sm font-medium text-muted-foreground mb-2">Features</div>
-                {featureItems.map((item) => (
-                  <a
+                {featureItems.map((item, index) => (
+                  <motion.a
                     key={item.title}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
                   >
                     <item.icon className="w-4 h-4 text-primary" />
                     <span className="text-sm">{item.title}</span>
-                  </a>
+                  </motion.a>
                 ))}
               </div>
 
@@ -220,6 +276,6 @@ export function NavigationHeader() {
           </SheetContent>
         </Sheet>
       </div>
-    </header>
+    </motion.header>
   );
 }
