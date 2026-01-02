@@ -532,6 +532,103 @@ export type Database = {
         }
         Relationships: []
       }
+      insurance_claims: {
+        Row: {
+          approved_amount: number | null
+          claim_amount: number
+          claim_number: string
+          created_at: string
+          denial_reason: string | null
+          diagnosis_codes: string[] | null
+          group_number: string | null
+          hospital_id: string
+          id: string
+          insurance_provider: string
+          invoice_id: string | null
+          notes: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          patient_id: string
+          patient_responsibility: number | null
+          policy_number: string | null
+          procedure_codes: string[] | null
+          reviewed_at: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_amount?: number | null
+          claim_amount?: number
+          claim_number: string
+          created_at?: string
+          denial_reason?: string | null
+          diagnosis_codes?: string[] | null
+          group_number?: string | null
+          hospital_id: string
+          id?: string
+          insurance_provider: string
+          invoice_id?: string | null
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          patient_id: string
+          patient_responsibility?: number | null
+          policy_number?: string | null
+          procedure_codes?: string[] | null
+          reviewed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_amount?: number | null
+          claim_amount?: number
+          claim_number?: string
+          created_at?: string
+          denial_reason?: string | null
+          diagnosis_codes?: string[] | null
+          group_number?: string | null
+          hospital_id?: string
+          id?: string
+          insurance_provider?: string
+          invoice_id?: string | null
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          patient_id?: string
+          patient_responsibility?: number | null
+          policy_number?: string | null
+          procedure_codes?: string[] | null
+          reviewed_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insurance_claims_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insurance_claims_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insurance_claims_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string
@@ -1272,6 +1369,95 @@ export type Database = {
           },
         ]
       }
+      payment_plans: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          down_payment: number | null
+          hospital_id: string
+          id: string
+          installment_amount: number
+          installment_frequency: string
+          invoice_id: string | null
+          next_due_date: string | null
+          notes: string | null
+          paid_installments: number | null
+          patient_id: string
+          remaining_balance: number
+          status: string
+          total_amount: number
+          total_installments: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          down_payment?: number | null
+          hospital_id: string
+          id?: string
+          installment_amount: number
+          installment_frequency?: string
+          invoice_id?: string | null
+          next_due_date?: string | null
+          notes?: string | null
+          paid_installments?: number | null
+          patient_id: string
+          remaining_balance: number
+          status?: string
+          total_amount: number
+          total_installments: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          down_payment?: number | null
+          hospital_id?: string
+          id?: string
+          installment_amount?: number
+          installment_frequency?: string
+          invoice_id?: string | null
+          next_due_date?: string | null
+          notes?: string | null
+          paid_installments?: number | null
+          patient_id?: string
+          remaining_balance?: number
+          status?: string
+          total_amount?: number
+          total_installments?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plans_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plans_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -1905,6 +2091,92 @@ export type Database = {
           },
         ]
       }
+      telemedicine_sessions: {
+        Row: {
+          actual_end: string | null
+          actual_start: string | null
+          appointment_id: string | null
+          created_at: string
+          doctor_id: string
+          hospital_id: string
+          id: string
+          meeting_url: string | null
+          notes: string | null
+          patient_id: string
+          recording_url: string | null
+          room_id: string | null
+          scheduled_end: string
+          scheduled_start: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_end?: string | null
+          actual_start?: string | null
+          appointment_id?: string | null
+          created_at?: string
+          doctor_id: string
+          hospital_id: string
+          id?: string
+          meeting_url?: string | null
+          notes?: string | null
+          patient_id: string
+          recording_url?: string | null
+          room_id?: string | null
+          scheduled_end: string
+          scheduled_start: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actual_end?: string | null
+          actual_start?: string | null
+          appointment_id?: string | null
+          created_at?: string
+          doctor_id?: string
+          hospital_id?: string
+          id?: string
+          meeting_url?: string | null
+          notes?: string | null
+          patient_id?: string
+          recording_url?: string | null
+          room_id?: string | null
+          scheduled_end?: string
+          scheduled_start?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemedicine_sessions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemedicine_sessions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemedicine_sessions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemedicine_sessions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_slots: {
         Row: {
           appointment_id: string | null
@@ -2082,6 +2354,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_claim_number: {
+        Args: { p_hospital_id: string }
+        Returns: string
+      }
       generate_invoice_number: {
         Args: { p_hospital_id: string }
         Returns: string
