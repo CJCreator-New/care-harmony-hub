@@ -3,98 +3,74 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Testimonial } from '@/components/ui/design-testimonial';
 import { Hero } from '@/components/ui/hero';
+import { NavigationHeader } from '@/components/landing/NavigationHeader';
+import { LogoCarousel } from '@/components/landing/LogoCarousel';
+import { WorkflowTabs } from '@/components/landing/WorkflowTabs';
+import { MetricsSection } from '@/components/landing/MetricsSection';
+import { PricingSection } from '@/components/landing/PricingSection';
+import { FAQSection } from '@/components/landing/FAQSection';
+import { EnhancedFooter } from '@/components/landing/EnhancedFooter';
 import {
-  Activity,
   Shield,
   Users,
   Calendar,
   Stethoscope,
   Pill,
   TestTube2,
-  Video,
-  Clock,
   CheckCircle2,
   ArrowRight,
   Building2,
-  UserPlus,
-  Heart,
+  Play,
+  IdCard,
+  Bed,
+  BarChart3,
 } from 'lucide-react';
 
 const features = [
   {
-    icon: Users,
-    title: 'Patient Management',
-    description: 'Comprehensive patient records with demographics, medical history, and insurance info.',
+    icon: IdCard,
+    title: 'Unified Patient Records',
+    description: 'Single electronic medical record accessible across all departments. Reduce redundant data entry by 70%.',
   },
   {
-    icon: Calendar,
-    title: 'Smart Scheduling',
-    description: 'Online booking with calendar views, automated reminders, and queue management.',
+    icon: Bed,
+    title: 'OP/IP and OT Management',
+    description: 'Streamlined outpatient queues, inpatient admission, and OR scheduling. Reduce wait times and optimize bed utilization.',
   },
   {
-    icon: Stethoscope,
-    title: 'Clinical Workflows',
-    description: 'Adaptive 5-step consultation process with real-time clinical decision support.',
+    icon: BarChart3,
+    title: 'Smart Revenue Cycle',
+    description: 'Automated billing, insurance claims, and AR tracking. Improve cash flow and reduce revenue leakage.',
   },
   {
     icon: Pill,
-    title: 'Pharmacy Integration',
-    description: 'Electronic prescriptions with drug interaction checking and inventory tracking.',
+    title: 'Pharmacy and Lab Integration',
+    description: 'Connect with pharmacy systems and diagnostic equipment. Real-time inventory and test result management.',
+  },
+  {
+    icon: Shield,
+    title: 'Compliance and Security',
+    description: 'Enterprise-grade encryption, role-based access, audit logs. Built for HIPAA and NABH compliance.',
   },
   {
     icon: TestTube2,
-    title: 'Laboratory Module',
-    description: 'Lab order management with result entry, critical alerts, and trend analysis.',
-  },
-  {
-    icon: Video,
-    title: 'Telemedicine',
-    description: 'Video consultations with virtual waiting rooms and digital prescriptions.',
+    title: 'Analytics and Reporting',
+    description: 'Real-time dashboards for KPIs, revenue, and patient metrics. Make data-driven decisions instantly.',
   },
 ];
 
-const stats = [
-  { value: '500+', label: 'Healthcare Facilities' },
-  { value: '99.9%', label: 'Uptime SLA' },
-  { value: '50K+', label: 'Daily Transactions' },
-  { value: '<2s', label: 'Page Load Time' },
+const trustBadges = [
+  { label: 'ISO 27001', icon: Shield },
+  { label: 'HIPAA Ready', icon: CheckCircle2 },
+  { label: 'NABH Compliant', icon: CheckCircle2 },
+  { label: '99.9% Uptime', icon: CheckCircle2 },
 ];
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-              <Activity className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">AROCORD-HIMS</span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Features
-            </a>
-            <a href="#security" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Security
-            </a>
-            <a href="#contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Contact
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild>
-              <Link to="/hospital/login">Sign In</Link>
-            </Button>
-            <Button variant="hero" asChild>
-              <Link to="/hospital/signup">Get Started</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Navigation Header */}
+      <NavigationHeader />
 
       {/* Hero Section */}
       <Hero
@@ -102,69 +78,44 @@ export default function LandingPage() {
         blur={true}
         title={
           <>
-            Modern Healthcare
+            Modern Hospital Management
             <br />
-            <span className="text-primary">Information Management</span>
+            <span className="text-primary">Built for Safer Patient Care</span>
           </>
         }
-        subtitle="Streamline your healthcare facility with our comprehensive HIMS solution. From patient registration to billing, manage everything in one place."
+        subtitle="Unified operations from outpatient to inpatient to billing. Enterprise-grade security. HIPAA-ready compliance."
         actions={[
           {
-            label: "Register Your Hospital",
+            label: "Schedule 30-min Demo",
             href: "/hospital/signup",
             variant: "hero",
             icon: <Building2 className="w-5 h-5 mr-2" />,
           },
           {
-            label: "Staff / Hospital Login",
-            href: "/hospital/login",
+            label: "View Demo Video",
+            href: "#",
             variant: "outline",
-            icon: <UserPlus className="w-5 h-5 mr-2" />,
+            icon: <Play className="w-5 h-5 mr-2" />,
           },
         ]}
         subtitleClassName="max-w-2xl"
       >
-        {/* HIPAA Badge */}
-        <Badge variant="secondary" className="mb-6 absolute top-24 left-1/2 -translate-x-1/2">
-          <Shield className="w-3 h-3 mr-1" />
-          HIPAA Compliant Healthcare Platform
-        </Badge>
-
-        {/* Secondary Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
-          <Button variant="ghost" size="lg" asChild className="text-primary hover:text-primary/80">
-            <Link to="/patient-login">
-              <Heart className="w-4 h-4 mr-2" />
-              Patient Portal Login
-            </Link>
-          </Button>
-          <span className="hidden sm:block text-muted-foreground">|</span>
-          <Button variant="ghost" size="lg" asChild>
-            <Link to="/quick-access">
-              Quick Role Access
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Link>
-          </Button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 max-w-4xl mx-auto">
-          {stats.map((stat, index) => (
-            <div
-              key={stat.label}
-              className="text-center p-6 rounded-xl bg-card border border-border"
-            >
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-1">
-                {stat.value}
-              </div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </div>
+        {/* Trust Badges */}
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
+          {trustBadges.map((badge) => (
+            <Badge key={badge.label} variant="secondary" className="px-3 py-1">
+              <badge.icon className="w-3 h-3 mr-1" />
+              {badge.label}
+            </Badge>
           ))}
         </div>
       </Hero>
 
+      {/* Social Proof / Logo Carousel */}
+      <LogoCarousel />
+
       {/* Features Section */}
-      <section id="features" className="py-20 bg-muted/30">
+      <section id="features" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">Features</Badge>
@@ -178,10 +129,10 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
+            {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group p-6 rounded-xl bg-card border border-border hover:shadow-card-hover hover:border-primary/20 transition-all duration-300"
+                className="group p-6 rounded-xl bg-card border border-border hover:shadow-lg hover:border-primary/20 transition-all duration-300"
               >
                 <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4 group-hover:scale-110 transition-transform">
                   <feature.icon className="w-6 h-6" />
@@ -194,8 +145,17 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Workflow Tabs */}
+      <WorkflowTabs />
+
+      {/* Metrics Section */}
+      <MetricsSection />
+
+      {/* Pricing Section */}
+      <PricingSection />
+
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20">
+      <section id="testimonials" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8">
             <Badge variant="secondary" className="mb-4">Trusted by Healthcare Leaders</Badge>
@@ -207,8 +167,11 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <FAQSection />
+
       {/* Security Section */}
-      <section id="security" className="py-20 bg-muted/30">
+      <section id="security" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -236,20 +199,13 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-
-              <Button className="mt-8" variant="outline" asChild>
-                <a href="#contact">
-                  Learn More About Security
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </a>
-              </Button>
             </div>
 
             <div className="relative">
               <div className="aspect-square rounded-2xl bg-gradient-to-br from-primary/20 to-info/20 p-8 flex items-center justify-center">
                 <Shield className="w-32 h-32 text-primary opacity-50" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-48 h-48 rounded-full border-4 border-primary/30 animate-pulse-soft" />
+                  <div className="w-48 h-48 rounded-full border-4 border-primary/30 animate-pulse" />
                 </div>
               </div>
             </div>
@@ -258,53 +214,35 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-sidebar text-sidebar-foreground">
+      <section id="contact" className="py-20 bg-sidebar text-sidebar-foreground">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-sidebar-primary-foreground">
-            Ready to Transform Your Healthcare Facility?
+            Ready to Modernize Your Hospital Operations?
           </h2>
           <p className="text-lg text-sidebar-foreground/80 mb-8 max-w-2xl mx-auto">
-            Join hundreds of healthcare providers who trust AROCORD-HIMS 
-            for their information management needs.
+            Join 500+ healthcare providers managing better patient care with our platform
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="xl" variant="hero" asChild>
               <Link to="/hospital/signup">
-                Start Free Trial
+                Schedule 30-min Demo
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
             </Button>
             <Button size="xl" variant="outline" className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent" asChild>
-              <Link to="/hospital/login">
-                <Clock className="w-5 h-5 mr-2" />
-                Schedule Demo
+              <Link to="/hospital/signup">
+                Start Free 14-day Trial
               </Link>
             </Button>
           </div>
+          <p className="mt-6 text-sm text-sidebar-foreground/60">
+            No credit card required • Setup in minutes • Full feature access
+          </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-                <Activity className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold">AROCORD-HIMS</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} AROCORD Healthcare Solutions. All rights reserved.
-            </p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground">Privacy</a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground">Terms</a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground">Contact</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      {/* Enhanced Footer */}
+      <EnhancedFooter />
     </div>
   );
 }
