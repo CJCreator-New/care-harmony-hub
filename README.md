@@ -1,73 +1,167 @@
-# Welcome to your Lovable project
+# CareSync - Hospital Management System
 
-## Project info
+<div align="center">
+  <img src="public/pwa-512x512.png" alt="CareSync Logo" width="120" />
+  
+  **Modern Hospital Management Built for Safer Patient Care**
+  
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
+  [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8.svg)](https://tailwindcss.com/)
+  [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ecf8e.svg)](https://supabase.com/)
+</div>
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## 📋 Overview
 
-There are several ways of editing your application.
+CareSync is a comprehensive, enterprise-grade Hospital Management System (HMS) designed to streamline healthcare operations from patient registration to discharge. Built with modern technologies and HIPAA-ready compliance, it serves clinics, hospitals, and multi-facility healthcare systems.
 
-**Use Lovable**
+### Key Highlights
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- 🏥 **Unified Operations** - OPD, IPD, OT, Pharmacy, Lab all in one platform
+- 🔐 **Enterprise Security** - Role-based access, audit logs, encryption
+- 📊 **Real-time Analytics** - Live dashboards and KPI tracking
+- 💳 **Smart Billing** - Insurance claims, payment plans, automated invoicing
+- 📱 **Patient Portal** - Self-service appointments, prescriptions, lab results
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🚀 Quick Start
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js 18+ & npm
+- Git
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+```bash
+# Clone the repository
 git clone <YOUR_GIT_URL>
+cd caresync
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Environment Setup
 
-**Use GitHub Codespaces**
+The project uses Lovable Cloud for backend services. Environment variables are automatically configured.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 📁 Project Structure
 
-This project is built with:
+```
+caresync/
+├── src/
+│   ├── components/          # React components
+│   │   ├── admin/          # Admin dashboard components
+│   │   ├── appointments/   # Appointment scheduling
+│   │   ├── billing/        # Billing & invoicing
+│   │   ├── consultations/  # Clinical workflow
+│   │   ├── dashboard/      # Role-based dashboards
+│   │   ├── inventory/      # Stock management
+│   │   ├── landing/        # Marketing pages
+│   │   ├── nurse/          # Nursing workflow
+│   │   ├── patient/        # Patient portal
+│   │   ├── prescriptions/  # Rx management
+│   │   └── ui/             # Shadcn UI components
+│   ├── contexts/           # React contexts (Auth)
+│   ├── hooks/              # Custom React hooks
+│   ├── pages/              # Route pages
+│   ├── types/              # TypeScript types
+│   └── utils/              # Utility functions
+├── supabase/
+│   ├── functions/          # Edge functions
+│   └── migrations/         # Database migrations
+├── public/                 # Static assets
+└── docs/                   # Documentation
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 🔑 User Roles
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+| Role | Description | Key Capabilities |
+|------|-------------|------------------|
+| **Admin** | Hospital administrators | Full system access, settings, analytics |
+| **Doctor** | Physicians | Consultations, prescriptions, lab orders |
+| **Nurse** | Nursing staff | Vitals, medication admin, patient prep |
+| **Receptionist** | Front desk | Registration, scheduling, check-in/out |
+| **Pharmacist** | Pharmacy staff | Dispensing, inventory, refill requests |
+| **Lab Tech** | Laboratory staff | Sample collection, result entry |
+| **Patient** | End users | Portal access, appointments, records |
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🛠️ Tech Stack
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Shadcn/UI** - Component library
+- **Framer Motion** - Animations
+- **React Router** - Navigation
+- **TanStack Query** - Data fetching
+- **React Hook Form + Zod** - Form handling
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Backend (Lovable Cloud)
+- **Supabase** - Database & Auth
+- **PostgreSQL** - Relational database
+- **Edge Functions** - Serverless logic
+- **Row Level Security** - Data protection
+
+---
+
+## 📖 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | System architecture & design |
+| [Features](docs/FEATURES.md) | Complete feature documentation |
+| [Database Schema](docs/DATABASE.md) | Database structure & relations |
+| [API Reference](docs/API.md) | Edge functions & endpoints |
+| [Security](docs/SECURITY.md) | Security & compliance |
+| [Deployment](docs/DEPLOYMENT.md) | Deployment guide |
+| [Contributing](docs/CONTRIBUTING.md) | Contribution guidelines |
+| [Changelog](docs/CHANGELOG.md) | Version history |
+
+---
+
+## 🔒 Security & Compliance
+
+- ✅ HIPAA-ready architecture
+- ✅ NABH compliance support
+- ✅ End-to-end encryption
+- ✅ Role-based access control (RBAC)
+- ✅ Complete audit logging
+- ✅ Row Level Security (RLS)
+- ✅ Session management
+
+---
+
+## 📞 Support
+
+- **Documentation**: [docs.caresync.health](https://docs.lovable.dev)
+- **Email**: support@caresync.health
+- **Schedule Demo**: [Book a 30-min demo](/hospital/signup)
+
+---
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+---
+
+<div align="center">
+  <strong>Built with ❤️ for Healthcare</strong>
+</div>
