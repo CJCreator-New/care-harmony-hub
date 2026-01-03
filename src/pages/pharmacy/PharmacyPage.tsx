@@ -29,10 +29,12 @@ import {
 import { usePrescriptions, usePrescriptionStats, useDispensePrescription, usePrescriptionsRealtime, Prescription } from '@/hooks/usePrescriptions';
 import { useMedicationStats } from '@/hooks/useMedications';
 import { useHospitalRefillRequests, useUpdateRefillRequest } from '@/hooks/useRefillRequests';
+import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
 import { formatDistanceToNow, format, parseISO } from 'date-fns';
 
 export default function PharmacyPage() {
   const { logActivity } = useActivityLog();
+  const { notifyPrescriptionReady } = useNotificationTriggers();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
   const [refillTab, setRefillTab] = useState<'pending' | 'processed'>('pending');
@@ -61,13 +63,20 @@ export default function PharmacyPage() {
 
   const handleDispense = async (prescription: Prescription) => {
     await dispenseMutation.mutateAsync(prescription.id);
+    
+    // Notify patient that prescription is ready (if patient has user_id)
+    const patientName = `${prescription.patient?.first_name} ${prescription.patient?.last_name}`;
+    // Note: In a full implementation, we'd get patient's user_id and notify them
+    // For now we log the activity
+    
     logActivity({
       actionType: 'prescription_dispense',
       entityType: 'prescription',
       entityId: prescription.id,
       details: {
-        patientName: `${prescription.patient?.first_name} ${prescription.patient?.last_name}`,
+        patientName,
         patientMRN: prescription.patient?.mrn,
+        itemCount: prescription.items?.length || 0,
       },
     });
   };

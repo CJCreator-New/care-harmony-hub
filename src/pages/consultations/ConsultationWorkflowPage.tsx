@@ -22,6 +22,8 @@ import {
   useAdvanceConsultationStep,
   CONSULTATION_STEPS,
 } from "@/hooks/useConsultations";
+import { useCreatePrescription } from "@/hooks/usePrescriptions";
+import { useWorkflowNotifications } from "@/hooks/useWorkflowNotifications";
 import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
 import { PhysicalExamStep } from "@/components/consultations/steps/PhysicalExamStep";
 import { DiagnosisStep } from "@/components/consultations/steps/DiagnosisStep";
@@ -38,6 +40,12 @@ export default function ConsultationWorkflowPage() {
   const { data: consultation, isLoading, error } = useConsultation(id);
   const updateConsultation = useUpdateConsultation();
   const advanceStep = useAdvanceConsultationStep();
+  const createPrescription = useCreatePrescription();
+  const { 
+    notifyPrescriptionCreated, 
+    notifyLabOrderCreated, 
+    notifyConsultationComplete 
+  } = useWorkflowNotifications();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
@@ -107,6 +115,59 @@ export default function ConsultationWorkflowPage() {
           status: "completed",
           completed_at: new Date().toISOString(),
         });
+
+        const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
+
+        // Create prescriptions in the database and notify pharmacy
+        if (formData.prescriptions?.length > 0 && formData.pharmacy_notified) {
+          try {
+            const prescriptionResult = await createPrescription.mutateAsync({
+              patientId: consultation.patient_id,
+              consultationId: id,
+              items: formData.prescriptions.map((rx: any) => ({
+                medication_name: rx.medication,
+                dosage: rx.dosage,
+                frequency: rx.frequency,
+                duration: rx.duration,
+                instructions: rx.instructions,
+              })),
+              notes: formData.handoff_notes,
+            });
+            // Notify pharmacists
+            await notifyPrescriptionCreated(
+              consultation.patient_id,
+              patientName,
+              prescriptionResult.id
+            );
+          } catch (err) {
+            console.error('Error creating prescription:', err);
+          }
+        }
+
+        // Notify lab for any unsubmitted lab orders
+        if (formData.lab_orders?.length > 0 && formData.lab_notified) {
+          for (const order of formData.lab_orders) {
+            if (!order.isSubmitted) {
+              await notifyLabOrderCreated(
+                consultation.patient_id,
+                patientName,
+                order.test,
+                order.labOrderId || '',
+                order.priority
+              );
+            }
+          }
+        }
+
+        // Notify receptionist/billing when consultation is complete
+        if (formData.billing_notified) {
+          await notifyConsultationComplete(
+            consultation.patient_id,
+            patientName,
+            id
+          );
+        }
+
         toast.success("Consultation completed!");
         navigate("/consultations");
       }

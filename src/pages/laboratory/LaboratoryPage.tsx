@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
 import { usePatient } from '@/hooks/usePatients';
+import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
@@ -71,10 +72,12 @@ export default function LaboratoryPage() {
   const [selectedOrder, setSelectedOrder] = useState<LabOrder | null>(null);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [resultNotes, setResultNotes] = useState('');
+  const [isCriticalValue, setIsCriticalValue] = useState(false);
 
   const { data: orders = [], isLoading, refetch } = useLabOrders(statusFilter);
   const { data: stats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
+  const { notifyLabResults } = useNotificationTriggers();
   const { user } = useAuth();
 
   // Realtime subscription
@@ -119,19 +122,46 @@ export default function LaboratoryPage() {
     });
   };
 
-  const handleUploadResults = () => {
+  const handleUploadResults = async () => {
     if (!selectedOrder) return;
-    updateOrder.mutate({
+    
+    await updateOrder.mutateAsync({
       id: selectedOrder.id,
       updates: {
         status: 'completed',
         result_notes: resultNotes,
         completed_at: new Date().toISOString(),
+        is_critical: isCriticalValue,
+        critical_notified: isCriticalValue,
+        critical_notified_at: isCriticalValue ? new Date().toISOString() : null,
       },
     });
+
+    // Notify the ordering doctor about results
+    if (selectedOrder.ordered_by) {
+      // Get patient name for notification
+      const { data: patient } = await supabase
+        .from('patients')
+        .select('first_name, last_name')
+        .eq('id', selectedOrder.patient_id)
+        .single();
+
+      if (patient) {
+        const patientName = `${patient.first_name} ${patient.last_name}`;
+        await notifyLabResults(
+          selectedOrder.ordered_by,
+          patientName,
+          selectedOrder.test_name,
+          selectedOrder.id,
+          isCriticalValue
+        );
+      }
+    }
+
     setResultDialogOpen(false);
     setSelectedOrder(null);
     setResultNotes('');
+    setIsCriticalValue(false);
   };
 
   const openResultDialog = (order: LabOrder) => {
@@ -347,6 +377,20 @@ export default function LaboratoryPage() {
                 disabled={selectedOrder?.status === 'completed'}
               />
             </div>
+            {selectedOrder?.status !== 'completed' && (
+              <div className="flex items-center space-x-2 p-3 rounded-lg border border-destructive/20 bg-destructive/5">
+                <input
+                  type="checkbox"
+                  id="critical-value"
+                  checked={isCriticalValue}
+                  onChange={(e) => setIsCriticalValue(e.target.checked)}
+                  className="h-4 w-4 rounded border-destructive text-destructive focus:ring-destructive"
+                />
+                <label htmlFor="critical-value" className="text-sm font-medium text-destructive cursor-pointer">
+                  ⚠️ Mark as Critical Value (will immediately notify ordering physician)
+                </label>
+              </div>
+            )}
             {selectedOrder?.status !== 'completed' && (
               <Button onClick={handleUploadResults} className="w-full">
                 <CheckCircle2 className="h-4 w-4 mr-2" />
