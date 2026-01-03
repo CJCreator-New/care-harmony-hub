@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -116,23 +116,15 @@ function PricingCard({ plan, isAnnual, index }: PricingCardProps) {
       />
 
       {plan.popular && (
-        <motion.div
-          className="absolute -top-3 left-1/2 -translate-x-1/2"
-          animate={{
-            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: 'linear',
-          }}
-        >
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <Badge 
-            className="bg-gradient-to-r from-primary via-info to-primary bg-[length:200%_100%] text-primary-foreground border-0"
+            className="relative bg-gradient-to-r from-primary via-info to-primary bg-[length:200%_100%] text-primary-foreground border-0 animate-shimmer overflow-hidden"
           >
-            MOST POPULAR
+            <span className="relative z-10">MOST POPULAR</span>
+            {/* Shimmer overlay */}
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
           </Badge>
-        </motion.div>
+        </div>
       )}
 
       <div className="flex items-center gap-3 mb-4">
@@ -155,25 +147,32 @@ function PricingCard({ plan, isAnnual, index }: PricingCardProps) {
         {plan.monthlyPrice ? (
           <>
             <div className="flex items-baseline gap-1">
-              <motion.span 
-                key={isAnnual ? 'annual' : 'monthly'}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-bold"
-              >
-                ₹{isAnnual ? plan.annualPrice?.toLocaleString() : plan.monthlyPrice.toLocaleString()}
-              </motion.span>
+              <AnimatePresence mode="wait">
+                <motion.span 
+                  key={isAnnual ? 'annual' : 'monthly'}
+                  initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  className="text-4xl font-bold"
+                >
+                  ₹{isAnnual ? plan.annualPrice?.toLocaleString() : plan.monthlyPrice.toLocaleString()}
+                </motion.span>
+              </AnimatePresence>
               <span className="text-muted-foreground">/month</span>
             </div>
-            {isAnnual && (
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-sm text-success mt-1"
-              >
-                Save ₹{((plan.monthlyPrice - plan.annualPrice!) * 12).toLocaleString()}/year
-              </motion.p>
-            )}
+            <AnimatePresence>
+              {isAnnual && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-success mt-1"
+                >
+                  Save ₹{((plan.monthlyPrice - plan.annualPrice!) * 12).toLocaleString()}/year
+                </motion.p>
+              )}
+            </AnimatePresence>
           </>
         ) : (
           <div className="text-4xl font-bold">Custom</div>
