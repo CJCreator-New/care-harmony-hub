@@ -15,12 +15,14 @@ import {
   Ruler,
   AlertCircle,
   Users,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActiveQueue } from '@/hooks/useQueue';
+import { usePatients } from '@/hooks/usePatients';
 
 interface Patient {
   id: string;
@@ -60,9 +62,11 @@ export function RecordVitalsModal({
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const { data: queueEntries } = useActiveQueue();
+  const { data: allPatients = [] } = usePatients();
   
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [vitals, setVitals] = useState<VitalsData>({
     blood_pressure_systolic: '',
     blood_pressure_diastolic: '',
@@ -89,6 +93,19 @@ export function RecordVitalsModal({
       entry.patient && 
       index === self.findIndex(e => e.patient?.id === entry.patient?.id)
   ).map(entry => entry.patient as Patient) || [];
+
+  // Combine queue patients and all patients, prioritizing queue patients
+  const availablePatients = patientsInQueue.length > 0 
+    ? patientsInQueue 
+    : allPatients.map(p => ({ id: p.id, first_name: p.first_name, last_name: p.last_name, mrn: p.mrn }));
+
+  // Filter patients based on search term
+  const filteredPatients = searchTerm
+    ? availablePatients.filter(p => 
+        `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.mrn.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : availablePatients;
 
   const handleChange = (field: keyof VitalsData, value: string) => {
     setVitals(prev => ({ ...prev, [field]: value }));
@@ -181,31 +198,45 @@ export function RecordVitalsModal({
                 <div className="flex items-center gap-2 mb-4">
                   <Users className="h-5 w-5 text-primary" />
                   <h3 className="font-medium">Select Patient</h3>
+                  {patientsInQueue.length > 0 && (
+                    <span className="text-xs text-muted-foreground">(from queue)</span>
+                  )}
                 </div>
-                <Select
-                  value={selectedPatient?.id || ''}
-                  onValueChange={(value) => {
-                    const patient = patientsInQueue.find(p => p.id === value);
-                    setSelectedPatient(patient || null);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a patient from the queue..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patientsInQueue.length === 0 ? (
-                      <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                        No patients in queue
-                      </div>
-                    ) : (
-                      patientsInQueue.map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
-                          {patient.first_name} {patient.last_name} ({patient.mrn})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or MRN..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select
+                    value={selectedPatient?.id || ''}
+                    onValueChange={(value) => {
+                      const patient = availablePatients.find(p => p.id === value);
+                      setSelectedPatient(patient || null);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a patient..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredPatients.length === 0 ? (
+                        <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                          {searchTerm ? 'No matching patients' : 'No patients available'}
+                        </div>
+                      ) : (
+                        filteredPatients.map((patient) => (
+                          <SelectItem key={patient.id} value={patient.id}>
+                            {patient.first_name} {patient.last_name} ({patient.mrn})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
           )}
