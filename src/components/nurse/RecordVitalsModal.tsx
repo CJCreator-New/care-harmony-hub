@@ -94,10 +94,18 @@ export function RecordVitalsModal({
       index === self.findIndex(e => e.patient?.id === entry.patient?.id)
   ).map(entry => entry.patient as Patient) || [];
 
-  // Combine queue patients and all patients, prioritizing queue patients
-  const availablePatients = patientsInQueue.length > 0 
-    ? patientsInQueue 
-    : allPatients.map(p => ({ id: p.id, first_name: p.first_name, last_name: p.last_name, mrn: p.mrn }));
+  // Always include all patients, with queue patients at the top
+  const allPatientsMapped = allPatients.map(p => ({ 
+    id: p.id, 
+    first_name: p.first_name, 
+    last_name: p.last_name, 
+    mrn: p.mrn 
+  }));
+  
+  // Combine: queue patients first, then other patients (avoid duplicates)
+  const queuePatientIds = new Set(patientsInQueue.map(p => p.id));
+  const otherPatients = allPatientsMapped.filter(p => !queuePatientIds.has(p.id));
+  const availablePatients = [...patientsInQueue, ...otherPatients];
 
   // Filter patients based on search term
   const filteredPatients = searchTerm
