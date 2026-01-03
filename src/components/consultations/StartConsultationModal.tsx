@@ -20,14 +20,17 @@ import {
   CheckCircle2,
   Search,
   Loader2,
+  UserCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { useDoctorQueue } from '@/hooks/useDoctorStats';
 import { useTodayAppointments } from '@/hooks/useAppointments';
 import { useCreateConsultation } from '@/hooks/useConsultations';
 import { usePatients } from '@/hooks/usePatients';
+import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { format, differenceInYears } from 'date-fns';
+import { format, differenceInYears, differenceInMinutes } from 'date-fns';
 
 interface StartConsultationModalProps {
   open: boolean;
@@ -40,6 +43,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
   const { data: queuePatients, isLoading: queueLoading } = useDoctorQueue();
   const { data: appointments, isLoading: appointmentsLoading } = useTodayAppointments();
   const { data: patients, isLoading: patientsLoading } = usePatients();
+  const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
   const createConsultation = useCreateConsultation();
   const [startingId, setStartingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,21 +122,104 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="queue" className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="ready" className="mt-4">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="ready" className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4" />
+              Ready ({patientsReady.length})
+            </TabsTrigger>
             <TabsTrigger value="queue" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Queue ({queuePatients?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="appointments" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Ready ({readyAppointments.length})
+              Checked-In ({readyAppointments.length})
             </TabsTrigger>
             <TabsTrigger value="search" className="flex items-center gap-2">
               <Search className="h-4 w-4" />
               Search
             </TabsTrigger>
           </TabsList>
+
+          {/* Patients Ready from Nurse Prep */}
+          <TabsContent value="ready" className="mt-4">
+            <ScrollArea className="h-[400px] pr-4">
+              {readyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : patientsReady.length > 0 ? (
+                <div className="space-y-3">
+                  {patientsReady.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between p-4 rounded-lg border border-success/20 bg-success/5 hover:bg-success/10 transition-colors"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          {entry.queue_entry && (
+                            <span className="font-bold text-success">#{entry.queue_entry.queue_number}</span>
+                          )}
+                          <span className="font-medium">
+                            {entry.patient?.first_name} {entry.patient?.last_name}
+                          </span>
+                          <Badge variant="success" className="flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Prep Complete
+                          </Badge>
+                          {(entry.queue_entry?.priority === 'urgent' || entry.queue_entry?.priority === 'emergency') && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {entry.queue_entry.priority}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>MRN: {entry.patient?.mrn}</span>
+                          <span>{getAge(entry.patient?.date_of_birth || '')} yrs</span>
+                          <span className="capitalize">{entry.patient?.gender}</span>
+                        </div>
+                        {entry.patient?.allergies && entry.patient.allergies.length > 0 && (
+                          <p className="text-xs text-destructive">
+                            ⚠️ Allergies: {entry.patient.allergies.join(', ')}
+                          </p>
+                        )}
+                        {entry.queue_entry && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Waiting {differenceInMinutes(new Date(), new Date(entry.queue_entry.check_in_time))} min
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => handleStartConsultation(entry.patient_id, entry.appointment_id)}
+                        disabled={startingId === entry.patient_id}
+                        className="bg-success hover:bg-success/90"
+                      >
+                        {startingId === entry.patient_id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-2" />
+                            Start
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <UserCheck className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">No patients ready for consultation</p>
+                  <p className="text-sm text-muted-foreground">
+                    Patients will appear here after nurse prep is complete
+                  </p>
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
 
           <TabsContent value="queue" className="mt-4">
             <ScrollArea className="h-[400px] pr-4">
