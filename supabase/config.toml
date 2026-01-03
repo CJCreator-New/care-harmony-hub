@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.send-email]
 verify_jwt = true
+
+[functions.verify-totp]
+verify_jwt = false

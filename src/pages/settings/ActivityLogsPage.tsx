@@ -22,7 +22,12 @@ import {
   TestTube2,
   CreditCard,
   Settings,
-  Download
+  Download,
+  AlertTriangle,
+  Info,
+  AlertCircle,
+  Monitor,
+  Globe
 } from 'lucide-react';
 import {
   Select,
@@ -31,6 +36,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 const actionIcons: Record<string, React.ElementType> = {
   login: LogIn,
@@ -98,12 +106,23 @@ const actionColors: Record<string, string> = {
   settings_update: 'bg-gray-500/10 text-gray-700 dark:text-gray-400',
 };
 
+const severityConfig: Record<string, { icon: React.ElementType; color: string; label: string }> = {
+  info: { icon: Info, color: 'text-blue-500', label: 'Info' },
+  warning: { icon: AlertTriangle, color: 'text-yellow-500', label: 'Warning' },
+  error: { icon: AlertCircle, color: 'text-red-500', label: 'Error' },
+  critical: { icon: AlertCircle, color: 'text-red-700', label: 'Critical' },
+};
+
 export default function ActivityLogsPage() {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   const { data: logs, isLoading } = useActivityLogs({
     actionType: actionFilter === 'all' ? undefined : actionFilter,
+    startDate: startDate?.toISOString(),
+    endDate: endDate?.toISOString(),
     limit: 200,
   });
 
@@ -112,14 +131,15 @@ export default function ActivityLogsPage() {
     const profile = log.profiles as any;
     const userName = profile ? `${profile.first_name} ${profile.last_name}`.toLowerCase() : '';
     return userName.includes(searchQuery.toLowerCase()) ||
-           log.action_type.toLowerCase().includes(searchQuery.toLowerCase());
+           log.action_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (log.ip_address && log.ip_address.includes(searchQuery));
   });
 
   const handleExport = () => {
     if (!filteredLogs) return;
     
     const csv = [
-      ['Date', 'Time', 'User', 'Action', 'Entity Type', 'Details'].join(','),
+      ['Date', 'Time', 'User', 'Action', 'Entity Type', 'Severity', 'IP Address', 'User Agent', 'Details'].join(','),
       ...filteredLogs.map(log => {
         const profile = log.profiles as any;
         const userName = profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown';
@@ -129,6 +149,9 @@ export default function ActivityLogsPage() {
           `"${userName}"`,
           log.action_type,
           log.entity_type || '-',
+          log.severity || 'info',
+          log.ip_address || '-',
+          `"${(log.user_agent || '-').replace(/"/g, '""')}"`,
           `"${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`,
         ].join(',');
       }),
@@ -141,6 +164,13 @@ export default function ActivityLogsPage() {
     a.download = `activity-logs-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const clearFilters = () => {
+    setActionFilter('all');
+    setSearchQuery('');
+    setStartDate(undefined);
+    setEndDate(undefined);
   };
 
   return (
@@ -162,32 +192,80 @@ export default function ActivityLogsPage() {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col gap-4 md:flex-row">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by user name or action..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 md:flex-row">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by user, action, or IP address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={actionFilter} onValueChange={setActionFilter}>
+                  <SelectTrigger className="w-full md:w-[200px]">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Filter by action" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Actions</SelectItem>
+                    <SelectItem value="login">Logins</SelectItem>
+                    <SelectItem value="logout">Logouts</SelectItem>
+                    <SelectItem value="patient_view">Patient Views</SelectItem>
+                    <SelectItem value="patient_create">Patient Created</SelectItem>
+                    <SelectItem value="patient_update">Patient Updates</SelectItem>
+                    <SelectItem value="consultation_complete">Consultations</SelectItem>
+                    <SelectItem value="prescription_create">Prescriptions</SelectItem>
+                    <SelectItem value="lab_order_create">Lab Orders</SelectItem>
+                    <SelectItem value="settings_update">Settings Changes</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={actionFilter} onValueChange={setActionFilter}>
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Filter by action" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Actions</SelectItem>
-                  <SelectItem value="login">Logins</SelectItem>
-                  <SelectItem value="patient_view">Patient Views</SelectItem>
-                  <SelectItem value="patient_create">Patient Created</SelectItem>
-                  <SelectItem value="consultation_complete">Consultations</SelectItem>
-                  <SelectItem value="prescription_create">Prescriptions</SelectItem>
-                  <SelectItem value="lab_order_create">Lab Orders</SelectItem>
-                  <SelectItem value="settings_update">Settings Changes</SelectItem>
-                </SelectContent>
-              </Select>
+
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn(!startDate && "text-muted-foreground")}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, 'MMM d, yyyy') : 'Start date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-muted-foreground">to</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn(!endDate && "text-muted-foreground")}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, 'MMM d, yyyy') : 'End date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {(actionFilter !== 'all' || searchQuery || startDate || endDate) && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -207,7 +285,7 @@ export default function ActivityLogsPage() {
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <Skeleton key={i} className="h-16 w-full" />
+                  <Skeleton key={i} className="h-20 w-full" />
                 ))}
               </div>
             ) : filteredLogs && filteredLogs.length > 0 ? (
@@ -218,6 +296,8 @@ export default function ActivityLogsPage() {
                   const userName = profile 
                     ? `${profile.first_name} ${profile.last_name}`
                     : 'Unknown User';
+                  const severity = log.severity as string || 'info';
+                  const SeverityIcon = severityConfig[severity]?.icon || Info;
 
                   return (
                     <div
@@ -238,7 +318,33 @@ export default function ActivityLogsPage() {
                               • {log.entity_type}
                             </span>
                           )}
+                          {severity && severity !== 'info' && (
+                            <Badge 
+                              variant="outline" 
+                              className={cn("text-xs", severityConfig[severity]?.color)}
+                            >
+                              <SeverityIcon className="h-3 w-3 mr-1" />
+                              {severityConfig[severity]?.label}
+                            </Badge>
+                          )}
                         </div>
+                        
+                        {/* Technical details */}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          {log.ip_address && (
+                            <span className="flex items-center gap-1">
+                              <Globe className="h-3 w-3" />
+                              {log.ip_address}
+                            </span>
+                          )}
+                          {log.user_agent && (
+                            <span className="flex items-center gap-1 truncate max-w-[200px]">
+                              <Monitor className="h-3 w-3" />
+                              {log.user_agent.split(' ')[0]}
+                            </span>
+                          )}
+                        </div>
+
                         {log.details && Object.keys(log.details).length > 0 && (
                           <p className="text-sm text-muted-foreground mt-1 truncate">
                             {JSON.stringify(log.details)}
@@ -255,7 +361,13 @@ export default function ActivityLogsPage() {
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                No activity logs found.
+                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No activity logs found.</p>
+                {(actionFilter !== 'all' || searchQuery || startDate || endDate) && (
+                  <Button variant="link" onClick={clearFilters}>
+                    Clear filters to see all logs
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
