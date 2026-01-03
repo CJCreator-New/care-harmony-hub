@@ -44,6 +44,7 @@ import TelemedicinePage from "./pages/telemedicine/TelemedicinePage";
 import SuppliersPage from "./pages/suppliers/SuppliersPage";
 import SchedulingPage from "./pages/scheduling/SchedulingPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
+import DocumentsPage from "./pages/documents/DocumentsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -362,6 +363,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'receptionist']}>
             <SchedulingPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+            <DocumentsPage />
           </RoleProtectedRoute>
         }
       />
