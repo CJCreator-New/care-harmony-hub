@@ -189,7 +189,12 @@ export function useCheckInAppointment() {
       // Get the appointment first to get patient info
       const { data: appointment, error: aptError } = await supabase
         .from('appointments')
-        .select('patient_id, priority, doctor_id')
+        .select(`
+          patient_id, 
+          priority, 
+          doctor_id,
+          patient:patients(first_name, last_name)
+        `)
         .eq('id', appointmentId)
         .single();
 
@@ -230,7 +235,11 @@ export function useCheckInAppointment() {
 
       if (queueInsertError) throw queueInsertError;
 
-      return data as Appointment;
+      // Return with patient name for notifications
+      return {
+        ...data,
+        patientName: `${(appointment.patient as any)?.first_name || ''} ${(appointment.patient as any)?.last_name || ''}`.trim(),
+      } as Appointment & { patientName: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });

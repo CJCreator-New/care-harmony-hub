@@ -21,6 +21,8 @@ import {
   useUpdateChecklist,
   PatientPrepChecklist,
 } from '@/hooks/useNurseWorkflow';
+import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
+import { useActiveQueue } from '@/hooks/useQueue';
 import { toast } from 'sonner';
 
 interface PatientPrepChecklistCardProps {
@@ -41,6 +43,8 @@ export function PatientPrepChecklistCard({
   const { data: existingChecklist, isLoading } = usePatientChecklist(patientId);
   const createChecklist = useCreateChecklist();
   const updateChecklist = useUpdateChecklist();
+  const { notifyPatientReady } = useWorkflowNotifications();
+  const { data: queue = [] } = useActiveQueue();
 
   const [checklist, setChecklist] = useState<Partial<PatientPrepChecklist>>({
     vitals_completed: false,
@@ -90,6 +94,13 @@ export function PatientPrepChecklistCard({
       id: existingChecklist.id,
       ready_for_doctor: true,
     });
+
+    // Find queue number for this patient
+    const queueEntry = queue.find(q => q.patient_id === patientId);
+    
+    // Send notification to doctors
+    await notifyPatientReady(patientId, patientName, queueEntry?.queue_number);
+
     toast.success('Patient marked as ready for doctor');
     onComplete?.();
   };

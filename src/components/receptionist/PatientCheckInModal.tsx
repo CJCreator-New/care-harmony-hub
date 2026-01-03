@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useSearchPatients } from '@/hooks/usePatients';
 import { useTodayAppointments, useCheckInAppointment, Appointment } from '@/hooks/useAppointments';
+import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -58,6 +59,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
   const { data: searchResults = [], isLoading: isSearching } = useSearchPatients(searchTerm);
   const { data: todayAppointments = [] } = useTodayAppointments();
   const checkIn = useCheckInAppointment();
+  const { notifyPatientCheckedIn } = useWorkflowNotifications();
 
   // Reset on close
   useEffect(() => {
@@ -110,7 +112,11 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
 
     try {
       if (selectedAppointment) {
-        await checkIn.mutateAsync(selectedAppointment.id);
+        const result = await checkIn.mutateAsync(selectedAppointment.id);
+        
+        // Notify nurses about the new check-in
+        const patientName = `${selectedPatient.first_name} ${selectedPatient.last_name}`;
+        await notifyPatientCheckedIn(selectedPatient.id, patientName, result.queue_number || 0);
       } else if (isWalkIn) {
         // For walk-ins, we'll handle this separately via queue
         toast.success('Walk-in patient registered');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { PatientQueue } from './PatientQueue';
@@ -7,6 +7,7 @@ import { UpcomingAppointments } from './UpcomingAppointments';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Users,
   Calendar,
@@ -19,15 +20,21 @@ import {
   MessageSquare,
   Pill,
   ClipboardList,
+  UserCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
 import { useDoctorStats } from '@/hooks/useDoctorStats';
+import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
+import { differenceInMinutes } from 'date-fns';
 
 export function DoctorDashboard() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const { data: unreadCount } = useUnreadMessagesCount();
   const { data: stats, isLoading: statsLoading } = useDoctorStats();
+  const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
   const [showConsultationModal, setShowConsultationModal] = useState(false);
 
   const getGreeting = () => {
@@ -95,11 +102,18 @@ export function DoctorDashboard() {
           variant="primary"
         />
         <StatsCard
+          title="Ready for Consult"
+          value={readyLoading ? '--' : String(patientsReady.length)}
+          subtitle="Awaiting you"
+          icon={UserCheck}
+          variant="success"
+        />
+        <StatsCard
           title="Consultations"
           value={statsLoading ? '--' : String(stats?.completedConsultations || 0)}
           subtitle="Completed today"
           icon={Stethoscope}
-          variant="success"
+          variant="info"
         />
         <StatsCard
           title="Pending Labs"
@@ -108,18 +122,85 @@ export function DoctorDashboard() {
           icon={TestTube2}
           variant="warning"
         />
-        <StatsCard
-          title="Avg. Duration"
-          value={statsLoading ? '--' : `${stats?.avgConsultationDuration || 0}m`}
-          subtitle="Per consultation"
-          icon={Clock}
-          variant="info"
-        />
       </div>
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Patients Ready for Consultation */}
+          {patientsReady.length > 0 && (
+            <Card className="border-success/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-success" />
+                  Patients Ready for Consultation
+                  <Badge variant="success" className="ml-2">{patientsReady.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[280px]">
+                  <div className="space-y-3">
+                    {patientsReady.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between p-4 rounded-lg border bg-success/5 border-success/20"
+                      >
+                        <div className="flex items-center gap-4">
+                          {entry.queue_entry && (
+                            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-success/10 text-success font-bold text-lg">
+                              #{entry.queue_entry.queue_number}
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {entry.patient.first_name} {entry.patient.last_name}
+                              </p>
+                              {entry.queue_entry?.priority === 'urgent' || entry.queue_entry?.priority === 'emergency' ? (
+                                <Badge variant="destructive" className="flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {entry.queue_entry.priority}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              MRN: {entry.patient.mrn} • {entry.queue_entry?.department || 'General'}
+                            </p>
+                            {entry.patient.allergies && entry.patient.allergies.length > 0 && (
+                              <p className="text-xs text-destructive mt-1">
+                                ⚠️ Allergies: {entry.patient.allergies.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right text-sm text-muted-foreground">
+                            {entry.queue_entry && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                <span>
+                                  {differenceInMinutes(new Date(), new Date(entry.queue_entry.check_in_time))}m wait
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setShowConsultationModal(true);
+                            }}
+                          >
+                            <Play className="h-4 w-4 mr-1" />
+                            Start
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
           <PatientQueue />
           <UpcomingAppointments />
         </div>
