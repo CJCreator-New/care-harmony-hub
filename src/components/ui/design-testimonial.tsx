@@ -45,12 +45,16 @@ export function Testimonial() {
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
 
-  const springConfig = { damping: 25, stiffness: 200 }
+  const springConfig = { damping: 20, stiffness: 150 }
   const x = useSpring(mouseX, springConfig)
   const y = useSpring(mouseY, springConfig)
 
-  const numberX = useTransform(x, [-200, 200], [-20, 20])
-  const numberY = useTransform(y, [-200, 200], [-10, 10])
+  const numberX = useTransform(x, [-200, 200], [-30, 30])
+  const numberY = useTransform(y, [-200, 200], [-15, 15])
+  
+  // Card tilt transforms
+  const rotateX = useTransform(y, [-200, 200], [8, -8])
+  const rotateY = useTransform(x, [-200, 200], [-8, 8])
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect()
@@ -94,8 +98,18 @@ export function Testimonial() {
           </motion.div>
         </div>
 
-        {/* Main content */}
-        <div className="relative z-10 flex flex-col md:flex-row gap-8 md:gap-16">
+        {/* Main content with 3D tilt */}
+        <motion.div 
+          className="relative z-10 flex flex-col md:flex-row gap-8 md:gap-16 p-6 rounded-2xl transition-shadow duration-300"
+          style={{ 
+            rotateX, 
+            rotateY,
+            transformStyle: 'preserve-3d',
+          }}
+          whileHover={{
+            boxShadow: '0 25px 50px -12px hsl(var(--primary) / 0.15)',
+          }}
+        >
           {/* Left column - vertical text */}
           <div className="hidden md:flex flex-col items-center gap-6 pt-8">
             <span className="text-xs tracking-widest uppercase text-muted-foreground rotate-180" style={{ writingMode: 'vertical-rl' }}>
@@ -166,10 +180,20 @@ export function Testimonial() {
                   exit={{ opacity: 0, x: 20 }}
                   className="flex items-center gap-4"
                 >
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+                {/* Avatar with ripple effect */}
+                  <motion.div 
+                    className="relative w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0 group cursor-pointer"
+                    whileHover={{ scale: 1.1 }}
+                  >
                     {current.author.split(' ').map(n => n[0]).join('')}
-                  </div>
+                    {/* Ripple effect on hover */}
+                    <motion.span
+                      className="absolute inset-0 rounded-full bg-primary/20"
+                      initial={{ scale: 1, opacity: 0 }}
+                      whileHover={{ scale: 1.5, opacity: 0 }}
+                      transition={{ duration: 0.6 }}
+                    />
+                  </motion.div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-semibold text-foreground">{current.author}</p>
@@ -209,7 +233,7 @@ export function Testimonial() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Bottom ticker */}
         <div className="mt-12 overflow-hidden opacity-30">

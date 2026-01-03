@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,8 @@ import { UrgencyBanner } from '@/components/landing/UrgencyBanner';
 import { SocialProofPopup } from '@/components/landing/SocialProofPopup';
 import { ScrollProgress } from '@/components/landing/ScrollProgress';
 import { CursorTrail } from '@/components/landing/CursorTrail';
+import { HeroDashboardMockup } from '@/components/landing/HeroDashboardMockup';
+import { VideoModal, useVideoModal } from '@/components/landing/VideoModal';
 import {
   Shield,
   Users,
@@ -88,6 +91,8 @@ const itemVariants = {
 };
 
 export default function LandingPage() {
+  const { isOpen: isVideoOpen, openModal: openVideoModal, closeModal: closeVideoModal } = useVideoModal();
+  
   return (
     <div className="min-h-screen bg-background">
       {/* Cursor Trail Effect */}
@@ -108,58 +113,77 @@ export default function LandingPage() {
       {/* Urgency Banner */}
       <UrgencyBanner />
 
-      {/* Hero Section */}
+      {/* Hero Section with Dashboard Mockup */}
       <div className="pt-10">
-        <Hero
-          gradient={true}
-          blur={true}
-          title={
-            <>
-              Modern Hospital Management
-              <br />
-              <span className="text-primary">Built for Safer Patient Care</span>
-            </>
-          }
-          subtitle="Unified operations from outpatient to inpatient to billing. Enterprise-grade security. HIPAA-ready compliance."
-          actions={[
-            {
-              label: "Schedule 30-min Demo",
-              href: "/hospital/signup",
-              variant: "hero",
-              icon: <Building2 className="w-5 h-5 mr-2" />,
-            },
-            {
-              label: "View Demo Video",
-              href: "#",
-              variant: "outline",
-              icon: <Play className="w-5 h-5 mr-2" />,
-            },
-          ]}
-          subtitleClassName="max-w-2xl"
-        >
-          {/* Trust Badges */}
-          <motion.div 
-            className="flex flex-wrap items-center justify-center gap-3 mt-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            {trustBadges.map((badge, index) => (
+        <div className="container mx-auto px-4">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left: Hero Content */}
+            <Hero
+              gradient={true}
+              blur={true}
+              className="pt-16 pb-10 lg:pt-24 lg:pb-16"
+              title={
+                <>
+                  Modern Hospital Management
+                  <br />
+                  <span className="text-primary">Built for Safer Patient Care</span>
+                </>
+              }
+              subtitle="Unified operations from outpatient to inpatient to billing. Enterprise-grade security. HIPAA-ready compliance."
+              subtitleClassName="max-w-xl"
+            >
+              {/* Action Buttons */}
               <motion.div
-                key={badge.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6 + index * 0.1 }}
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mt-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
               >
-                <Badge variant="secondary" className="px-3 py-1">
-                  <badge.icon className="w-3 h-3 mr-1" />
-                  {badge.label}
-                </Badge>
+                <Button variant="hero" size="xl" asChild>
+                  <Link to="/hospital/signup">
+                    <Building2 className="w-5 h-5 mr-2" />
+                    Schedule 30-min Demo
+                  </Link>
+                </Button>
+                <Button variant="outline" size="xl" onClick={openVideoModal}>
+                  <Play className="w-5 h-5 mr-2" />
+                  View Demo Video
+                </Button>
               </motion.div>
-            ))}
-          </motion.div>
-        </Hero>
+
+              {/* Trust Badges */}
+              <motion.div 
+                className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                {trustBadges.map((badge, index) => (
+                  <motion.div
+                    key={badge.label}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.6 + index * 0.1 }}
+                  >
+                    <Badge variant="secondary" className="px-3 py-1">
+                      <badge.icon className="w-3 h-3 mr-1" />
+                      {badge.label}
+                    </Badge>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </Hero>
+
+            {/* Right: Dashboard Mockup */}
+            <div className="hidden lg:block">
+              <HeroDashboardMockup />
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Video Modal */}
+      <VideoModal isOpen={isVideoOpen} onClose={closeVideoModal} />
 
       {/* Social Proof / Logo Carousel */}
       <LogoCarousel />
