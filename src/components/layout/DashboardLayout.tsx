@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -255,7 +256,10 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
               {/* Notifications */}
               <NotificationCenter />
 

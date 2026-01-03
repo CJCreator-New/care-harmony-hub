@@ -2169,9 +2169,11 @@ export type Database = {
           last_login: string | null
           last_name: string
           locked_until: string | null
+          password_changed_at: string | null
           phone: string | null
           security_answer: string | null
           security_question: string | null
+          two_factor_enabled: boolean | null
           updated_at: string
           user_id: string
         }
@@ -2187,9 +2189,11 @@ export type Database = {
           last_login?: string | null
           last_name: string
           locked_until?: string | null
+          password_changed_at?: string | null
           phone?: string | null
           security_answer?: string | null
           security_question?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -2205,9 +2209,11 @@ export type Database = {
           last_login?: string | null
           last_name?: string
           locked_until?: string | null
+          password_changed_at?: string | null
           phone?: string | null
           security_answer?: string | null
           security_question?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -2949,6 +2955,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      two_factor_secrets: {
+        Row: {
+          backup_codes: string[]
+          created_at: string
+          id: string
+          secret: string
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          backup_codes?: string[]
+          created_at?: string
+          id?: string
+          secret: string
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          backup_codes?: string[]
+          created_at?: string
+          id?: string
+          secret?: string
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
