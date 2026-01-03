@@ -317,11 +317,14 @@ export function useUpdateChecklist() {
           completed_at: isComplete ? new Date().toISOString() : null,
         })
         .eq('id', id)
-        .select()
+        .select(`
+          *,
+          patient:patients(id, first_name, last_name, mrn)
+        `)
         .single();
 
       if (error) throw error;
-      return data;
+      return data as PatientPrepChecklist;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['patient-checklists'] });
