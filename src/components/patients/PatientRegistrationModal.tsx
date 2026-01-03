@@ -100,6 +100,15 @@ export function PatientRegistrationModal({
     },
   });
 
+  // Reset form when modal closes
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      form.reset();
+      setActiveTab('personal');
+    }
+    onOpenChange(isOpen);
+  };
+
   const onSubmit = async (data: PatientFormData) => {
     if (!profile?.hospital_id) {
       toast({
@@ -155,6 +164,7 @@ export function PatientRegistrationModal({
 
       form.reset();
       setActiveTab('personal');
+      onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error('Error registering patient:', error);
@@ -169,7 +179,7 @@ export function PatientRegistrationModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -253,7 +263,7 @@ export function PatientRegistrationModal({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Gender *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select gender" />
@@ -412,7 +422,7 @@ export function PatientRegistrationModal({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Blood Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select blood type" />
@@ -536,7 +546,7 @@ export function PatientRegistrationModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancel
               </Button>

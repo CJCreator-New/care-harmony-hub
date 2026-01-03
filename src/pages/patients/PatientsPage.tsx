@@ -350,10 +350,7 @@ export default function PatientsPage() {
       <PatientRegistrationModal
         open={registrationModalOpen}
         onOpenChange={setRegistrationModalOpen}
-        onSuccess={() => {
-          loadPatients();
-          setRegistrationModalOpen(false);
-        }}
+        onSuccess={loadPatients}
       />
     </DashboardLayout>
   );
