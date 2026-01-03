@@ -8,6 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { TwoFactorVerifyModal } from '@/components/auth/TwoFactorVerifyModal';
+import { BackupCodeVerifyModal } from '@/components/auth/BackupCodeVerifyModal';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,11 +18,36 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 2FA state
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
+  const [showBackupCodeModal, setShowBackupCodeModal] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const { login } = useAuth();
   const { logActivity } = useActivityLog();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const checkTwoFactorRequired = async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('two_factor_enabled')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error checking 2FA status:', error);
+        return false;
+      }
+
+      return data?.two_factor_enabled === true;
+    } catch (error) {
+      console.error('Error checking 2FA:', error);
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,10 +62,25 @@ export default function LoginPage() {
           description: error.message || 'Invalid email or password. Please try again.',
           variant: 'destructive',
         });
-      } else {
-        // Log successful login
-        logActivity({ actionType: 'login', details: { email } });
+        setIsLoading(false);
+        return;
+      }
 
+      // Get current user to check 2FA
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const requires2FA = await checkTwoFactorRequired(user.id);
+        
+        if (requires2FA) {
+          setPendingUserId(user.id);
+          setShowTwoFactorModal(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // No 2FA required, proceed to dashboard
+        logActivity({ actionType: 'login', details: { email } });
         toast({
           title: 'Welcome back!',
           description: 'You have successfully logged in.',
@@ -53,6 +96,32 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleTwoFactorVerified = () => {
+    setShowTwoFactorModal(false);
+    setShowBackupCodeModal(false);
+    setPendingUserId(null);
+    
+    logActivity({ actionType: 'login', details: { email, twoFactorUsed: true } });
+    toast({
+      title: 'Welcome back!',
+      description: 'You have successfully logged in with 2FA.',
+    });
+    navigate('/dashboard');
+  };
+
+  const handleCancelTwoFactor = async () => {
+    // Sign out since 2FA wasn't verified
+    await supabase.auth.signOut();
+    setShowTwoFactorModal(false);
+    setShowBackupCodeModal(false);
+    setPendingUserId(null);
+    toast({
+      title: 'Login Cancelled',
+      description: 'Two-factor authentication is required for this account.',
+      variant: 'destructive',
+    });
   };
 
   return (
@@ -204,6 +273,37 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* 2FA Modals */}
+      {pendingUserId && (
+        <>
+          <TwoFactorVerifyModal
+            open={showTwoFactorModal}
+            onOpenChange={(open) => {
+              if (!open) handleCancelTwoFactor();
+            }}
+            userId={pendingUserId}
+            onVerified={handleTwoFactorVerified}
+            onUseBackupCode={() => {
+              setShowTwoFactorModal(false);
+              setShowBackupCodeModal(true);
+            }}
+          />
+
+          <BackupCodeVerifyModal
+            open={showBackupCodeModal}
+            onOpenChange={(open) => {
+              if (!open) handleCancelTwoFactor();
+            }}
+            userId={pendingUserId}
+            onVerified={handleTwoFactorVerified}
+            onBack={() => {
+              setShowBackupCodeModal(false);
+              setShowTwoFactorModal(true);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
