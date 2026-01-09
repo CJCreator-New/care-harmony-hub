@@ -26,7 +26,7 @@ import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useWorkflowNotifications } from "@/hooks/useWorkflowNotifications";
 import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
 import { PhysicalExamStep } from "@/components/consultations/steps/PhysicalExamStep";
-import { DiagnosisStep } from "@/components/consultations/steps/DiagnosisStep";
+import { DiagnosisStepEnhanced } from "@/components/consultations/steps/DiagnosisStepEnhanced";
 import { TreatmentPlanStep } from "@/components/consultations/steps/TreatmentPlanStep";
 import { SummaryStep } from "@/components/consultations/steps/SummaryStep";
 import { PatientSidebar } from "@/components/consultations/PatientSidebar";
@@ -58,6 +58,7 @@ export default function ConsultationWorkflowPage() {
         vitals: consultation.vitals || {},
         physical_examination: consultation.physical_examination || {},
         symptoms: consultation.symptoms || [],
+        diagnoses: consultation.diagnoses || [],
         provisional_diagnosis: consultation.provisional_diagnosis || [],
         final_diagnosis: consultation.final_diagnosis || [],
         treatment_plan: consultation.treatment_plan || "",
@@ -335,7 +336,7 @@ export default function ConsultationWorkflowPage() {
                   />
                 </TabsContent>
                 <TabsContent value="3" className="mt-0">
-                  <DiagnosisStep
+                  <DiagnosisStepEnhanced
                     data={formData}
                     onUpdate={handleUpdateField}
                   />

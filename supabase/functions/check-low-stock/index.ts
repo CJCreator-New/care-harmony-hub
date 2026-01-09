@@ -91,8 +91,39 @@ serve(async (req) => {
     }
 
     // Create notifications for pharmacists and admins in each hospital
-    const notifications = [];
-    const reorderReports = [];
+    const notifications: Array<{
+      hospital_id: string;
+      recipient_id: string;
+      type: string;
+      title: string;
+      message: string;
+      priority: string;
+      category: string;
+      action_url: string;
+      metadata: Record<string, any>;
+    }> = [];
+    
+    const reorderReports: Array<{
+      hospital_id: string;
+      hospital_name: string;
+      hospital_email: string;
+      generated_at: string;
+      summary: {
+        total_low_stock: number;
+        out_of_stock: number;
+        critically_low: number;
+        low: number;
+      };
+      medications: Array<{
+        id: string;
+        name: string;
+        generic_name: string | null;
+        current_stock: number;
+        minimum_stock: number;
+        reorder_quantity: number;
+        status: string;
+      }>;
+    }> = [];
 
     for (const hospital of hospitals || []) {
       const hospitalMeds = byHospital[hospital.id];
