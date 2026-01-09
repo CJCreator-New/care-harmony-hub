@@ -296,6 +296,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           current_step: number | null
+          diagnoses: Json | null
           doctor_id: string
           final_diagnosis: string[] | null
           follow_up_date: string | null
@@ -330,6 +331,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           current_step?: number | null
+          diagnoses?: Json | null
           doctor_id: string
           final_diagnosis?: string[] | null
           follow_up_date?: string | null
@@ -364,6 +366,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           current_step?: number | null
+          diagnoses?: Json | null
           doctor_id?: string
           final_diagnosis?: string[] | null
           follow_up_date?: string | null
@@ -742,6 +745,39 @@ export type Database = {
           state?: string | null
           updated_at?: string
           zip?: string | null
+        }
+        Relationships: []
+      }
+      icd10_codes: {
+        Row: {
+          category: string | null
+          chapter: string | null
+          code: string
+          created_at: string | null
+          id: string
+          is_billable: boolean | null
+          long_description: string | null
+          short_description: string
+        }
+        Insert: {
+          category?: string | null
+          chapter?: string | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_billable?: boolean | null
+          long_description?: string | null
+          short_description: string
+        }
+        Update: {
+          category?: string | null
+          chapter?: string | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_billable?: boolean | null
+          long_description?: string | null
+          short_description?: string
         }
         Relationships: []
       }
