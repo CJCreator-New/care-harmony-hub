@@ -102,7 +102,7 @@ export class TestDataSeeder {
         state: ['CA', 'NY', 'TX', 'FL', 'IL'][Math.floor(Math.random() * 5)],
         zip: String(Math.floor(Math.random() * 90000) + 10000),
         blood_type: bloodTypes[Math.floor(Math.random() * bloodTypes.length)],
-        allergies: Math.random() > 0.7 ? ['Penicillin', 'Peanuts', 'Shellfish'][Math.floor(Math.random() * 3)] : null,
+        allergies: Math.random() > 0.7 ? [['Penicillin', 'Peanuts', 'Shellfish'][Math.floor(Math.random() * 3)]] : null,
         is_active: Math.random() > 0.1, // 90% active
         created_at: this.randomDateThisMonth().toISOString()
       };

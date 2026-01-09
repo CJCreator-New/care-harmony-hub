@@ -38,17 +38,21 @@ export function useErrorTracking() {
         },
       };
 
-      // Log to error_logs table
+      // Log to activity_logs table instead of error_logs (which doesn't exist)
       const { error: dbError } = await supabase
-        .from('error_logs')
+        .from('activity_logs')
         .insert({
-          message: errorMessage,
-          stack: errorStack,
-          url: window.location.href,
+          action_type: 'error',
+          entity_type: 'error_log',
+          details: {
+            message: errorMessage,
+            stack: errorStack,
+            url: window.location.href,
+            severity: context?.severity || 'medium',
+            context: context?.additionalContext || {},
+          },
           user_agent: navigator.userAgent,
-          user_id: context?.userId || (await supabase.auth.getUser()).data.user?.id || null,
-          severity: context?.severity || 'medium',
-          context: context?.additionalContext || {},
+          user_id: context?.userId || (await supabase.auth.getUser()).data.user?.id || '',
         });
 
       if (dbError) {
@@ -57,9 +61,6 @@ export function useErrorTracking() {
 
       // Also log to console for development
       console.error('Error logged:', errorLog);
-
-      // In production, you might want to send to external error tracking service
-      // like Sentry, LogRocket, etc.
 
     } catch (loggingError) {
       console.error('Failed to log error:', loggingError);

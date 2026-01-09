@@ -49,12 +49,18 @@ export function VideoConsultation({
   const handleStartSession = async () => {
     try {
       setSessionStatus('connecting');
-      const session = await createSession({ appointmentId, doctorId, patientId });
-      setSessionId(session.session_id);
-      
-      // Auto-join the session
-      await joinSession({ sessionId: session.session_id, userType });
-      setSessionStatus('connected');
+      createSession({ appointmentId, doctorId, patientId }, {
+        onSuccess: (session) => {
+          if (session?.session_id) {
+            setSessionId(session.session_id);
+            joinSession({ sessionId: session.session_id, userType });
+            setSessionStatus('connected');
+          }
+        },
+        onError: () => {
+          setSessionStatus('waiting');
+        }
+      });
     } catch (error) {
       console.error('Failed to start session:', error);
       setSessionStatus('waiting');

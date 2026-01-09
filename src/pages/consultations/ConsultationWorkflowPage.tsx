@@ -58,7 +58,7 @@ export default function ConsultationWorkflowPage() {
         vitals: consultation.vitals || {},
         physical_examination: consultation.physical_examination || {},
         symptoms: consultation.symptoms || [],
-        diagnoses: consultation.diagnoses || [],
+        diagnoses: (consultation as any).diagnoses || [],
         provisional_diagnosis: consultation.provisional_diagnosis || [],
         final_diagnosis: consultation.final_diagnosis || [],
         treatment_plan: consultation.treatment_plan || "",

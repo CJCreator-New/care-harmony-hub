@@ -33,28 +33,50 @@ export function useSystemMonitoring() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Use activity_logs as a fallback for system alerts since system_alerts table doesn't exist
   const { data: recentAlerts } = useQuery({
     queryKey: ['system-alerts'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('system_alerts')
-        .select('*')
-        .eq('resolved', false)
-        .order('timestamp', { ascending: false })
+        .from('activity_logs')
+        .select('id, action_type, details, created_at, severity')
+        .in('severity', ['high', 'critical'])
+        .order('created_at', { ascending: false })
         .limit(10);
+      
       if (error) throw error;
-      return data as SystemAlert[];
+      
+      // Transform to SystemAlert format
+      return (data || []).map(log => ({
+        id: log.id,
+        severity: (log.severity as 'low' | 'medium' | 'high' | 'critical') || 'medium',
+        message: (log.details as any)?.message || log.action_type,
+        timestamp: log.created_at,
+        acknowledged: false,
+      })) as SystemAlert[];
     },
     refetchInterval: 60000, // Refresh every minute
   });
 
   const acknowledgeAlert = useMutation({
     mutationFn: async (alertId: string) => {
+      // Update activity_log entry with acknowledged status in details
+      const { data: existing, error: fetchError } = await supabase
+        .from('activity_logs')
+        .select('details')
+        .eq('id', alertId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
       const { error } = await supabase
-        .from('system_alerts')
+        .from('activity_logs')
         .update({ 
-          acknowledged: true, 
-          acknowledged_at: new Date().toISOString() 
+          details: {
+            ...(existing?.details as object || {}),
+            acknowledged: true,
+            acknowledged_at: new Date().toISOString()
+          }
         })
         .eq('id', alertId);
       if (error) throw error;

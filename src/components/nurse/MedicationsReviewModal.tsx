@@ -56,7 +56,7 @@ export function MedicationsReviewModal({
             <Checkbox
               id="hasMedications"
               checked={hasMedications}
-              onCheckedChange={setHasMedications}
+              onCheckedChange={(checked) => setHasMedications(checked === true)}
             />
             <Label htmlFor="hasMedications">Patient is currently taking medications</Label>
           </div>

@@ -135,7 +135,7 @@ export function SampleCollectionModal({
               <Checkbox
                 id="patientVerified"
                 checked={patientVerified}
-                onCheckedChange={setPatientVerified}
+                onCheckedChange={(checked) => setPatientVerified(checked === true)}
               />
               <Label htmlFor="patientVerified" className="cursor-pointer">
                 Patient identity verified (ID checked, name and DOB confirmed)

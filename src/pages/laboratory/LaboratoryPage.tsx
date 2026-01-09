@@ -288,8 +288,8 @@ export default function LaboratoryPage() {
                         <TableCell>{order.test_name}</TableCell>
                         <TableCell>{order.test_category || '--'}</TableCell>
                         <TableCell>
-                          <Badge variant={priorityConfig[order.priority]?.variant || 'default'}>
-                            {priorityConfig[order.priority]?.label || order.priority}
+                          <Badge variant={order.priority ? (priorityConfig[order.priority]?.variant || 'default') : 'default'}>
+                            {order.priority ? (priorityConfig[order.priority]?.label || order.priority) : '--'}
                           </Badge>
                         </TableCell>
                         <TableCell>

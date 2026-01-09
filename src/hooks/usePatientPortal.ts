@@ -273,12 +273,12 @@ export function usePatientPortal() {
         .select(`
           id,
           invoice_number,
-          total_amount,
+          total,
           paid_amount,
           status,
           due_date,
           created_at,
-          items:invoices_items(
+          items:invoice_items(
             description,
             quantity,
             unit_price,
@@ -289,7 +289,7 @@ export function usePatientPortal() {
         .order('created_at', { ascending: false });
 
       // Calculate totals
-      const totalBilled = invoices?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;
+      const totalBilled = invoices?.reduce((sum, inv) => sum + (inv.total || 0), 0) || 0;
       const totalPaid = invoices?.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0) || 0;
       const outstandingBalance = totalBilled - totalPaid;
 

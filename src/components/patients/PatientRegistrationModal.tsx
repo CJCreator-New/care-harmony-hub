@@ -160,11 +160,15 @@ export function PatientRegistrationModal({
       if (insertError) throw insertError;
 
       // Log activity
-      await logActivity('patient_registered', {
-        patient_id: patientData.id,
-        patient_name: `${data.first_name} ${data.last_name}`,
-        mrn: mrnData,
-        registered_by: profile.id
+      await logActivity({
+        actionType: 'patient_create',
+        entityType: 'patient',
+        entityId: patientData.id,
+        details: {
+          patient_name: `${data.first_name} ${data.last_name}`,
+          mrn: mrnData,
+          registered_by: profile.id
+        }
       });
 
       toast({
