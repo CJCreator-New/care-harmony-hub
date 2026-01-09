@@ -140,7 +140,7 @@ export function ScheduleAppointmentModal({
       patient.mrn.toLowerCase().includes(patientSearch.toLowerCase())
   );
 
-  const handlePatientSelect = (patient: typeof patients extends (infer T)[] ? T : never) => {
+  const handlePatientSelect = (patient: NonNullable<typeof patients>[number]) => {
     setSelectedPatient({
       id: patient.id,
       name: `${patient.first_name} ${patient.last_name}`,

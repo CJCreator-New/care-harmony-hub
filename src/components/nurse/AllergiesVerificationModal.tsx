@@ -52,7 +52,7 @@ export function AllergiesVerificationModal({
             <Checkbox
               id="hasAllergies"
               checked={hasAllergies}
-              onCheckedChange={setHasAllergies}
+              onCheckedChange={(checked) => setHasAllergies(checked === true)}
             />
             <Label htmlFor="hasAllergies">Patient has known allergies</Label>
           </div>

@@ -244,12 +244,12 @@ export function useMessageContacts() {
             last_name,
             email
           `)
-          .eq('hospital_id', hospital?.id);
+          .eq('hospital_id', hospital?.id || '');
 
         if (error) throw error;
 
         // Filter to only doctors and nurses
-        const staffIds = data?.map(p => p.user_id) || [];
+        const staffIds = data?.map(p => p.user_id).filter((id): id is string => id != null) || [];
         if (staffIds.length === 0) return [];
 
         const { data: rolesData, error: rolesError } = await supabase
@@ -261,13 +261,13 @@ export function useMessageContacts() {
         if (rolesError) throw rolesError;
 
         const clinicalStaffIds = new Set(rolesData?.map(r => r.user_id) || []);
-        return data?.filter(p => clinicalStaffIds.has(p.user_id)) || [];
+        return data?.filter(p => p.user_id && clinicalStaffIds.has(p.user_id)) || [];
       } else {
         // Staff can message patients linked to their hospital
         const { data: patients, error } = await supabase
           .from('patients')
           .select('id, user_id, first_name, last_name, email, mrn')
-          .eq('hospital_id', hospital?.id)
+          .eq('hospital_id', hospital?.id || '')
           .not('user_id', 'is', null);
 
         if (error) throw error;

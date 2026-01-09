@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

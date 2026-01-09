@@ -141,24 +141,28 @@ export function useCreateAppointment() {
         })
         .select(`
           *,
-          patient:patients(first_name, last_name, mrn)
+          patient:patients(id, first_name, last_name, mrn, phone)
         `)
         .single();
 
       if (error) throw error;
-      return data as Appointment;
+      return data as unknown as Appointment;
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       
       // Log activity
-      await logActivity('appointment_created', {
-        appointment_id: data.id,
-        patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
-        patient_mrn: (data.patient as any)?.mrn,
-        scheduled_date: data.scheduled_date,
-        scheduled_time: data.scheduled_time,
-        appointment_type: data.appointment_type
+      await logActivity({
+        actionType: 'appointment_create',
+        entityType: 'appointment',
+        entityId: data.id,
+        details: {
+          patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
+          patient_mrn: (data.patient as any)?.mrn,
+          scheduled_date: data.scheduled_date,
+          scheduled_time: data.scheduled_time,
+          appointment_type: data.appointment_type
+        }
       });
       
       toast.success('Appointment scheduled successfully');
@@ -181,22 +185,26 @@ export function useUpdateAppointment() {
         .eq('id', id)
         .select(`
           *,
-          patient:patients(first_name, last_name, mrn)
+          patient:patients(id, first_name, last_name, mrn, phone)
         `)
         .single();
 
       if (error) throw error;
-      return data as Appointment;
+      return data as unknown as Appointment;
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       
       // Log activity
-      await logActivity('appointment_updated', {
-        appointment_id: data.id,
-        patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
-        status: data.status,
-        updated_fields: Object.keys(data)
+      await logActivity({
+        actionType: 'appointment_update',
+        entityType: 'appointment',
+        entityId: data.id,
+        details: {
+          patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
+          status: data.status,
+          updated_fields: Object.keys(data)
+        }
       });
       
       toast.success('Appointment updated');

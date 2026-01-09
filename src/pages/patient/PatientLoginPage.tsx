@@ -55,12 +55,6 @@ export default function PatientLoginPage() {
       });
 
       if (error) {
-        // Increment failed login attempts
-        if (data?.user?.id) {
-          await supabase.rpc('increment_failed_login', {
-            _user_id: data.user.id,
-          });
-        }
         throw error;
       }
 

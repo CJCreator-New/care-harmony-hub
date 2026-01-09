@@ -67,7 +67,16 @@ export function PatientPrepChecklistCard({
 
   useEffect(() => {
     if (existingChecklist) {
-      setChecklist(existingChecklist);
+      // Convert null values to undefined for type compatibility
+      setChecklist({
+        ...existingChecklist,
+        vitals_completed: existingChecklist.vitals_completed ?? undefined,
+        allergies_verified: existingChecklist.allergies_verified ?? undefined,
+        medications_reviewed: existingChecklist.medications_reviewed ?? undefined,
+        chief_complaint_recorded: existingChecklist.chief_complaint_recorded ?? undefined,
+        consent_obtained: existingChecklist.consent_obtained ?? undefined,
+        ready_for_doctor: existingChecklist.ready_for_doctor ?? undefined,
+      });
     }
   }, [existingChecklist]);
 
@@ -78,7 +87,16 @@ export function PatientPrepChecklistCard({
         queueEntryId,
         appointmentId,
       });
-      setChecklist(result);
+      // Convert null values to undefined for type compatibility
+      setChecklist({
+        ...result,
+        vitals_completed: result.vitals_completed ?? undefined,
+        allergies_verified: result.allergies_verified ?? undefined,
+        medications_reviewed: result.medications_reviewed ?? undefined,
+        chief_complaint_recorded: result.chief_complaint_recorded ?? undefined,
+        consent_obtained: result.consent_obtained ?? undefined,
+        ready_for_doctor: result.ready_for_doctor ?? undefined,
+      });
       toast.success(`✅ Pre-consultation checklist started for ${patientName}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -92,12 +110,11 @@ export function PatientPrepChecklistCard({
     setShowVitalsModal(false);
   };
 
-  const handleAllergiesComplete = async (data: any) => {
+  const handleAllergiesComplete = async (_data: any) => {
     try {
       await updateChecklist.mutateAsync({
         id: existingChecklist!.id,
         allergies_verified: true,
-        allergies_data: data,
       });
       setChecklist(prev => ({ ...prev, allergies_verified: true }));
       setShowAllergiesModal(false);
@@ -107,12 +124,11 @@ export function PatientPrepChecklistCard({
     }
   };
 
-  const handleMedicationsComplete = async (data: any) => {
+  const handleMedicationsComplete = async (_data: any) => {
     try {
       await updateChecklist.mutateAsync({
         id: existingChecklist!.id,
         medications_reviewed: true,
-        medications_data: data,
       });
       setChecklist(prev => ({ ...prev, medications_reviewed: true }));
       setShowMedicationsModal(false);
@@ -122,12 +138,11 @@ export function PatientPrepChecklistCard({
     }
   };
 
-  const handleComplaintComplete = async (data: any) => {
+  const handleComplaintComplete = async (_data: any) => {
     try {
       await updateChecklist.mutateAsync({
         id: existingChecklist!.id,
         chief_complaint_recorded: true,
-        chief_complaint_data: data,
       });
       setChecklist(prev => ({ ...prev, chief_complaint_recorded: true }));
       setShowComplaintModal(false);

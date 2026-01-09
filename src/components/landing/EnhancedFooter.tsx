@@ -103,7 +103,7 @@ export function EnhancedFooter() {
                       className="text-sm text-sidebar-foreground/70 hover:text-sidebar-primary-foreground transition-colors flex items-center gap-1"
                     >
                       {link.label}
-                      {link.external && <ExternalLink className="w-3 h-3" />}
+                      {'external' in link && link.external && <ExternalLink className="w-3 h-3" />}
                     </a>
                   </li>
                 ))}

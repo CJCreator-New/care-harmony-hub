@@ -176,7 +176,7 @@ export class PaymentService {
         return { success: false, error: error.message || 'Payment failed' };
       }
 
-      return { success: true, paymentIntent };
+      return { success: true, paymentIntent: paymentIntent || undefined };
     } catch (error) {
       console.error('Payment processing error:', error);
       return {

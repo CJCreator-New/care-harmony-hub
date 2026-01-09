@@ -97,7 +97,10 @@ export default function PatientsPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPatients(data || []);
+      setPatients((data || []).map(p => ({
+        ...p,
+        is_active: p.is_active ?? false
+      })));
     } catch (error) {
       console.error('Error loading patients:', error);
       toast({

@@ -137,7 +137,7 @@ export function PrescriptionDispensingModal({
                 <Checkbox
                   id="patientVerified"
                   checked={patientVerified}
-                  onCheckedChange={setPatientVerified}
+                  onCheckedChange={(checked) => setPatientVerified(checked === true)}
                 />
                 <Label htmlFor="patientVerified" className="cursor-pointer">
                   Patient identity verified
@@ -148,7 +148,7 @@ export function PrescriptionDispensingModal({
                 <Checkbox
                   id="safetyChecks"
                   checked={safetyChecksComplete}
-                  onCheckedChange={setSafetyChecksComplete}
+                  onCheckedChange={(checked) => setSafetyChecksComplete(checked === true)}
                 />
                 <Label htmlFor="safetyChecks" className="cursor-pointer">
                   Safety checks complete
