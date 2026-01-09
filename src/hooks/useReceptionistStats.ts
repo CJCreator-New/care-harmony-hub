@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { startOfDay, endOfDay } from 'date-fns';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface ReceptionistStats {
   todayAppointments: number;
@@ -16,6 +18,56 @@ export interface ReceptionistStats {
 
 export function useReceptionistStats() {
   const { hospital } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!hospital?.id) return;
+
+    const channel = supabase
+      .channel('receptionist-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['receptionist-stats'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patient_queue',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['receptionist-stats'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payments',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['receptionist-stats'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hospital?.id, queryClient]);
 
   return useQuery({
     queryKey: ['receptionist-stats', hospital?.id],
@@ -119,7 +171,7 @@ export function useReceptionistStats() {
       };
     },
     enabled: !!hospital?.id,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 5000, // Refresh every 5 seconds as backup
   });
 }
 

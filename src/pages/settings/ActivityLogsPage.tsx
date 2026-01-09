@@ -1,160 +1,130 @@
 import { useState } from 'react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useActivityLogs } from '@/hooks/useActivityLog';
-import { format } from 'date-fns';
-import { 
-  Activity, 
-  Search, 
-  Filter,
-  LogIn,
-  LogOut,
-  Eye,
-  UserPlus,
-  Edit,
-  Calendar,
-  Stethoscope,
-  Pill,
-  TestTube2,
-  CreditCard,
-  Settings,
-  Download,
-  AlertTriangle,
-  Info,
-  AlertCircle,
-  Monitor,
-  Globe
-} from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { CalendarIcon, Search, Filter, Download, Eye, User, Clock } from 'lucide-react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-const actionIcons: Record<string, React.ElementType> = {
-  login: LogIn,
-  logout: LogOut,
-  patient_view: Eye,
-  patient_create: UserPlus,
-  patient_update: Edit,
-  appointment_create: Calendar,
-  appointment_update: Calendar,
-  appointment_cancel: Calendar,
-  consultation_start: Stethoscope,
-  consultation_complete: Stethoscope,
-  prescription_create: Pill,
-  prescription_dispense: Pill,
-  lab_order_create: TestTube2,
-  lab_result_enter: TestTube2,
-  invoice_create: CreditCard,
-  payment_record: CreditCard,
-  staff_invite: UserPlus,
-  staff_deactivate: LogOut,
-  settings_update: Settings,
-};
-
-const actionLabels: Record<string, string> = {
-  login: 'User Login',
-  logout: 'User Logout',
-  patient_view: 'Viewed Patient',
-  patient_create: 'Created Patient',
-  patient_update: 'Updated Patient',
-  appointment_create: 'Created Appointment',
-  appointment_update: 'Updated Appointment',
-  appointment_cancel: 'Cancelled Appointment',
-  consultation_start: 'Started Consultation',
-  consultation_complete: 'Completed Consultation',
-  prescription_create: 'Created Prescription',
-  prescription_dispense: 'Dispensed Prescription',
-  lab_order_create: 'Created Lab Order',
-  lab_result_enter: 'Entered Lab Result',
-  invoice_create: 'Created Invoice',
-  payment_record: 'Recorded Payment',
-  staff_invite: 'Invited Staff',
-  staff_deactivate: 'Deactivated Staff',
-  settings_update: 'Updated Settings',
-};
-
-const actionColors: Record<string, string> = {
-  login: 'bg-green-500/10 text-green-700 dark:text-green-400',
-  logout: 'bg-gray-500/10 text-gray-700 dark:text-gray-400',
-  patient_view: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  patient_create: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  patient_update: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  appointment_create: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
-  appointment_update: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
-  appointment_cancel: 'bg-red-500/10 text-red-700 dark:text-red-400',
-  consultation_start: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
-  consultation_complete: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
-  prescription_create: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
-  prescription_dispense: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
-  lab_order_create: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
-  lab_result_enter: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
-  invoice_create: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-  payment_record: 'bg-green-500/10 text-green-700 dark:text-green-400',
-  staff_invite: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
-  staff_deactivate: 'bg-red-500/10 text-red-700 dark:text-red-400',
-  settings_update: 'bg-gray-500/10 text-gray-700 dark:text-gray-400',
-};
-
-const severityConfig: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-  info: { icon: Info, color: 'text-blue-500', label: 'Info' },
-  warning: { icon: AlertTriangle, color: 'text-yellow-500', label: 'Warning' },
-  error: { icon: AlertCircle, color: 'text-red-500', label: 'Error' },
-  critical: { icon: AlertCircle, color: 'text-red-700', label: 'Critical' },
-};
+interface ActivityLog {
+  id: string;
+  user_id: string | null;
+  action_type: string;
+  entity_type: string;
+  entity_id: string;
+  old_values: any;
+  new_values: any;
+  details: any;
+  severity: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  user?: {
+    first_name: string;
+    last_name: string;
+  };
+}
 
 export default function ActivityLogsPage() {
-  const [actionFilter, setActionFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const { hospital } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [actionFilter, setActionFilter] = useState('all');
+  const [severityFilter, setSeverityFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState<Date>();
+  const [dateTo, setDateTo] = useState<Date>();
 
-  const { data: logs, isLoading } = useActivityLogs({
-    actionType: actionFilter === 'all' ? undefined : actionFilter,
-    startDate: startDate?.toISOString(),
-    endDate: endDate?.toISOString(),
-    limit: 200,
+  const { data: activityLogs, isLoading } = useQuery({
+    queryKey: ['activity-logs', hospital?.id, searchTerm, actionFilter, severityFilter, dateFrom, dateTo],
+    queryFn: async () => {
+      if (!hospital?.id) return [];
+
+      let query = supabase
+        .from('activity_logs')
+        .select(`
+          *,
+          user:profiles(first_name, last_name)
+        `)
+        .eq('hospital_id', hospital.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (actionFilter !== 'all') {
+        query = query.eq('action_type', actionFilter);
+      }
+
+      if (severityFilter !== 'all') {
+        query = query.eq('severity', severityFilter);
+      }
+
+      if (dateFrom) {
+        query = query.gte('created_at', dateFrom.toISOString());
+      }
+
+      if (dateTo) {
+        query = query.lte('created_at', dateTo.toISOString());
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return data as ActivityLog[];
+    },
+    enabled: !!hospital?.id,
   });
 
-  const filteredLogs = logs?.filter(log => {
-    if (!searchQuery) return true;
-    const profile = log.profiles as any;
-    const userName = profile ? `${profile.first_name} ${profile.last_name}`.toLowerCase() : '';
-    return userName.includes(searchQuery.toLowerCase()) ||
-           log.action_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (log.ip_address && log.ip_address.includes(searchQuery));
+  const filteredLogs = activityLogs?.filter(log => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      log.action_type.toLowerCase().includes(searchLower) ||
+      log.entity_type.toLowerCase().includes(searchLower) ||
+      log.entity_id.toLowerCase().includes(searchLower) ||
+      (log.user?.first_name + ' ' + log.user?.last_name).toLowerCase().includes(searchLower) ||
+      JSON.stringify(log.details).toLowerCase().includes(searchLower)
+    );
   });
 
-  const handleExport = () => {
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'destructive';
+      case 'warning': return 'secondary';
+      case 'info': return 'outline';
+      default: return 'outline';
+    }
+  };
+
+  const getActionIcon = (actionType: string) => {
+    if (actionType.includes('create')) return '➕';
+    if (actionType.includes('update')) return '✏️';
+    if (actionType.includes('delete')) return '🗑️';
+    if (actionType.includes('view')) return '👁️';
+    if (actionType.includes('login')) return '🔐';
+    return '📝';
+  };
+
+  const exportLogs = () => {
     if (!filteredLogs) return;
     
     const csv = [
-      ['Date', 'Time', 'User', 'Action', 'Entity Type', 'Severity', 'IP Address', 'User Agent', 'Details'].join(','),
-      ...filteredLogs.map(log => {
-        const profile = log.profiles as any;
-        const userName = profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown';
-        return [
-          format(new Date(log.created_at), 'yyyy-MM-dd'),
-          format(new Date(log.created_at), 'HH:mm:ss'),
-          `"${userName}"`,
-          log.action_type,
-          log.entity_type || '-',
-          log.severity || 'info',
-          log.ip_address || '-',
-          `"${(log.user_agent || '-').replace(/"/g, '""')}"`,
-          `"${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`,
-        ].join(',');
-      }),
+      ['Timestamp', 'User', 'Action', 'Entity Type', 'Entity ID', 'Severity', 'Details'].join(','),
+      ...filteredLogs.map(log => [
+        log.created_at,
+        log.user ? `${log.user.first_name} ${log.user.last_name}` : 'System',
+        log.action_type,
+        log.entity_type,
+        log.entity_id,
+        log.severity,
+        JSON.stringify(log.details).replace(/,/g, ';')
+      ].join(','))
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -166,213 +136,234 @@ export default function ActivityLogsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const clearFilters = () => {
-    setActionFilter('all');
-    setSearchQuery('');
-    setStartDate(undefined);
-    setEndDate(undefined);
-  };
-
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Activity Logs</h1>
-            <p className="text-muted-foreground">
-              HIPAA-compliant audit trail of all user actions in your hospital.
-            </p>
-          </div>
-          <Button onClick={handleExport} variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Activity Logs</h1>
+        <p className="text-muted-foreground">
+          Comprehensive audit trail of all system activities for compliance and security monitoring.
+        </p>
+      </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 md:flex-row">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by user, action, or IP address..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={actionFilter} onValueChange={setActionFilter}>
-                  <SelectTrigger className="w-full md:w-[200px]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter by action" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Actions</SelectItem>
-                    <SelectItem value="login">Logins</SelectItem>
-                    <SelectItem value="logout">Logouts</SelectItem>
-                    <SelectItem value="patient_view">Patient Views</SelectItem>
-                    <SelectItem value="patient_create">Patient Created</SelectItem>
-                    <SelectItem value="patient_update">Patient Updates</SelectItem>
-                    <SelectItem value="consultation_complete">Consultations</SelectItem>
-                    <SelectItem value="prescription_create">Prescriptions</SelectItem>
-                    <SelectItem value="lab_order_create">Lab Orders</SelectItem>
-                    <SelectItem value="settings_update">Settings Changes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn(!startDate && "text-muted-foreground")}>
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, 'MMM d, yyyy') : 'Start date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={startDate}
-                        onSelect={setStartDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <span className="text-muted-foreground">to</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn(!endDate && "text-muted-foreground")}>
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {endDate ? format(endDate, 'MMM d, yyyy') : 'End date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {(actionFilter !== 'all' || searchQuery || startDate || endDate) && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    Clear filters
-                  </Button>
-                )}
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+          <CardDescription>
+            Filter activity logs by action type, severity, date range, or search terms.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search logs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Logs List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Recent Activity
-            </CardTitle>
-            <CardDescription>
-              Showing the last 200 activities. Export for full history.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Skeleton key={i} className="h-20 w-full" />
-                ))}
+            {/* Action Type */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Action Type</label>
+              <Select value={actionFilter} onValueChange={setActionFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="patient_registered">Patient Registered</SelectItem>
+                  <SelectItem value="appointment_created">Appointment Created</SelectItem>
+                  <SelectItem value="appointment_updated">Appointment Updated</SelectItem>
+                  <SelectItem value="consultation_started">Consultation Started</SelectItem>
+                  <SelectItem value="consultation_completed">Consultation Completed</SelectItem>
+                  <SelectItem value="prescription_created">Prescription Created</SelectItem>
+                  <SelectItem value="payment_recorded">Payment Recorded</SelectItem>
+                  <SelectItem value="user_login">User Login</SelectItem>
+                  <SelectItem value="user_logout">User Logout</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Severity */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Severity</label>
+              <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Severities</SelectItem>
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Range */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date Range</label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFrom ? format(dateFrom, 'MMM dd') : 'From'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateTo ? format(dateTo, 'MMM dd') : 'To'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
-            ) : filteredLogs && filteredLogs.length > 0 ? (
-              <div className="space-y-3">
-                {filteredLogs.map((log) => {
-                  const Icon = actionIcons[log.action_type] || Activity;
-                  const profile = log.profiles as any;
-                  const userName = profile 
-                    ? `${profile.first_name} ${profile.last_name}`
-                    : 'Unknown User';
-                  const severity = log.severity as string || 'info';
-                  const SeverityIcon = severityConfig[severity]?.icon || Info;
+            </div>
+          </div>
 
-                  return (
-                    <div
-                      key={log.id}
-                      className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                    >
-                      <div className={`p-2 rounded-lg ${actionColors[log.action_type] || 'bg-muted'}`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{userName}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {actionLabels[log.action_type] || log.action_type}
-                          </Badge>
-                          {log.entity_type && (
+          <div className="flex justify-between items-center mt-4">
+            <div className="text-sm text-muted-foreground">
+              {filteredLogs?.length || 0} activities found
+            </div>
+            <Button onClick={exportLogs} variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Activity Logs Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Activity Timeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : filteredLogs?.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No activity logs found matching your criteria.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLogs?.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium">
+                              {format(new Date(log.created_at), 'MMM dd, yyyy')}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {format(new Date(log.created_at), 'HH:mm:ss')}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          {log.user ? (
+                            <span>{log.user.first_name} {log.user.last_name}</span>
+                          ) : (
+                            <span className="text-muted-foreground italic">System</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{getActionIcon(log.action_type)}</span>
+                          <span className="font-medium">{log.action_type}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{log.entity_type}</div>
+                          <div className="text-sm text-muted-foreground">{log.entity_id}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getSeverityColor(log.severity) as any}>
+                          {log.severity}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs">
+                          {log.details && typeof log.details === 'object' ? (
+                            <div className="space-y-1">
+                              {Object.entries(log.details).slice(0, 3).map(([key, value]) => (
+                                <div key={key} className="text-sm">
+                                  <span className="font-medium">{key}:</span>{' '}
+                                  <span className="text-muted-foreground">
+                                    {typeof value === 'string' ? value : JSON.stringify(value)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
                             <span className="text-sm text-muted-foreground">
-                              • {log.entity_type}
-                            </span>
-                          )}
-                          {severity && severity !== 'info' && (
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs", severityConfig[severity]?.color)}
-                            >
-                              <SeverityIcon className="h-3 w-3 mr-1" />
-                              {severityConfig[severity]?.label}
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Technical details */}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          {log.ip_address && (
-                            <span className="flex items-center gap-1">
-                              <Globe className="h-3 w-3" />
-                              {log.ip_address}
-                            </span>
-                          )}
-                          {log.user_agent && (
-                            <span className="flex items-center gap-1 truncate max-w-[200px]">
-                              <Monitor className="h-3 w-3" />
-                              {log.user_agent.split(' ')[0]}
+                              {log.details || 'No details'}
                             </span>
                           )}
                         </div>
-
-                        {log.details && Object.keys(log.details).length > 0 && (
-                          <p className="text-sm text-muted-foreground mt-1 truncate">
-                            {JSON.stringify(log.details)}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right text-sm text-muted-foreground whitespace-nowrap">
-                        <div>{format(new Date(log.created_at), 'MMM d, yyyy')}</div>
-                        <div>{format(new Date(log.created_at), 'h:mm a')}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No activity logs found.</p>
-                {(actionFilter !== 'all' || searchQuery || startDate || endDate) && (
-                  <Button variant="link" onClick={clearFilters}>
-                    Clear filters to see all logs
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </DashboardLayout>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

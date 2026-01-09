@@ -38,24 +38,17 @@ export function useErrorTracking() {
         },
       };
 
-      // Log to activity_logs table using existing structure
+      // Log to error_logs table
       const { error: dbError } = await supabase
-        .from('activity_logs')
+        .from('error_logs')
         .insert({
-          action_type: 'error',
-          user_id: context?.userId || (await supabase.auth.getUser()).data.user?.id || '',
-          details: {
-            message: errorMessage,
-            stack: errorStack,
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-            severity: context?.severity || 'medium',
-            context: context?.additionalContext,
-          },
-          entity_type: 'error',
-          entity_id: `error_${Date.now()}`,
-          severity: context?.severity || 'medium',
+          message: errorMessage,
+          stack: errorStack,
+          url: window.location.href,
           user_agent: navigator.userAgent,
+          user_id: context?.userId || (await supabase.auth.getUser()).data.user?.id || null,
+          severity: context?.severity || 'medium',
+          context: context?.additionalContext || {},
         });
 
       if (dbError) {

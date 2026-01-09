@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Heart,
@@ -24,6 +23,10 @@ import {
 import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
 import { useActiveQueue, useUpdateQueueEntry } from '@/hooks/useQueue';
 import { toast } from 'sonner';
+import { AllergiesVerificationModal } from './AllergiesVerificationModal';
+import { ChiefComplaintModal } from './ChiefComplaintModal';
+import { MedicationsReviewModal } from './MedicationsReviewModal';
+import { RecordVitalsModal } from './RecordVitalsModal';
 
 interface PatientPrepChecklistCardProps {
   patientId: string;
@@ -57,6 +60,11 @@ export function PatientPrepChecklistCard({
     notes: '',
   });
 
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showAllergiesModal, setShowAllergiesModal] = useState(false);
+  const [showMedicationsModal, setShowMedicationsModal] = useState(false);
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+
   useEffect(() => {
     if (existingChecklist) {
       setChecklist(existingChecklist);
@@ -64,12 +72,69 @@ export function PatientPrepChecklistCard({
   }, [existingChecklist]);
 
   const handleCreateChecklist = async () => {
-    const result = await createChecklist.mutateAsync({
-      patientId,
-      queueEntryId,
-      appointmentId,
-    });
-    setChecklist(result);
+    try {
+      const result = await createChecklist.mutateAsync({
+        patientId,
+        queueEntryId,
+        appointmentId,
+      });
+      setChecklist(result);
+      toast.success(`✅ Pre-consultation checklist started for ${patientName}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to start checklist: ${errorMessage}`);
+      console.error('Error creating checklist:', error);
+    }
+  };
+
+  const handleVitalsComplete = () => {
+    handleCheckItem('vitals_completed', true);
+    setShowVitalsModal(false);
+  };
+
+  const handleAllergiesComplete = async (data: any) => {
+    try {
+      await updateChecklist.mutateAsync({
+        id: existingChecklist!.id,
+        allergies_verified: true,
+        allergies_data: data,
+      });
+      setChecklist(prev => ({ ...prev, allergies_verified: true }));
+      setShowAllergiesModal(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Update failed';
+      toast.error(`Failed to update allergies: ${errorMessage}`);
+    }
+  };
+
+  const handleMedicationsComplete = async (data: any) => {
+    try {
+      await updateChecklist.mutateAsync({
+        id: existingChecklist!.id,
+        medications_reviewed: true,
+        medications_data: data,
+      });
+      setChecklist(prev => ({ ...prev, medications_reviewed: true }));
+      setShowMedicationsModal(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Update failed';
+      toast.error(`Failed to update medications: ${errorMessage}`);
+    }
+  };
+
+  const handleComplaintComplete = async (data: any) => {
+    try {
+      await updateChecklist.mutateAsync({
+        id: existingChecklist!.id,
+        chief_complaint_recorded: true,
+        chief_complaint_data: data,
+      });
+      setChecklist(prev => ({ ...prev, chief_complaint_recorded: true }));
+      setShowComplaintModal(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Update failed';
+      toast.error(`Failed to update complaint: ${errorMessage}`);
+    }
   };
 
   const handleCheckItem = async (field: keyof PatientPrepChecklist, value: boolean) => {
@@ -78,40 +143,50 @@ export function PatientPrepChecklistCard({
     const updatedChecklist = { ...checklist, [field]: value };
     setChecklist(updatedChecklist);
 
-    await updateChecklist.mutateAsync({
-      id: existingChecklist.id,
-      [field]: value,
-      vitals_completed: updatedChecklist.vitals_completed,
-      allergies_verified: updatedChecklist.allergies_verified,
-      medications_reviewed: updatedChecklist.medications_reviewed,
-      chief_complaint_recorded: updatedChecklist.chief_complaint_recorded,
-    });
+    try {
+      await updateChecklist.mutateAsync({
+        id: existingChecklist.id,
+        [field]: value,
+        vitals_completed: updatedChecklist.vitals_completed,
+        allergies_verified: updatedChecklist.allergies_verified,
+        medications_reviewed: updatedChecklist.medications_reviewed,
+        chief_complaint_recorded: updatedChecklist.chief_complaint_recorded,
+      });
+    } catch (error) {
+      setChecklist(checklist);
+      const errorMessage = error instanceof Error ? error.message : 'Update failed';
+      toast.error(`Failed to update checklist: ${errorMessage}`);
+      console.error('Error updating checklist:', error);
+    }
   };
 
   const handleMarkReady = async () => {
     if (!existingChecklist?.id) return;
 
-    await updateChecklist.mutateAsync({
-      id: existingChecklist.id,
-      ready_for_doctor: true,
-    });
-
-    // Find queue entry for this patient
-    const queueEntry = queue.find(q => q.patient_id === patientId);
-    
-    // Update queue entry notes to indicate ready for doctor
-    if (queueEntry) {
-      await updateQueueEntry.mutateAsync({
-        id: queueEntry.id,
-        notes: `${queueEntry.notes || ''} [Ready for doctor - prep completed]`.trim(),
+    try {
+      await updateChecklist.mutateAsync({
+        id: existingChecklist.id,
+        ready_for_doctor: true,
       });
-    }
-    
-    // Send notification to doctors
-    await notifyPatientReady(patientId, patientName, queueEntry?.queue_number);
 
-    toast.success('Patient marked as ready for doctor');
-    onComplete?.();
+      const queueEntry = queue.find(q => q.patient_id === patientId);
+      
+      if (queueEntry) {
+        await updateQueueEntry.mutateAsync({
+          id: queueEntry.id,
+          notes: `${queueEntry.notes || ''} [Ready for doctor - prep completed]`.trim(),
+        });
+      }
+      
+      await notifyPatientReady(patientId, patientName, queueEntry?.queue_number);
+
+      toast.success(`✅ ${patientName} is now ready for doctor consultation`);
+      onComplete?.();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to mark patient as ready: ${errorMessage}`);
+      console.error('Error marking patient ready:', error);
+    }
   };
 
   const isAllComplete =
@@ -150,112 +225,173 @@ export function PatientPrepChecklistCard({
   }
 
   return (
-    <Card className={checklist.ready_for_doctor ? 'border-success/50 bg-success/5' : ''}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileCheck className="h-4 w-4" />
-            Pre-Consultation Checklist
-          </CardTitle>
-          {checklist.ready_for_doctor ? (
-            <Badge variant="success">Ready</Badge>
-          ) : isAllComplete ? (
-            <Badge variant="warning">Review Needed</Badge>
-          ) : (
-            <Badge variant="secondary">In Progress</Badge>
+    <>
+      <Card className={checklist.ready_for_doctor ? 'border-success/50 bg-success/5' : ''}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileCheck className="h-4 w-4" />
+              Pre-Consultation Checklist
+            </CardTitle>
+            {checklist.ready_for_doctor ? (
+              <Badge variant="success">Ready</Badge>
+            ) : isAllComplete ? (
+              <Badge variant="warning">Review Needed</Badge>
+            ) : (
+              <Badge variant="secondary">In Progress</Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{patientName}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="vitals"
+                checked={checklist.vitals_completed}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setShowVitalsModal(true);
+                  } else {
+                    handleCheckItem('vitals_completed', false);
+                  }
+                }}
+                disabled={checklist.ready_for_doctor}
+              />
+              <Label htmlFor="vitals" className="flex items-center gap-2 cursor-pointer">
+                <Heart className="h-4 w-4 text-destructive" />
+                Vitals Recorded
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="allergies"
+                checked={checklist.allergies_verified}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setShowAllergiesModal(true);
+                  } else {
+                    handleCheckItem('allergies_verified', false);
+                  }
+                }}
+                disabled={checklist.ready_for_doctor}
+              />
+              <Label htmlFor="allergies" className="flex items-center gap-2 cursor-pointer">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                Allergies Verified
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="medications"
+                checked={checklist.medications_reviewed}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setShowMedicationsModal(true);
+                  } else {
+                    handleCheckItem('medications_reviewed', false);
+                  }
+                }}
+                disabled={checklist.ready_for_doctor}
+              />
+              <Label htmlFor="medications" className="flex items-center gap-2 cursor-pointer">
+                <Pill className="h-4 w-4 text-primary" />
+                Current Medications Reviewed
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="complaint"
+                checked={checklist.chief_complaint_recorded}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setShowComplaintModal(true);
+                  } else {
+                    handleCheckItem('chief_complaint_recorded', false);
+                  }
+                }}
+                disabled={checklist.ready_for_doctor}
+              />
+              <Label htmlFor="complaint" className="flex items-center gap-2 cursor-pointer">
+                <MessageSquare className="h-4 w-4 text-info" />
+                Chief Complaint Recorded
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="consent"
+                checked={checklist.consent_obtained}
+                onCheckedChange={(checked) => handleCheckItem('consent_obtained', checked as boolean)}
+                disabled={checklist.ready_for_doctor}
+              />
+              <Label htmlFor="consent" className="flex items-center gap-2 cursor-pointer">
+                <FileCheck className="h-4 w-4 text-success" />
+                Consent Obtained (Optional)
+              </Label>
+            </div>
+          </div>
+
+          {!checklist.ready_for_doctor && isAllComplete && (
+            <Button
+              onClick={handleMarkReady}
+              className="w-full"
+              disabled={updateChecklist.isPending}
+            >
+              {updateChecklist.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Mark Ready for Doctor
+            </Button>
           )}
-        </div>
-        <p className="text-sm text-muted-foreground">{patientName}</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Checklist Items */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="vitals"
-              checked={checklist.vitals_completed}
-              onCheckedChange={(checked) => handleCheckItem('vitals_completed', checked as boolean)}
-              disabled={checklist.ready_for_doctor}
-            />
-            <Label htmlFor="vitals" className="flex items-center gap-2 cursor-pointer">
-              <Heart className="h-4 w-4 text-destructive" />
-              Vitals Recorded
-            </Label>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="allergies"
-              checked={checklist.allergies_verified}
-              onCheckedChange={(checked) => handleCheckItem('allergies_verified', checked as boolean)}
-              disabled={checklist.ready_for_doctor}
-            />
-            <Label htmlFor="allergies" className="flex items-center gap-2 cursor-pointer">
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              Allergies Verified
-            </Label>
-          </div>
+          {checklist.ready_for_doctor && (
+            <div className="flex items-center justify-center gap-2 text-success py-2">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="font-medium">Patient is ready for consultation</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="medications"
-              checked={checklist.medications_reviewed}
-              onCheckedChange={(checked) => handleCheckItem('medications_reviewed', checked as boolean)}
-              disabled={checklist.ready_for_doctor}
-            />
-            <Label htmlFor="medications" className="flex items-center gap-2 cursor-pointer">
-              <Pill className="h-4 w-4 text-primary" />
-              Current Medications Reviewed
-            </Label>
-          </div>
+      {/* Modals */}
+      <RecordVitalsModal
+        open={showVitalsModal}
+        onOpenChange={setShowVitalsModal}
+        patient={{
+          id: patientId,
+          first_name: patientName.split(' ')[0] || '',
+          last_name: patientName.split(' ').slice(1).join(' ') || '',
+          mrn: '',
+        }}
+        onComplete={handleVitalsComplete}
+      />
 
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="complaint"
-              checked={checklist.chief_complaint_recorded}
-              onCheckedChange={(checked) => handleCheckItem('chief_complaint_recorded', checked as boolean)}
-              disabled={checklist.ready_for_doctor}
-            />
-            <Label htmlFor="complaint" className="flex items-center gap-2 cursor-pointer">
-              <MessageSquare className="h-4 w-4 text-info" />
-              Chief Complaint Recorded
-            </Label>
-          </div>
+      <AllergiesVerificationModal
+        open={showAllergiesModal}
+        onOpenChange={setShowAllergiesModal}
+        patientName={patientName}
+        onComplete={handleAllergiesComplete}
+        isLoading={updateChecklist.isPending}
+      />
 
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="consent"
-              checked={checklist.consent_obtained}
-              onCheckedChange={(checked) => handleCheckItem('consent_obtained', checked as boolean)}
-              disabled={checklist.ready_for_doctor}
-            />
-            <Label htmlFor="consent" className="flex items-center gap-2 cursor-pointer">
-              <FileCheck className="h-4 w-4 text-success" />
-              Consent Obtained (Optional)
-            </Label>
-          </div>
-        </div>
+      <MedicationsReviewModal
+        open={showMedicationsModal}
+        onOpenChange={setShowMedicationsModal}
+        patientName={patientName}
+        onComplete={handleMedicationsComplete}
+        isLoading={updateChecklist.isPending}
+      />
 
-        {/* Ready Button */}
-        {!checklist.ready_for_doctor && isAllComplete && (
-          <Button
-            onClick={handleMarkReady}
-            className="w-full"
-            disabled={updateChecklist.isPending}
-          >
-            {updateChecklist.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Mark Ready for Doctor
-          </Button>
-        )}
-
-        {checklist.ready_for_doctor && (
-          <div className="flex items-center justify-center gap-2 text-success py-2">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">Patient is ready for consultation</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <ChiefComplaintModal
+        open={showComplaintModal}
+        onOpenChange={setShowComplaintModal}
+        patientName={patientName}
+        onComplete={handleComplaintComplete}
+        isLoading={updateChecklist.isPending}
+      />
+    </>
   );
 }

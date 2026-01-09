@@ -46,6 +46,8 @@ tests/e2e/
 ### Performance Tests
 - **Render Performance**: Component render time benchmarks
 - **Large Dataset Handling**: Performance with high data volumes
+- **Error Tracking Performance**: Error logging and retrieval performance
+- **Monitoring Dashboard Performance**: Real-time metrics display performance
 
 ## Running Tests
 
@@ -76,6 +78,94 @@ npm test
 - **Browsers**: Chromium, Firefox, WebKit
 - **Parallel Execution**: Optimized for CI/CD
 - **Screenshots**: On failure for debugging
+
+## Monitoring & Error Tracking Tests
+
+### Error Logging Tests
+```typescript
+// Test error logging functionality
+describe('useErrorTracking', () => {
+  it('should log errors to database', async () => {
+    const mockError = new Error('Test error');
+    const { logError } = useErrorTracking();
+
+    await logError(mockError, {
+      severity: 'high',
+      userId: 'test-user',
+      additionalContext: { component: 'TestComponent' }
+    });
+
+    // Verify error was logged
+    expect(supabase.from).toHaveBeenCalledWith('error_logs');
+  });
+
+  it('should handle logging failures gracefully', async () => {
+    // Mock database failure
+    supabase.from.mockRejectedValue(new Error('DB Error'));
+
+    const { logError } = useErrorTracking();
+    await logError(new Error('Test error'));
+
+    // Should not throw, should log to console
+    expect(console.error).toHaveBeenCalled();
+  });
+});
+```
+
+### Monitoring Dashboard Tests
+```typescript
+// Test monitoring dashboard components
+describe('ErrorTrackingDashboard', () => {
+  it('should display error statistics', async () => {
+    render(<ErrorTrackingDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Total Errors')).toBeInTheDocument();
+      expect(screen.getByText('Critical')).toBeInTheDocument();
+    });
+  });
+
+  it('should filter errors by severity', async () => {
+    render(<ErrorTrackingDashboard />);
+
+    const severitySelect = screen.getByRole('combobox', { name: /severity/i });
+    fireEvent.change(severitySelect, { target: { value: 'critical' } });
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalledWith('activity_logs');
+    });
+  });
+});
+```
+
+### Performance Monitoring Tests
+```typescript
+// Test performance logging
+describe('Performance Monitoring', () => {
+  it('should log performance metrics', async () => {
+    const { data, error } = await supabase
+      .from('performance_logs')
+      .insert({
+        type: 'slow_page_load',
+        value: 3500,
+        threshold: 2000,
+        page: '/dashboard'
+      });
+
+    expect(error).toBeNull();
+    expect(data).toBeDefined();
+  });
+
+  it('should trigger alerts on threshold breach', async () => {
+    // Mock monitoring function call
+    const response = await supabase.functions.invoke('monitoring', {
+      body: { action: 'check_alerts' }
+    });
+
+    expect(response.data.alerts_triggered).toBeDefined();
+  });
+});
+```
 
 ## Key Testing Patterns
 
@@ -114,6 +204,8 @@ await page.route('**/api/consultations', route => {
 - **Integration Tests**: Critical user flows
 - **E2E Tests**: Happy path + error scenarios
 - **Performance Tests**: Key performance metrics
+- **Error Tracking Tests**: Error logging and monitoring coverage
+- **Monitoring Tests**: System metrics and alerting coverage
 
 ## CI/CD Integration
 Tests run automatically on:

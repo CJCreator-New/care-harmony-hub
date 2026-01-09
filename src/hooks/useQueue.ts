@@ -90,6 +90,23 @@ export function useAddToQueue() {
     }) => {
       if (!hospital?.id) throw new Error('No hospital context');
 
+      // Check if patient already has an active queue entry today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existingEntry } = await supabase
+        .from('patient_queue')
+        .select('id, status, queue_number')
+        .eq('hospital_id', hospital.id)
+        .eq('patient_id', patientId)
+        .in('status', ['waiting', 'called', 'in_service'])
+        .gte('created_at', `${today}T00:00:00`)
+        .maybeSingle();
+
+      if (existingEntry) {
+        // Patient already in queue, return existing entry
+        toast.info(`Patient already in queue - #${existingEntry.queue_number}`);
+        return existingEntry as QueueEntry;
+      }
+
       // Get next queue number
       const { data: queueNumber, error: queueError } = await supabase
         .rpc('get_next_queue_number', { p_hospital_id: hospital.id });

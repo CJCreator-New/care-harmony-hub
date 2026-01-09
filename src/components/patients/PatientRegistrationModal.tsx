@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,7 @@ export function PatientRegistrationModal({
 }: PatientRegistrationModalProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
 
@@ -130,7 +132,7 @@ export function PatientRegistrationModal({
       if (mrnError) throw mrnError;
 
       // Create patient
-      const { error: insertError } = await supabase.from('patients').insert({
+      const { data: patientData, error: insertError } = await supabase.from('patients').insert({
         hospital_id: profile.hospital_id,
         mrn: mrnData,
         first_name: data.first_name,
@@ -153,9 +155,17 @@ export function PatientRegistrationModal({
         insurance_policy_number: data.insurance_policy_number || null,
         insurance_group_number: data.insurance_group_number || null,
         notes: data.notes || null,
-      });
+      }).select().single();
 
       if (insertError) throw insertError;
+
+      // Log activity
+      await logActivity('patient_registered', {
+        patient_id: patientData.id,
+        patient_name: `${data.first_name} ${data.last_name}`,
+        mrn: mrnData,
+        registered_by: profile.id
+      });
 
       toast({
         title: 'Patient registered',

@@ -163,11 +163,14 @@ export function ScheduleAppointmentModal({
         reason_for_visit: data.reason_for_visit,
         notes: data.notes,
       });
-      onOpenChange(false);
+      
+      // Reset form and close modal
       form.reset();
       setSelectedPatient(null);
+      onOpenChange(false);
     } catch (error) {
-      // Error handled by hook
+      // Error is already handled by the mutation hook
+      console.error('Appointment creation failed:', error);
     }
   };
 

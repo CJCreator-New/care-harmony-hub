@@ -37,6 +37,7 @@ interface RecordVitalsModalProps {
   patient: Patient | null;
   consultationId?: string;
   showPatientSelector?: boolean;
+  onComplete?: () => void;
 }
 
 interface VitalsData {
@@ -58,6 +59,7 @@ export function RecordVitalsModal({
   patient: initialPatient,
   consultationId,
   showPatientSelector = false,
+  onComplete,
 }: RecordVitalsModalProps) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -156,9 +158,12 @@ export function RecordVitalsModal({
         notes: vitals.notes || null,
       });
 
-      if (error) throw error;
+      if (error) {
+        const errorMessage = error.message || 'Failed to record vitals';
+        throw new Error(errorMessage);
+      }
 
-      toast.success('Vitals recorded successfully');
+      toast.success('✅ Vitals recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['vital-signs'] });
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       
@@ -175,10 +180,12 @@ export function RecordVitalsModal({
         notes: '',
       });
       setSelectedPatient(null);
+      onComplete?.();
       onOpenChange(false);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error recording vitals:', error);
-      toast.error('Failed to record vitals');
+      toast.error(`Failed to record vitals: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }

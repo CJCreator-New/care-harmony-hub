@@ -69,17 +69,26 @@ export function MedicationAdministrationModal({
   }, [open, initialPatient]);
 
   const handleSubmit = async () => {
-    if (!selectedPatient || !medicationName || !dosage) return;
+    if (!selectedPatient || !medicationName || !dosage) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
-    await recordAdministration.mutateAsync({
-      patient_id: selectedPatient.id,
-      medication_name: medicationName,
-      dosage,
-      route,
-      status,
-      notes: notes || undefined,
-    });
-    setIsComplete(true);
+    try {
+      await recordAdministration.mutateAsync({
+        patient_id: selectedPatient.id,
+        medication_name: medicationName,
+        dosage,
+        route,
+        status,
+        notes: notes || undefined,
+      });
+      setIsComplete(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to record medication';
+      toast.error(`Medication recording failed: ${errorMessage}`);
+      console.error('Error recording medication:', error);
+    }
   };
 
   const getStatusColor = (s: string) => {
@@ -106,7 +115,7 @@ export function MedicationAdministrationModal({
               <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Medication Recorded</h3>
+              <h3 className="text-lg font-semibold">✅ Medication Recorded</h3>
               <p className="text-muted-foreground">
                 {medicationName} {dosage} - {status}
               </p>

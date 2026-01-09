@@ -8,6 +8,7 @@ import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { ResourceManagement } from '@/components/admin/ResourceManagement';
 import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 import { StaffOnboardingWizard } from '@/components/admin/StaffOnboardingWizard';
+import { TestDataSeederCard } from '@/components/admin/TestDataSeederCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,6 +18,7 @@ import {
   Settings,
   Building2,
   Bed,
+  Database,
 } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -90,6 +92,10 @@ export function AdminDashboard() {
             <Building2 className="h-4 w-4" />
             Departments
           </TabsTrigger>
+          <TabsTrigger value="testing" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Test Data
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6">
           <div className="grid lg:grid-cols-3 gap-6">
@@ -107,6 +113,11 @@ export function AdminDashboard() {
         </TabsContent>
         <TabsContent value="departments" className="mt-6">
           <DepartmentManagement />
+        </TabsContent>
+        <TabsContent value="testing" className="mt-6">
+          <div className="max-w-2xl">
+            <TestDataSeederCard />
+          </div>
         </TabsContent>
       </Tabs>
     </>

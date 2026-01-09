@@ -83,9 +83,15 @@ export default function ConsultationWorkflowPage() {
     if (!id) return;
 
     try {
+      // Clean up date fields - convert empty strings to null
+      const cleanedData = {
+        ...formData,
+        follow_up_date: formData.follow_up_date?.trim() || null,
+      };
+
       await updateConsultation.mutateAsync({
         id,
-        ...formData,
+        ...cleanedData,
       });
       toast.success("Progress saved");
     } catch (error) {
@@ -97,9 +103,15 @@ export default function ConsultationWorkflowPage() {
     if (!id || !consultation) return;
 
     try {
+      // Clean up date fields - convert empty strings to null
+      const cleanedData = {
+        ...formData,
+        follow_up_date: formData.follow_up_date?.trim() || null,
+      };
+
       await updateConsultation.mutateAsync({
         id,
-        ...formData,
+        ...cleanedData,
       });
 
       if (activeStep < 5) {

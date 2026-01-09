@@ -378,6 +378,85 @@ const { data, error } = await supabase.functions.invoke('send-notification', {
 });
 ```
 
+### Monitoring
+
+**Endpoint**: `/functions/v1/monitoring`
+
+System monitoring and alerting service.
+
+```typescript
+// Collect system metrics
+const { data, error } = await supabase.functions.invoke('monitoring', {
+  body: {
+    action: 'collect_metrics',
+    data: [{
+      timestamp: new Date().toISOString(),
+      service: 'frontend',
+      metric_name: 'page_load_time',
+      value: 1250,
+      status: 'normal'
+    }]
+  }
+});
+
+// Check alerts
+const { data: alerts, error } = await supabase.functions.invoke('monitoring', {
+  body: { action: 'check_alerts' }
+});
+
+// Get system status
+const { data: status, error } = await supabase.functions.invoke('monitoring', {
+  body: { action: 'get_status' }
+});
+```
+
+---
+
+## Error Tracking API
+
+### Log Error
+
+```typescript
+import { useErrorTracking } from '@/hooks/useErrorTracking';
+
+const { logError } = useErrorTracking();
+
+// Log an error with context
+await logError(new Error('Database connection failed'), {
+  severity: 'high',
+  userId: currentUserId,
+  additionalContext: { operation: 'patient_search' }
+});
+```
+
+### Retrieve Error Logs
+
+```typescript
+// Get error logs (admin only)
+const { data: errorLogs, error } = await supabase
+  .from('error_logs')
+  .select('*')
+  .eq('severity', 'critical')
+  .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+  .order('timestamp', { ascending: false })
+  .limit(100);
+```
+
+### Performance Monitoring
+
+```typescript
+// Log performance metrics
+const { data, error } = await supabase
+  .from('performance_logs')
+  .insert({
+    type: 'slow_page_load',
+    value: 3500, // milliseconds
+    threshold: 2000,
+    page: '/dashboard',
+    user_agent: navigator.userAgent
+  });
+```
+
 ---
 
 ## Realtime Subscriptions

@@ -134,6 +134,28 @@ export function useCreateConsultation() {
     mutationFn: async (data: ConsultationInsert) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
 
+      // Check for existing active consultation first
+      const { data: existingConsultation } = await supabase
+        .from('consultations')
+        .select('id')
+        .eq('patient_id', data.patient_id)
+        .eq('doctor_id', profile.id)
+        .neq('status', 'completed')
+        .maybeSingle();
+
+      if (existingConsultation) {
+        // Return existing consultation instead of creating duplicate
+        const { data: consultation, error } = await supabase
+          .from('consultations')
+          .select()
+          .eq('id', existingConsultation.id)
+          .single();
+        
+        if (error) throw error;
+        toast.info('Consultation already exists for this patient');
+        return consultation as Consultation;
+      }
+
       const { data: consultation, error } = await supabase
         .from('consultations')
         .insert({

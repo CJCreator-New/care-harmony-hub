@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
@@ -125,6 +126,7 @@ export function useUpcomingAppointments(limit: number = 10) {
 export function useCreateAppointment() {
   const queryClient = useQueryClient();
   const { hospital, profile } = useAuth();
+  const { logActivity } = useActivityLog();
 
   return useMutation({
     mutationFn: async (appointmentData: AppointmentInsert) => {
@@ -137,14 +139,28 @@ export function useCreateAppointment() {
           hospital_id: hospital.id,
           created_by: profile?.id,
         })
-        .select()
+        .select(`
+          *,
+          patient:patients(first_name, last_name, mrn)
+        `)
         .single();
 
       if (error) throw error;
       return data as Appointment;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      
+      // Log activity
+      await logActivity('appointment_created', {
+        appointment_id: data.id,
+        patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
+        patient_mrn: (data.patient as any)?.mrn,
+        scheduled_date: data.scheduled_date,
+        scheduled_time: data.scheduled_time,
+        appointment_type: data.appointment_type
+      });
+      
       toast.success('Appointment scheduled successfully');
     },
     onError: (error: Error) => {
@@ -155,6 +171,7 @@ export function useCreateAppointment() {
 
 export function useUpdateAppointment() {
   const queryClient = useQueryClient();
+  const { logActivity } = useActivityLog();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Appointment> & { id: string }) => {
@@ -162,14 +179,26 @@ export function useUpdateAppointment() {
         .from('appointments')
         .update(updates)
         .eq('id', id)
-        .select()
+        .select(`
+          *,
+          patient:patients(first_name, last_name, mrn)
+        `)
         .single();
 
       if (error) throw error;
       return data as Appointment;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      
+      // Log activity
+      await logActivity('appointment_updated', {
+        appointment_id: data.id,
+        patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
+        status: data.status,
+        updated_fields: Object.keys(data)
+      });
+      
       toast.success('Appointment updated');
     },
     onError: (error: Error) => {

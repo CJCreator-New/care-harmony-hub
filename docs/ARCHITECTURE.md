@@ -39,10 +39,10 @@
 │  │  │ Appointment    │ │ Lab Critical   │ │ Send           │      │   │
 │  │  │ Reminders      │ │ Values Alert   │ │ Notification   │      │   │
 │  │  └────────────────┘ └────────────────┘ └────────────────┘      │   │
-│  │  ┌────────────────┐                                             │   │
-│  │  │ Check Low      │                                             │   │
-│  │  │ Stock          │                                             │   │
-│  │  └────────────────┘                                             │   │
+│  │  ┌────────────────┐ ┌────────────────┐                         │   │
+│  │  │ Check Low      │ │ Monitoring     │                         │   │
+│  │  │ Stock          │ │ & Alerting     │                         │   │
+│  │  └────────────────┘ └────────────────┘                         │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                      Authentication                               │   │
@@ -85,6 +85,11 @@ src/
 │   │   ├── ReceptionistDashboard.tsx
 │   │   └── LabTechDashboard.tsx
 │   │
+│   ├── monitoring/               # System monitoring components
+│   │   ├── ErrorTrackingDashboard.tsx  # Error logs and tracking
+│   │   ├── LoggingDashboard.tsx        # Activity logs and user actions
+│   │   └── PerformanceDashboard.tsx    # Performance metrics
+│   │
 │   ├── consultations/            # Clinical workflow
 │   │   ├── steps/
 │   │   │   ├── ChiefComplaintStep.tsx
@@ -114,7 +119,11 @@ hooks/
 ├── useLabOrders.ts         # Laboratory orders
 ├── useBilling.ts           # Invoicing & payments
 ├── useInventory.ts         # Stock management
-└── useNotifications.ts     # Real-time notifications
+├── useNotifications.ts     # Real-time notifications
+├── useErrorTracking.ts     # Error logging and tracking
+├── usePerformanceMonitoring.ts # Performance metrics
+├── useSystemMonitoring.ts  # System health monitoring
+└── useActivityLog.ts       # User activity logging
 ```
 
 ---

@@ -137,9 +137,46 @@ CREATE POLICY "Staff update patients"
 ON patients FOR UPDATE
 USING (
   hospital_id IN (
-    SELECT hospital_id FROM profiles 
+    SELECT hospital_id FROM profiles
     WHERE user_id = auth.uid()
     AND role IN ('admin', 'doctor', 'receptionist')
+  )
+);
+
+-- Monitoring tables policies
+-- Error logs: Only admins can read
+CREATE POLICY "Admins can read error logs"
+ON error_logs FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_roles.user_id = auth.uid()
+    AND user_roles.role = 'admin'
+  )
+);
+
+-- Performance logs: Only admins can read
+CREATE POLICY "Admins can read performance logs"
+ON performance_logs FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_roles.user_id = auth.uid()
+    AND user_roles.role = 'admin'
+  )
+);
+
+-- System metrics: Only admins can read
+CREATE POLICY "Admins can read system metrics"
+ON system_metrics FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_roles.user_id = auth.uid()
+    AND user_roles.role = 'admin'
   )
 );
 ```
@@ -207,6 +244,8 @@ const { data } = await supabase
 | Clinical | Consultation start/end, prescription, lab orders |
 | Administrative | User management, settings changes |
 | Security | Permission changes, suspicious activity |
+| Error Tracking | Application errors, exceptions, performance issues |
+| Monitoring | System metrics, alerts, performance logs |
 
 ### Audit Log Schema
 

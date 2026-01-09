@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, startOfWeek } from 'date-fns';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface AdminStats {
   totalPatients: number;
@@ -41,6 +43,68 @@ export interface DepartmentPerformance {
 
 export function useAdminStats() {
   const { hospital } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Set up real-time subscriptions like nurse dashboard
+  useEffect(() => {
+    if (!hospital?.id) return;
+
+    const channel = supabase
+      .channel('admin-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patients',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payments',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patient_queue',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hospital?.id, queryClient]);
 
   return useQuery({
     queryKey: ['admin-stats', hospital?.id],
@@ -83,12 +147,16 @@ export function useAdminStats() {
         // Cancelled today
         supabase.from('appointments').select('id', { count: 'exact', head: true })
           .eq('hospital_id', hospital.id).eq('scheduled_date', today).eq('status', 'cancelled'),
-        // Staff count
+        // Active staff (online within last 24 hours)
         supabase.from('profiles').select('id', { count: 'exact', head: true })
-          .eq('hospital_id', hospital.id).eq('is_staff', true),
-        // User roles for breakdown
-        supabase.from('user_roles').select('role')
-          .eq('hospital_id', hospital.id),
+          .eq('hospital_id', hospital.id)
+          .eq('is_active', true)
+          .gte('last_seen', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+        // User roles for breakdown (active users only)
+        supabase.from('user_roles')
+          .select('role, profiles!inner(is_active)')
+          .eq('hospital_id', hospital.id)
+          .eq('profiles.is_active', true),
         // Monthly revenue (paid amount)
         supabase.from('invoices').select('paid_amount')
           .eq('hospital_id', hospital.id).gte('created_at', monthStart),
@@ -155,7 +223,7 @@ export function useAdminStats() {
       };
     },
     enabled: !!hospital?.id,
-    refetchInterval: 30000,
+    refetchInterval: 5000, // Backup polling every 5 seconds
   });
 }
 

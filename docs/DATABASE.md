@@ -402,6 +402,84 @@ Audit trail.
 
 ---
 
+## Monitoring Tables
+
+### error_logs
+
+Application error tracking and logging.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| message | TEXT | Error message |
+| stack | TEXT | Error stack trace |
+| url | TEXT | Page URL where error occurred |
+| user_agent | TEXT | Browser user agent |
+| user_id | UUID | FK to auth.users (optional) |
+| timestamp | TIMESTAMPTZ | Error timestamp |
+| severity | TEXT | low/medium/high/critical |
+| context | JSONB | Additional error context |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+
+### performance_logs
+
+System performance monitoring.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| type | TEXT | slow_page_load/high_memory_usage/failed_requests/layout_shift |
+| value | DECIMAL | Measured value |
+| threshold | DECIMAL | Threshold value |
+| page | TEXT | Page or component name |
+| user_agent | TEXT | Browser user agent |
+| timestamp | TIMESTAMPTZ | Measurement timestamp |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+
+### system_metrics
+
+System health and performance metrics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| timestamp | TIMESTAMPTZ | Metric timestamp |
+| service | TEXT | Service/component name |
+| metric_name | TEXT | Metric identifier |
+| value | DECIMAL | Metric value |
+| status | TEXT | normal/warning/critical |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+
+### system_alerts
+
+Automated system alerts and notifications.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| rule_id | UUID | FK to alert_rules |
+| severity | TEXT | low/medium/high/critical |
+| message | TEXT | Alert message |
+| timestamp | TIMESTAMPTZ | Alert timestamp |
+| resolved_at | TIMESTAMPTZ | Resolution timestamp (optional) |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+
+### alert_rules
+
+Configurable alert rules for monitoring.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | TEXT | Rule name |
+| condition | TEXT | Metric condition to monitor |
+| threshold | DECIMAL | Threshold value |
+| severity | TEXT | low/medium/high/critical |
+| enabled | BOOLEAN | Rule enabled status |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+
+---
+
 ## Enums
 
 ```sql
@@ -447,4 +525,19 @@ CREATE INDEX idx_consultations_doctor ON consultations(doctor_id);
 -- Notification delivery
 CREATE INDEX idx_notifications_recipient ON notifications(recipient_id);
 CREATE INDEX idx_notifications_unread ON notifications(recipient_id) WHERE is_read = false;
+
+-- Error tracking
+CREATE INDEX idx_error_logs_timestamp ON error_logs(timestamp DESC);
+CREATE INDEX idx_error_logs_severity_timestamp ON error_logs(severity, timestamp DESC);
+CREATE INDEX idx_error_logs_user_id ON error_logs(user_id);
+
+-- Performance monitoring
+CREATE INDEX idx_performance_logs_type_timestamp ON performance_logs(type, timestamp DESC);
+CREATE INDEX idx_performance_logs_timestamp ON performance_logs(timestamp DESC);
+
+-- System monitoring
+CREATE INDEX idx_system_metrics_timestamp ON system_metrics(timestamp DESC);
+CREATE INDEX idx_system_metrics_metric_name ON system_metrics(metric_name, timestamp DESC);
+CREATE INDEX idx_system_alerts_timestamp ON system_alerts(timestamp DESC);
+CREATE INDEX idx_system_alerts_severity ON system_alerts(severity, timestamp DESC);
 ```

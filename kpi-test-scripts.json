@@ -1,0 +1,12 @@
+{
+  "name": "kpi-validation",
+  "scripts": {
+    "test:kpi-validation": "vitest run src/test/kpi-validation.test.tsx --reporter=verbose",
+    "test:dashboard-consistency": "vitest run src/test/dashboard-consistency.test.tsx --reporter=verbose",
+    "test:activity-logging": "vitest run src/test/activity-logging.test.tsx --reporter=verbose",
+    "test:revenue-calculation": "vitest run src/test/revenue-calculation.test.tsx --reporter=verbose",
+    "test:all-kpis": "npm run test:kpi-validation && npm run test:dashboard-consistency && npm run test:activity-logging && npm run test:revenue-calculation",
+    "seed:test-data": "node -e \"import('./src/utils/testDataSeeder.js').then(m => m.seedTestData('your-hospital-id'))\"",
+    "cleanup:test-data": "node -e \"import('./src/utils/testDataSeeder.js').then(m => m.cleanupTestData('your-hospital-id'))\""
+  }
+}
