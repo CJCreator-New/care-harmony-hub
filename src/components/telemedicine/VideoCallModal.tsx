@@ -14,6 +14,10 @@ import {
   Minimize2,
   MessageSquare,
   Settings,
+  Monitor,
+  MonitorOff,
+  Circle,
+  Square,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +45,10 @@ export function VideoCallModal({
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -76,6 +84,130 @@ export function VideoCallModal({
     }
   };
 
+  // Start recording
+  const startRecording = () => {
+    if (!localStreamRef.current) return;
+    
+    try {
+      const recorder = new MediaRecorder(localStreamRef.current, {
+        mimeType: 'video/webm;codecs=vp9',
+      });
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setRecordedChunks(prev => [...prev, event.data]);
+        }
+      };
+      
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `telemedicine-call-${new Date().toISOString().slice(0, 19)}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        setRecordedChunks([]);
+        toast.success('Recording saved');
+      };
+      
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      toast.success('Recording started');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast.error('Failed to start recording');
+    }
+  };
+
+  // Stop recording
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  };
+
+  // Toggle recording
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Toggle screen share
+  const toggleScreenShare = async () => {
+    try {
+      if (isScreenSharing) {
+        // Stop screen sharing
+        if (localStreamRef.current) {
+          const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.includes('screen'));
+          if (screenTrack) {
+            screenTrack.stop();
+            // Switch back to camera
+            const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const cameraTrack = cameraStream.getVideoTracks()[0];
+            
+            // Replace the screen track with camera track
+            const sender = localStreamRef.current.getVideoTracks().find(track => track.label.includes('screen'));
+            if (sender) {
+              localStreamRef.current.removeTrack(sender);
+              localStreamRef.current.addTrack(cameraTrack);
+              
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = localStreamRef.current;
+              }
+            }
+          }
+        }
+        setIsScreenSharing(false);
+        toast.success('Screen sharing stopped');
+      } else {
+        // Start screen sharing
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: false,
+        });
+        
+        const screenTrack = screenStream.getVideoTracks()[0];
+        
+        if (localStreamRef.current) {
+          // Replace camera track with screen track
+          const videoTrack = localStreamRef.current.getVideoTracks()[0];
+          if (videoTrack) {
+            localStreamRef.current.removeTrack(videoTrack);
+            videoTrack.stop();
+          }
+          
+          localStreamRef.current.addTrack(screenTrack);
+          
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStreamRef.current;
+          }
+          
+          // Handle when user stops sharing via browser UI
+          screenTrack.onended = () => {
+            setIsScreenSharing(false);
+            toast.info('Screen sharing ended');
+          };
+        }
+        
+        setIsScreenSharing(true);
+        toast.success('Screen sharing started');
+      }
+    } catch (error) {
+      console.error('Error toggling screen share:', error);
+      toast.error('Failed to toggle screen sharing');
+    }
+  };
+
   // Handle call start
   const handleStartCall = async () => {
     setIsConnecting(true);
@@ -103,6 +235,16 @@ export function VideoCallModal({
 
   // Handle call end
   const handleEndCall = () => {
+    // Stop recording if active
+    if (isRecording) {
+      stopRecording();
+    }
+
+    // Stop screen sharing
+    if (isScreenSharing) {
+      setIsScreenSharing(false);
+    }
+
     // Stop all tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -296,6 +438,26 @@ export function VideoCallModal({
                 onClick={toggleVideo}
               >
                 {isVideoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+              </Button>
+
+              <Button
+                variant={isScreenSharing ? "default" : "outline"}
+                size="icon"
+                className="h-12 w-12 rounded-full"
+                onClick={toggleScreenShare}
+                title={isScreenSharing ? "Stop screen sharing" : "Share screen"}
+              >
+                {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+              </Button>
+              
+              <Button
+                variant={isRecording ? "destructive" : "outline"}
+                size="icon"
+                className="h-12 w-12 rounded-full"
+                onClick={toggleRecording}
+                title={isRecording ? "Stop recording" : "Start recording"}
+              >
+                {isRecording ? <Square className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
               </Button>
               
               <Button

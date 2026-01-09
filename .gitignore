@@ -22,3 +22,62 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Testing
+playwright-report/
+test-results/
+coverage/
+.nyc_output/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Supabase secrets
+supabase/.branches
+supabase/.temp
+
+# Build outputs
+build/
+.next/
+.nuxt/
+.output/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.vite/
+.turbo/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# IDE files
+.vscode/settings.json
+.idea/workspace.xml
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx

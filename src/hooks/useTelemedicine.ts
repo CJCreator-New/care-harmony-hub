@@ -1,185 +1,128 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 
-interface TelemedicineSession {
-  id: string;
-  hospital_id: string;
-  appointment_id: string | null;
-  patient_id: string;
-  doctor_id: string;
-  scheduled_start: string;
-  scheduled_end: string;
-  actual_start: string | null;
-  actual_end: string | null;
-  status: string;
-  room_id: string | null;
-  meeting_url: string | null;
-  notes: string | null;
-  recording_url: string | null;
-  created_at: string;
-  updated_at: string;
-  patient?: {
-    first_name: string;
-    last_name: string;
-    mrn: string;
-  };
-  doctor?: {
-    first_name: string;
-    last_name: string;
-  };
+interface VideoSession {
+  session_id: string;
+  room_id: string;
+  doctor_token?: string;
+  patient_token?: string;
+  join_url: string;
+  status: 'scheduled' | 'active' | 'ended' | 'cancelled';
 }
 
-export const useTelemedicine = () => {
-  const { profile } = useAuth();
-  const hospitalId = profile?.hospital_id;
-  const queryClient = useQueryClient();
-
-  const { data: sessions, isLoading } = useQuery({
-    queryKey: ['telemedicine-sessions', hospitalId],
-    queryFn: async () => {
-      if (!hospitalId) return [];
-      
-      const { data, error } = await supabase
-        .from('telemedicine_sessions')
-        .select(`
-          *,
-          patient:patients(first_name, last_name, mrn),
-          doctor:profiles!telemedicine_sessions_doctor_id_fkey(first_name, last_name)
-        `)
-        .eq('hospital_id', hospitalId)
-        .order('scheduled_start', { ascending: true });
-
-      if (error) throw error;
-      return data as TelemedicineSession[];
-    },
-    enabled: !!hospitalId,
-  });
+export function useTelemedicine() {
+  const { user } = useAuth();
 
   const createSession = useMutation({
-    mutationFn: async (session: {
-      patient_id: string;
-      doctor_id: string;
-      scheduled_start: string;
-      scheduled_end: string;
-      appointment_id?: string;
-      notes?: string;
+    mutationFn: async ({ appointmentId, doctorId, patientId }: {
+      appointmentId: string;
+      doctorId: string;
+      patientId: string;
     }) => {
-      if (!hospitalId) throw new Error('No hospital ID');
-      
-      const roomId = `room-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      const { data, error } = await supabase
-        .from('telemedicine_sessions')
-        .insert({
-          ...session,
-          hospital_id: hospitalId,
-          room_id: roomId,
-          meeting_url: `/telemedicine/room/${roomId}`,
-        })
-        .select()
-        .single();
-
+      const { data, error } = await supabase.functions.invoke('telemedicine', {
+        body: {
+          action: 'create_session',
+          data: {
+            appointment_id: appointmentId,
+            doctor_id: doctorId,
+            patient_id: patientId,
+          }
+        }
+      });
       if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['telemedicine-sessions'] });
-      toast.success('Telemedicine session scheduled');
-    },
-    onError: (error) => {
-      toast.error('Failed to schedule session: ' + error.message);
+      return data as VideoSession;
     },
   });
 
-  const updateSession = useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<TelemedicineSession> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('telemedicine_sessions')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-
+  const joinSession = useMutation({
+    mutationFn: async ({ sessionId, userType }: {
+      sessionId: string;
+      userType: 'doctor' | 'patient';
+    }) => {
+      const { data, error } = await supabase.functions.invoke('telemedicine', {
+        body: {
+          action: 'join_session',
+          data: {
+            session_id: sessionId,
+            user_id: user?.id,
+            user_type: userType,
+          }
+        }
+      });
       if (error) throw error;
       return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['telemedicine-sessions'] });
-      toast.success('Session updated');
-    },
-    onError: (error) => {
-      toast.error('Failed to update session: ' + error.message);
-    },
-  });
-
-  const startSession = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const { data, error } = await supabase
-        .from('telemedicine_sessions')
-        .update({
-          status: 'in_progress',
-          actual_start: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', sessionId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['telemedicine-sessions'] });
-      toast.success('Session started');
     },
   });
 
   const endSession = useMutation({
     mutationFn: async (sessionId: string) => {
+      const { data, error } = await supabase.functions.invoke('telemedicine', {
+        body: {
+          action: 'end_session',
+          data: {
+            session_id: sessionId,
+            ended_by: user?.id,
+          }
+        }
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const recordConsultation = useMutation({
+    mutationFn: async ({ sessionId, notes, prescriptions }: {
+      sessionId: string;
+      notes: any;
+      prescriptions?: any[];
+    }) => {
+      const { data, error } = await supabase.functions.invoke('telemedicine', {
+        body: {
+          action: 'record_consultation',
+          data: {
+            session_id: sessionId,
+            consultation_notes: notes,
+            prescriptions,
+          }
+        }
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: activeSessions } = useQuery({
+    queryKey: ['telemedicine-sessions', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
       const { data, error } = await supabase
         .from('telemedicine_sessions')
-        .update({
-          status: 'completed',
-          actual_end: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', sessionId)
-        .select()
-        .single();
+        .select(`
+          *,
+          appointments(*),
+          patients(*),
+          users(*)
+        `)
+        .or(`doctor_id.eq.${user.id},patient_id.eq.${user.id}`)
+        .eq('status', 'active');
 
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['telemedicine-sessions'] });
-      toast.success('Session completed');
-    },
+    enabled: !!user?.id,
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const todaySessions = sessions?.filter(s => {
-    const today = new Date().toISOString().split('T')[0];
-    return s.scheduled_start.startsWith(today);
-  }) || [];
-
-  const upcomingSessions = sessions?.filter(s => 
-    s.status === 'scheduled' && new Date(s.scheduled_start) > new Date()
-  ) || [];
-
-  const activeSessions = sessions?.filter(s => 
-    s.status === 'in_progress' || s.status === 'waiting'
-  ) || [];
-
   return {
-    sessions,
-    todaySessions,
-    upcomingSessions,
+    createSession: createSession.mutate,
+    joinSession: joinSession.mutate,
+    endSession: endSession.mutate,
+    recordConsultation: recordConsultation.mutate,
     activeSessions,
-    isLoading,
-    createSession,
-    updateSession,
-    startSession,
-    endSession,
+    isCreating: createSession.isPending,
+    isJoining: joinSession.isPending,
+    isEnding: endSession.isPending,
   };
-};
+}

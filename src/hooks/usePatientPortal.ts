@@ -240,8 +240,6 @@ export function usePatientVitals() {
           weight,
           height
         `)
-        .eq('patient_id', patient.id)
-        .order('recorded_at', { ascending: false })
         .limit(20);
 
       if (error) throw error;
@@ -249,4 +247,66 @@ export function usePatientVitals() {
     },
     enabled: !!user?.id,
   });
+}
+
+// Main patient portal hook that combines billing data
+export function usePatientPortal() {
+  const { user } = useAuth();
+
+  const { data: billingData, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['patient-portal-billing', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+
+      // Get patient profile first
+      const { data: patient } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!patient) return null;
+
+      // Get billing summary
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select(`
+          id,
+          invoice_number,
+          total_amount,
+          paid_amount,
+          status,
+          due_date,
+          created_at,
+          items:invoices_items(
+            description,
+            quantity,
+            unit_price,
+            total
+          )
+        `)
+        .eq('patient_id', patient.id)
+        .order('created_at', { ascending: false });
+
+      // Calculate totals
+      const totalBilled = invoices?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;
+      const totalPaid = invoices?.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0) || 0;
+      const outstandingBalance = totalBilled - totalPaid;
+
+      return {
+        outstandingBalance,
+        totalPaid,
+        totalBilled,
+        invoices: invoices || []
+      };
+    },
+    enabled: !!user?.id,
+  });
+
+  return {
+    billingData,
+    loading,
+    error,
+    refetch
+  };
 }

@@ -107,6 +107,12 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Get testRole from localStorage if not provided as prop
+  const persistedTestRole = testRole || (() => {
+    const stored = localStorage.getItem('testRole');
+    return stored ? stored as 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient' : null;
+  })();
+
   // HIPAA-compliant session timeout - 30 min inactivity auto-logout
   useSessionTimeout({
     enabled: isAuthenticated,
@@ -126,7 +132,7 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   }, []);
 
   // Use test role for navigation if provided, otherwise use actual role
-  const activeRole = testRole || primaryRole;
+  const activeRole = persistedTestRole || primaryRole;
   
   const filteredNavItems = navItems.filter(
     item => activeRole && item.roles.includes(activeRole)
@@ -296,9 +302,11 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Profile Settings
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">

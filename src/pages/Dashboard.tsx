@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
@@ -14,7 +14,15 @@ type RoleKey = 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'l
 
 export default function Dashboard() {
   const { primaryRole } = useAuth();
-  const [testRole, setTestRole] = useState<RoleKey | null>(null);
+  const [testRole, setTestRole] = useState<RoleKey | null>(() => {
+    const stored = localStorage.getItem('testRole');
+    return stored ? stored as RoleKey : null;
+  });
+
+  const handleRoleChange = (role: RoleKey) => {
+    setTestRole(role);
+    localStorage.setItem('testRole', role);
+  };
   
   // Use test role if set, otherwise use actual role
   const activeRole = testRole || primaryRole || 'admin';
@@ -45,7 +53,7 @@ export default function Dashboard() {
       {renderDashboard()}
       <RoleSwitcher 
         currentRole={activeRole as RoleKey} 
-        onRoleChange={(role) => setTestRole(role)} 
+        onRoleChange={handleRoleChange} 
       />
     </DashboardLayout>
   );

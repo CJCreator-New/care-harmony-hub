@@ -1,5 +1,6 @@
 import { DailySummary, ReportStats } from '@/hooks/useReports';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ExportData {
   stats: ReportStats | undefined;
@@ -164,5 +165,71 @@ export function exportToPDF({ stats, dailyData, period, hospitalName }: ExportDa
     printWindow.onload = () => {
       printWindow.print();
     };
+  }
+}
+
+export async function sendReportByEmail({
+  stats,
+  dailyData,
+  period,
+  hospitalName,
+  recipientEmail,
+}: ExportData & { recipientEmail: string }): Promise<void> {
+  if (!dailyData) return;
+
+  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
+  const today = format(new Date(), 'yyyy-MM-dd');
+  
+  let reportContent = `Hospital Report - ${hospitalName}\n`;
+  reportContent += `Generated: ${format(new Date(), 'PPP')}\n`;
+  reportContent += `Period: Last ${period} Days\n\n`;
+
+  // Summary section
+  if (stats) {
+    reportContent += `SUMMARY\n`;
+    reportContent += `Metric\tToday\tThis Week\tThis Month\n`;
+    reportContent += `Consultations\t${stats.today.consultations}\t${stats.week.consultations}\t${stats.month.consultations}\n`;
+    reportContent += `Prescriptions\t${stats.today.prescriptions}\t${stats.week.prescriptions}\t${stats.month.prescriptions}\n`;
+    reportContent += `Revenue\t${formatCurrency(stats.today.revenue)}\t${formatCurrency(stats.week.revenue)}\t${formatCurrency(stats.month.revenue)}\n`;
+    reportContent += `Patients Seen\t${stats.today.patients}\t${stats.week.patients}\t${stats.month.patients}\n\n`;
+  }
+
+  // Daily breakdown
+  reportContent += `DAILY BREAKDOWN\n`;
+  reportContent += `Date\tConsultations\tPrescriptions\tRevenue\tPatients Seen\n`;
+  
+  dailyData.forEach((day) => {
+    reportContent += `${format(new Date(day.date), 'MMM dd, yyyy')}\t${day.consultations}\t${day.prescriptions}\t${formatCurrency(day.revenue)}\t${day.patients_seen}\n`;
+  });
+
+  // Totals
+  const totals = dailyData.reduce(
+    (acc, day) => ({
+      consultations: acc.consultations + day.consultations,
+      prescriptions: acc.prescriptions + day.prescriptions,
+      revenue: acc.revenue + day.revenue,
+      patients_seen: acc.patients_seen + day.patients_seen,
+    }),
+    { consultations: 0, prescriptions: 0, revenue: 0, patients_seen: 0 }
+  );
+  
+  reportContent += `Total\t${totals.consultations}\t${totals.prescriptions}\t${formatCurrency(totals.revenue)}\t${totals.patients_seen}\n`;
+
+  try {
+    const { error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: recipientEmail,
+        subject: `Hospital Report - ${hospitalName} (${today})`,
+        text: reportContent,
+        html: reportContent.replace(/\n/g, '<br>').replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;'),
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error sending report email:', error);
+    throw new Error('Failed to send report email');
   }
 }

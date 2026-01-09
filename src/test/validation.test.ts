@@ -19,7 +19,7 @@ describe('Validation Utilities', () => {
   });
 
   describe('Phone Validation', () => {
-    const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+    const phoneRegex = /^[\d\s\-\(\)+]+$/;
 
     it('should validate correct phone formats', () => {
       expect(phoneRegex.test('555-0123')).toBe(true);

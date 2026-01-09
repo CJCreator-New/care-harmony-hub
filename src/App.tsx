@@ -25,6 +25,7 @@ import StaffManagementPage from "./pages/settings/StaffManagementPage";
 import StaffPerformancePage from "./pages/settings/StaffPerformancePage";
 import HospitalSettingsPage from "./pages/settings/HospitalSettingsPage";
 import ActivityLogsPage from "./pages/settings/ActivityLogsPage";
+import UserProfilePage from "./pages/settings/UserProfilePage";
 import ConsultationsPage from "./pages/consultations/ConsultationsPage";
 import ConsultationWorkflowPage from "./pages/consultations/ConsultationWorkflowPage";
 import AppointmentsPage from "./pages/appointments/AppointmentsPage";
@@ -324,6 +325,14 @@ function AppRoutes() {
           <RoleProtectedRoute allowedRoles={['admin']}>
             <HospitalSettingsPage />
           </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <UserProfilePage />
+          </ProtectedRoute>
         }
       />
       <Route

@@ -12,6 +12,7 @@ interface Profile {
   email: string;
   phone: string | null;
   avatar_url: string | null;
+  two_factor_enabled: boolean | null;
 }
 
 interface Hospital {

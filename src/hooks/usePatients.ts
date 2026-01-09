@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Json } from '@/integrations/supabase/types';
 
 export interface Patient {
   id: string;
@@ -26,7 +27,7 @@ export interface Patient {
   insurance_group_number: string | null;
   allergies: string[];
   chronic_conditions: string[];
-  current_medications: any[];
+  current_medications: Json;
   blood_type: string | null;
   notes: string | null;
   is_active: boolean;

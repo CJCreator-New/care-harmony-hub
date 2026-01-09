@@ -43,6 +43,15 @@ export function RoleSwitcher({ onRoleChange, currentRole }: RoleSwitcherProps) {
   const config = ROLE_CONFIG[currentRole];
   const Icon = config.icon;
 
+  const handleRoleChange = (role: RoleKey) => {
+    onRoleChange(role);
+  };
+
+  const handleClearTestRole = () => {
+    localStorage.removeItem('testRole');
+    window.location.reload(); // Reload to reset to actual role
+  };
+
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <DropdownMenu>
@@ -74,7 +83,7 @@ export function RoleSwitcher({ onRoleChange, currentRole }: RoleSwitcherProps) {
             return (
               <DropdownMenuItem
                 key={role}
-                onClick={() => onRoleChange(role)}
+                onClick={() => handleRoleChange(role)}
                 className={isActive ? 'bg-accent' : ''}
               >
                 <RoleIcon className="h-4 w-4 mr-2" />
@@ -87,6 +96,14 @@ export function RoleSwitcher({ onRoleChange, currentRole }: RoleSwitcherProps) {
               </DropdownMenuItem>
             );
           })}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleClearTestRole}
+            className="text-destructive focus:text-destructive"
+          >
+            <TestTube2 className="h-4 w-4 mr-2" />
+            Reset to Actual Role
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

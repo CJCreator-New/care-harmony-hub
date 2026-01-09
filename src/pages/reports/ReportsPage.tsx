@@ -11,6 +11,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
   Stethoscope,
   Pill,
   DollarSign,
@@ -18,11 +28,13 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  Mail,
 } from 'lucide-react';
 import { useReportStats, useDailyBreakdown } from '@/hooks/useReports';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
-import { exportToCSV, exportToPDF } from '@/utils/reportExport';
+import { exportToCSV, exportToPDF, sendReportByEmail } from '@/utils/reportExport';
+import { toast } from 'sonner';
 import {
   BarChart,
   Bar,
@@ -41,6 +53,9 @@ import { AppointmentTypePieChart } from '@/components/reports/AppointmentTypePie
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'7' | '14' | '30'>('7');
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const { data: stats, isLoading: statsLoading } = useReportStats();
   const { data: dailyData, isLoading: dailyLoading } = useDailyBreakdown(parseInt(period));
   const { hospital } = useAuth();
@@ -61,6 +76,28 @@ export default function ReportsPage() {
       period,
       hospitalName: hospital?.name || 'Hospital',
     });
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailAddress.trim()) return;
+
+    setIsSendingEmail(true);
+    try {
+      await sendReportByEmail({
+        stats,
+        dailyData,
+        period,
+        hospitalName: hospital?.name || 'Hospital',
+        recipientEmail: emailAddress.trim(),
+      });
+      toast.success('Report sent successfully');
+      setEmailDialogOpen(false);
+      setEmailAddress('');
+    } catch (error) {
+      toast.error('Failed to send report');
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -102,6 +139,10 @@ export default function ReportsPage() {
               <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
                 <FileText className="h-4 w-4" />
                 Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setEmailDialogOpen(true)} className="gap-2 cursor-pointer">
+                <Mail className="h-4 w-4" />
+                Send by Email
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -406,6 +447,41 @@ export default function ReportsPage() {
             <AppointmentTypePieChart />
           </TabsContent>
         </Tabs>
+
+        {/* Email Dialog */}
+        <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Send Report by Email</DialogTitle>
+              <DialogDescription>
+                Enter the email address where you want to send this report.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmail}
+                disabled={!emailAddress.trim() || isSendingEmail}
+              >
+                {isSendingEmail ? 'Sending...' : 'Send Report'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
