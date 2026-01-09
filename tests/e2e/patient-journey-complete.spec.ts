@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { setTestRole, loginAsTestUser, setupApiMocks, TEST_DATA } from './utils/test-helpers';
+import { setTestRole, loginAsTestUser, setupApiMocks, TEST_DATA, loginAsRole } from './utils/test-helpers';
 
 // Test data for complete patient journey
 const TEST_PATIENT = {
@@ -245,7 +245,7 @@ test.describe('Complete Patient Journey - Registration to Discharge', () => {
       await conductConsultation(doctorPage, 'Jane Smith');
 
       // Step 6: Lab Order Processing (Lab Tech)
-      await loginAsRole(labTechPage, 'lab_tech');
+      await loginAsRole(labTechPage, 'lab_technician');
       await processLabOrders(labTechPage, 'Jane Smith');
 
       // Step 7: Prescription Dispensing (Pharmacist)
@@ -292,7 +292,7 @@ test.describe('Complete Patient Journey - Registration to Discharge', () => {
       await Promise.all([
         loginAsRole(pages[0], 'nurse'),
         loginAsRole(pages[1], 'doctor'),
-        loginAsRole(pages[2], 'lab_tech')
+        loginAsRole(pages[2], 'lab_technician')
       ]);
 
       // Verify all can access their respective dashboards simultaneously

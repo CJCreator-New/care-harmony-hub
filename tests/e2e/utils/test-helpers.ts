@@ -104,6 +104,13 @@ export async function loginAsTestUser(page: Page, role: UserRole = 'admin') {
 }
 
 /**
+ * Login as a specific role (alias for loginAsTestUser)
+ */
+export async function loginAsRole(page: Page, role: UserRole) {
+  return loginAsTestUser(page, role);
+}
+
+/**
  * Mock API responses for testing
  */
 export async function setupApiMocks(page: Page) {

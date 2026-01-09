@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": false,
     "skipLibCheck": true,
-    "noResolve": true
+    "noResolve": true,
+    "isolatedModules": true
   },
-  "include": ["**/*.ts"],
+  "include": ["_placeholder.ts"],
   "exclude": ["node_modules"]
 }

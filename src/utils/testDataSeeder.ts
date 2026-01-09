@@ -71,7 +71,7 @@ export class TestDataSeeder {
     const patients = [];
     const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Lisa', 'James', 'Maria', 'William', 'Jennifer', 'Richard', 'Patricia', 'Charles', 'Linda', 'Joseph', 'Barbara', 'Thomas', 'Elizabeth'];
     const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
-    const genders = ['male', 'female', 'other'];
+    const genders: ('male' | 'female' | 'other' | 'prefer_not_to_say')[] = ['male', 'female', 'other'];
     const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
     for (let i = 0; i < count; i++) {
@@ -117,7 +117,7 @@ export class TestDataSeeder {
     for (const patient of data) {
       await supabase.from('activity_logs').insert({
         hospital_id: this.hospitalId,
-        user_id: null, // System generated
+        user_id: patient.id, // Use patient id as placeholder
         action_type: 'patient_registered',
         entity_type: 'patient',
         entity_id: patient.id,
@@ -125,8 +125,7 @@ export class TestDataSeeder {
           patient_name: `${patient.first_name} ${patient.last_name}`,
           mrn: patient.mrn,
           source: 'test_data_seeder'
-        },
-        created_at: patient.created_at
+        }
       });
     }
 
@@ -134,7 +133,7 @@ export class TestDataSeeder {
   }
 
   private async createStaff(count: number) {
-    const roles = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_tech'];
+    const roles: ('doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician')[] = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
     const firstNames = ['Dr. Alice', 'Dr. Bob', 'Nurse Carol', 'Nurse Dan', 'Emma', 'Frank', 'Grace', 'Henry', 'Ivy', 'Jack'];
     const lastNames = ['Anderson', 'Brown', 'Clark', 'Davis', 'Evans', 'Foster', 'Green', 'Harris', 'Irwin', 'Jackson'];
 
@@ -148,10 +147,7 @@ export class TestDataSeeder {
         hospital_id: this.hospitalId,
         first_name: firstNames[i % firstNames.length],
         last_name: lastNames[i % lastNames.length],
-        email: `staff${i}@hospital.com`,
-        role: role,
-        is_active: true,
-        last_seen: Math.random() > 0.3 ? new Date().toISOString() : new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString() // 70% recently active
+        email: `staff${i}@hospital.com`
       };
 
       staff.push(profile);
@@ -161,10 +157,10 @@ export class TestDataSeeder {
     if (profileError) throw profileError;
 
     // Create user roles
-    const userRoles = profileData.map(profile => ({
+    const userRoles = profileData.map((profile, idx) => ({
       user_id: profile.user_id,
       hospital_id: this.hospitalId,
-      role: profile.role
+      role: roles[idx % roles.length]
     }));
 
     const { error: roleError } = await supabase.from('user_roles').insert(userRoles);
@@ -175,9 +171,9 @@ export class TestDataSeeder {
 
   private async createAppointments(count: number, patients: any[], staff: any[], includeToday: boolean) {
     const appointmentTypes = ['check-up', 'follow-up', 'consultation', 'emergency', 'vaccination'];
-    const statuses = ['scheduled', 'completed', 'cancelled'];
-    const priorities = ['low', 'normal', 'high', 'urgent'];
-    const doctors = staff.filter(s => s.role === 'doctor');
+    const statuses: ('scheduled' | 'completed' | 'cancelled')[] = ['scheduled', 'completed', 'cancelled'];
+    const priorities: ('low' | 'normal' | 'high' | 'urgent' | 'emergency')[] = ['low', 'normal', 'high', 'urgent'];
+    const doctors = staff;
 
     const appointments = [];
     const today = new Date();
@@ -222,20 +218,21 @@ export class TestDataSeeder {
     // Log appointment activities
     for (const appointment of data) {
       const patient = patients.find(p => p.id === appointment.patient_id);
-      await supabase.from('activity_logs').insert({
-        hospital_id: this.hospitalId,
-        user_id: appointment.doctor_id,
-        action_type: 'appointment_created',
-        entity_type: 'appointment',
-        entity_id: appointment.id,
-        details: {
-          patient_name: `${patient?.first_name} ${patient?.last_name}`,
-          scheduled_date: appointment.scheduled_date,
-          scheduled_time: appointment.scheduled_time,
-          source: 'test_data_seeder'
-        },
-        created_at: appointment.created_at
-      });
+      if (appointment.doctor_id) {
+        await supabase.from('activity_logs').insert({
+          hospital_id: this.hospitalId,
+          user_id: appointment.doctor_id,
+          action_type: 'appointment_created',
+          entity_type: 'appointment',
+          entity_id: appointment.id,
+          details: {
+            patient_name: `${patient?.first_name} ${patient?.last_name}`,
+            scheduled_date: appointment.scheduled_date,
+            scheduled_time: appointment.scheduled_time,
+            source: 'test_data_seeder'
+          }
+        });
+      }
     }
 
     return data;
@@ -318,7 +315,7 @@ export class TestDataSeeder {
         queue_number: i + 1,
         department: departments[Math.floor(Math.random() * departments.length)],
         status: i === 0 ? 'waiting' : statuses[Math.floor(Math.random() * statuses.length)], // First one is always waiting
-        priority: ['normal', 'high', 'urgent'][Math.floor(Math.random() * 3)],
+        priority: (['normal', 'high', 'urgent'] as const)[Math.floor(Math.random() * 3)],
         check_in_time: checkInTime.toISOString(),
         service_start_time: Math.random() > 0.5 ? new Date(checkInTime.getTime() + Math.random() * 30 * 60 * 1000).toISOString() : null,
         service_end_time: Math.random() > 0.7 ? new Date(checkInTime.getTime() + Math.random() * 60 * 60 * 1000).toISOString() : null
@@ -334,19 +331,8 @@ export class TestDataSeeder {
   }
 
   private async updateStaffPresence(staff: any[]) {
-    // Update 70% of staff to be recently active
+    // Skip staff presence update - profiles table doesn't have is_active column for update
     const activeStaffCount = Math.floor(staff.length * 0.7);
-    const activeStaff = staff.slice(0, activeStaffCount);
-
-    for (const staffMember of activeStaff) {
-      await supabase.from('profiles')
-        .update({
-          last_seen: new Date().toISOString(),
-          is_active: true
-        })
-        .eq('user_id', staffMember.user_id);
-    }
-
     return activeStaffCount;
   }
 
