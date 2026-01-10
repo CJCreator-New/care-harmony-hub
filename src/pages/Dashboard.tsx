@@ -51,10 +51,12 @@ export default function Dashboard() {
   return (
     <DashboardLayout testRole={testRole}>
       {renderDashboard()}
-      <RoleSwitcher 
-        currentRole={activeRole as RoleKey} 
-        onRoleChange={handleRoleChange} 
-      />
+      {import.meta.env.DEV && (
+        <RoleSwitcher 
+          currentRole={activeRole as RoleKey} 
+          onRoleChange={handleRoleChange} 
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -513,6 +513,7 @@ export type Database = {
           },
         ]
       }
+      departments: {
         Row: {
           code: string | null
           created_at: string | null

@@ -6,53 +6,75 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
+import { lazy, Suspense } from "react";
 
-// Pages
-import LandingPage from "./pages/hospital/LandingPage";
-import LoginPage from "./pages/hospital/LoginPage";
-import SignupPage from "./pages/hospital/SignupPage";
-import ForgotPasswordPage from "./pages/hospital/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/hospital/ResetPasswordPage";
-import JoinPage from "./pages/hospital/JoinPage";
-import ProfileSetupPage from "./pages/hospital/ProfileSetupPage";
-import AccountSetupPage from "./pages/hospital/AccountSetupPage";
-import QuickAccessPage from "./pages/hospital/QuickAccessPage";
-import PatientRegisterPage from "./pages/patient/PatientRegisterPage";
-import PatientLoginPage from "./pages/patient/PatientLoginPage";
-import Dashboard from "./pages/Dashboard";
-import PatientsPage from "./pages/patients/PatientsPage";
-import StaffManagementPage from "./pages/settings/StaffManagementPage";
-import StaffPerformancePage from "./pages/settings/StaffPerformancePage";
-import HospitalSettingsPage from "./pages/settings/HospitalSettingsPage";
-import ActivityLogsPage from "./pages/settings/ActivityLogsPage";
-import UserProfilePage from "./pages/settings/UserProfilePage";
-import ConsultationsPage from "./pages/consultations/ConsultationsPage";
-import ConsultationWorkflowPage from "./pages/consultations/ConsultationWorkflowPage";
-import AppointmentsPage from "./pages/appointments/AppointmentsPage";
-import LaboratoryPage from "./pages/laboratory/LaboratoryPage";
-import PharmacyPage from "./pages/pharmacy/PharmacyPage";
-import QueueManagementPage from "./pages/queue/QueueManagementPage";
-import BillingPage from "./pages/billing/BillingPage";
-import InventoryPage from "./pages/inventory/InventoryPage";
-import ReportsPage from "./pages/reports/ReportsPage";
-import PatientAppointmentsPage from "./pages/patient/PatientAppointmentsPage";
-import PatientPrescriptionsPage from "./pages/patient/PatientPrescriptionsPage";
-import PatientLabResultsPage from "./pages/patient/PatientLabResultsPage";
-import PatientMedicalHistoryPage from "./pages/patient/PatientMedicalHistoryPage";
-import PatientMessagesPage from "./pages/patient/PatientMessagesPage";
-import DoctorMessagesPage from "./pages/messaging/DoctorMessagesPage";
-import TelemedicinePage from "./pages/telemedicine/TelemedicinePage";
-import SuppliersPage from "./pages/suppliers/SuppliersPage";
-import SchedulingPage from "./pages/scheduling/SchedulingPage";
-import NotificationsPage from "./pages/notifications/NotificationsPage";
-import DocumentsPage from "./pages/documents/DocumentsPage";
-import NotFound from "./pages/NotFound";
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  </div>
+);
 
-const queryClient = new QueryClient();
+// Lazy loaded pages
+const LandingPage = lazy(() => import("./pages/hospital/LandingPage"));
+const LoginPage = lazy(() => import("./pages/hospital/LoginPage"));
+const SignupPage = lazy(() => import("./pages/hospital/SignupPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/hospital/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/hospital/ResetPasswordPage"));
+const JoinPage = lazy(() => import("./pages/hospital/JoinPage"));
+const ProfileSetupPage = lazy(() => import("./pages/hospital/ProfileSetupPage"));
+const AccountSetupPage = lazy(() => import("./pages/hospital/AccountSetupPage"));
+const QuickAccessPage = lazy(() => import("./pages/hospital/QuickAccessPage"));
+const PatientRegisterPage = lazy(() => import("./pages/patient/PatientRegisterPage"));
+const PatientLoginPage = lazy(() => import("./pages/patient/PatientLoginPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const PatientsPage = lazy(() => import("./pages/patients/PatientsPage"));
+const StaffManagementPage = lazy(() => import("./pages/settings/StaffManagementPage"));
+const StaffPerformancePage = lazy(() => import("./pages/settings/StaffPerformancePage"));
+const HospitalSettingsPage = lazy(() => import("./pages/settings/HospitalSettingsPage"));
+const ActivityLogsPage = lazy(() => import("./pages/settings/ActivityLogsPage"));
+const UserProfilePage = lazy(() => import("./pages/settings/UserProfilePage"));
+const ConsultationsPage = lazy(() => import("./pages/consultations/ConsultationsPage"));
+const ConsultationWorkflowPage = lazy(() => import("./pages/consultations/ConsultationWorkflowPage"));
+const AppointmentsPage = lazy(() => import("./pages/appointments/AppointmentsPage"));
+const LaboratoryPage = lazy(() => import("./pages/laboratory/LaboratoryPage"));
+const PharmacyPage = lazy(() => import("./pages/pharmacy/PharmacyPage"));
+const QueueManagementPage = lazy(() => import("./pages/queue/QueueManagementPage"));
+const BillingPage = lazy(() => import("./pages/billing/BillingPage"));
+const InventoryPage = lazy(() => import("./pages/inventory/InventoryPage"));
+const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const PatientAppointmentsPage = lazy(() => import("./pages/patient/PatientAppointmentsPage"));
+const PatientPrescriptionsPage = lazy(() => import("./pages/patient/PatientPrescriptionsPage"));
+const PatientLabResultsPage = lazy(() => import("./pages/patient/PatientLabResultsPage"));
+const PatientMedicalHistoryPage = lazy(() => import("./pages/patient/PatientMedicalHistoryPage"));
+const PatientMessagesPage = lazy(() => import("./pages/patient/PatientMessagesPage"));
+const DoctorMessagesPage = lazy(() => import("./pages/messaging/DoctorMessagesPage"));
+const TelemedicinePage = lazy(() => import("./pages/telemedicine/TelemedicinePage"));
+const SuppliersPage = lazy(() => import("./pages/suppliers/SuppliersPage"));
+const SchedulingPage = lazy(() => import("./pages/scheduling/SchedulingPage"));
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
+const DocumentsPage = lazy(() => import("./pages/documents/DocumentsPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Protected Route Component - redirects to setup if account incomplete
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, profile, hospital, roles } = useAuth();
+  
+  // Enable session timeout for authenticated users
+  useSessionTimeout({ enabled: isAuthenticated });
 
   if (isLoading) {
     return (
@@ -88,7 +110,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
       {/* Redirect root to hospital landing */}
       <Route path="/" element={<Navigate to="/hospital" replace />} />
       
@@ -394,24 +417,32 @@ function AppRoutes() {
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system">
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+const App = () => {
+  // Monitor performance in production
+  usePerformanceMonitoring();
+  
+  return (
+    <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system">
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
+};
 
 export default App;

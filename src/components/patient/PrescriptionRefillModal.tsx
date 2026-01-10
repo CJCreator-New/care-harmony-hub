@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Pill } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRefillRequests } from '@/hooks/useRefillRequests';
 
 interface PrescriptionRefillModalProps {
   open: boolean;
@@ -29,8 +30,8 @@ export function PrescriptionRefillModal({
   const [reason, setReason] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
   const [acknowledgeInstructions, setAcknowledgeInstructions] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { createRefillRequest, isCreating } = useRefillRequests();
 
   const canRefill = prescription?.refills_remaining && prescription.refills_remaining > 0;
 
@@ -46,28 +47,30 @@ export function PrescriptionRefillModal({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      // TODO: Implement refill request submission
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
+    if (!prescription?.id) {
       toast({
-        title: "Refill Requested",
-        description: `Your refill request for ${prescription?.medication_name} has been submitted for review.`,
+        title: "Error",
+        description: "Prescription information is missing.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await createRefillRequest({
+        prescription_id: prescription.id,
+        reason: reason || undefined,
+        is_urgent: isUrgent,
       });
       
+      // Reset form on success
       setReason('');
       setIsUrgent(false);
       setAcknowledgeInstructions(false);
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit refill request. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
+      // Error handling is done in the hook
+      console.error('Failed to create refill request:', error);
     }
   };
 
@@ -161,15 +164,15 @@ export function PrescriptionRefillModal({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
+                disabled={isCreating}
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting || !acknowledgeInstructions}
+                disabled={isCreating || !acknowledgeInstructions}
               >
-                {isSubmitting ? "Submitting..." : "Request Refill"}
+                {isCreating ? "Submitting..." : "Request Refill"}
               </Button>
             </div>
           </form>

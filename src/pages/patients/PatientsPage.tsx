@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Pagination } from '@/components/ui/pagination';
 import {
   Table,
   TableBody,
@@ -72,62 +73,52 @@ export default function PatientsPage() {
   const { logActivity } = useActivityLog();
   const { toast } = useToast();
 
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (profile?.hospital_id) {
-      loadPatients();
-    }
-  }, [profile?.hospital_id]);
-
-  const loadPatients = async () => {
-    if (!profile?.hospital_id) return;
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPatients((data || []).map(p => ({
-        ...p,
-        is_active: p.is_active ?? false
-      })));
-    } catch (error) {
-      console.error('Error loading patients:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load patients',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  // Build filters for the query
+  const filters = {
+    hospital_id: profile?.hospital_id,
+    is_active: true,
+    ...(genderFilter !== 'all' && { gender: genderFilter }),
   };
+
+  const {
+    data: patients,
+    count,
+    totalPages,
+    currentPage,
+    pageSize,
+    isLoading,
+    error,
+    nextPage,
+    prevPage,
+    goToPage,
+  } = usePaginatedQuery({
+    table: 'patients',
+    select: '*',
+    filters,
+    orderBy: { column: 'created_at', ascending: false },
+    pageSize: 25,
+  });
 
   const calculateAge = (dob: string) => {
     return differenceInYears(new Date(), new Date(dob));
   };
 
+  // Client-side search filtering (for current page only)
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch =
-      patient.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.mrn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (patient.phone && patient.phone.includes(searchQuery)) ||
-      (patient.email && patient.email.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesGender = genderFilter === 'all' || patient.gender === genderFilter;
-
-    return matchesSearch && matchesGender;
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      patient.first_name.toLowerCase().includes(query) ||
+      patient.last_name.toLowerCase().includes(query) ||
+      patient.mrn.toLowerCase().includes(query) ||
+      (patient.phone && patient.phone.includes(query)) ||
+      (patient.email && patient.email.toLowerCase().includes(query))
+    );
   });
 
   return (
@@ -156,7 +147,7 @@ export default function PatientsPage() {
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{patients.length}</p>
+              <p className="text-2xl font-bold">{count}</p>
               <p className="text-sm text-muted-foreground">Total Patients</p>
             </div>
           </div>
@@ -168,7 +159,7 @@ export default function PatientsPage() {
               <p className="text-2xl font-bold">
                 {patients.filter(p => p.gender === 'male').length}
               </p>
-              <p className="text-sm text-muted-foreground">Male Patients</p>
+              <p className="text-sm text-muted-foreground">Male (Current Page)</p>
             </div>
           </div>
           <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
@@ -179,7 +170,7 @@ export default function PatientsPage() {
               <p className="text-2xl font-bold">
                 {patients.filter(p => p.gender === 'female').length}
               </p>
-              <p className="text-sm text-muted-foreground">Female Patients</p>
+              <p className="text-sm text-muted-foreground">Female (Current Page)</p>
             </div>
           </div>
           <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
@@ -194,7 +185,7 @@ export default function PatientsPage() {
                   return created.toDateString() === today.toDateString();
                 }).length}
               </p>
-              <p className="text-sm text-muted-foreground">Registered Today</p>
+              <p className="text-sm text-muted-foreground">Registered Today (Current Page)</p>
             </div>
           </div>
         </div>
@@ -247,7 +238,8 @@ export default function PatientsPage() {
               )}
             </div>
           ) : (
-            <Table>
+            <>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>MRN</TableHead>
@@ -346,6 +338,22 @@ export default function PatientsPage() {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={goToPage}
+                  onPrevious={prevPage}
+                  onNext={nextPage}
+                  pageSize={pageSize}
+                  totalCount={count}
+                />
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>
@@ -353,7 +361,11 @@ export default function PatientsPage() {
       <PatientRegistrationModal
         open={registrationModalOpen}
         onOpenChange={setRegistrationModalOpen}
-        onSuccess={loadPatients}
+        onSuccess={() => {
+          setRegistrationModalOpen(false);
+          // Refresh current page data
+          window.location.reload();
+        }}
       />
     </DashboardLayout>
   );

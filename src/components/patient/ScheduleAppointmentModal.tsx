@@ -11,6 +11,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useAppointmentRequests } from '@/hooks/useAppointmentRequests';
 
 interface ScheduleAppointmentModalProps {
   open: boolean;
@@ -22,8 +23,8 @@ export function ScheduleAppointmentModal({ open, onOpenChange }: ScheduleAppoint
   const [appointmentType, setAppointmentType] = useState('');
   const [preferredTime, setPreferredTime] = useState('');
   const [reason, setReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { createAppointmentRequest, isCreating } = useAppointmentRequests();
 
   const appointmentTypes = [
     'General Consultation',
@@ -51,30 +52,23 @@ export function ScheduleAppointmentModal({ open, onOpenChange }: ScheduleAppoint
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      // TODO: Implement appointment request submission
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      toast({
-        title: "Appointment Requested",
-        description: "Your appointment request has been submitted. You will receive a confirmation shortly.",
+      await createAppointmentRequest({
+        appointment_type: appointmentType,
+        preferred_date: format(date, 'yyyy-MM-dd'),
+        preferred_time: preferredTime,
+        reason_for_visit: reason,
       });
       
-      // Reset form
+      // Reset form on success
       setDate(undefined);
       setAppointmentType('');
       setPreferredTime('');
       setReason('');
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit appointment request. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
+      // Error handling is done in the hook
+      console.error('Failed to create appointment request:', error);
     }
   };
 
@@ -161,12 +155,12 @@ export function ScheduleAppointmentModal({ open, onOpenChange }: ScheduleAppoint
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
+              disabled={isCreating}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Request Appointment"}
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? "Submitting..." : "Request Appointment"}
             </Button>
           </div>
         </form>
