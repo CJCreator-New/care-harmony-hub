@@ -13,6 +13,9 @@ import {
   CheckCircle2,
   User,
   Loader2,
+  Clock,
+  Star,
+  Shield
 } from 'lucide-react';
 import {
   usePatientChecklist,
@@ -27,12 +30,16 @@ import { AllergiesVerificationModal } from './AllergiesVerificationModal';
 import { ChiefComplaintModal } from './ChiefComplaintModal';
 import { MedicationsReviewModal } from './MedicationsReviewModal';
 import { RecordVitalsModal } from './RecordVitalsModal';
+import { TriageAssessmentModal } from './TriageAssessmentModal';
+import { MedicationReconciliationCard } from './MedicationReconciliationCard';
 
 interface PatientPrepChecklistCardProps {
   patientId: string;
   patientName: string;
   queueEntryId?: string;
   appointmentId?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
+  esiLevel?: 1 | 2 | 3 | 4 | 5;
   onComplete?: () => void;
 }
 
@@ -41,6 +48,8 @@ export function PatientPrepChecklistCard({
   patientName,
   queueEntryId,
   appointmentId,
+  priority = 'normal',
+  esiLevel,
   onComplete,
 }: PatientPrepChecklistCardProps) {
   const { data: existingChecklist, isLoading } = usePatientChecklist(patientId);
@@ -63,6 +72,8 @@ export function PatientPrepChecklistCard({
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [showAllergiesModal, setShowAllergiesModal] = useState(false);
   const [showMedicationsModal, setShowMedicationsModal] = useState(false);
+  const [showTriageModal, setShowTriageModal] = useState(false);
+  const [showMedReconciliation, setShowMedReconciliation] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
 
   useEffect(() => {
@@ -138,17 +149,34 @@ export function PatientPrepChecklistCard({
     }
   };
 
-  const handleComplaintComplete = async (_data: any) => {
-    try {
-      await updateChecklist.mutateAsync({
-        id: existingChecklist!.id,
-        chief_complaint_recorded: true,
-      });
-      setChecklist(prev => ({ ...prev, chief_complaint_recorded: true }));
-      setShowComplaintModal(false);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Update failed';
-      toast.error(`Failed to update complaint: ${errorMessage}`);
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'emergency': return 'bg-red-100 text-red-800 border-red-200';
+      case 'urgent': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'high': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'normal': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-blue-100 text-blue-800 border-blue-200';
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'emergency':
+      case 'urgent': return <AlertTriangle className="h-3 w-3" />;
+      case 'high': return <Star className="h-3 w-3" />;
+      default: return <Clock className="h-3 w-3" />;
+    }
+  };
+
+  const getESIColor = (level: number) => {
+    switch (level) {
+      case 1: return 'bg-red-500';
+      case 2: return 'bg-orange-500';
+      case 3: return 'bg-yellow-500';
+      case 4: return 'bg-green-500';
+      case 5: return 'bg-blue-500';
+      default: return 'bg-gray-500';
     }
   };
 
@@ -247,18 +275,48 @@ export function PatientPrepChecklistCard({
             <CardTitle className="text-base flex items-center gap-2">
               <FileCheck className="h-4 w-4" />
               Pre-Consultation Checklist
+              {(priority === 'emergency' || priority === 'urgent') && (
+                <Shield className="h-4 w-4 text-red-500" />
+              )}
             </CardTitle>
-            {checklist.ready_for_doctor ? (
-              <Badge variant="success">Ready</Badge>
-            ) : isAllComplete ? (
-              <Badge variant="warning">Review Needed</Badge>
-            ) : (
-              <Badge variant="secondary">In Progress</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {esiLevel && (
+                <Badge className={`${getESIColor(esiLevel)} text-white text-xs`}>
+                  ESI {esiLevel}
+                </Badge>
+              )}
+              <Badge className={getPriorityColor(priority)}>
+                {getPriorityIcon(priority)}
+                {priority.toUpperCase()}
+              </Badge>
+              {checklist.ready_for_doctor ? (
+                <Badge variant="success">Ready</Badge>
+              ) : isAllComplete ? (
+                <Badge variant="warning">Review Needed</Badge>
+              ) : (
+                <Badge variant="secondary">In Progress</Badge>
+              )}
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">{patientName}</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Priority Alert */}
+          {(priority === 'emergency' || priority === 'urgent') && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="font-medium">
+                  {priority === 'emergency' ? 'EMERGENCY PRIORITY' : 'URGENT PRIORITY'}
+                </span>
+              </div>
+              <p className="text-sm text-red-700 mt-1">
+                Complete preparation immediately. Patient requires expedited care.
+              </p>
+            </div>
+          )}
+
+          {/* Enhanced Checklist Items */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <Checkbox
@@ -298,22 +356,45 @@ export function PatientPrepChecklistCard({
               </Label>
             </div>
 
+            {/* Triage Assessment - High Priority Patients */}
+            {(priority === 'emergency' || priority === 'urgent' || priority === 'high') && (
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="triage"
+                  checked={!!esiLevel}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setShowTriageModal(true);
+                    }
+                  }}
+                  disabled={checklist.ready_for_doctor}
+                />
+                <Label htmlFor="triage" className="flex items-center gap-2 cursor-pointer">
+                  <Shield className="h-4 w-4 text-red-500" />
+                  Triage Assessment Complete
+                  <Badge variant="destructive" className="text-xs">Required</Badge>
+                </Label>
+              </div>
+            )}
+
+            {/* Medication Reconciliation */}
             <div className="flex items-center gap-3">
               <Checkbox
-                id="medications"
+                id="med_reconciliation"
                 checked={checklist.medications_reviewed}
                 onCheckedChange={(checked) => {
                   if (checked) {
-                    setShowMedicationsModal(true);
+                    setShowMedReconciliation(true);
                   } else {
                     handleCheckItem('medications_reviewed', false);
                   }
                 }}
                 disabled={checklist.ready_for_doctor}
               />
-              <Label htmlFor="medications" className="flex items-center gap-2 cursor-pointer">
+              <Label htmlFor="med_reconciliation" className="flex items-center gap-2 cursor-pointer">
                 <Pill className="h-4 w-4 text-primary" />
-                Current Medications Reviewed
+                Medication Reconciliation
+                {priority !== 'low' && <Badge variant="outline" className="text-xs">Priority</Badge>}
               </Label>
             </div>
 
@@ -333,6 +414,9 @@ export function PatientPrepChecklistCard({
               <Label htmlFor="complaint" className="flex items-center gap-2 cursor-pointer">
                 <MessageSquare className="h-4 w-4 text-info" />
                 Chief Complaint Recorded
+                {(priority === 'emergency' || priority === 'urgent') && (
+                  <Badge variant="destructive" className="text-xs">Critical</Badge>
+                )}
               </Label>
             </div>
 
@@ -371,7 +455,29 @@ export function PatientPrepChecklistCard({
         </CardContent>
       </Card>
 
-      {/* Modals */}
+      {/* Enhanced Modals */}
+      <TriageAssessmentModal
+        isOpen={showTriageModal}
+        onClose={() => setShowTriageModal(false)}
+        patientId={patientId}
+        appointmentId={appointmentId}
+        onSave={(assessment) => {
+          // Handle triage assessment save
+          console.log('Triage assessment saved:', assessment);
+        }}
+      />
+
+      {showMedReconciliation && (
+        <MedicationReconciliationCard
+          patientId={patientId}
+          appointmentId={appointmentId}
+          onSave={(reconciliation) => {
+            console.log('Medication reconciliation saved:', reconciliation);
+            setShowMedReconciliation(false);
+            handleCheckItem('medications_reviewed', true);
+          }}
+        />
+      )}
       <RecordVitalsModal
         open={showVitalsModal}
         onOpenChange={setShowVitalsModal}
@@ -404,7 +510,10 @@ export function PatientPrepChecklistCard({
         open={showComplaintModal}
         onOpenChange={setShowComplaintModal}
         patientName={patientName}
-        onComplete={handleComplaintComplete}
+        onComplete={(data) => {
+          handleCheckItem('chief_complaint_recorded', true);
+          setShowComplaintModal(false);
+        }}
         isLoading={updateChecklist.isPending}
       />
     </>

@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle, X, Star, FileText, Stethoscope } from "lucide-react";
+import { AlertCircle, CheckCircle, X, Star, FileText, Stethoscope, DollarSign } from "lucide-react";
 import { ICD10Autocomplete } from "../ICD10Autocomplete";
+import { CPTCodeMapper } from "../CPTCodeMapper";
 import { StructuredDiagnosis, DIAGNOSIS_TYPES, ICD10Code } from "@/types/icd10";
 
 interface DiagnosisStepEnhancedProps {
@@ -276,7 +277,42 @@ export function DiagnosisStepEnhanced({ data, onUpdate }: DiagnosisStepEnhancedP
         </TabsContent>
       </Tabs>
 
-      {/* Legacy Support - Show old diagnoses if they exist */}
+      {/* CPT Code Mapping */}
+      {primaryDiagnoses.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Billing Codes (CPT)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Select appropriate CPT codes for billing based on the primary diagnosis and procedures performed.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <CPTCodeMapper
+              selectedCodes={data.cpt_codes || []}
+              onChange={(codes) => onUpdate("cpt_codes", codes)}
+              diagnosisCode={primaryDiagnoses[0]?.icd_code}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Clinical Reasoning */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Clinical Reasoning</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={data.clinical_reasoning || ""}
+            onChange={(e) => onUpdate("clinical_reasoning", e.target.value)}
+            placeholder="Document your clinical reasoning for the diagnosis, including key findings that support your assessment..."
+            className="min-h-24"
+          />
+        </CardContent>
+      </Card>
       {(legacyProvisional.length > 0 || legacyFinal.length > 0) && (
         <Card className="border-dashed">
           <CardHeader className="pb-2">

@@ -1,363 +1,61 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { 
+  TriageAssessment, 
+  MedicationReconciliation, 
+  MedicationSchedule, 
+  MARAdministration,
+  CarePlanItem,
+  CarePlanCompliance 
+} from '@/types/nursing';
 
-// Types
-export interface ShiftHandover {
-  id: string;
-  hospital_id: string;
-  outgoing_nurse_id: string;
-  incoming_nurse_id: string | null;
-  shift_date: string;
-  shift_type: string;
-  status: string;
-  critical_patients: unknown;
-  pending_tasks: unknown;
-  notes: string | null;
-  handover_time: string;
-  acknowledged_at: string | null;
-  created_at: string;
-  outgoing_nurse?: {
-    first_name: string;
-    last_name: string;
-  };
-  incoming_nurse?: {
-    first_name: string;
-    last_name: string;
-  };
-}
-
+// Patient Prep Checklist Interface
 export interface PatientPrepChecklist {
   id: string;
-  hospital_id: string;
   patient_id: string;
-  queue_entry_id: string | null;
-  appointment_id: string | null;
-  nurse_id: string | null;
-  vitals_completed: boolean;
-  allergies_verified: boolean;
-  medications_reviewed: boolean;
-  chief_complaint_recorded: boolean;
-  consent_obtained: boolean;
-  ready_for_doctor: boolean;
-  notes: string | null;
-  completed_at: string | null;
+  queue_entry_id?: string;
+  appointment_id?: string;
+  vitals_completed?: boolean;
+  allergies_verified?: boolean;
+  medications_reviewed?: boolean;
+  chief_complaint_recorded?: boolean;
+  consent_obtained?: boolean;
+  ready_for_doctor?: boolean;
+  notes?: string;
+  hospital_id: string;
   created_at: string;
-  patient?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    mrn: string;
-  };
+  updated_at: string;
 }
 
-export interface MedicationAdministration {
+// Shift Handover Interface
+export interface ShiftHandover {
   id: string;
-  hospital_id: string;
   patient_id: string;
-  prescription_id: string | null;
-  prescription_item_id: string | null;
-  medication_name: string;
-  dosage: string;
-  route: string | null;
-  administered_by: string;
-  administered_at: string;
-  scheduled_time: string | null;
-  status: 'given' | 'refused' | 'held' | 'not_given';
-  notes: string | null;
-  witness_id: string | null;
+  from_nurse_id: string;
+  to_nurse_id?: string;
+  shift_date: string;
+  handover_notes: string;
+  priority_items: string[];
+  acknowledged: boolean;
+  acknowledged_at?: string;
+  hospital_id: string;
   created_at: string;
-  patient?: {
-    first_name: string;
-    last_name: string;
-    mrn: string;
-  };
-  administered_by_nurse?: {
-    first_name: string;
-    last_name: string;
-  };
 }
 
-// Shift Handover Hooks
-export function useShiftHandovers(date?: string) {
-  const { hospital } = useAuth();
+// Triage Assessment Hooks
+export const useTriageAssessments = (patientId?: string) => {
+  const [assessments, setAssessments] = useState<TriageAssessment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  return useQuery({
-    queryKey: ['shift-handovers', hospital?.id, date],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
+  const loadAssessments = async () => {
+    setLoading(true);
+    setError(null);
+    try {
       let query = supabase
-        .from('shift_handovers')
-        .select(`
-          *,
-          outgoing_nurse:profiles!shift_handovers_outgoing_nurse_id_fkey(first_name, last_name),
-          incoming_nurse:profiles!shift_handovers_incoming_nurse_id_fkey(first_name, last_name)
-        `)
-        .eq('hospital_id', hospital.id)
-        .order('handover_time', { ascending: false });
-
-      if (date) {
-        query = query.eq('shift_date', date);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as ShiftHandover[];
-    },
-    enabled: !!hospital?.id,
-  });
-}
-
-export function usePendingHandovers() {
-  const { hospital, profile } = useAuth();
-
-  return useQuery({
-    queryKey: ['shift-handovers', 'pending', hospital?.id, profile?.id],
-    queryFn: async () => {
-      if (!hospital?.id || !profile?.id) return [];
-
-      const { data, error } = await supabase
-        .from('shift_handovers')
-        .select(`
-          *,
-          outgoing_nurse:profiles!shift_handovers_outgoing_nurse_id_fkey(first_name, last_name)
-        `)
-        .eq('hospital_id', hospital.id)
-        .eq('status', 'pending')
-        .order('handover_time', { ascending: false });
-
-      if (error) throw error;
-      return data as ShiftHandover[];
-    },
-    enabled: !!hospital?.id && !!profile?.id,
-  });
-}
-
-export function useCreateHandover() {
-  const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
-
-  return useMutation({
-    mutationFn: async (handover: {
-      shift_type: string;
-      critical_patients: Array<{ patient_id: string; patient_name: string; notes: string }>;
-      pending_tasks: Array<{ task: string; priority: string; patient_id?: string }>;
-      notes?: string;
-    }) => {
-      if (!hospital?.id || !profile?.id) throw new Error('No auth context');
-
-      const { data, error } = await supabase
-        .from('shift_handovers')
-        .insert({
-          hospital_id: hospital.id,
-          outgoing_nurse_id: profile.id,
-          shift_type: handover.shift_type,
-          critical_patients: handover.critical_patients,
-          pending_tasks: handover.pending_tasks,
-          notes: handover.notes,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shift-handovers'] });
-      toast.success('Shift handover created');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to create handover: ${error.message}`);
-    },
-  });
-}
-
-export function useAcknowledgeHandover() {
-  const queryClient = useQueryClient();
-  const { profile } = useAuth();
-
-  return useMutation({
-    mutationFn: async (handoverId: string) => {
-      if (!profile?.id) throw new Error('No auth context');
-
-      const { data, error } = await supabase
-        .from('shift_handovers')
-        .update({
-          incoming_nurse_id: profile.id,
-          status: 'acknowledged',
-          acknowledged_at: new Date().toISOString(),
-        })
-        .eq('id', handoverId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shift-handovers'] });
-      toast.success('Handover acknowledged');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to acknowledge: ${error.message}`);
-    },
-  });
-}
-
-// Patient Prep Checklist Hooks
-export function usePatientChecklists() {
-  const { hospital } = useAuth();
-
-  return useQuery({
-    queryKey: ['patient-checklists', hospital?.id],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      const today = new Date().toISOString().split('T')[0];
-
-      const { data, error } = await supabase
-        .from('patient_prep_checklists')
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn)
-        `)
-        .eq('hospital_id', hospital.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as PatientPrepChecklist[];
-    },
-    enabled: !!hospital?.id,
-  });
-}
-
-export function usePatientChecklist(patientId: string | undefined) {
-  const { hospital } = useAuth();
-
-  return useQuery({
-    queryKey: ['patient-checklist', patientId],
-    queryFn: async () => {
-      if (!hospital?.id || !patientId) return null;
-
-      const today = new Date().toISOString().split('T')[0];
-
-      const { data, error } = await supabase
-        .from('patient_prep_checklists')
+        .from('triage_assessments')
         .select('*')
-        .eq('hospital_id', hospital.id)
-        .eq('patient_id', patientId)
-        .gte('created_at', `${today}T00:00:00`)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as PatientPrepChecklist | null;
-    },
-    enabled: !!hospital?.id && !!patientId,
-  });
-}
-
-export function useCreateChecklist() {
-  const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
-
-  return useMutation({
-    mutationFn: async ({ patientId, queueEntryId, appointmentId }: {
-      patientId: string;
-      queueEntryId?: string;
-      appointmentId?: string;
-    }) => {
-      if (!hospital?.id) throw new Error('No hospital context');
-
-      const { data, error } = await supabase
-        .from('patient_prep_checklists')
-        .insert({
-          hospital_id: hospital.id,
-          patient_id: patientId,
-          queue_entry_id: queueEntryId,
-          appointment_id: appointmentId,
-          nurse_id: profile?.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['patient-checklists'] });
-      queryClient.invalidateQueries({ queryKey: ['patient-checklist'] });
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to create checklist: ${error.message}`);
-    },
-  });
-}
-
-export function useUpdateChecklist() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<PatientPrepChecklist> & { id: string }) => {
-      // Check if all items are complete to mark ready_for_doctor
-      const isComplete = updates.vitals_completed && 
-                         updates.allergies_verified && 
-                         updates.medications_reviewed && 
-                         updates.chief_complaint_recorded;
-
-      const { data, error } = await supabase
-        .from('patient_prep_checklists')
-        .update({
-          ...updates,
-          ready_for_doctor: isComplete || updates.ready_for_doctor,
-          completed_at: isComplete ? new Date().toISOString() : null,
-        })
-        .eq('id', id)
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn)
-        `)
-        .single();
-
-      if (error) throw error;
-      return data as PatientPrepChecklist;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['patient-checklists'] });
-      queryClient.invalidateQueries({ queryKey: ['patient-checklist', data.patient_id] });
-      if (data.ready_for_doctor) {
-        toast.success('Patient ready for doctor');
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to update checklist: ${error.message}`);
-    },
-  });
-}
-
-// Medication Administration Hooks
-export function useMedicationAdministrations(patientId?: string) {
-  const { hospital } = useAuth();
-
-  return useQuery({
-    queryKey: ['medication-administrations', hospital?.id, patientId],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      let query = supabase
-        .from('medication_administrations')
-        .select(`
-          *,
-          patient:patients(first_name, last_name, mrn),
-          administered_by_nurse:profiles!medication_administrations_administered_by_fkey(first_name, last_name)
-        `)
-        .eq('hospital_id', hospital.id)
-        .order('administered_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
 
       if (patientId) {
         query = query.eq('patient_id', patientId);
@@ -365,50 +63,635 @@ export function useMedicationAdministrations(patientId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as MedicationAdministration[];
-    },
-    enabled: !!hospital?.id,
-  });
-}
+      setAssessments(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load assessments');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-export function useRecordMedicationAdministration() {
-  const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
-
-  return useMutation({
-    mutationFn: async (administration: {
-      patient_id: string;
-      prescription_id?: string;
-      prescription_item_id?: string;
-      medication_name: string;
-      dosage: string;
-      route?: string;
-      scheduled_time?: string;
-      status?: 'given' | 'refused' | 'held' | 'not_given';
-      notes?: string;
-      witness_id?: string;
-    }) => {
-      if (!hospital?.id || !profile?.id) throw new Error('No auth context');
-
+  const createAssessment = async (assessment: Partial<TriageAssessment>) => {
+    setLoading(true);
+    try {
       const { data, error } = await supabase
-        .from('medication_administrations')
+        .from('triage_assessments')
+        .insert([assessment])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setAssessments(prev => [data, ...prev]);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create assessment');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAssessments();
+  }, [patientId]);
+
+  return {
+    assessments,
+    loading,
+    error,
+    createAssessment,
+    refetch: loadAssessments
+  };
+};
+
+// Medication Reconciliation Hooks
+export const useMedicationReconciliation = (patientId: string) => {
+  const [reconciliation, setReconciliation] = useState<MedicationReconciliation | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadReconciliation = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('medication_reconciliation')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      setReconciliation(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load reconciliation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createReconciliation = async (reconciliation: Partial<MedicationReconciliation>) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('medication_reconciliation')
+        .insert([reconciliation])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setReconciliation(data);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create reconciliation');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateReconciliation = async (id: string, updates: Partial<MedicationReconciliation>) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('medication_reconciliation')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setReconciliation(data);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update reconciliation');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (patientId) {
+      loadReconciliation();
+    }
+  }, [patientId]);
+
+  return {
+    reconciliation,
+    loading,
+    error,
+    createReconciliation,
+    updateReconciliation,
+    refetch: loadReconciliation
+  };
+};
+
+// MAR (Medication Administration Record) Hooks
+export const useMedicationSchedules = (patientId: string, date: string) => {
+  const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
+  const [administrations, setAdministrations] = useState<MARAdministration[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSchedules = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: scheduleData, error: scheduleError } = await supabase
+        .from('medication_schedules')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('scheduled_date', date)
+        .eq('is_active', true);
+
+      if (scheduleError) throw scheduleError;
+
+      const { data: adminData, error: adminError } = await supabase
+        .from('mar_administrations')
+        .select('*')
+        .eq('patient_id', patientId)
+        .gte('scheduled_time', `${date}T00:00:00`)
+        .lt('scheduled_time', `${date}T23:59:59`);
+
+      if (adminError) throw adminError;
+
+      setSchedules(scheduleData || []);
+      setAdministrations(adminData || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load schedules');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const recordAdministration = async (administration: Partial<MARAdministration>) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('mar_administrations')
+        .insert([administration])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setAdministrations(prev => [...prev, data]);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to record administration');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateAdministration = async (id: string, updates: Partial<MARAdministration>) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('mar_administrations')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setAdministrations(prev => prev.map(admin => admin.id === id ? data : admin));
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update administration');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (patientId && date) {
+      loadSchedules();
+    }
+  }, [patientId, date]);
+
+  return {
+    schedules,
+    administrations,
+    loading,
+    error,
+    recordAdministration,
+    updateAdministration,
+    refetch: loadSchedules
+  };
+};
+
+// Care Plan Compliance Hooks
+export const useCarePlanCompliance = (patientId: string) => {
+  const [carePlanItems, setCarePlanItems] = useState<CarePlanItem[]>([]);
+  const [compliance, setCompliance] = useState<CarePlanCompliance[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadCarePlan = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('care_plan_items')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('status', 'active')
+        .order('priority', { ascending: false });
+
+      if (itemsError) throw itemsError;
+
+      const { data: complianceData, error: complianceError } = await supabase
+        .from('care_plan_compliance')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('due_time', { ascending: true });
+
+      if (complianceError) throw complianceError;
+
+      setCarePlanItems(itemsData || []);
+      setCompliance(complianceData || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load care plan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const recordCompliance = async (compliance: Partial<CarePlanCompliance>) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('care_plan_compliance')
+        .insert([compliance])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setCompliance(prev => [...prev, data]);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to record compliance');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateCompliance = async (id: string, updates: Partial<CarePlanCompliance>) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('care_plan_compliance')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setCompliance(prev => prev.map(comp => comp.id === id ? data : comp));
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update compliance');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (patientId) {
+      loadCarePlan();
+    }
+  }, [patientId]);
+
+  return {
+    carePlanItems,
+    compliance,
+    loading,
+    error,
+    recordCompliance,
+    updateCompliance,
+    refetch: loadCarePlan
+  };
+};
+
+// Patient Checklist Hooks
+export const usePatientChecklist = (patientId: string) => {
+  const [checklist, setChecklist] = useState<PatientPrepChecklist | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadChecklist = async () => {
+    if (!patientId) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('patient_prep_checklists')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      setChecklist(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load checklist');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadChecklist();
+  }, [patientId]);
+
+  return {
+    data: checklist,
+    isLoading: loading,
+    error,
+    refetch: loadChecklist
+  };
+};
+
+export const useCreateChecklist = () => {
+  const [loading, setLoading] = useState(false);
+
+  const mutateAsync = async (data: {
+    patientId: string;
+    queueEntryId?: string;
+    appointmentId?: string;
+  }) => {
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase
+        .from('patient_prep_checklists')
         .insert({
-          ...administration,
-          hospital_id: hospital.id,
-          administered_by: profile.id,
+          patient_id: data.patientId,
+          queue_entry_id: data.queueEntryId,
+          appointment_id: data.appointmentId,
+          vitals_completed: false,
+          allergies_verified: false,
+          medications_reviewed: false,
+          chief_complaint_recorded: false,
+          consent_obtained: false,
+          ready_for_doctor: false
         })
         .select()
         .single();
 
       if (error) throw error;
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    mutateAsync,
+    isPending: loading
+  };
+};
+
+export const useUpdateChecklist = () => {
+  const [loading, setLoading] = useState(false);
+
+  const mutateAsync = async (data: {
+    id: string;
+    vitals_completed?: boolean;
+    allergies_verified?: boolean;
+    medications_reviewed?: boolean;
+    chief_complaint_recorded?: boolean;
+    consent_obtained?: boolean;
+    ready_for_doctor?: boolean;
+    notes?: string;
+  }) => {
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase
+        .from('patient_prep_checklists')
+        .update(data)
+        .eq('id', data.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    mutateAsync,
+    isPending: loading
+  };
+};
+
+export const usePatientChecklists = (hospitalId?: string) => {
+  const [checklists, setChecklists] = useState<PatientPrepChecklist[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadChecklists = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('patient_prep_checklists')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (hospitalId) {
+        query = query.eq('hospital_id', hospitalId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setChecklists(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load checklists');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadChecklists();
+  }, [hospitalId]);
+
+  return {
+    checklists,
+    loading,
+    error,
+    refetch: loadChecklists
+  };
+};
+
+// Shift Handover Hooks
+export const useCreateHandover = () => {
+  const [loading, setLoading] = useState(false);
+
+  const mutateAsync = async (data: Partial<ShiftHandover>) => {
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase
+        .from('shift_handovers')
+        .insert(data)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    mutateAsync,
+    isPending: loading
+  };
+};
+
+export const usePendingHandovers = (nurseId?: string) => {
+  const [handovers, setHandovers] = useState<ShiftHandover[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadHandovers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('shift_handovers')
+        .select('*')
+        .eq('acknowledged', false)
+        .order('created_at', { ascending: false });
+
+      if (nurseId) {
+        query = query.eq('to_nurse_id', nurseId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setHandovers(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load handovers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHandovers();
+  }, [nurseId]);
+
+  return {
+    handovers,
+    loading,
+    error,
+    refetch: loadHandovers
+  };
+};
+
+export const useAcknowledgeHandover = () => {
+  const [loading, setLoading] = useState(false);
+
+  const mutateAsync = async (handoverId: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('shift_handovers')
+        .update({
+          acknowledged: true,
+          acknowledged_at: new Date().toISOString()
+        })
+        .eq('id', handoverId)
+        .select()
+        .single();
+
+      if (error) throw error;
       return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medication-administrations'] });
-      toast.success('Medication administration recorded');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to record: ${error.message}`);
-    },
-  });
-}
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    mutateAsync,
+    isPending: loading
+  };
+};
+
+// Medication Administration Hooks
+export const useRecordMedicationAdministration = () => {
+  const [loading, setLoading] = useState(false);
+
+  const mutateAsync = async (data: Partial<MARAdministration>) => {
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase
+        .from('mar_administrations')
+        .insert(data)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    mutateAsync,
+    isPending: loading
+  };
+};
+
+export const useMedicationAdministrations = (patientId?: string) => {
+  const [administrations, setAdministrations] = useState<MARAdministration[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAdministrations = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('mar_administrations')
+        .select('*')
+        .order('scheduled_time', { ascending: false });
+
+      if (patientId) {
+        query = query.eq('patient_id', patientId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setAdministrations(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load administrations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdministrations();
+  }, [patientId]);
+
+  return {
+    administrations,
+    loading,
+    error,
+    refetch: loadAdministrations
+  };
+};

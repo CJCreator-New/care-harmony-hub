@@ -3,6 +3,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Thermometer, Heart, Droplets, Wind } from "lucide-react";
+import { HPITemplateSelector } from "../HPITemplateSelector";
+import { HPIData } from "@/types/soap";
 
 interface ChiefComplaintStepProps {
   data: Record<string, any>;
@@ -144,15 +146,21 @@ export function ChiefComplaintStep({
         />
       </div>
 
-      {/* History of Present Illness */}
+      {/* History of Present Illness - Structured */}
+      <HPITemplateSelector
+        value={data.hpi_data || { template_type: 'OLDCARTS' }}
+        onChange={(hpi) => onUpdate("hpi_data", hpi)}
+      />
+
+      {/* Additional HPI Notes */}
       <div className="space-y-2">
-        <Label htmlFor="history">History of Present Illness</Label>
+        <Label htmlFor="hpi_notes">Additional HPI Notes</Label>
         <Textarea
-          id="history"
-          placeholder="Describe the history of the current illness including onset, duration, severity, associated symptoms, and any relevant medical history..."
-          className="min-h-32"
-          value={data.history_of_present_illness || ""}
-          onChange={(e) => onUpdate("history_of_present_illness", e.target.value)}
+          id="hpi_notes"
+          placeholder="Any additional details about the present illness..."
+          className="min-h-24"
+          value={data.hpi_notes || ""}
+          onChange={(e) => onUpdate("hpi_notes", e.target.value)}
         />
       </div>
     </div>

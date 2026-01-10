@@ -293,7 +293,9 @@ export type Database = {
           billing_notified: boolean | null
           chief_complaint: string | null
           clinical_notes: string | null
+          clinical_reasoning: string | null
           completed_at: string | null
+          cpt_codes: string[] | null
           created_at: string
           current_step: number | null
           diagnoses: Json | null
@@ -303,6 +305,8 @@ export type Database = {
           follow_up_notes: string | null
           handoff_notes: string | null
           history_of_present_illness: string | null
+          hpi_data: Json | null
+          hpi_notes: string | null
           hospital_id: string
           id: string
           lab_notified: boolean | null
@@ -315,6 +319,7 @@ export type Database = {
           prescriptions: Json | null
           provisional_diagnosis: string[] | null
           referrals: Json | null
+          review_of_systems: Json | null
           started_at: string | null
           status: Database["public"]["Enums"]["consultation_status"] | null
           symptoms: string[] | null
@@ -328,7 +333,9 @@ export type Database = {
           billing_notified?: boolean | null
           chief_complaint?: string | null
           clinical_notes?: string | null
+          clinical_reasoning?: string | null
           completed_at?: string | null
+          cpt_codes?: string[] | null
           created_at?: string
           current_step?: number | null
           diagnoses?: Json | null
@@ -338,6 +345,8 @@ export type Database = {
           follow_up_notes?: string | null
           handoff_notes?: string | null
           history_of_present_illness?: string | null
+          hpi_data?: Json | null
+          hpi_notes?: string | null
           hospital_id: string
           id?: string
           lab_notified?: boolean | null
@@ -350,6 +359,7 @@ export type Database = {
           prescriptions?: Json | null
           provisional_diagnosis?: string[] | null
           referrals?: Json | null
+          review_of_systems?: Json | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["consultation_status"] | null
           symptoms?: string[] | null
@@ -430,7 +440,79 @@ export type Database = {
           },
         ]
       }
-      departments: {
+      clinical_templates: {
+        Row: {
+          created_at: string
+          hospital_id: string
+          id: string
+          name: string
+          specialty: string | null
+          template_data: Json
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          hospital_id: string
+          id?: string
+          name: string
+          specialty?: string | null
+          template_data: Json
+          type: string
+        }
+        Update: {
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          name?: string
+          specialty?: string | null
+          template_data?: Json
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_templates_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cpt_codes: {
+        Row: {
+          base_fee: number | null
+          category: string | null
+          code: string
+          created_at: string
+          description: string
+          hospital_id: string | null
+        }
+        Insert: {
+          base_fee?: number | null
+          category?: string | null
+          code: string
+          created_at?: string
+          description: string
+          hospital_id?: string | null
+        }
+        Update: {
+          base_fee?: number | null
+          category?: string | null
+          code?: string
+          created_at?: string
+          description?: string
+          hospital_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cpt_codes_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
         Row: {
           code: string | null
           created_at: string | null
