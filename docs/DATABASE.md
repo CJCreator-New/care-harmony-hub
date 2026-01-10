@@ -2,7 +2,7 @@
 
 ## Overview
 
-CareSync uses PostgreSQL via Supabase with Row Level Security (RLS) enabled on all tables.
+CareSync uses PostgreSQL via Lovable Cloud (Supabase) with Row Level Security (RLS) enabled on all 46+ tables. All tables are hospital-scoped for multi-tenancy.
 
 ---
 
@@ -28,12 +28,22 @@ CareSync uses PostgreSQL via Supabase with Row Level Security (RLS) enabled on a
 │ appointments │◄───────│ consultations│
 └──────┬───────┘        └──────┬───────┘
        │                       │
-       │              ┌────────┴────────┐
-       │              │                 │
-       ▼              ▼                 ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ patient_queue│ │ prescriptions│ │  lab_orders  │
-└──────────────┘ └──────────────┘ └──────────────┘
+       │              ┌────────┴────────┬────────────────┐
+       │              │                 │                │
+       ▼              ▼                 ▼                ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ patient_queue│ │ prescriptions│ │  lab_orders  │ │triage_assess │
+└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+
+                    Reference Tables
+    ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+    │  icd10_codes │ │   cpt_codes  │ │  loinc_codes │
+    └──────────────┘ └──────────────┘ └──────────────┘
+
+                    Integration Tables
+    ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+    │task_assignments│ │  care_gaps  │ │activity_logs │
+    └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
 ---
@@ -73,14 +83,28 @@ User profiles linked to auth.users.
 | last_name | TEXT | Last name |
 | email | TEXT | Email address |
 | phone | TEXT | Phone number |
-| role | TEXT | User role |
 | department_id | UUID | FK to departments |
 | specialization | TEXT | Medical specialty |
 | license_number | TEXT | Professional license |
-| is_active | BOOLEAN | Active status |
+| is_staff | BOOLEAN | Staff flag |
 | avatar_url | TEXT | Profile image |
+| failed_login_attempts | INTEGER | Security tracking |
+| two_factor_enabled | BOOLEAN | 2FA status |
+| two_factor_secret | TEXT | Encrypted 2FA secret |
+| backup_codes | TEXT[] | Recovery codes |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 | updated_at | TIMESTAMPTZ | Last update |
+
+### user_roles
+
+Role assignments for users (supports multiple roles).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | FK to auth.users |
+| role | TEXT | Role name |
+| created_at | TIMESTAMPTZ | Assignment date |
 
 ### patients
 
@@ -95,7 +119,7 @@ Patient records.
 | first_name | TEXT | First name |
 | last_name | TEXT | Last name |
 | date_of_birth | DATE | Birth date |
-| gender | ENUM | male/female/other |
+| gender | ENUM | male/female/other/prefer_not_to_say |
 | phone | TEXT | Phone number |
 | email | TEXT | Email address |
 | address | TEXT | Street address |
@@ -135,20 +159,25 @@ Appointment scheduling.
 | scheduled_time | TIME | Appointment time |
 | duration_minutes | INTEGER | Duration |
 | appointment_type | TEXT | Type (follow-up, new, etc.) |
-| priority | ENUM | low/normal/urgent/emergency |
-| status | ENUM | scheduled/checked_in/in_progress/completed/cancelled |
+| priority | ENUM | low/normal/high/urgent/emergency |
+| status | ENUM | scheduled/checked_in/in_progress/completed/cancelled/no_show |
 | reason_for_visit | TEXT | Visit reason |
 | notes | TEXT | Notes |
 | queue_number | INTEGER | Queue position |
 | check_in_time | TIMESTAMPTZ | Check-in timestamp |
 | room_number | TEXT | Assigned room |
+| waitlist_position | INTEGER | Waitlist position |
+| reminder_sent | BOOLEAN | Reminder status |
+| reminder_sent_at | TIMESTAMPTZ | Reminder timestamp |
+| follow_up_required | BOOLEAN | Follow-up flag |
+| cancellation_reason | TEXT | If cancelled |
 | created_by | UUID | FK to profiles |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 | updated_at | TIMESTAMPTZ | Last update |
 
 ### consultations
 
-Clinical encounters.
+Clinical encounters with SOAP format.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -165,6 +194,7 @@ Clinical encounters.
 | symptoms | TEXT[] | Symptom list |
 | vitals | JSONB | Vital signs |
 | physical_examination | JSONB | Exam findings |
+| diagnoses | JSONB | Structured diagnoses with ICD-10 |
 | provisional_diagnosis | TEXT[] | Working diagnosis |
 | final_diagnosis | TEXT[] | Final diagnosis |
 | treatment_plan | TEXT | Treatment notes |
@@ -172,13 +202,40 @@ Clinical encounters.
 | lab_orders | JSONB | Lab order data |
 | referrals | JSONB | Referral data |
 | clinical_notes | TEXT | Additional notes |
+| handoff_notes | TEXT | Handoff documentation |
 | follow_up_date | DATE | Follow-up date |
 | follow_up_notes | TEXT | Follow-up instructions |
 | auto_save_data | JSONB | Draft data |
 | last_auto_save | TIMESTAMPTZ | Last save time |
+| lab_notified | BOOLEAN | Lab notification sent |
+| pharmacy_notified | BOOLEAN | Pharmacy notification sent |
+| billing_notified | BOOLEAN | Billing notification sent |
 | started_at | TIMESTAMPTZ | Start time |
 | completed_at | TIMESTAMPTZ | Completion time |
 | created_at | TIMESTAMPTZ | Creation timestamp |
+| updated_at | TIMESTAMPTZ | Last update |
+
+### triage_assessments
+
+Nurse triage with ESI scoring.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| hospital_id | UUID | FK to hospitals |
+| patient_id | UUID | FK to patients |
+| appointment_id | UUID | FK to appointments |
+| queue_entry_id | UUID | FK to patient_queue |
+| nurse_id | UUID | FK to profiles |
+| esi_level | INTEGER | ESI level 1-5 |
+| chief_complaint | TEXT | Presenting complaint |
+| vital_signs | JSONB | Vitals at triage |
+| symptoms | JSONB | Symptom assessment |
+| pain_level | INTEGER | Pain scale 0-10 |
+| immediate_attention_required | BOOLEAN | Emergency flag |
+| high_risk_flags | TEXT[] | Risk indicators |
+| notes | TEXT | Triage notes |
+| created_at | TIMESTAMPTZ | Assessment time |
 | updated_at | TIMESTAMPTZ | Last update |
 
 ### prescriptions
@@ -192,10 +249,14 @@ Medication prescriptions.
 | consultation_id | UUID | FK to consultations |
 | patient_id | UUID | FK to patients |
 | prescribed_by | UUID | FK to profiles |
-| prescription_number | TEXT | Unique Rx number |
-| status | TEXT | pending/dispensed/cancelled |
+| status | TEXT | pending/verified/dispensed/cancelled |
+| priority | TEXT | normal/urgent/stat |
 | notes | TEXT | Instructions |
-| valid_until | DATE | Expiry date |
+| drug_interactions | JSONB | Detected interactions |
+| allergy_alerts | JSONB | Allergy warnings |
+| verification_required | BOOLEAN | Pharmacist review needed |
+| verified_by | UUID | FK to profiles |
+| verified_at | TIMESTAMPTZ | Verification time |
 | dispensed_by | UUID | FK to profiles |
 | dispensed_at | TIMESTAMPTZ | Dispensing time |
 | created_at | TIMESTAMPTZ | Creation timestamp |
@@ -221,7 +282,7 @@ Individual prescription items.
 
 ### lab_orders
 
-Laboratory test orders.
+Laboratory test orders with LOINC integration.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -231,9 +292,9 @@ Laboratory test orders.
 | consultation_id | UUID | FK to consultations |
 | ordered_by | UUID | FK to profiles |
 | test_name | TEXT | Test name |
-| test_code | TEXT | Test code |
+| test_code | TEXT | Test code (LOINC) |
 | test_category | TEXT | Category |
-| priority | ENUM | low/normal/urgent/emergency |
+| priority | ENUM | low/normal/high/urgent/emergency |
 | status | TEXT | ordered/collected/processing/completed |
 | specimen_type | TEXT | Sample type |
 | sample_type | TEXT | Collection container |
@@ -242,6 +303,7 @@ Laboratory test orders.
 | normal_range | TEXT | Reference range |
 | is_critical | BOOLEAN | Critical flag |
 | critical_notified | BOOLEAN | Notification sent |
+| critical_notified_at | TIMESTAMPTZ | Notification time |
 | collected_by | UUID | FK to profiles |
 | collected_at | TIMESTAMPTZ | Collection time |
 | processed_by | UUID | FK to profiles |
@@ -252,11 +314,122 @@ Laboratory test orders.
 
 ---
 
+## Reference Tables
+
+### icd10_codes
+
+ICD-10 diagnosis codes.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| code | TEXT | ICD-10 code |
+| short_description | TEXT | Short description |
+| long_description | TEXT | Full description |
+| category | TEXT | Code category |
+| chapter | TEXT | ICD-10 chapter |
+| is_billable | BOOLEAN | Billable flag |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+### cpt_codes
+
+CPT billing codes.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| code | TEXT | CPT code (PK) |
+| description | TEXT | Code description |
+| category | TEXT | Service category |
+| base_fee | DECIMAL | Base fee amount |
+| hospital_id | UUID | FK to hospitals (for custom fees) |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+### loinc_codes
+
+LOINC laboratory codes.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| code | TEXT | LOINC code (PK) |
+| component | TEXT | Test component |
+| property | TEXT | Property measured |
+| time_aspect | TEXT | Timing |
+| system_type | TEXT | Body system |
+| scale_type | TEXT | Measurement scale |
+| unit | TEXT | Unit of measure |
+| reference_range | JSONB | Normal ranges |
+| hospital_id | UUID | FK to hospitals |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+---
+
+## Integration Tables
+
+### task_assignments
+
+Cross-role task management.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| hospital_id | UUID | FK to hospitals |
+| title | TEXT | Task title |
+| description | TEXT | Task details |
+| assigned_by | UUID | FK to profiles |
+| assigned_to | UUID | FK to profiles |
+| patient_id | UUID | FK to patients (optional) |
+| priority | TEXT | low/normal/high/urgent |
+| status | TEXT | pending/in_progress/completed/cancelled |
+| due_date | TIMESTAMPTZ | Due date |
+| completed_at | TIMESTAMPTZ | Completion time |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+| updated_at | TIMESTAMPTZ | Last update |
+
+### care_gaps
+
+Population health tracking.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| hospital_id | UUID | FK to hospitals |
+| patient_id | UUID | FK to patients |
+| measure_type | TEXT | Care measure type |
+| measure_name | TEXT | Measure name |
+| due_date | DATE | Due date |
+| completed_date | DATE | Completion date |
+| status | TEXT | open/closed/overdue |
+| notes | TEXT | Additional notes |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+| updated_at | TIMESTAMPTZ | Last update |
+
+### activity_logs
+
+Comprehensive audit trail.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| hospital_id | UUID | FK to hospitals |
+| user_id | UUID | FK to profiles.user_id |
+| action_type | TEXT | Action performed |
+| entity_type | TEXT | Entity affected |
+| entity_id | UUID | Entity ID |
+| old_values | JSONB | Previous values |
+| new_values | JSONB | New values |
+| details | JSONB | Additional details |
+| severity | TEXT | info/warning/error/critical |
+| ip_address | TEXT | Client IP |
+| user_agent | TEXT | Browser info |
+| created_at | TIMESTAMPTZ | Timestamp |
+
+---
+
 ## Billing Tables
 
 ### invoices
 
-Patient invoices.
+Patient invoices with CPT integration.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -278,205 +451,34 @@ Patient invoices.
 | created_at | TIMESTAMPTZ | Creation timestamp |
 | updated_at | TIMESTAMPTZ | Last update |
 
-### invoice_items
+### insurance_claims
 
-Line items on invoices.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| invoice_id | UUID | FK to invoices |
-| description | TEXT | Item description |
-| item_type | TEXT | consultation/medication/lab/procedure |
-| quantity | INTEGER | Quantity |
-| unit_price | DECIMAL | Unit price |
-| total | DECIMAL | Line total |
-| created_at | TIMESTAMPTZ | Creation timestamp |
-
-### payments
-
-Payment transactions.
+Insurance claim tracking.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
 | hospital_id | UUID | FK to hospitals |
+| patient_id | UUID | FK to patients |
 | invoice_id | UUID | FK to invoices |
-| amount | DECIMAL | Payment amount |
-| payment_method | TEXT | cash/card/upi/insurance |
-| reference_number | TEXT | Transaction reference |
-| payment_date | TIMESTAMPTZ | Payment date |
-| received_by | UUID | FK to profiles |
-| notes | TEXT | Payment notes |
-| created_at | TIMESTAMPTZ | Creation timestamp |
-
----
-
-## Inventory Tables
-
-### medications
-
-Medication inventory.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| hospital_id | UUID | FK to hospitals |
-| name | TEXT | Brand name |
-| generic_name | TEXT | Generic name |
-| category | TEXT | Drug category |
-| form | TEXT | tablet/capsule/syrup/injection |
-| strength | TEXT | Strength (e.g., "500mg") |
-| unit | TEXT | Unit of measure |
-| manufacturer | TEXT | Manufacturer |
-| batch_number | TEXT | Batch number |
-| expiry_date | DATE | Expiry date |
-| current_stock | INTEGER | Current quantity |
-| minimum_stock | INTEGER | Reorder level |
-| unit_price | DECIMAL | Unit price |
-| is_active | BOOLEAN | Active status |
+| claim_number | TEXT | Claim number |
+| insurance_provider | TEXT | Provider name |
+| policy_number | TEXT | Policy number |
+| group_number | TEXT | Group number |
+| claim_amount | DECIMAL | Claimed amount |
+| approved_amount | DECIMAL | Approved amount |
+| paid_amount | DECIMAL | Paid amount |
+| patient_responsibility | DECIMAL | Patient owes |
+| status | TEXT | pending/submitted/approved/denied/paid |
+| diagnosis_codes | TEXT[] | ICD-10 codes |
+| procedure_codes | TEXT[] | CPT codes |
+| denial_reason | TEXT | If denied |
+| submitted_at | TIMESTAMPTZ | Submission date |
+| reviewed_at | TIMESTAMPTZ | Review date |
+| paid_at | TIMESTAMPTZ | Payment date |
+| notes | TEXT | Claim notes |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 | updated_at | TIMESTAMPTZ | Last update |
-
----
-
-## Supporting Tables
-
-### departments
-
-Hospital departments.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| hospital_id | UUID | FK to hospitals |
-| name | TEXT | Department name |
-| code | TEXT | Department code |
-| description | TEXT | Description |
-| head_of_department | UUID | FK to profiles |
-| is_active | BOOLEAN | Active status |
-| created_at | TIMESTAMPTZ | Creation timestamp |
-| updated_at | TIMESTAMPTZ | Last update |
-
-### notifications
-
-System notifications.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| hospital_id | UUID | FK to hospitals |
-| recipient_id | UUID | FK to profiles.user_id |
-| sender_id | UUID | FK to profiles.user_id |
-| type | TEXT | Notification type |
-| category | TEXT | Category |
-| title | TEXT | Title |
-| message | TEXT | Message content |
-| priority | TEXT | low/normal/high/urgent |
-| is_read | BOOLEAN | Read status |
-| read_at | TIMESTAMPTZ | Read timestamp |
-| action_url | TEXT | Action link |
-| metadata | JSONB | Additional data |
-| expires_at | TIMESTAMPTZ | Expiry time |
-| created_at | TIMESTAMPTZ | Creation timestamp |
-
-### activity_logs
-
-Audit trail.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| hospital_id | UUID | FK to hospitals |
-| user_id | UUID | FK to profiles.user_id |
-| action_type | TEXT | Action performed |
-| entity_type | TEXT | Entity affected |
-| entity_id | UUID | Entity ID |
-| old_values | JSONB | Previous values |
-| new_values | JSONB | New values |
-| details | JSONB | Additional details |
-| severity | TEXT | info/warning/critical |
-| ip_address | TEXT | Client IP |
-| user_agent | TEXT | Browser info |
-| created_at | TIMESTAMPTZ | Timestamp |
-
----
-
-## Monitoring Tables
-
-### error_logs
-
-Application error tracking and logging.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| message | TEXT | Error message |
-| stack | TEXT | Error stack trace |
-| url | TEXT | Page URL where error occurred |
-| user_agent | TEXT | Browser user agent |
-| user_id | UUID | FK to auth.users (optional) |
-| timestamp | TIMESTAMPTZ | Error timestamp |
-| severity | TEXT | low/medium/high/critical |
-| context | JSONB | Additional error context |
-| created_at | TIMESTAMPTZ | Record creation timestamp |
-
-### performance_logs
-
-System performance monitoring.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| type | TEXT | slow_page_load/high_memory_usage/failed_requests/layout_shift |
-| value | DECIMAL | Measured value |
-| threshold | DECIMAL | Threshold value |
-| page | TEXT | Page or component name |
-| user_agent | TEXT | Browser user agent |
-| timestamp | TIMESTAMPTZ | Measurement timestamp |
-| created_at | TIMESTAMPTZ | Record creation timestamp |
-
-### system_metrics
-
-System health and performance metrics.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| timestamp | TIMESTAMPTZ | Metric timestamp |
-| service | TEXT | Service/component name |
-| metric_name | TEXT | Metric identifier |
-| value | DECIMAL | Metric value |
-| status | TEXT | normal/warning/critical |
-| created_at | TIMESTAMPTZ | Record creation timestamp |
-
-### system_alerts
-
-Automated system alerts and notifications.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| rule_id | UUID | FK to alert_rules |
-| severity | TEXT | low/medium/high/critical |
-| message | TEXT | Alert message |
-| timestamp | TIMESTAMPTZ | Alert timestamp |
-| resolved_at | TIMESTAMPTZ | Resolution timestamp (optional) |
-| created_at | TIMESTAMPTZ | Record creation timestamp |
-
-### alert_rules
-
-Configurable alert rules for monitoring.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| name | TEXT | Rule name |
-| condition | TEXT | Metric condition to monitor |
-| threshold | DECIMAL | Threshold value |
-| severity | TEXT | low/medium/high/critical |
-| enabled | BOOLEAN | Rule enabled status |
-| created_at | TIMESTAMPTZ | Record creation timestamp |
 
 ---
 
@@ -484,10 +486,10 @@ Configurable alert rules for monitoring.
 
 ```sql
 -- Gender types
-CREATE TYPE gender_type AS ENUM ('male', 'female', 'other');
+CREATE TYPE gender_type AS ENUM ('male', 'female', 'other', 'prefer_not_to_say');
 
 -- Priority levels
-CREATE TYPE priority_level AS ENUM ('low', 'normal', 'urgent', 'emergency');
+CREATE TYPE priority_level AS ENUM ('low', 'normal', 'high', 'urgent', 'emergency');
 
 -- Appointment status
 CREATE TYPE appointment_status AS ENUM (
@@ -503,6 +505,49 @@ CREATE TYPE consultation_status AS ENUM (
 
 ---
 
+## Row Level Security (RLS)
+
+All tables have hospital-scoped RLS policies:
+
+```sql
+-- Standard hospital isolation pattern
+CREATE POLICY "hospital_isolation" ON table_name
+  FOR ALL
+  TO authenticated
+  USING (
+    hospital_id IN (
+      SELECT hospital_id FROM profiles 
+      WHERE user_id = auth.uid()
+    )
+  );
+
+-- Patient self-access pattern
+CREATE POLICY "patient_own_records" ON patients
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+```
+
+---
+
+## Table Count Summary
+
+| Category | Tables | Description |
+|----------|--------|-------------|
+| Core | 4 | hospitals, profiles, user_roles, patients |
+| Clinical | 8 | appointments, consultations, prescriptions, prescription_items, lab_orders, vital_signs, medical_records, documents |
+| Nursing | 4 | patient_queue, patient_prep_checklists, medication_administrations, triage_assessments |
+| Billing | 5 | invoices, invoice_items, payments, payment_plans, insurance_claims |
+| Inventory | 2 | medications, suppliers |
+| Reference | 3 | icd10_codes, cpt_codes, loinc_codes |
+| Integration | 3 | task_assignments, care_gaps, notifications |
+| Security | 2 | activity_logs, messages |
+| Admin | 3 | departments, hospital_resources, doctor_availability |
+| Portal | 2 | appointment_requests, prescription_refill_requests |
+| **Total** | **46+** | |
+
+---
+
 ## Indexes
 
 Key indexes for performance:
@@ -511,33 +556,18 @@ Key indexes for performance:
 -- Patient lookups
 CREATE INDEX idx_patients_mrn ON patients(mrn);
 CREATE INDEX idx_patients_hospital ON patients(hospital_id);
-CREATE INDEX idx_patients_user ON patients(user_id);
 
 -- Appointment queries
 CREATE INDEX idx_appointments_date ON appointments(scheduled_date);
 CREATE INDEX idx_appointments_doctor ON appointments(doctor_id);
 CREATE INDEX idx_appointments_patient ON appointments(patient_id);
 
--- Consultation workflow
-CREATE INDEX idx_consultations_status ON consultations(status);
-CREATE INDEX idx_consultations_doctor ON consultations(doctor_id);
+-- Activity log queries
+CREATE INDEX idx_activity_logs_user ON activity_logs(user_id);
+CREATE INDEX idx_activity_logs_created ON activity_logs(created_at);
+CREATE INDEX idx_activity_logs_action ON activity_logs(action_type);
 
--- Notification delivery
-CREATE INDEX idx_notifications_recipient ON notifications(recipient_id);
-CREATE INDEX idx_notifications_unread ON notifications(recipient_id) WHERE is_read = false;
-
--- Error tracking
-CREATE INDEX idx_error_logs_timestamp ON error_logs(timestamp DESC);
-CREATE INDEX idx_error_logs_severity_timestamp ON error_logs(severity, timestamp DESC);
-CREATE INDEX idx_error_logs_user_id ON error_logs(user_id);
-
--- Performance monitoring
-CREATE INDEX idx_performance_logs_type_timestamp ON performance_logs(type, timestamp DESC);
-CREATE INDEX idx_performance_logs_timestamp ON performance_logs(timestamp DESC);
-
--- System monitoring
-CREATE INDEX idx_system_metrics_timestamp ON system_metrics(timestamp DESC);
-CREATE INDEX idx_system_metrics_metric_name ON system_metrics(metric_name, timestamp DESC);
-CREATE INDEX idx_system_alerts_timestamp ON system_alerts(timestamp DESC);
-CREATE INDEX idx_system_alerts_severity ON system_alerts(severity, timestamp DESC);
+-- Lab order queries
+CREATE INDEX idx_lab_orders_status ON lab_orders(status);
+CREATE INDEX idx_lab_orders_critical ON lab_orders(is_critical);
 ```
