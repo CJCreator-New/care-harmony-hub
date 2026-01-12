@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +78,9 @@ export default function PatientsPage() {
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
 
+  // Debounce search query for server-side filtering
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
   // Build filters for the query
   const filters = {
     hospital_id: profile?.hospital_id,
@@ -92,34 +96,24 @@ export default function PatientsPage() {
     pageSize,
     isLoading,
     error,
+    isSearching,
     nextPage,
     prevPage,
     goToPage,
+    resetPage,
   } = usePaginatedQuery({
     table: 'patients',
-    select: '*',
+    select: 'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, blood_type, is_active, created_at',
     filters,
-    orderBy: { column: 'created_at', ascending: false },
+    searchQuery: debouncedSearch,
+    searchColumn: 'first_name,last_name,mrn,phone,email',
+    orderBy: { column: 'last_name', ascending: true },
     pageSize: 25,
   });
 
   const calculateAge = (dob: string) => {
     return differenceInYears(new Date(), new Date(dob));
   };
-
-  // Client-side search filtering (for current page only)
-  const filteredPatients = patients.filter(patient => {
-    if (!searchQuery) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      patient.first_name.toLowerCase().includes(query) ||
-      patient.last_name.toLowerCase().includes(query) ||
-      patient.mrn.toLowerCase().includes(query) ||
-      (patient.phone && patient.phone.includes(query)) ||
-      (patient.email && patient.email.toLowerCase().includes(query))
-    );
-  });
 
   return (
     <DashboardLayout>
@@ -199,8 +193,9 @@ export default function PatientsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
-            />
-          </div>
+            />            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}          </div>
           <Select value={genderFilter} onValueChange={setGenderFilter}>
             <SelectTrigger className="w-[180px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -221,7 +216,7 @@ export default function PatientsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredPatients.length === 0 ? (
+          ) : patients.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-lg font-medium mb-1">No patients found</p>
@@ -252,7 +247,7 @@ export default function PatientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPatients.map((patient) => (
+                {patients.map((patient) => (
                   <TableRow key={patient.id}>
                     <TableCell>
                       <Badge variant="outline" className="font-mono">

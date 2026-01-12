@@ -1,26 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDebouncedValue } from './useDebouncedValue';
 
 interface PaginatedQueryOptions {
   table: string;
   select?: string;
   filters?: Record<string, any>;
+  searchQuery?: string;
+  searchColumn?: string;
   orderBy?: { column: string; ascending?: boolean };
   pageSize?: number;
+  debounceMs?: number;
 }
 
 export function usePaginatedQuery({
   table,
   select = '*',
   filters = {},
+  searchQuery,
+  searchColumn,
   orderBy = { column: 'created_at', ascending: false },
   pageSize = 50,
+  debounceMs = 300,
 }: PaginatedQueryOptions) {
   const [currentPage, setCurrentPage] = useState(0);
+  const debouncedSearch = useDebouncedValue(searchQuery || '', debounceMs);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [table, 'paginated', currentPage, filters, orderBy],
+    queryKey: [table, 'paginated', currentPage, filters, debouncedSearch, orderBy],
     queryFn: async () => {
       let query = supabase
         .from(table)
@@ -35,10 +43,15 @@ export function usePaginatedQuery({
         }
       });
 
+      // Apply search filter
+      if (debouncedSearch && searchColumn) {
+        query = query.ilike(searchColumn, `%${debouncedSearch}%`);
+      }
+
       const { data, error, count } = await query;
-      
+
       if (error) throw error;
-      
+
       return {
         data: data || [],
         count: count || 0,
@@ -49,6 +62,11 @@ export function usePaginatedQuery({
     },
   });
 
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [debouncedSearch]);
+
   return {
     data: data?.data || [],
     count: data?.count || 0,
@@ -57,8 +75,10 @@ export function usePaginatedQuery({
     pageSize,
     isLoading,
     error,
+    isSearching: searchQuery !== debouncedSearch,
     nextPage: () => setCurrentPage(prev => Math.min(prev + 1, (data?.totalPages || 1) - 1)),
     prevPage: () => setCurrentPage(prev => Math.max(prev - 1, 0)),
     goToPage: (page: number) => setCurrentPage(Math.max(0, Math.min(page, (data?.totalPages || 1) - 1))),
+    resetPage: () => setCurrentPage(0),
   };
 }

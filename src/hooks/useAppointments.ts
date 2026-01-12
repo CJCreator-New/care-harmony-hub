@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { APPOINTMENT_COLUMNS } from '@/lib/queryColumns';
 
 export type AppointmentStatus = 'scheduled' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
 export type PriorityLevel = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
@@ -66,7 +67,7 @@ export function useAppointments(date?: string) {
       let query = supabase
         .from('appointments')
         .select(`
-          *,
+          ${APPOINTMENT_COLUMNS.list},
           patient:patients(id, first_name, last_name, mrn, phone),
           doctor:profiles!appointments_doctor_id_fkey(id, first_name, last_name)
         `)

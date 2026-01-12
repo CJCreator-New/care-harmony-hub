@@ -25,12 +25,18 @@ import {
   FileText,
   RefreshCw,
   XCircle,
+  Loader2,
 } from 'lucide-react';
 import { usePrescriptions, usePrescriptionStats, useDispensePrescription, usePrescriptionsRealtime, Prescription } from '@/hooks/usePrescriptions';
 import { useMedicationStats } from '@/hooks/useMedications';
 import { useHospitalRefillRequests, useUpdateRefillRequest } from '@/hooks/useRefillRequests';
 import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
 import { formatDistanceToNow, format, parseISO } from 'date-fns';
+import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { MEDICATION_COLUMNS } from '@/lib/queryColumns';
+import { Pagination } from '@/components/ui/pagination';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PharmacyPage() {
   const { logActivity } = useActivityLog();
@@ -39,7 +45,37 @@ export default function PharmacyPage() {
   const [activeTab, setActiveTab] = useState('pending');
   const [refillTab, setRefillTab] = useState<'pending' | 'processed'>('pending');
 
-  const { data: prescriptions = [], isLoading } = usePrescriptions(activeTab === 'all' ? undefined : activeTab);
+  const { user } = useAuth();
+
+  // Debounce search term for server-side filtering
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
+
+  // Build filters for the query
+  const filters = {
+    hospital_id: user?.user_metadata?.hospital_id,
+    ...(activeTab !== 'all' && { status: activeTab }),
+  };
+
+  const {
+    data: prescriptions,
+    isLoading,
+    isSearching,
+    currentPage,
+    totalPages,
+    count: totalCount,
+    nextPage,
+    prevPage,
+    goToPage,
+  } = usePaginatedQuery({
+    table: 'prescriptions',
+    select: `${MEDICATION_COLUMNS.list},patient:patients(id, first_name, last_name, mrn)`,
+    filters,
+    searchQuery: debouncedSearch,
+    searchColumn: 'patient.first_name,patient.last_name,patient.mrn',
+    orderBy: { column: 'created_at', ascending: false },
+    pageSize: 50,
+  });
+
   const { data: stats } = usePrescriptionStats();
   const { data: inventoryStats } = useMedicationStats();
   const dispenseMutation = useDispensePrescription();
@@ -54,12 +90,6 @@ export default function PharmacyPage() {
 
   // Enable realtime updates
   usePrescriptionsRealtime();
-
-  const filteredPrescriptions = prescriptions.filter((rx) => {
-    const patientName = `${rx.patient?.first_name} ${rx.patient?.last_name}`.toLowerCase();
-    const mrn = rx.patient?.mrn?.toLowerCase() || '';
-    return patientName.includes(searchTerm.toLowerCase()) || mrn.includes(searchTerm.toLowerCase());
-  });
 
   const handleDispense = async (prescription: Prescription) => {
     await dispenseMutation.mutateAsync(prescription.id);
@@ -307,13 +337,18 @@ export default function PharmacyPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : filteredPrescriptions.length === 0 ? (
+                {isLoading || isSearching ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <div className="flex justify-center items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>{isSearching ? "Searching..." : "Loading prescriptions..."}</span>
+                    </div>
+                  </div>
+                ) : prescriptions?.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="text-lg font-medium mb-1">No prescriptions found</p>
-                    <p className="text-sm">Prescriptions will appear here when created</p>
+                    <p className="text-sm">{searchTerm ? "No prescriptions match your search" : "Prescriptions will appear here when created"}</p>
                   </div>
                 ) : (
                   <Table>
@@ -328,7 +363,7 @@ export default function PharmacyPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPrescriptions.map((rx: Prescription) => (
+                      {prescriptions?.map((rx: Prescription) => (
                         <TableRow key={rx.id}>
                           <TableCell>
                             <div>
@@ -375,6 +410,20 @@ export default function PharmacyPage() {
                       ))}
                     </TableBody>
                   </Table>
+                )}
+                
+                {totalPages > 1 && prescriptions && prescriptions.length > 0 && (
+                  <div className="mt-4">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={goToPage}
+                      onPrevious={prevPage}
+                      onNext={nextPage}
+                      pageSize={50}
+                      totalCount={totalCount}
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>

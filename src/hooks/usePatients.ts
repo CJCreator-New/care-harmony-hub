@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
+import { PATIENT_COLUMNS } from '@/lib/queryColumns';
 
 export interface Patient {
   id: string;
@@ -47,7 +48,7 @@ export function usePatients() {
 
       const { data, error } = await supabase
         .from('patients')
-        .select('*')
+        .select(PATIENT_COLUMNS.list)
         .eq('hospital_id', hospital.id)
         .eq('is_active', true)
         .order('last_name', { ascending: true });
@@ -56,6 +57,7 @@ export function usePatients() {
       return data as Patient[];
     },
     enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - patient data changes infrequently
   });
 }
 

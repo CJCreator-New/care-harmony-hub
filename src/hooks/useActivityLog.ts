@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { ACTIVITY_LOG_COLUMNS } from '@/lib/queryColumns';
 
 export type ActionType = 
   | 'login'
@@ -97,7 +98,7 @@ export function useActivityLogs(filters?: {
       let query = supabase
         .from('activity_logs')
         .select(`
-          *,
+          ${ACTIVITY_LOG_COLUMNS.list},
           profiles:user_id (
             first_name,
             last_name,

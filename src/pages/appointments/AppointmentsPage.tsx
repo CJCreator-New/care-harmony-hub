@@ -29,17 +29,20 @@ import {
   Clock,
   User,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, parseISO } from "date-fns";
 import {
-  useAppointments,
   useCheckInAppointment,
   useUpdateAppointment,
   useAppointmentsRealtime,
-  Appointment,
 } from "@/hooks/useAppointments";
+import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { APPOINTMENT_COLUMNS } from "@/lib/queryColumns";
 import { ScheduleAppointmentModal } from "@/components/appointments/ScheduleAppointmentModal";
+import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -61,28 +64,40 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
+  // Debounce search term for server-side filtering
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
+
   const dateString = format(selectedDate, "yyyy-MM-dd");
-  const { data: appointments, isLoading } = useAppointments(dateString);
-  const { data: allAppointments } = useAppointments();
-  const checkIn = useCheckInAppointment();
-  const updateAppointment = useUpdateAppointment();
 
-  const filteredAppointments = appointments?.filter((apt) => {
-    const matchesSearch =
-      apt.patient?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apt.patient?.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apt.patient?.mrn.toLowerCase().includes(searchTerm.toLowerCase());
+  // Build filters for the query
+  const filters = {
+    hospital_id: profile?.hospital_id,
+    ...(viewMode === "list" && dateString && { scheduled_date: dateString }),
+    ...(statusFilter !== "all" && { status: statusFilter }),
+  };
 
-    const matchesStatus = statusFilter === "all" || apt.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
+  const {
+    data: appointments,
+    isLoading,
+    isSearching,
+    currentPage,
+    totalPages,
+    count: totalCount,
+    nextPage,
+    prevPage,
+    goToPage,
+  } = usePaginatedQuery({
+    table: 'appointments',
+    select: `${APPOINTMENT_COLUMNS.list},patient:patients(id, first_name, last_name, mrn, phone),doctor:profiles!appointments_doctor_id_fkey(id, first_name, last_name)`,
+    filters,
+    searchQuery: debouncedSearch,
+    searchColumn: 'patient.first_name,patient.last_name,patient.mrn',
+    orderBy: { column: 'scheduled_time', ascending: true },
+    pageSize: viewMode === "calendar" ? 100 : 50, // Load more for calendar view
   });
 
-  const getAppointmentsForDate = (date: Date) => {
-    return allAppointments?.filter((apt) =>
-      isSameDay(parseISO(apt.scheduled_date), date)
-    );
-  };
+  const checkIn = useCheckInAppointment();
+  const updateAppointment = useUpdateAppointment();
 
   const handleCheckIn = (appointmentId: string) => {
     checkIn.mutate(appointmentId);
@@ -247,22 +262,23 @@ export default function AppointmentsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
+                    {isLoading || isSearching ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
-                          <div className="flex justify-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                          <div className="flex justify-center items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>{isSearching ? "Searching..." : "Loading appointments..."}</span>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : filteredAppointments?.length === 0 ? (
+                    ) : appointments?.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          No appointments for this date
+                          {searchTerm ? "No appointments match your search" : "No appointments for this date"}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredAppointments?.map((appointment) => (
+                      appointments?.map((appointment) => (
                         <AppointmentRow
                           key={appointment.id}
                           appointment={appointment}
@@ -275,6 +291,20 @@ export default function AppointmentsPage() {
                     )}
                   </TableBody>
                 </Table>
+                
+                {totalPages > 1 && (
+                  <div className="mt-4">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={goToPage}
+                      onPrevious={prevPage}
+                      onNext={nextPage}
+                      pageSize={viewMode === "calendar" ? 100 : 50}
+                      totalCount={totalCount}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -282,7 +312,7 @@ export default function AppointmentsPage() {
           <CalendarView
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
-            appointments={allAppointments || []}
+            appointments={appointments || []}
           />
         )}
       </div>

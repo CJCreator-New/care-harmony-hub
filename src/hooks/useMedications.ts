@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { MEDICATION_COLUMNS } from '@/lib/queryColumns';
 
 export interface Medication {
   id: string;
@@ -34,7 +35,7 @@ export function useMedications() {
 
       const { data, error } = await supabase
         .from('medications')
-        .select('*')
+        .select(MEDICATION_COLUMNS.list)
         .eq('hospital_id', hospital.id)
         .eq('is_active', true)
         .order('name');

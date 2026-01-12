@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect, useCallback, useRef } from 'react';
+import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 
 export type ConsultationStatus = 'pending' | 'patient_overview' | 'clinical_assessment' | 'treatment_planning' | 'final_review' | 'handoff' | 'completed';
 
@@ -88,8 +89,8 @@ export function useConsultations() {
       const { data, error } = await supabase
         .from('consultations')
         .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn, date_of_birth, gender, allergies, chronic_conditions),
+          ${CONSULTATION_COLUMNS.list},
+          patient:patients(${PATIENT_COLUMNS.minimal}, date_of_birth, gender, allergies, chronic_conditions),
           doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
         `)
         .eq('hospital_id', hospital.id)
@@ -112,8 +113,8 @@ export function useConsultation(consultationId: string | undefined) {
       const { data, error } = await supabase
         .from('consultations')
         .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn, date_of_birth, gender, allergies, chronic_conditions, current_medications, blood_type, phone, email, address, city, state, zip, emergency_contact_name, emergency_contact_phone, insurance_provider, insurance_policy_number),
+          ${CONSULTATION_COLUMNS.detail},
+          patient:patients(${PATIENT_COLUMNS.detail}),
           doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
         `)
         .eq('id', consultationId)

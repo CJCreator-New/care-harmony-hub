@@ -38,6 +38,7 @@ import {
   Play,
   Upload,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
 import { usePatient } from '@/hooks/usePatients';
@@ -45,6 +46,10 @@ import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
+import { Pagination } from '@/components/ui/pagination';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'warning' | 'info' | 'success' | 'destructive' }> = {
   pending: { label: 'Pending', variant: 'warning' },
@@ -74,32 +79,40 @@ export default function LaboratoryPage() {
   const [resultNotes, setResultNotes] = useState('');
   const [isCriticalValue, setIsCriticalValue] = useState(false);
 
-  const { data: orders = [], isLoading, refetch } = useLabOrders(statusFilter);
+  const { user } = useAuth();
+
+  // Debounce search term for server-side filtering
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
+
+  // Build filters for the query
+  const filters = {
+    hospital_id: user?.user_metadata?.hospital_id,
+    ...(statusFilter !== 'all' && { status: statusFilter }),
+  };
+
+  const {
+    data: orders,
+    isLoading,
+    isSearching,
+    currentPage,
+    totalPages,
+    count: totalCount,
+    nextPage,
+    prevPage,
+    goToPage,
+  } = usePaginatedQuery({
+    table: 'lab_orders',
+    select: `${LAB_ORDER_COLUMNS.list},patient:patients(id, first_name, last_name, mrn)`,
+    filters,
+    searchQuery: debouncedSearch,
+    searchColumn: 'test_name,test_category',
+    orderBy: { column: 'ordered_at', ascending: false },
+    pageSize: 50,
+  });
+
   const { data: stats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
   const { notifyLabResults } = useNotificationTriggers();
-  const { user } = useAuth();
-
-  // Realtime subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('lab-orders-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'lab_orders' },
-        () => refetch()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refetch]);
-
-  const filteredOrders = orders.filter(order => {
-    if (!searchTerm) return true;
-    return order.test_name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
 
   const handleCollectSample = (order: LabOrder) => {
     updateOrder.mutate({
@@ -257,13 +270,18 @@ export default function LaboratoryPage() {
               </Select>
             </div>
 
-            {isLoading ? (
-              <div className="text-center py-12 text-muted-foreground">Loading...</div>
-            ) : filteredOrders.length === 0 ? (
+            {isLoading || isSearching ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <div className="flex justify-center items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>{isSearching ? "Searching..." : "Loading lab orders..."}</span>
+                </div>
+              </div>
+            ) : orders?.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <TestTube2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium mb-1">No lab orders found</p>
-                <p className="text-sm">Orders from consultations will appear here</p>
+                <p className="text-sm">{searchTerm ? "No orders match your search" : "Orders from consultations will appear here"}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -280,7 +298,7 @@ export default function LaboratoryPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrders.map((order) => (
+                    {orders?.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">
                           <PatientName patientId={order.patient_id} />
@@ -347,6 +365,20 @@ export default function LaboratoryPage() {
                     ))}
                   </TableBody>
                 </Table>
+                
+                {totalPages > 1 && (
+                  <div className="mt-4">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={goToPage}
+                      onPrevious={prevPage}
+                      onNext={nextPage}
+                      pageSize={50}
+                      totalCount={totalCount}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

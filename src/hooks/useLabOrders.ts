@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 
 export type LabOrder = Tables<'lab_orders'>;
 export type LabOrderInsert = TablesInsert<'lab_orders'>;
@@ -18,7 +19,7 @@ export function useLabOrders(status?: string) {
 
       let query = supabase
         .from('lab_orders')
-        .select('*')
+        .select(LAB_ORDER_COLUMNS.list)
         .eq('hospital_id', profile.hospital_id)
         .order('ordered_at', { ascending: false });
 
