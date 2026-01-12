@@ -39,6 +39,7 @@ const ActivityLogsPage = lazy(() => import("./pages/settings/ActivityLogsPage"))
 const UserProfilePage = lazy(() => import("./pages/settings/UserProfilePage"));
 const ConsultationsPage = lazy(() => import("./pages/consultations/ConsultationsPage"));
 const ConsultationWorkflowPage = lazy(() => import("./pages/consultations/ConsultationWorkflowPage"));
+const MobileConsultationPage = lazy(() => import("./pages/consultations/MobileConsultationPage"));
 const AppointmentsPage = lazy(() => import("./pages/appointments/AppointmentsPage"));
 const LaboratoryPage = lazy(() => import("./pages/laboratory/LaboratoryPage"));
 const PharmacyPage = lazy(() => import("./pages/pharmacy/PharmacyPage"));
@@ -50,6 +51,7 @@ const PatientAppointmentsPage = lazy(() => import("./pages/patient/PatientAppoin
 const PatientPrescriptionsPage = lazy(() => import("./pages/patient/PatientPrescriptionsPage"));
 const PatientLabResultsPage = lazy(() => import("./pages/patient/PatientLabResultsPage"));
 const PatientMedicalHistoryPage = lazy(() => import("./pages/patient/PatientMedicalHistoryPage"));
+const EnhancedPortalPage = lazy(() => import("./pages/patient/EnhancedPortalPage"));
 const PatientMessagesPage = lazy(() => import("./pages/patient/PatientMessagesPage"));
 const DoctorMessagesPage = lazy(() => import("./pages/messaging/DoctorMessagesPage"));
 const TelemedicinePage = lazy(() => import("./pages/telemedicine/TelemedicinePage"));
@@ -57,6 +59,11 @@ const SuppliersPage = lazy(() => import("./pages/suppliers/SuppliersPage"));
 const SchedulingPage = lazy(() => import("./pages/scheduling/SchedulingPage"));
 const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
 const DocumentsPage = lazy(() => import("./pages/documents/DocumentsPage"));
+const NurseCareProtocolsPage = lazy(() => import("./pages/nurse/NurseCareProtocolsPage"));
+const SmartSchedulerPage = lazy(() => import("./pages/receptionist/SmartSchedulerPage"));
+const ClinicalPharmacyPage = lazy(() => import("./pages/pharmacy/ClinicalPharmacyPage"));
+const LabAutomationPage = lazy(() => import("./pages/lab/LabAutomationPage"));
+const WorkflowDashboard = lazy(() => import("./pages/integration/WorkflowDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -230,6 +237,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/consultations/mobile"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <MobileConsultationPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
         path="/consultations/:id"
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}>
@@ -242,6 +257,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
             <PharmacyPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/pharmacy/clinical"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+            <ClinicalPharmacyPage />
           </RoleProtectedRoute>
         }
       />
@@ -260,8 +283,14 @@ function AppRoutes() {
             <LaboratoryPage />
           </RoleProtectedRoute>
         }
-      />
-      <Route
+      />      <Route
+        path="/laboratory/automation"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'lab_technician']}>
+            <LabAutomationPage />
+          </RoleProtectedRoute>
+        }
+      />      <Route
         path="/billing"
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'receptionist']}>
@@ -315,6 +344,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['patient']}>
             <PatientMedicalHistoryPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/portal"
+        element={
+          <RoleProtectedRoute allowedRoles={['patient']}>
+            <EnhancedPortalPage />
           </RoleProtectedRoute>
         }
       />
@@ -407,11 +444,35 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/receptionist/smart-scheduler"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'receptionist']}>
+            <SmartSchedulerPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/nurse/protocols"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'nurse']}>
+            <NurseCareProtocolsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
         path="/notifications"
         element={
           <ProtectedRoute>
             <NotificationsPage />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/integration/workflow"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']}>
+            <WorkflowDashboard />
+          </RoleProtectedRoute>
         }
       />
 
@@ -423,9 +484,6 @@ function AppRoutes() {
 }
 
 const App = () => {
-  // Monitor performance in production
-  usePerformanceMonitoring();
-  
   return (
     <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -434,8 +492,13 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
+              <AppContent />
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
@@ -443,6 +506,14 @@ const App = () => {
     </QueryClientProvider>
   </ErrorBoundary>
 );
+};
+
+// AppContent component that uses hooks requiring AuthProvider
+const AppContent = () => {
+  // Monitor performance in production - now inside AuthProvider context
+  usePerformanceMonitoring();
+  
+  return <AppRoutes />;
 };
 
 export default App;

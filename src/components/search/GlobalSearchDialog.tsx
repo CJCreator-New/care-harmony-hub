@@ -5,14 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, User, Calendar, Pill, Loader2 } from 'lucide-react';
+import { Search, User, Calendar, Pill, Loader2, FileText, TestTube2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/lib/permissions';
 import { format, parseISO } from 'date-fns';
 
 interface SearchResult {
   id: string;
-  type: 'patient' | 'appointment' | 'prescription';
+  type: 'patient' | 'appointment' | 'prescription' | 'lab' | 'document';
   title: string;
   subtitle: string;
   badge?: string;
@@ -29,11 +30,11 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
-  const { hospital } = useAuth();
+  const { hospital, primaryRole } = useAuth();
   const navigate = useNavigate();
 
   const performSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim() || !hospital?.id) {
+    if (!searchQuery.trim() || !hospital?.id || !primaryRole) {
       setResults([]);
       return;
     }
@@ -42,88 +43,126 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
     const searchResults: SearchResult[] = [];
 
     try {
-      // Search patients
-      const { data: patients } = await supabase
-        .from('patients')
-        .select('id, first_name, last_name, mrn, phone')
-        .eq('hospital_id', hospital.id)
-        .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,mrn.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
-        .limit(10);
+      // Search patients (if has permission)
+      if (hasPermission(primaryRole, 'patients')) {
+        const { data: patients } = await supabase
+          .from('patients')
+          .select('id, first_name, last_name, mrn, phone')
+          .eq('hospital_id', hospital.id)
+          .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,mrn.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+          .limit(10);
 
-      if (patients) {
-        patients.forEach((p) => {
-          searchResults.push({
-            id: p.id,
-            type: 'patient',
-            title: `${p.first_name} ${p.last_name}`,
-            subtitle: `MRN: ${p.mrn}${p.phone ? ` • ${p.phone}` : ''}`,
-          });
-        });
-      }
-
-      // Search appointments
-      const { data: appointments } = await supabase
-        .from('appointments')
-        .select(`
-          id, 
-          scheduled_date, 
-          scheduled_time, 
-          appointment_type,
-          status,
-          patient:patients(first_name, last_name, mrn)
-        `)
-        .eq('hospital_id', hospital.id)
-        .limit(10);
-
-      if (appointments) {
-        appointments
-          .filter((a) => {
-            const patientName = `${a.patient?.first_name} ${a.patient?.last_name}`.toLowerCase();
-            return patientName.includes(searchQuery.toLowerCase()) ||
-              a.appointment_type.toLowerCase().includes(searchQuery.toLowerCase());
-          })
-          .forEach((a) => {
+        if (patients) {
+          patients.forEach((p) => {
             searchResults.push({
-              id: a.id,
-              type: 'appointment',
-              title: `${a.patient?.first_name} ${a.patient?.last_name}`,
-              subtitle: `${format(parseISO(a.scheduled_date), 'MMM d, yyyy')} at ${a.scheduled_time} • ${a.appointment_type}`,
-              badge: a.status || 'scheduled',
+              id: p.id,
+              type: 'patient',
+              title: `${p.first_name} ${p.last_name}`,
+              subtitle: `MRN: ${p.mrn}${p.phone ? ` • ${p.phone}` : ''}`,
             });
           });
+        }
       }
 
-      // Search prescriptions by patient name
-      const { data: prescriptions } = await supabase
-        .from('prescriptions')
-        .select(`
-          id,
-          status,
-          created_at,
-          patient:patients(first_name, last_name, mrn),
-          items:prescription_items(medication_name)
-        `)
-        .eq('hospital_id', hospital.id)
-        .limit(10);
+      // Search appointments (if has permission)
+      if (hasPermission(primaryRole, 'appointments')) {
+        const { data: appointments } = await supabase
+          .from('appointments')
+          .select(`
+            id, 
+            scheduled_date, 
+            scheduled_time, 
+            appointment_type,
+            status,
+            patient:patients(first_name, last_name, mrn)
+          `)
+          .eq('hospital_id', hospital.id)
+          .limit(10);
 
-      if (prescriptions) {
-        prescriptions
-          .filter((rx) => {
-            const patientName = `${rx.patient?.first_name} ${rx.patient?.last_name}`.toLowerCase();
-            const meds = rx.items?.map((i) => i.medication_name.toLowerCase()).join(' ') || '';
-            return patientName.includes(searchQuery.toLowerCase()) ||
-              meds.includes(searchQuery.toLowerCase());
-          })
-          .forEach((rx) => {
-            const meds = rx.items?.slice(0, 2).map((i) => i.medication_name).join(', ') || 'No medications';
-            searchResults.push({
-              id: rx.id,
-              type: 'prescription',
-              title: `${rx.patient?.first_name} ${rx.patient?.last_name}`,
-              subtitle: meds,
-              badge: rx.status,
+        if (appointments) {
+          appointments
+            .filter((a) => {
+              const patientName = `${a.patient?.first_name} ${a.patient?.last_name}`.toLowerCase();
+              return patientName.includes(searchQuery.toLowerCase()) ||
+                a.appointment_type.toLowerCase().includes(searchQuery.toLowerCase());
+            })
+            .forEach((a) => {
+              searchResults.push({
+                id: a.id,
+                type: 'appointment',
+                title: `${a.patient?.first_name} ${a.patient?.last_name}`,
+                subtitle: `${format(parseISO(a.scheduled_date), 'MMM d, yyyy')} at ${a.scheduled_time} • ${a.appointment_type}`,
+                badge: a.status || 'scheduled',
+              });
             });
-          });
+        }
+      }
+
+      // Search prescriptions (if has permission)
+      if (hasPermission(primaryRole, 'pharmacy') || hasPermission(primaryRole, 'prescriptions:read')) {
+        const { data: prescriptions } = await supabase
+          .from('prescriptions')
+          .select(`
+            id,
+            status,
+            created_at,
+            patient:patients(first_name, last_name, mrn),
+            items:prescription_items(medication_name)
+          `)
+          .eq('hospital_id', hospital.id)
+          .limit(10);
+
+        if (prescriptions) {
+          prescriptions
+            .filter((rx) => {
+              const patientName = `${rx.patient?.first_name} ${rx.patient?.last_name}`.toLowerCase();
+              const meds = rx.items?.map((i) => i.medication_name.toLowerCase()).join(' ') || '';
+              return patientName.includes(searchQuery.toLowerCase()) ||
+                meds.includes(searchQuery.toLowerCase());
+            })
+            .forEach((rx) => {
+              const meds = rx.items?.slice(0, 2).map((i) => i.medication_name).join(', ') || 'No medications';
+              searchResults.push({
+                id: rx.id,
+                type: 'prescription',
+                title: `${rx.patient?.first_name} ${rx.patient?.last_name}`,
+                subtitle: meds,
+                badge: rx.status,
+              });
+            });
+        }
+      }
+
+      // Search lab orders (if has permission)
+      if (hasPermission(primaryRole, 'lab') || hasPermission(primaryRole, 'lab:read')) {
+        const { data: labOrders } = await supabase
+          .from('lab_orders')
+          .select(`
+            id,
+            test_name,
+            status,
+            patient:patients(first_name, last_name, mrn)
+          `)
+          .eq('hospital_id', hospital.id)
+          .limit(10);
+
+        if (labOrders) {
+          labOrders
+            .filter((lab) => {
+              const patientName = `${lab.patient?.first_name} ${lab.patient?.last_name}`.toLowerCase();
+              return patientName.includes(searchQuery.toLowerCase()) ||
+                lab.test_name.toLowerCase().includes(searchQuery.toLowerCase());
+            })
+            .forEach((lab) => {
+              searchResults.push({
+                id: lab.id,
+                type: 'lab',
+                title: `${lab.patient?.first_name} ${lab.patient?.last_name}`,
+                subtitle: lab.test_name,
+                badge: lab.status,
+              });
+            });
+        }
       }
 
       setResults(searchResults);
@@ -132,7 +171,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
     } finally {
       setIsLoading(false);
     }
-  }, [hospital?.id]);
+  }, [hospital?.id, primaryRole]);
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -165,6 +204,12 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
       case 'prescription':
         navigate(`/pharmacy?id=${result.id}`);
         break;
+      case 'lab':
+        navigate(`/laboratory?id=${result.id}`);
+        break;
+      case 'document':
+        navigate(`/documents?id=${result.id}`);
+        break;
     }
   };
 
@@ -176,6 +221,10 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         return <Calendar className="h-4 w-4" />;
       case 'prescription':
         return <Pill className="h-4 w-4" />;
+      case 'lab':
+        return <TestTube2 className="h-4 w-4" />;
+      case 'document':
+        return <FileText className="h-4 w-4" />;
     }
   };
 
@@ -198,11 +247,12 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="px-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="patient">Patients</TabsTrigger>
             <TabsTrigger value="appointment">Appointments</TabsTrigger>
-            <TabsTrigger value="prescription">Prescriptions</TabsTrigger>
+            <TabsTrigger value="prescription">Rx</TabsTrigger>
+            <TabsTrigger value="lab">Labs</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-4">

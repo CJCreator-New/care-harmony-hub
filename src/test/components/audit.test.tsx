@@ -96,7 +96,8 @@ describe('Pagination', () => {
   it('calls onNext when next button clicked', () => {
     render(<Pagination {...defaultProps} />);
     
-    const nextButton = screen.getByRole('button', { name: /next/i });
+    const buttons = screen.getAllByRole('button');
+    const nextButton = buttons[2]; // Third button is next
     fireEvent.click(nextButton);
     
     expect(defaultProps.onNext).toHaveBeenCalled();

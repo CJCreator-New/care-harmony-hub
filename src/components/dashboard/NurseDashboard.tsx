@@ -19,6 +19,7 @@ import {
   ClipboardList,
   AlertTriangle,
   Play,
+  ListChecks,
 } from 'lucide-react';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { ShiftHandoverModal } from '@/components/nurse/ShiftHandoverModal';
@@ -98,6 +99,12 @@ export function NurseDashboard() {
         <Button onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
           Record Vitals
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to="/nurse/protocols">
+            <ListChecks className="h-4 w-4 mr-2" />
+            Care Protocols
+          </Link>
         </Button>
         <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
           <Pill className="h-4 w-4 mr-2" />

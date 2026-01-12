@@ -74,6 +74,23 @@ export class TestDataSeeder {
     const genders: ('male' | 'female' | 'other' | 'prefer_not_to_say')[] = ['male', 'female', 'other'];
     const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+    // Get current max MRN number for this hospital
+    const { data: existingPatients, error: fetchError } = await supabase
+      .from('patients')
+      .select('mrn')
+      .eq('hospital_id', this.hospitalId)
+      .order('mrn', { ascending: false })
+      .limit(1);
+
+    if (fetchError) throw fetchError;
+
+    let nextMrnNumber = 1;
+    if (existingPatients && existingPatients.length > 0) {
+      const lastMrn = existingPatients[0].mrn;
+      const lastNumber = parseInt(lastMrn.substring(3)); // Remove 'MRN' prefix
+      nextMrnNumber = lastNumber + 1;
+    }
+
     for (let i = 0; i < count; i++) {
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
@@ -81,16 +98,12 @@ export class TestDataSeeder {
       const birthMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
       const birthDay = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
 
-      // Generate MRN
-      const { data: mrnData, error: mrnError } = await supabase.rpc('generate_mrn', {
-        hospital_id: this.hospitalId,
-      });
-
-      if (mrnError) throw mrnError;
+      // Generate sequential MRN
+      const mrn = `MRN${String(nextMrnNumber + i).padStart(8, '0')}`;
 
       const patient = {
         hospital_id: this.hospitalId,
-        mrn: mrnData,
+        mrn: mrn,
         first_name: firstName,
         last_name: lastName,
         date_of_birth: `${birthYear}-${birthMonth}-${birthDay}`,

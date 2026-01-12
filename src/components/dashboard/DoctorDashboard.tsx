@@ -22,6 +22,7 @@ import {
   ClipboardList,
   UserCheck,
   AlertTriangle,
+  Smartphone,
 } from 'lucide-react';
 import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
 import { useDoctorStats } from '@/hooks/useDoctorStats';
@@ -68,6 +69,12 @@ export function DoctorDashboard() {
         <Button onClick={() => setShowConsultationModal(true)}>
           <Play className="h-4 w-4 mr-2" />
           Start Consultation
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to="/consultations/mobile">
+            <Smartphone className="h-4 w-4 mr-2" />
+            Mobile Notes
+          </Link>
         </Button>
         <Button variant="outline" asChild>
           <Link to="/patients">

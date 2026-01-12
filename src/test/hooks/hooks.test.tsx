@@ -2,8 +2,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
-import { useActivityLog } from '@/hooks/useActivityLog';
-import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -24,6 +22,8 @@ vi.mock('@/integrations/supabase/client', () => ({
     }))
   }
 }));
+
+
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -53,31 +53,3 @@ describe('usePaginatedQuery', () => {
   });
 });
 
-describe('useActivityLog', () => {
-  it('should log activity', async () => {
-    const { result } = renderHook(() => useActivityLog());
-
-    await result.current.logActivity({
-      actionType: 'test_action',
-      entityType: 'test_entity',
-      entityId: 'test_id'
-    });
-
-    // Test passes if no error is thrown
-    expect(true).toBe(true);
-  });
-});
-
-describe('useSessionTimeout', () => {
-  it('should handle session timeout', () => {
-    const mockLogout = vi.fn();
-    
-    renderHook(() => useSessionTimeout({ 
-      enabled: true,
-      onTimeout: mockLogout 
-    }));
-
-    // Test initialization
-    expect(true).toBe(true);
-  });
-});

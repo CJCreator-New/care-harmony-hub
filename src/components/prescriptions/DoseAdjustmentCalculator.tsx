@@ -119,9 +119,9 @@ export const DoseAdjustmentCalculator: React.FC<DoseAdjustmentCalculatorProps> =
     const drugAdjustments = getDoseAdjustments(drugName);
     setAdjustments(drugAdjustments);
 
-    let adjustedDose = { ...standardDose };
-    let adjustmentsApplied: string[] = [];
-    let warnings: string[] = [];
+    const adjustedDose = { ...standardDose };
+    const adjustmentsApplied: string[] = [];
+    const warnings: string[] = [];
 
     // Apply renal adjustments
     drugAdjustments.forEach(adjustment => {

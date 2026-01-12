@@ -10,9 +10,10 @@ CareSync is a comprehensive Hospital Management System designed to streamline he
 2. [User Roles and Permissions](#user-roles)
 3. [Patient Portal](#patient-portal)
 4. [Healthcare Provider Dashboard](#provider-dashboard)
-5. [Administrator Guide](#administrator-guide)
-6. [Security and Privacy](#security-privacy)
-7. [Troubleshooting](#troubleshooting)
+5. [Workflow Automation & Communication](#workflow-automation)
+6. [Administrator Guide](#administrator-guide)
+7. [Security and Privacy](#security-privacy)
+8. [Troubleshooting](#troubleshooting)
 
 ## Getting Started
 
@@ -197,6 +198,67 @@ The patient dashboard provides:
 2. Receive new shipments
 3. Manage expiration dates
 4. Generate reorder alerts
+
+## Workflow Automation & Communication
+
+CareSync includes advanced workflow automation and real-time communication features to streamline healthcare operations and improve team collaboration.
+
+### Workflow Dashboard
+
+Access the Workflow Dashboard from your main navigation to view automated task assignments, workflow metrics, and communication hub.
+
+#### Task Management
+- **Automated Task Assignment**: AI-powered task routing based on your role, expertise, and current workload
+- **Task Priority**: Tasks are automatically prioritized (Urgent, High, Normal, Low)
+- **Task Status Tracking**: Monitor task progress with real-time status updates
+- **Overdue Alerts**: Automatic notifications for tasks approaching or past due dates
+
+#### Workflow Rules
+- **Automated Triggers**: Tasks are created automatically based on system events (new prescriptions, lab results, appointments)
+- **Rule-Based Automation**: Configurable rules for task creation and assignment
+- **Performance Metrics**: Track workflow efficiency and completion rates
+
+### Communication Hub
+
+#### Real-Time Messaging
+- **Cross-Role Communication**: Send messages to any healthcare role in your hospital
+- **Priority Levels**: Set message priority (Urgent, High, Normal)
+- **Message History**: Complete audit trail with read receipts
+- **Bulk Notifications**: Send announcements to multiple roles or the entire team
+
+#### Notification Settings
+- **Email Notifications**: Configure email alerts for important messages
+- **Push Notifications**: Receive real-time alerts in your browser
+- **SMS Integration**: Future support for SMS notifications
+- **Notification Preferences**: Customize which types of messages you receive
+
+### Using Workflow Automation
+
+#### Accepting Tasks
+1. Tasks appear in your Workflow Dashboard
+2. Review task details and priority
+3. Accept or reassign tasks as needed
+4. Update task status as you work
+
+#### Creating Manual Tasks
+1. Navigate to Workflow Dashboard
+2. Click "Create Task"
+3. Select task type and assign to appropriate role
+4. Set priority and due date
+
+#### Communication Best Practices
+- Use **Urgent** priority only for critical situations requiring immediate attention
+- Include clear, concise descriptions in messages
+- Check message history for context before responding
+- Use bulk notifications sparingly to avoid notification fatigue
+
+### Performance Analytics
+
+Monitor your team's performance through the Workflow Dashboard:
+- **Task Completion Rates**: Track how quickly tasks are completed
+- **Workflow Efficiency**: View bottlenecks and optimization opportunities
+- **Communication Metrics**: Monitor message response times
+- **Role-Based Analytics**: See performance by department or role
 
 ## Administrator Guide
 

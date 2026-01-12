@@ -9,6 +9,7 @@ import { ResourceManagement } from '@/components/admin/ResourceManagement';
 import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 import { StaffOnboardingWizard } from '@/components/admin/StaffOnboardingWizard';
 import { TestDataSeederCard } from '@/components/admin/TestDataSeederCard';
+import { RealTimeDashboard } from '@/components/admin/RealTimeDashboard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,6 +20,7 @@ import {
   Building2,
   Bed,
   Database,
+  Activity,
 } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -84,6 +86,10 @@ export function AdminDashboard() {
       <Tabs defaultValue="overview" className="mb-8">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="monitoring" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Real-time Monitoring
+          </TabsTrigger>
           <TabsTrigger value="resources" className="flex items-center gap-2">
             <Bed className="h-4 w-4" />
             Resources
@@ -107,6 +113,9 @@ export function AdminDashboard() {
               <RecentActivity />
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="monitoring" className="mt-6">
+          <RealTimeDashboard />
         </TabsContent>
         <TabsContent value="resources" className="mt-6">
           <ResourceManagement />

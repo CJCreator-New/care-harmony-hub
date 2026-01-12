@@ -152,8 +152,8 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
     
     // Apply maximum dose limits
     let finalDose = calculatedDose;
-    let warnings: string[] = [];
-    let adjustmentsApplied: string[] = [];
+    const warnings: string[] = [];
+    const adjustmentsApplied: string[] = [];
 
     if (protocol.max_dose.max_single_dose_mg && calculatedDose > protocol.max_dose.max_single_dose_mg) {
       finalDose = protocol.max_dose.max_single_dose_mg;

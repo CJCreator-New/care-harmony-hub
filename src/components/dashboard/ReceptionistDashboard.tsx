@@ -23,6 +23,7 @@ import {
   User,
   FileText,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { useActiveQueue } from '@/hooks/useQueue';
 import {
@@ -109,6 +110,12 @@ export function ReceptionistDashboard() {
         <Button onClick={() => setCheckInOpen(true)}>
           <LogIn className="h-4 w-4 mr-2" />
           Check-In Patient
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to="/receptionist/smart-scheduler">
+            <Sparkles className="h-4 w-4 mr-2" />
+            Smart Scheduler
+          </Link>
         </Button>
         <Button variant="outline" onClick={() => setCheckOutOpen(true)}>
           <LogOut className="h-4 w-4 mr-2" />

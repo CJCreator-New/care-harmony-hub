@@ -41,37 +41,43 @@ import {
   Search,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
+import { hasPermission, Permission } from '@/lib/permissions';
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ElementType;
   roles: UserRole[];
+  permission?: Permission;
   badge?: string;
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'] },
-  { label: 'Patients', href: '/patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
-  { label: 'Appointments', href: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
-  { label: 'Queue', href: '/queue', icon: ClipboardList, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
-  { label: 'Consultations', href: '/consultations', icon: Stethoscope, roles: ['admin', 'doctor', 'nurse'] },
-  { label: 'Telemedicine', href: '/telemedicine', icon: Video, roles: ['admin', 'doctor', 'nurse'] },
-  { label: 'Pharmacy', href: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'] },
-  { label: 'Inventory', href: '/inventory', icon: Package, roles: ['admin', 'pharmacist'] },
-  { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'] },
-  { label: 'Documents', href: '/documents', icon: FileText, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
-  { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'] },
-  { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'] },
-  { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'] },
-  { label: 'Staff Performance', href: '/settings/performance', icon: Activity, roles: ['admin'] },
-  { label: 'Activity Logs', href: '/settings/activity', icon: ClipboardList, roles: ['admin'] },
-  { label: 'Hospital Settings', href: '/settings', icon: Settings, roles: ['admin'] },
+  { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'], permission: '*' as Permission },
+  { label: 'Patients', href: '/patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'patients' },
+  { label: 'Appointments', href: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'appointments' },
+  { label: 'Queue', href: '/queue', icon: ClipboardList, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'queue' },
+  { label: 'Consultations', href: '/consultations', icon: Stethoscope, roles: ['admin', 'doctor', 'nurse'], permission: 'consultations' },
+  { label: 'Telemedicine', href: '/telemedicine', icon: Video, roles: ['admin', 'doctor', 'nurse'], permission: 'telemedicine' },
+  { label: 'Pharmacy', href: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'], permission: 'pharmacy' },
+  { label: 'Clinical Pharmacy', href: '/pharmacy/clinical', icon: Stethoscope, roles: ['admin', 'pharmacist'], permission: 'clinical-pharmacy' },
+  { label: 'Inventory', href: '/inventory', icon: Package, roles: ['admin', 'pharmacist', 'nurse'], permission: 'inventory:read' },
+  { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'], permission: 'lab' },
+  { label: 'Lab Automation', href: '/laboratory/automation', icon: Activity, roles: ['admin', 'lab_technician'], permission: 'laboratory' },
+  { label: 'Workflow Dashboard', href: '/integration/workflow', icon: BarChart3, roles: ['admin'], permission: 'workflow-dashboard' },
+  { label: 'Documents', href: '/documents', icon: FileText, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'patients' },
+  { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'], permission: 'billing' },
+  { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'], permission: 'reports' },
+  { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'], permission: 'staff-management' },
+  { label: 'Staff Performance', href: '/settings/performance', icon: Activity, roles: ['admin'], permission: 'staff-performance' },
+  { label: 'Activity Logs', href: '/settings/activity', icon: ClipboardList, roles: ['admin'], permission: 'activity-logs' },
+  { label: 'Hospital Settings', href: '/settings', icon: Settings, roles: ['admin'], permission: 'settings' },
   // Patient Portal Links
-  { label: 'My Appointments', href: '/patient/appointments', icon: Calendar, roles: ['patient'] },
-  { label: 'My Prescriptions', href: '/patient/prescriptions', icon: Pill, roles: ['patient'] },
-  { label: 'Lab Results', href: '/patient/lab-results', icon: TestTube2, roles: ['patient'] },
-  { label: 'Medical History', href: '/patient/medical-history', icon: FileText, roles: ['patient'] },
+  { label: 'My Health Portal', href: '/patient/portal', icon: Activity, roles: ['patient'], permission: 'portal' },
+  { label: 'My Appointments', href: '/patient/appointments', icon: Calendar, roles: ['patient'], permission: 'appointments:read' },
+  { label: 'My Prescriptions', href: '/patient/prescriptions', icon: Pill, roles: ['patient'], permission: 'prescriptions:read' },
+  { label: 'Lab Results', href: '/patient/lab-results', icon: TestTube2, roles: ['patient'], permission: 'lab:read' },
+  { label: 'Medical History', href: '/patient/medical-history', icon: FileText, roles: ['patient'], permission: 'portal' },
 ];
 
 const roleColors: Record<UserRole, string> = {
@@ -107,11 +113,11 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get testRole from localStorage if not provided as prop
-  const persistedTestRole = testRole || (() => {
+  // Get testRole from localStorage only in development
+  const persistedTestRole = import.meta.env.DEV ? (testRole || (() => {
     const stored = localStorage.getItem('testRole');
     return stored ? stored as 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient' : null;
-  })();
+  })()) : null;
 
   // HIPAA-compliant session timeout - 30 min inactivity auto-logout
   useSessionTimeout({
@@ -135,7 +141,8 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   const activeRole = persistedTestRole || primaryRole;
   
   const filteredNavItems = navItems.filter(
-    item => activeRole && item.roles.includes(activeRole)
+    item => activeRole && item.roles.includes(activeRole) && 
+    (!item.permission || hasPermission(activeRole, item.permission))
   );
 
   const handleLogout = async () => {
@@ -150,6 +157,14 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Skip Navigation Link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -242,17 +257,19 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
         <header className="sticky top-0 z-30 h-16 bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">
             <div className="flex items-center gap-4">
-              <button
-                className="lg:hidden p-2 rounded-lg hover:bg-accent"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-5 h-5" />
-              </button>
+            <button
+              className="lg:hidden p-2 rounded-lg hover:bg-accent"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
               
               {/* Search */}
               <button
                 onClick={() => setSearchOpen(true)}
                 className="hidden md:flex items-center gap-2 px-4 py-2 bg-muted rounded-lg w-80 hover:bg-muted/80 transition-colors"
+                aria-label="Open search dialog"
               >
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <span className="flex-1 text-left text-sm text-muted-foreground">
@@ -270,6 +287,18 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
               {/* Notifications */}
               <NotificationCenter />
+
+              {/* Logout Button */}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleLogout}
+                className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-destructive min-h-[48px]"
+                aria-label="Logout from application"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden lg:inline">Logout</span>
+              </Button>
 
               {/* User menu */}
               <DropdownMenu>
@@ -320,7 +349,7 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
+        <main id="main-content" className="p-4 lg:p-6" role="main">
           {children}
         </main>
       </div>

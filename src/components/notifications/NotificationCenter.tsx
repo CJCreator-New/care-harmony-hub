@@ -68,7 +68,7 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative min-h-[48px] min-w-[48px]" aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}>
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs font-semibold">
@@ -92,6 +92,7 @@ export function NotificationCenter() {
               onClick={() => markAllAsRead()}
               disabled={isMarkingRead}
               className="text-xs"
+              aria-label="Mark all notifications as read"
             >
               <CheckCheck className="w-4 h-4 mr-1" />
               Mark all read

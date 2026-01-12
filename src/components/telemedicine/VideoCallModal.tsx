@@ -18,8 +18,11 @@ import {
   MonitorOff,
   Circle,
   Square,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { TelemedicineChat } from './TelemedicineChat';
+import { SessionNotes } from './SessionNotes';
 
 interface VideoCallModalProps {
   open: boolean;
@@ -49,6 +52,8 @@ export function VideoCallModal({
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [showChat, setShowChat] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -347,7 +352,8 @@ export function VideoCallModal({
           </div>
 
           {/* Video Area */}
-          <div className="flex-1 bg-muted p-4">
+          <div className="flex-1 bg-muted p-4 flex gap-4">
+            <div className="flex-1">
             {!isConnected ? (
               <div className="flex items-center justify-center h-full min-h-[400px]">
                 <Card className="p-8 text-center">
@@ -417,6 +423,15 @@ export function VideoCallModal({
                 </div>
               </div>
             )}
+            </div>
+            
+            {/* Side Panel - Chat or Notes */}
+            {isConnected && (showChat || showNotes) && (
+              <div className="w-96 bg-background rounded-lg border">
+                {showChat && <TelemedicineChat patientId={patient?.id || ''} />}
+                {showNotes && <SessionNotes appointmentId={appointmentId} patientId={patient?.id || ''} />}
+              </div>
+            )}
           </div>
 
           {/* Controls */}
@@ -470,19 +485,29 @@ export function VideoCallModal({
               </Button>
               
               <Button
-                variant="outline"
+                variant={showChat ? "default" : "outline"}
                 size="icon"
                 className="h-12 w-12 rounded-full"
+                onClick={() => {
+                  setShowChat(!showChat);
+                  if (showNotes) setShowNotes(false);
+                }}
+                title="Toggle chat"
               >
                 <MessageSquare className="h-5 w-5" />
               </Button>
               
               <Button
-                variant="outline"
+                variant={showNotes ? "default" : "outline"}
                 size="icon"
                 className="h-12 w-12 rounded-full"
+                onClick={() => {
+                  setShowNotes(!showNotes);
+                  if (showChat) setShowChat(false);
+                }}
+                title="Session notes"
               >
-                <Settings className="h-5 w-5" />
+                <FileText className="h-5 w-5" />
               </Button>
             </div>
           )}
