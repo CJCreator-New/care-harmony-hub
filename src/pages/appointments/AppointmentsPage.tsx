@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 };
 
 export default function AppointmentsPage() {
+  const { profile } = useAuth();
+  
   // Enable realtime updates
   useAppointmentsRealtime();
 

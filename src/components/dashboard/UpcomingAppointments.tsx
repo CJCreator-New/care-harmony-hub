@@ -70,10 +70,10 @@ export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingApp
               >
                 <div className="flex flex-col items-center justify-center w-16 p-2 bg-muted rounded-lg text-center">
                   <span className="text-lg font-bold text-foreground">
-                    {appointment.time.split(' ')[0]}
+                    {appointment.time.split(' ')[0] || ''}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {appointment.time.split(' ')[1]}
+                    {appointment.time.split(' ')[1] || ''}
                   </span>
                 </div>
 

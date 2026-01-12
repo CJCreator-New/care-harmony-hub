@@ -60,8 +60,11 @@ export function LabTechDashboard() {
     }
   };
 
-  const getAge = (dob: string) => {
-    return differenceInYears(new Date(), new Date(dob));
+  const getAge = (dob: string | undefined) => {
+    if (!dob) return 'N/A';
+    const date = new Date(dob);
+    if (isNaN(date.getTime())) return 'N/A';
+    return differenceInYears(new Date(), date);
   };
 
   return (

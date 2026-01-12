@@ -61,12 +61,14 @@ export function NurseDashboard() {
   });
 
   const handleStartPrep = (queueEntry: any) => {
+    if (!queueEntry.patient) return;
+    
     setSelectedQueueEntry(queueEntry);
     setSelectedPatient({
-      id: queueEntry.patient?.id,
-      first_name: queueEntry.patient?.first_name,
-      last_name: queueEntry.patient?.last_name,
-      mrn: queueEntry.patient?.mrn,
+      id: queueEntry.patient.id,
+      first_name: queueEntry.patient.first_name,
+      last_name: queueEntry.patient.last_name,
+      mrn: queueEntry.patient.mrn,
     });
   };
 

@@ -146,17 +146,21 @@ export class TestDataSeeder {
   }
 
   private async createStaff(count: number) {
-    const roles: ('doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician')[] = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
+    const roles: ('doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician')[] = ['doctor', 'nurse', 'receptionist', | 'pharmacist', 'lab_technician'];
     const firstNames = ['Dr. Alice', 'Dr. Bob', 'Nurse Carol', 'Nurse Dan', 'Emma', 'Frank', 'Grace', 'Henry', 'Ivy', 'Jack'];
     const lastNames = ['Anderson', 'Brown', 'Clark', 'Davis', 'Evans', 'Foster', 'Green', 'Harris', 'Irwin', 'Jackson'];
 
     const staff = [];
+    
+    // Get existing auth users to use as staff
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated user found');
+    
     for (let i = 0; i < count; i++) {
       const role = roles[i % roles.length];
-      const userId = `test-user-${Date.now()}-${i}`;
       
       const profile = {
-        user_id: userId,
+        user_id: user.id, // Use current user's ID
         hospital_id: this.hospitalId,
         first_name: firstNames[i % firstNames.length],
         last_name: lastNames[i % lastNames.length],
@@ -166,7 +170,7 @@ export class TestDataSeeder {
       staff.push(profile);
     }
 
-    const { data: profileData, error: profileError } = await supabase.from('profiles').insert(staff).select();
+    const { data: profileData, error: profileError } = await supabase.from('profiles').upsert(staff, { onConflict: 'user_id' }).select();
     if (profileError) throw profileError;
 
     // Create user roles
@@ -176,7 +180,7 @@ export class TestDataSeeder {
       role: roles[idx % roles.length]
     }));
 
-    const { error: roleError } = await supabase.from('user_roles').insert(userRoles);
+    const { error: roleError } = await supabase.from('user_roles').upsert(userRoles, { onConflict: 'user_id,hospital_id,role' });
     if (roleError) throw roleError;
 
     return profileData;

@@ -42,7 +42,6 @@ export default defineConfig({
           icons: ['lucide-react'],
           utils: ['clsx', 'tailwind-merge', 'class-variance-authority'],
           pdf: ['jspdf', 'html2canvas'],
-          excel: ['xlsx'],
         },
       },
     },
