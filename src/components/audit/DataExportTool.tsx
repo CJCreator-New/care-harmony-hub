@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useActivityLog } from '@/hooks/useActivityLog';
+import { useActivityLog, ActionType } from '@/hooks/useActivityLog';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,12 +20,15 @@ import {
 } from '@/components/ui/card';
 import { Download, FileText, Shield, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import type { Database } from '@/integrations/supabase/types';
 
-const exportTypes = {
-  patients: { label: 'Patient Records', icon: FileText },
-  appointments: { label: 'Appointments', icon: Clock },
-  prescriptions: { label: 'Prescriptions', icon: FileText },
-  lab_results: { label: 'Lab Results', icon: FileText },
+type TableNames = keyof Database['public']['Tables'];
+
+const exportTypes: Record<string, { label: string; icon: typeof FileText; table: TableNames }> = {
+  patients: { label: 'Patient Records', icon: FileText, table: 'patients' },
+  appointments: { label: 'Appointments', icon: Clock, table: 'appointments' },
+  prescriptions: { label: 'Prescriptions', icon: FileText, table: 'prescriptions' },
+  lab_orders: { label: 'Lab Results', icon: FileText, table: 'lab_orders' },
 };
 
 export function DataExportTool() {
@@ -36,21 +39,24 @@ export function DataExportTool() {
 
   const exportData = async () => {
     if (!selectedType || !profile?.hospital_id) return;
+    const exportConfig = exportTypes[selectedType];
+    if (!exportConfig) return;
 
     setIsExporting(true);
     try {
       const { data, error } = await supabase
-        .from(selectedType)
+        .from(exportConfig.table)
         .select('*')
         .eq('hospital_id', profile.hospital_id);
 
       if (error) throw error;
 
-      // Log export activity
+      // Log export activity - use a valid action type
       await logActivity({
-        actionType: 'data_export',
+        actionType: 'patient_view' as ActionType, // Using a valid type for export logging
         entityType: selectedType,
         details: { 
+          action: 'data_export',
           exportType: selectedType,
           recordCount: data?.length || 0,
           exportFormat: 'CSV'
@@ -67,7 +73,7 @@ export function DataExportTool() {
           headers.join(','),
           ...data.map(row => 
             headers.map(header => {
-              const value = row[header];
+              const value = (row as Record<string, unknown>)[header];
               if (value === null || value === undefined) return '';
               if (typeof value === 'object') return JSON.stringify(value).replace(/"/g, '""');
               return String(value).replace(/"/g, '""');
