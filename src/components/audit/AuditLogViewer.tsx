@@ -23,7 +23,22 @@ import {
 import { Search, Download, Filter, Shield, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
-const actionTypeLabels = {
+interface AuditLog {
+  id: string;
+  user_id: string;
+  hospital_id: string | null;
+  action_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  severity: string | null;
+  created_at: string;
+  user_email?: string;
+}
+
+const actionTypeLabels: Record<string, string> = {
   login: 'Login',
   logout: 'Logout',
   patient_create: 'Patient Created',
@@ -36,7 +51,7 @@ const actionTypeLabels = {
   security_event: 'Security Event',
 };
 
-const severityColors = {
+const severityColors: Record<string, string> = {
   info: 'bg-blue-100 text-blue-800',
   warning: 'bg-yellow-100 text-yellow-800',
   error: 'bg-red-100 text-red-800',
@@ -56,7 +71,7 @@ export function AuditLogViewer() {
   };
 
   const {
-    data: auditLogs,
+    data: auditLogsRaw,
     count,
     totalPages,
     currentPage,
@@ -73,12 +88,14 @@ export function AuditLogViewer() {
     pageSize: 50,
   });
 
+  const auditLogs = (auditLogsRaw as unknown) as AuditLog[];
+
   const filteredLogs = auditLogs.filter(log => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       log.user_email?.toLowerCase().includes(query) ||
-      log.action_type.toLowerCase().includes(query) ||
+      log.action_type?.toLowerCase().includes(query) ||
       log.entity_type?.toLowerCase().includes(query) ||
       JSON.stringify(log.details || {}).toLowerCase().includes(query)
     );
@@ -198,7 +215,7 @@ export function AuditLogViewer() {
                     </TableCell>
                     <TableCell>{log.entity_type || '—'}</TableCell>
                     <TableCell>
-                      <Badge className={severityColors[log.severity] || severityColors.info}>
+                      <Badge className={severityColors[log.severity ?? 'info'] || severityColors.info}>
                         {log.severity === 'critical' && <AlertTriangle className="h-3 w-3 mr-1" />}
                         {log.severity || 'info'}
                       </Badge>
