@@ -505,3 +505,77 @@ export const useAnalyticsDashboard = (hospitalId: string) => {
     fetchDashboardData
   };
 };
+
+// Main useAnalytics hook for BusinessIntelligenceDashboard
+export const useAnalytics = (period: '7d' | '30d' | '90d' | '1y') => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [kpis, setKpis] = useState<any>(null);
+  const [financialMetrics, setFinancialMetrics] = useState<any>(null);
+  const [operationalMetrics, setOperationalMetrics] = useState<any>(null);
+  const [clinicalMetrics, setClinicalMetrics] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setIsLoading(true);
+      try {
+        // Mock data for now - in production this would fetch from database
+        const mockKpis = {
+          totalPatients: 15420,
+          todayAppointments: 87,
+          revenue: 1250000,
+          avgWaitTime: 12,
+          patientsChange: 5.2,
+          appointmentsChange: -2.1,
+          revenueChange: 8.5,
+          waitTimeChange: -15.3
+        };
+        
+        const mockFinancialMetrics = {
+          revenue_by_service: {
+            'Consultations': 450000,
+            'Lab Tests': 280000,
+            'Pharmacy': 320000,
+            'Imaging': 200000
+          },
+          total_revenue: 1250000,
+          outstanding_balance: 125000
+        };
+        
+        const mockOperationalMetrics = {
+          bed_occupancy: 78,
+          staff_utilization: 85,
+          avg_visit_duration: 45
+        };
+        
+        const mockClinicalMetrics = {
+          diagnosis_distribution: {
+            'Hypertension': 234,
+            'Diabetes': 189,
+            'Respiratory': 156,
+            'Cardiac': 98,
+            'Other': 423
+          }
+        };
+
+        setKpis(mockKpis);
+        setFinancialMetrics(mockFinancialMetrics);
+        setOperationalMetrics(mockOperationalMetrics);
+        setClinicalMetrics(mockClinicalMetrics);
+      } catch (error) {
+        console.error('Failed to fetch analytics:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [period]);
+
+  return {
+    kpis,
+    financialMetrics,
+    operationalMetrics,
+    clinicalMetrics,
+    isLoading
+  };
+};

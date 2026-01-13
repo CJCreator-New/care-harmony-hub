@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Activity, Users, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SystemMetrics {
   activeUsers: number;
@@ -28,28 +28,28 @@ export const RealTimeMonitoringDashboard = () => {
 
   useEffect(() => {
     const fetchMetrics = async () => {
-      // Real-time system metrics
-      const { data: activeUsers } = await supabase
-        .from('user_sessions')
-        .select('count')
-        .eq('is_active', true);
+      // Real-time system metrics using existing tables
+      const { count: activeUsers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .not('last_login', 'is', null);
 
-      const { data: patientFlow } = await supabase
+      const { count: patientFlow } = await supabase
         .from('appointments')
-        .select('count')
+        .select('*', { count: 'exact', head: true })
         .eq('status', 'in_progress');
 
       const { data: staffData } = await supabase
-        .from('staff')
-        .select('id, status, current_workload')
-        .eq('status', 'active');
+        .from('profiles')
+        .select('id, is_staff')
+        .eq('is_staff', true);
 
       setMetrics({
-        activeUsers: activeUsers?.length || 0,
+        activeUsers: activeUsers || 0,
         systemLoad: Math.random() * 100, // Mock system load
         responseTime: Math.random() * 500 + 100,
         errorRate: Math.random() * 5,
-        patientFlow: patientFlow?.length || 0,
+        patientFlow: patientFlow || 0,
         staffUtilization: calculateStaffUtilization(staffData || [])
       });
     };

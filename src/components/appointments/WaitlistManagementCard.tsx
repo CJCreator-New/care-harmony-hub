@@ -337,7 +337,7 @@ export const WaitlistManagementCard: React.FC<WaitlistManagementCardProps> = ({
                       mode="single"
                       selected={dateRange.end}
                       onSelect={(date) => setDateRange(prev => ({ ...prev, end: date }))}
-                      disabled={(date) => date < new Date() || (dateRange.start && date < dateRange.start)}
+                      disabled={(date) => date < new Date() || (dateRange.start ? date < dateRange.start : false)}
                     />
                   </PopoverContent>
                 </Popover>
