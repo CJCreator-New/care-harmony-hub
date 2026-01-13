@@ -146,7 +146,7 @@ export class TestDataSeeder {
   }
 
   private async createStaff(count: number) {
-    const roles: ('doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician')[] = ['doctor', 'nurse', 'receptionist', | 'pharmacist', 'lab_technician'];
+    const roles: ('doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician')[] = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
     const firstNames = ['Dr. Alice', 'Dr. Bob', 'Nurse Carol', 'Nurse Dan', 'Emma', 'Frank', 'Grace', 'Henry', 'Ivy', 'Jack'];
     const lastNames = ['Anderson', 'Brown', 'Clark', 'Davis', 'Evans', 'Foster', 'Green', 'Harris', 'Irwin', 'Jackson'];
 

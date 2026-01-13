@@ -41,8 +41,8 @@ export function NurseDashboard() {
   const { data: vitalsCount } = useTodayVitalsCount();
   const { data: queueData } = useQueue();
   const { data: activeQueue = [] } = useActiveQueue();
-  const { data: pendingHandovers = [] } = usePendingHandovers();
-  const { data: checklists = [] } = usePatientChecklists();
+  const { handovers: pendingHandovers = [] } = usePendingHandovers();
+  const { checklists = [] } = usePatientChecklists();
 
   const getGreeting = () => {
     const hour = new Date().getHours();

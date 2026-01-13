@@ -154,7 +154,7 @@ export function RealTimeDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {systemStatus?.services?.map((service) => (
+            {systemStatus?.services?.map((service: { name: string; status: string; response_time?: number }) => (
               <div
                 key={service.name}
                 className="flex items-center justify-between p-3 border rounded-lg"

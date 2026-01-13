@@ -32,10 +32,10 @@ const statusColors: Record<string, string> = {
 
 export function PatientDashboard() {
   const { profile } = useAuth();
-  const { data: patientProfile, isLoading: profileLoading } = usePatientProfile();
-  const { data: appointments = [], isLoading: appointmentsLoading } = usePatientAppointments();
-  const { data: prescriptions = [], isLoading: prescriptionsLoading } = usePatientPrescriptions();
-  const { data: labResults = [], isLoading: labLoading } = usePatientLabResults();
+  const { profile: patientProfile, loading: profileLoading } = usePatientProfile();
+  const { appointments = [], loading: appointmentsLoading } = usePatientAppointments();
+  const { prescriptions = [], loading: prescriptionsLoading } = usePatientPrescriptions();
+  const { labResults = [], loading: labLoading } = usePatientLabResults();
 
   const today = startOfDay(new Date());
   const upcomingAppointments = appointments.filter(
