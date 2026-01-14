@@ -6,6 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Shield, Eye, Lock, Smartphone, Clock } from 'lucide-react';
 import { securityMonitoring } from '@/utils/securityMonitoring';
+import { intrusionDetection } from '@/utils/intrusionDetection';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface SecurityEvent {
   id: string;
@@ -42,8 +45,9 @@ interface IntrusionAlert {
 }
 
 export function SecurityMonitoringDashboard() {
-  const { user, hospitalId } = useAuth();
+  const { user, hospital } = useAuth();
   const [selectedTimeframe, setSelectedTimeframe] = useState<'24h' | '7d' | '30d'>('24h');
+  const hospitalId = hospital?.id;
 
   // Fetch security events
   const { data: securityEvents, isLoading: eventsLoading } = useQuery({
@@ -117,6 +121,8 @@ export function SecurityMonitoringDashboard() {
     enabled: !!hospitalId,
     refetchInterval: 300000, // Refresh every 5 minutes
   });
+  // Security statistics
+  const { data: securityStats, isLoading: statsLoading } = useQuery({
     queryKey: ['security-stats', hospitalId, selectedTimeframe],
     queryFn: async () => {
       const now = new Date();
@@ -239,6 +245,7 @@ export function SecurityMonitoringDashboard() {
       toast.error('Failed to run intrusion detection');
     }
   };
+  const handleClearEvents = async () => {
     if (!hospitalId) return;
 
     try {
@@ -257,7 +264,8 @@ export function SecurityMonitoringDashboard() {
     }
   };
 
-  if (!user?.role?.includes('admin')) {
+  const { roles } = useAuth();
+  if (!roles.includes('admin')) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">Access denied. Admin privileges required.</p>

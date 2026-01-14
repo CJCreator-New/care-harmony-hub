@@ -26,9 +26,10 @@ interface UserDevice {
 }
 
 export function DeviceManagement() {
-  const { user, hospitalId } = useAuth();
+  const { user, hospital } = useAuth();
   const queryClient = useQueryClient();
   const [revokingDevice, setRevokingDevice] = useState<string | null>(null);
+  const hospitalId = hospital?.id;
 
   // Fetch user's devices
   const { data: devices, isLoading } = useQuery({

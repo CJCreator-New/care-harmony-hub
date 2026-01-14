@@ -211,6 +211,11 @@ class DeviceManager {
     }
   }
 
+  // Revoke device access (alias for removeDevice)
+  async revokeDevice(deviceId: string): Promise<boolean> {
+    return this.removeDevice(deviceId);
+  }
+
   // Update device activity
   async updateDeviceActivity(deviceId: string): Promise<void> {
     try {

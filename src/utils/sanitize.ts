@@ -36,3 +36,4 @@ export function sanitizeLogMessage(message: string): string {
 }
 
 export const sanitizeForLog = sanitizeLogMessage;
+export const sanitizeHtml = sanitizeInput; // Alias for HTML sanitization
