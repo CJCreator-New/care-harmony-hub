@@ -128,7 +128,7 @@ describe('PasswordPolicyManager', () => {
       expect(/[A-Z]/.test(password)).toBe(true);
       expect(/[a-z]/.test(password)).toBe(true);
       expect(/\d/.test(password)).toBe(true);
-      expect(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?]/.test(password)).toBe(true);
+      expect(/[!@#$%^&*()_+\-=[\]{};"':\\|,.<>?]/.test(password)).toBe(true);
     });
   });
 
