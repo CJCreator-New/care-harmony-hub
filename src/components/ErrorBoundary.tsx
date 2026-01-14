@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface Props {
   children: ReactNode;
@@ -23,14 +24,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('ErrorBoundary caught an error:', sanitizeLogMessage(error.message));
     
     // Log error for debugging in development
     if (import.meta.env.DEV) {
       console.group('Error Boundary Details');
-      console.error('Error:', error);
-      console.error('Error Info:', errorInfo);
-      console.error('Component Stack:', errorInfo.componentStack);
+      console.error('Error:', sanitizeLogMessage(error.message));
+      console.error('Error Info:', sanitizeLogMessage(errorInfo.componentStack || ''));
       console.groupEnd();
     }
 

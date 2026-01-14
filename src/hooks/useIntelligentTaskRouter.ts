@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface TaskRoutingRule {
   id: string;
@@ -110,7 +111,7 @@ export const useIntelligentTaskRouter = () => {
       });
     },
     onError: (error) => {
-      console.error('Error in intelligent task assignment:', error);
+      console.error('Error in intelligent task assignment:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Assignment Failed",
         description: "Failed to assign task automatically. Please assign manually.",

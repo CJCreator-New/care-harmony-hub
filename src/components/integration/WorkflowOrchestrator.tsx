@@ -167,10 +167,10 @@ export function WorkflowOrchestrator() {
               {urgentMessages.length} Urgent Messages
             </Badge>
           )}
-          {unreadCount > 0 && (
+          {(unreadCount ?? 0) > 0 && (
             <Badge variant="secondary" className="px-3 py-1">
               <MessageSquare className="h-4 w-4 mr-1" />
-              {unreadCount} Unread
+              {unreadCount ?? 0} Unread
             </Badge>
           )}
         </div>

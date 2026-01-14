@@ -1,3 +1,5 @@
+import { sanitizeUrl } from '@/utils/sanitize';
+
 const CACHE_VERSION = 'v1';
 const CACHE_NAMES = {
   static: `caresync-static-${CACHE_VERSION}`,
@@ -67,21 +69,31 @@ export class CacheManager {
 
 export const useCacheStrategy = () => {
   const cacheFirst = async (url: string): Promise<Response> => {
-    const cached = await CacheManager.getCachedAPIResponse(url);
+    const sanitizedUrl = sanitizeUrl(url);
+    if (!sanitizedUrl) {
+      throw new Error('Invalid URL provided');
+    }
+    
+    const cached = await CacheManager.getCachedAPIResponse(sanitizedUrl);
     if (cached) return cached;
     
-    const response = await fetch(url);
-    await CacheManager.cacheAPIResponse(url, response);
+    const response = await fetch(sanitizedUrl);
+    await CacheManager.cacheAPIResponse(sanitizedUrl, response);
     return response;
   };
 
   const networkFirst = async (url: string): Promise<Response> => {
+    const sanitizedUrl = sanitizeUrl(url);
+    if (!sanitizedUrl) {
+      throw new Error('Invalid URL provided');
+    }
+    
     try {
-      const response = await fetch(url);
-      await CacheManager.cacheAPIResponse(url, response);
+      const response = await fetch(sanitizedUrl);
+      await CacheManager.cacheAPIResponse(sanitizedUrl, response);
       return response;
     } catch {
-      const cached = await CacheManager.getCachedAPIResponse(url);
+      const cached = await CacheManager.getCachedAPIResponse(sanitizedUrl);
       if (cached) return cached;
       throw new Error('Network failed and no cache available');
     }

@@ -1,13 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
+import { useRecharts, ChartSkeleton } from '@/components/ui/lazy-chart';
 import { useAppointmentTypeBreakdown } from '@/hooks/useStaffAnalytics';
 
 const COLORS = [
@@ -20,6 +13,7 @@ const COLORS = [
 
 export function AppointmentTypePieChart() {
   const { data: breakdown, isLoading } = useAppointmentTypeBreakdown();
+  const { components: Recharts, loading: chartsLoading } = useRecharts();
 
   if (isLoading) {
     return (
@@ -46,10 +40,12 @@ export function AppointmentTypePieChart() {
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
             No appointment data available
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
+        ) : chartsLoading ? (
+          <ChartSkeleton />
+        ) : Recharts ? (
+          <Recharts.ResponsiveContainer width="100%" height={300}>
+            <Recharts.PieChart>
+              <Recharts.Pie
                 data={breakdown}
                 cx="50%"
                 cy="50%"
@@ -60,19 +56,23 @@ export function AppointmentTypePieChart() {
                 dataKey="value"
               >
                 {breakdown.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Recharts.Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
-              </Pie>
-              <Tooltip
+              </Recharts.Pie>
+              <Recharts.Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                 }}
               />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+              <Recharts.Legend />
+            </Recharts.PieChart>
+          </Recharts.ResponsiveContainer>
+        ) : (
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            Failed to load charts
+          </div>
         )}
       </CardContent>
     </Card>

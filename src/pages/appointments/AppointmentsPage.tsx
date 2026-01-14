@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,10 @@ export default function AppointmentsPage() {
 
   const handleMarkNoShow = (appointmentId: string) => {
     updateAppointment.mutate({ id: appointmentId, status: "no_show" });
+  };
+
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments?.filter((apt) => isSameDay(parseISO(apt.scheduled_date), date)) || [];
   };
 
   const todayStats = {
@@ -337,7 +341,7 @@ interface AppointmentRowProps {
   isCheckingIn: boolean;
 }
 
-function AppointmentRow({
+const AppointmentRow = memo(function AppointmentRow({
   appointment,
   onCheckIn,
   onCancel,
@@ -414,7 +418,9 @@ function AppointmentRow({
       </TableCell>
     </TableRow>
   );
-}
+});
+
+AppointmentRow.displayName = 'AppointmentRow';
 
 interface CalendarViewProps {
   selectedDate: Date;

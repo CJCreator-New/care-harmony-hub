@@ -52,13 +52,19 @@ export function TwoFactorSetup() {
 
       if (data.valid) {
         // Save 2FA settings to user profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) {
+          toast.error('User not authenticated');
+          return;
+        }
+
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ 
             two_factor_enabled: true,
             two_factor_secret: secret 
           })
-          .eq('id', (await supabase.auth.getUser()).data.user?.id);
+          .eq('id', user.id);
 
         if (updateError) throw updateError;
 
@@ -77,13 +83,19 @@ export function TwoFactorSetup() {
   const disable2FA = async () => {
     setIsLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) {
+        toast.error('User not authenticated');
+        return;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({ 
           two_factor_enabled: false,
           two_factor_secret: null 
         })
-        .eq('id', (await supabase.auth.getUser()).data.user?.id);
+        .eq('id', user.id);
 
       if (error) throw error;
 

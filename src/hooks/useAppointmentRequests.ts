@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 export interface AppointmentRequest {
   id: string;
@@ -118,7 +119,7 @@ export function useAppointmentRequests() {
       });
     },
     onError: (error) => {
-      console.error('Error creating appointment request:', error);
+      console.error('Error creating appointment request:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to submit appointment request. Please try again.",
@@ -151,7 +152,7 @@ export function useAppointmentRequests() {
       });
     },
     onError: (error) => {
-      console.error('Error cancelling appointment request:', error);
+      console.error('Error cancelling appointment request:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to cancel appointment request. Please try again.",
@@ -215,7 +216,7 @@ export function useUpdateAppointmentRequest() {
       });
     },
     onError: (error) => {
-      console.error('Error updating appointment request:', error);
+      console.error('Error updating appointment request:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to update appointment request. Please try again.",

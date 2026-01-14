@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { usePerformanceMonitoring, SystemHealth } from '@/hooks/usePerformanceMonitoring';
+import { usePerformanceMonitoring, type SystemHealth } from '@/hooks/usePerformanceMonitoring';
 import { Activity, AlertTriangle, CheckCircle, XCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -95,41 +95,14 @@ export function PerformanceDashboard({ className }: PerformanceDashboardProps) {
                   {systemHealth.status.toUpperCase()}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  Uptime: {formatTime(systemHealth.uptime)}
+                  Uptime: {systemHealth.uptime}%
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  Response: {systemHealth.metrics.response_time_ms}ms
+                  Response: {systemHealth.response_time}ms
                 </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemHealth.services.database === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                  <span className="text-sm">Database</span>
-                  <Badge variant={systemHealth.services.database === 'healthy' ? 'success' : 'destructive'} className="text-xs">
-                    {systemHealth.services.database}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemHealth.services.auth === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                  <span className="text-sm">Authentication</span>
-                  <Badge variant={systemHealth.services.auth === 'healthy' ? 'success' : 'destructive'} className="text-xs">
-                    {systemHealth.services.auth}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemHealth.services.storage === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                  <span className="text-sm">Storage</span>
-                  <Badge variant={systemHealth.services.storage === 'healthy' ? 'success' : 'destructive'} className="text-xs">
-                    {systemHealth.services.storage}
-                  </Badge>
-                </div>
+                <span className="text-sm text-muted-foreground">
+                  Error Rate: {systemHealth.error_rate}%
+                </span>
               </div>
 
               {systemHealth.status !== 'healthy' && (
@@ -159,62 +132,34 @@ export function PerformanceDashboard({ className }: PerformanceDashboardProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Page Performance
+              Performance Metrics
             </CardTitle>
             <CardDescription>
-              Current page load and rendering metrics
+              Recent system performance indicators
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {metrics ? (
-              <>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Page Load Time</span>
-                    <span className={metrics.pageLoadTime > 3000 ? 'text-red-500' : 'text-green-500'}>
-                      {formatTime(metrics.pageLoadTime)}
-                    </span>
+            {metrics && metrics.length > 0 ? (
+              <div className="space-y-3">
+                {metrics.slice(0, 5).map((metric) => (
+                  <div key={metric.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium text-sm">{metric.metric_name}</p>
+                      <p className="text-xs text-muted-foreground">{metric.metric_type}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">{metric.value.toFixed(2)}</p>
+                      <Badge variant={metric.status === 'good' ? 'default' : metric.status === 'warning' ? 'secondary' : 'destructive'} className="text-xs">
+                        {metric.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <Progress value={Math.min((metrics.pageLoadTime / 3000) * 100, 100)} className="h-2" />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>DOM Content Loaded</span>
-                    <span className={metrics.domContentLoaded > 2000 ? 'text-yellow-500' : 'text-green-500'}>
-                      {formatTime(metrics.domContentLoaded)}
-                    </span>
-                  </div>
-                  <Progress value={Math.min((metrics.domContentLoaded / 2000) * 100, 100)} className="h-2" />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>First Contentful Paint</span>
-                    <span className={metrics.firstContentfulPaint > 2000 ? 'text-yellow-500' : 'text-green-500'}>
-                      {formatTime(metrics.firstContentfulPaint)}
-                    </span>
-                  </div>
-                  <Progress value={Math.min((metrics.firstContentfulPaint / 2000) * 100, 100)} className="h-2" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Network Requests:</span>
-                    <span className="ml-2 font-medium">{metrics.networkRequests}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Failed Requests:</span>
-                    <span className={`ml-2 font-medium ${metrics.failedRequests > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                      {metrics.failedRequests}
-                    </span>
-                  </div>
-                </div>
-              </>
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8">
                 <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Collecting performance metrics...</p>
+                <p className="text-sm text-muted-foreground">No performance metrics available</p>
               </div>
             )}
           </CardContent>
@@ -224,40 +169,33 @@ export function PerformanceDashboard({ className }: PerformanceDashboardProps) {
           <CardHeader>
             <CardTitle>System Resources</CardTitle>
             <CardDescription>
-              Memory usage and system performance indicators
+              Database and system health indicators
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {metrics?.memoryUsage ? (
-              <>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Memory Usage</span>
-                    <span>{formatBytes(metrics.memoryUsage * 1024 * 1024)}</span>
-                  </div>
-                  <Progress value={Math.min((metrics.memoryUsage / 100) * 100, 100)} className="h-2" />
+            {systemHealth ? (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <span className="text-sm font-medium">System Status</span>
+                  <Badge variant={systemHealth.status === 'healthy' ? 'default' : 'destructive'}>
+                    {systemHealth.status}
+                  </Badge>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Largest Contentful Paint</span>
-                    <span className={metrics.largestContentfulPaint > 2500 ? 'text-red-500' : 'text-green-500'}>
-                      {formatTime(metrics.largestContentfulPaint)}
-                    </span>
-                  </div>
-                  <Progress value={Math.min((metrics.largestContentfulPaint / 2500) * 100, 100)} className="h-2" />
+                <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <span className="text-sm font-medium">Uptime</span>
+                  <span className="font-bold">{systemHealth.uptime}%</span>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Cumulative Layout Shift</span>
-                    <span className={metrics.cumulativeLayoutShift > 0.1 ? 'text-yellow-500' : 'text-green-500'}>
-                      {metrics.cumulativeLayoutShift.toFixed(3)}
-                    </span>
-                  </div>
-                  <Progress value={Math.min(metrics.cumulativeLayoutShift * 1000, 100)} className="h-2" />
+                <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <span className="text-sm font-medium">Avg Response Time</span>
+                  <span className="font-bold">{systemHealth.response_time}ms</span>
                 </div>
-              </>
+                <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <span className="text-sm font-medium">Error Rate</span>
+                  <span className={`font-bold ${systemHealth.error_rate > 1 ? 'text-red-500' : 'text-green-500'}`}>
+                    {systemHealth.error_rate}%
+                  </span>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-8">
                 <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />

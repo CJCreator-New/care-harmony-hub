@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 export interface ClinicalIntervention {
   id: string;
@@ -177,7 +178,7 @@ export function useClinicalPharmacy() {
         description: "Failed to record clinical intervention.",
         variant: "destructive",
       });
-      console.error('Clinical intervention error:', error);
+      console.error('Clinical intervention error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     },
   });
 
@@ -209,7 +210,7 @@ export function useClinicalPharmacy() {
         description: "Failed to record therapy review.",
         variant: "destructive",
       });
-      console.error('Therapy review error:', error);
+      console.error('Therapy review error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     },
   });
 

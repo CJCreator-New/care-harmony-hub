@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
+import { sanitizeLogMessage } from '@/utils/sanitize';
+import { deviceManager } from '@/utils/deviceManager';
+import { passwordPolicyManager } from '@/utils/passwordPolicy';
+import { biometricAuthManager } from '@/utils/biometricAuth';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 interface Profile {
   id: string;
@@ -49,9 +54,19 @@ interface AuthContextType {
     role: UserRole,
     userIdOverride?: string
   ) => Promise<{ error: Error | null }>;
+  // Biometric authentication methods
+  isBiometricAvailable: () => boolean;
+  registerBiometric: (userName: string, userDisplayName: string) => Promise<boolean>;
+  authenticateWithBiometric: () => Promise<boolean>;
+  hasBiometricEnabled: () => Promise<boolean>;
+  // Password policy methods
+  validatePassword: (password: string) => Promise<{ isValid: boolean; errors: string[] }>;
+  generateSecurePassword: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export { AuthContext };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -60,6 +75,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const logout = useCallback(async () => {
+    try {
+      if (user) {
+        // Log logout event
+        await supabase.rpc('log_security_event', {
+          p_user_id: user.id,
+          p_event_type: 'logout',
+          p_user_agent: navigator.userAgent,
+          p_details: {},
+          p_severity: 'info'
+        });
+      }
+
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setHospital(null);
+      setRoles([]);
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  }, [user]);
+
+  // Initialize session timeout
+  useSessionTimeout({ logout, isAuthenticated: !!session });
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
@@ -98,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(userRoles);
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('Error fetching user data:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, []);
 
@@ -137,60 +179,116 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserData]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error as Error | null };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        // Log failed login attempt
+        await supabase.rpc('log_security_event', {
+          p_user_id: null,
+          p_event_type: 'login_failure',
+          p_ip_address: null,
+          p_user_agent: navigator.userAgent,
+          p_details: { email, error: error.message },
+          p_severity: 'warning'
+        });
+        return { error: error as Error };
+      }
+
+      if (data.user) {
+        // Register device and log successful login
+        const device = await deviceManager.registerDevice(data.user.id);
+        await deviceManager.updateDeviceActivity(device?.device_id || '');
+
+        await supabase.rpc('log_security_event', {
+          p_user_id: data.user.id,
+          p_event_type: 'login_success',
+          p_device_id: device?.id,
+          p_ip_address: null,
+          p_user_agent: navigator.userAgent,
+          p_details: { email },
+          p_severity: 'info'
+        });
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
   }, []);
 
   const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
-    const redirectUrl = `${window.location.origin}/dashboard`;
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-        },
-      },
-    });
-
-    if (error) {
-      return { error: error as Error };
-    }
-
-    // Create profile for the new user
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: data.user.id,
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
+    try {
+      // Validate password against policy
+      const passwordValidation = await passwordPolicyManager.validatePassword(password);
+      if (!passwordValidation.isValid) {
+        return {
+          error: new Error(`Password does not meet requirements: ${passwordValidation.errors.join(', ')}`)
+        };
       }
 
-      return { error: null, userId: data.user.id };
+      const redirectUrl = `${window.location.origin}/dashboard`;
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+        },
+      });
+
+      if (error) {
+        // Log signup failure
+        await supabase.rpc('log_security_event', {
+          p_user_id: null,
+          p_event_type: 'signup_failure',
+          p_ip_address: null,
+          p_user_agent: navigator.userAgent,
+          p_details: { email, error: error.message },
+          p_severity: 'warning'
+        });
+        return { error: error as Error };
+      }
+
+      // Create profile for the new user
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: data.user.id,
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', sanitizeLogMessage(profileError.message));
+        }
+
+        // Log successful signup
+        await supabase.rpc('log_security_event', {
+          p_user_id: data.user.id,
+          p_event_type: 'signup_success',
+          p_ip_address: null,
+          p_user_agent: navigator.userAgent,
+          p_details: { email },
+          p_severity: 'info'
+        });
+
+        return { error: null, userId: data.user.id };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
     }
-
-    return { error: null };
-  }, []);
-
-  const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setHospital(null);
-    setRoles([]);
   }, []);
 
   const createHospitalAndProfile = useCallback(
@@ -239,7 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { error: null };
       } catch (error) {
-        console.error('Error creating hospital and profile:', error);
+        console.error('Error creating hospital and profile:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
         return { error: error as Error };
       }
     },
@@ -247,6 +345,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const primaryRole = roles.length > 0 ? roles[0] : null;
+
+  // Biometric authentication methods
+  const isBiometricAvailable = useCallback(() => {
+    return biometricAuthManager.isBiometricAvailable();
+  }, []);
+
+  const registerBiometric = useCallback(async (userName: string, userDisplayName: string) => {
+    if (!user?.id) return false;
+    return await biometricAuthManager.registerBiometricCredential(user.id, userName, userDisplayName);
+  }, [user?.id]);
+
+  const authenticateWithBiometric = useCallback(async () => {
+    if (!user?.id) return false;
+    return await biometricAuthManager.authenticateWithBiometric(user.id);
+  }, [user?.id]);
+
+  const hasBiometricEnabled = useCallback(async () => {
+    if (!user?.id) return false;
+    return await biometricAuthManager.hasBiometricEnabled(user.id);
+  }, [user?.id]);
+
+  // Password policy methods
+  const validatePassword = useCallback(async (password: string) => {
+    return await passwordPolicyManager.validatePassword(password, hospital?.id || undefined);
+  }, [hospital?.id]);
+
+  const generateSecurePassword = useCallback(() => {
+    return passwordPolicyManager.generateSecurePassword();
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -263,6 +390,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         createHospitalAndProfile,
+        isBiometricAvailable,
+        registerBiometric,
+        authenticateWithBiometric,
+        hasBiometricEnabled,
+        validatePassword,
+        generateSecurePassword,
       }}
     >
       {children}

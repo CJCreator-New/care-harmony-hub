@@ -139,7 +139,7 @@ export function useRefillRequests() {
       });
     },
     onError: (error) => {
-      console.error('Error creating refill request:', error);
+      console.error('Error creating refill request:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to submit refill request. Please try again.",
@@ -172,7 +172,7 @@ export function useRefillRequests() {
       });
     },
     onError: (error) => {
-      console.error('Error cancelling refill request:', error);
+      console.error('Error cancelling refill request:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to cancel refill request. Please try again.",
@@ -290,7 +290,7 @@ export function useUpdateRefillRequest() {
       });
     },
     onError: (error) => {
-      console.error('Error updating refill request:', error);
+      console.error('Error updating refill request:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to update refill request. Please try again.",

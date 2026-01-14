@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useIntelligentTaskRouter } from '@/hooks/useIntelligentTaskRouter';
 import { Brain, Users, Clock, TrendingUp } from 'lucide-react';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const IntelligentTaskAssignmentDemo = () => {
   const { routingRules, workloadMetrics, assignTaskIntelligently, isAssigning } = useIntelligentTaskRouter();
@@ -79,7 +80,7 @@ const IntelligentTaskAssignmentDemo = () => {
                   <SelectContent>
                     {taskTypes.map(type => (
                       <SelectItem key={type} value={type}>
-                        {type.replace('_', ' ').toUpperCase()}
+                        {sanitizeHtml(type.replace('_', ' ').toUpperCase())}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -145,7 +146,7 @@ const IntelligentTaskAssignmentDemo = () => {
               {workloadMetrics?.map(metric => (
                 <div key={metric.user_id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">User {metric.user_id.slice(0, 8)}...</p>
+                    <p className="font-medium">User {sanitizeHtml(metric.user_id.slice(0, 8))}...</p>
                     <p className="text-sm text-gray-600">
                       {metric.active_tasks} active tasks
                     </p>
@@ -184,7 +185,7 @@ const IntelligentTaskAssignmentDemo = () => {
             {routingRules?.map(rule => (
               <div key={rule.id} className="border rounded-lg p-4">
                 <h4 className="font-medium mb-2">
-                  {rule.task_type.replace('_', ' ').toUpperCase()}
+                  {sanitizeHtml(rule.task_type.replace('_', ' ').toUpperCase())}
                 </h4>
                 <div className="space-y-2 text-sm">
                   <div>

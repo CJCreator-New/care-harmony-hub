@@ -1,19 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
-import { useMonthlyTrends } from '@/hooks/useStaffAnalytics';
-
+import { useRecharts, ChartSkeleton } from '@/components/ui/lazy-chart';
 export function MonthlyTrendsChart() {
   const { data: trends, isLoading } = useMonthlyTrends();
+  const { components: Recharts, loading: chartsLoading } = useRecharts();
 
   if (isLoading) {
     return (
@@ -40,21 +30,23 @@ export function MonthlyTrendsChart() {
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
             No trend data available
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={trends}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="month" className="text-xs" />
-              <YAxis className="text-xs" />
-              <Tooltip
+        ) : chartsLoading ? (
+          <ChartSkeleton />
+        ) : Recharts ? (
+          <Recharts.ResponsiveContainer width="100%" height={300}>
+            <Recharts.LineChart data={trends}>
+              <Recharts.CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <Recharts.XAxis dataKey="month" className="text-xs" />
+              <Recharts.YAxis className="text-xs" />
+              <Recharts.Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                 }}
               />
-              <Legend />
-              <Line
+              <Recharts.Legend />
+              <Recharts.Line
                 type="monotone"
                 dataKey="appointments"
                 stroke="hsl(var(--primary))"
@@ -62,7 +54,7 @@ export function MonthlyTrendsChart() {
                 dot={{ fill: 'hsl(var(--primary))' }}
                 name="Appointments"
               />
-              <Line
+              <Recharts.Line
                 type="monotone"
                 dataKey="consultations"
                 stroke="hsl(var(--chart-2))"
@@ -70,7 +62,7 @@ export function MonthlyTrendsChart() {
                 dot={{ fill: 'hsl(var(--chart-2))' }}
                 name="Consultations"
               />
-              <Line
+              <Recharts.Line
                 type="monotone"
                 dataKey="patients"
                 stroke="hsl(var(--chart-3))"
@@ -78,8 +70,12 @@ export function MonthlyTrendsChart() {
                 dot={{ fill: 'hsl(var(--chart-3))' }}
                 name="Unique Patients"
               />
-            </LineChart>
-          </ResponsiveContainer>
+            </Recharts.LineChart>
+          </Recharts.ResponsiveContainer>
+        ) : (
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            Failed to load charts
+          </div>
         )}
       </CardContent>
     </Card>

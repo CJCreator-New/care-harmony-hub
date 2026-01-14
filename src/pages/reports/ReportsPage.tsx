@@ -35,18 +35,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { exportToCSV, exportToPDF, sendReportByEmail } from '@/utils/reportExport';
 import { toast } from 'sonner';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Legend,
-} from 'recharts';
+import { useRecharts, ChartSkeleton } from '@/components/ui/lazy-chart';
 import { StaffPerformanceChart } from '@/components/reports/StaffPerformanceChart';
 import { MonthlyTrendsChart } from '@/components/reports/MonthlyTrendsChart';
 import { AppointmentTypePieChart } from '@/components/reports/AppointmentTypePieChart';
@@ -59,6 +48,7 @@ export default function ReportsPage() {
   const { data: stats, isLoading: statsLoading } = useReportStats();
   const { data: dailyData, isLoading: dailyLoading } = useDailyBreakdown(parseInt(period));
   const { hospital } = useAuth();
+  const { components: Recharts, loading: chartsLoading } = useRecharts();
 
   const handleExportCSV = () => {
     exportToCSV({
@@ -271,26 +261,30 @@ export default function ReportsPage() {
               <CardDescription>Daily breakdown over selected period</CardDescription>
             </CardHeader>
             <CardContent>
-              {dailyLoading ? (
-                <Skeleton className="h-[300px] w-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip
+              {dailyLoading || chartsLoading ? (
+                <ChartSkeleton />
+              ) : Recharts ? (
+                <Recharts.ResponsiveContainer width="100%" height={300}>
+                  <Recharts.BarChart data={chartData}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <Recharts.XAxis dataKey="date" className="text-xs" />
+                    <Recharts.YAxis className="text-xs" />
+                    <Recharts.Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="consultations" fill="hsl(var(--primary))" name="Consultations" />
-                    <Bar dataKey="prescriptions" fill="hsl(var(--chart-2))" name="Prescriptions" />
-                  </BarChart>
-                </ResponsiveContainer>
+                    <Recharts.Legend />
+                    <Recharts.Bar dataKey="consultations" fill="hsl(var(--primary))" name="Consultations" />
+                    <Recharts.Bar dataKey="prescriptions" fill="hsl(var(--chart-2))" name="Prescriptions" />
+                  </Recharts.BarChart>
+                </Recharts.ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  Failed to load charts
+                </div>
               )}
             </CardContent>
           </Card>
@@ -301,15 +295,15 @@ export default function ReportsPage() {
               <CardDescription>Daily revenue over selected period</CardDescription>
             </CardHeader>
             <CardContent>
-              {dailyLoading ? (
-                <Skeleton className="h-[300px] w-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" tickFormatter={(value) => `$${value}`} />
-                    <Tooltip
+              {dailyLoading || chartsLoading ? (
+                <ChartSkeleton />
+              ) : Recharts ? (
+                <Recharts.ResponsiveContainer width="100%" height={300}>
+                  <Recharts.LineChart data={chartData}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <Recharts.XAxis dataKey="date" className="text-xs" />
+                    <Recharts.YAxis className="text-xs" tickFormatter={(value) => `$${value}`} />
+                    <Recharts.Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
@@ -317,15 +311,19 @@ export default function ReportsPage() {
                       }}
                       formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                     />
-                    <Line
+                    <Recharts.Line
                       type="monotone"
                       dataKey="revenue"
                       stroke="hsl(var(--chart-1))"
                       strokeWidth={2}
                       dot={{ fill: 'hsl(var(--chart-1))' }}
                     />
-                  </LineChart>
-                </ResponsiveContainer>
+                  </Recharts.LineChart>
+                </Recharts.ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  Failed to load charts
+                </div>
               )}
             </CardContent>
           </Card>

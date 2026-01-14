@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface VoiceTranscriptionOptions {
   language?: string;
@@ -46,7 +47,7 @@ export function useVoiceTranscription(options: VoiceTranscriptionOptions = {}) {
         };
 
         recognitionInstance.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
+          console.error('Speech recognition error:', sanitizeLogMessage(event.error));
           setIsListening(false);
           toast({
             title: 'Voice Recognition Error',
@@ -70,7 +71,7 @@ export function useVoiceTranscription(options: VoiceTranscriptionOptions = {}) {
         recognition.start();
         setIsListening(true);
       } catch (error) {
-        console.error('Failed to start recognition:', error);
+        console.error('Failed to start recognition:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       }
     }
   }, [recognition, isListening]);

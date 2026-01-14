@@ -279,24 +279,11 @@ export function DiagnosisStepEnhanced({ data, onUpdate }: DiagnosisStepEnhancedP
 
       {/* CPT Code Mapping */}
       {primaryDiagnoses.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Billing Codes (CPT)
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Select appropriate CPT codes for billing based on the primary diagnosis and procedures performed.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <CPTCodeMapper
-              selectedCodes={data.cpt_codes || []}
-              onChange={(codes) => onUpdate("cpt_codes", codes)}
-              diagnosisCode={primaryDiagnoses[0]?.icd_code}
-            />
-          </CardContent>
-        </Card>
+        <CPTCodeMapper
+          selectedCodes={data.cpt_codes || []}
+          onChange={(codes) => onUpdate("cpt_codes", codes)}
+          diagnosisCode={primaryDiagnoses[0]?.icd_code}
+        />
       )}
 
       {/* Clinical Reasoning */}

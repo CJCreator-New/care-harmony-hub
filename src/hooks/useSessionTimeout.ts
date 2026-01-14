@@ -1,97 +1,71 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 
-const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
-const WARNING_DURATION = 5 * 60 * 1000; // 5 minutes warning before logout
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const WARNING_TIME = 5 * 60 * 1000; // 5 minutes before timeout
 
-interface UseSessionTimeoutOptions {
-  onTimeout?: () => void;
-  enabled?: boolean;
+interface UseSessionTimeoutProps {
+  logout: () => Promise<void>;
+  isAuthenticated: boolean;
 }
 
-export function useSessionTimeout({ onTimeout, enabled = true }: UseSessionTimeoutOptions = {}) {
-  const { isAuthenticated, logout } = useAuth();
-  const { toast } = useToast();
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const warningRef = useRef<NodeJS.Timeout | null>(null);
+export function useSessionTimeout({ logout, isAuthenticated }: UseSessionTimeoutProps) {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const warningRef = useRef<NodeJS.Timeout>();
   const lastActivityRef = useRef<number>(Date.now());
 
-  const clearTimers = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (warningRef.current) {
-      clearTimeout(warningRef.current);
-      warningRef.current = null;
-    }
-  }, []);
+  const resetTimeout = useCallback(() => {
+    if (!isAuthenticated) return;
 
-  const handleTimeout = useCallback(async () => {
-    toast({
-      title: "Session Expired",
-      description: "You have been logged out due to inactivity for HIPAA compliance.",
-      variant: "destructive",
-    });
-    await logout();
-    onTimeout?.();
-  }, [logout, toast, onTimeout]);
-
-  const showWarning = useCallback(() => {
-    toast({
-      title: "Session Expiring Soon",
-      description: "Your session will expire in 5 minutes due to inactivity. Move your mouse or press a key to stay logged in.",
-    });
-  }, [toast]);
-
-  const resetTimer = useCallback(() => {
-    if (!enabled || !isAuthenticated) return;
+    // Clear existing timeouts
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (warningRef.current) clearTimeout(warningRef.current);
 
     lastActivityRef.current = Date.now();
-    clearTimers();
 
-    // Set warning timer (25 minutes)
-    warningRef.current = setTimeout(showWarning, TIMEOUT_DURATION - WARNING_DURATION);
+    // Set warning timeout
+    warningRef.current = setTimeout(() => {
+      toast.warning('Session will expire in 5 minutes due to inactivity', {
+        duration: 10000,
+        action: {
+          label: 'Stay Active',
+          onClick: () => resetTimeout()
+        }
+      });
+    }, SESSION_TIMEOUT - WARNING_TIME);
 
-    // Set logout timer (30 minutes)
-    timeoutRef.current = setTimeout(handleTimeout, TIMEOUT_DURATION);
-  }, [enabled, isAuthenticated, clearTimers, showWarning, handleTimeout]);
+    // Set logout timeout
+    timeoutRef.current = setTimeout(() => {
+      toast.error('Session expired due to inactivity');
+      logout();
+    }, SESSION_TIMEOUT);
+  }, [isAuthenticated, logout]);
+
+  const handleActivity = useCallback(() => {
+    if (Date.now() - lastActivityRef.current > 60000) { // Only reset if more than 1 minute since last activity
+      resetTimeout();
+    }
+  }, [resetTimeout]);
 
   useEffect(() => {
-    if (!enabled || !isAuthenticated) {
-      clearTimers();
-      return;
-    }
+    if (!isAuthenticated) return;
 
-    // Activity events to track
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    resetTimeout();
 
-    const handleActivity = () => {
-      // Throttle activity updates to once per minute
-      if (Date.now() - lastActivityRef.current > 60000) {
-        resetTimer();
-      }
-    };
-
-    // Add event listeners
+    // Activity listeners
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => {
-      window.addEventListener(event, handleActivity, { passive: true });
+      document.addEventListener(event, handleActivity, true);
     });
 
-    // Start the timer
-    resetTimer();
-
     return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (warningRef.current) clearTimeout(warningRef.current);
       events.forEach(event => {
-        window.removeEventListener(event, handleActivity);
+        document.removeEventListener(event, handleActivity, true);
       });
-      clearTimers();
     };
-  }, [enabled, isAuthenticated, resetTimer, clearTimers]);
+  }, [isAuthenticated, handleActivity, resetTimeout]);
 
-  return {
-    resetTimer,
-    lastActivity: lastActivityRef.current,
-  };
+  return { resetTimeout };
 }

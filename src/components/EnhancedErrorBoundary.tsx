@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface Props {
   children: ReactNode;
@@ -45,7 +46,7 @@ class EnhancedErrorBoundary extends Component<Props, State> {
       };
 
       // Log to console for development
-      console.error('Error Boundary caught an error:', error, errorInfo);
+      console.error('Error Boundary caught an error:', sanitizeLogMessage(error.message), sanitizeLogMessage(errorInfo.componentStack || ''));
       
       // In production, send to monitoring service
       if (process.env.NODE_ENV === 'production') {

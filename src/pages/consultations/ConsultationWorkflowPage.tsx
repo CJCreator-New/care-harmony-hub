@@ -1,3 +1,4 @@
+import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -48,10 +49,13 @@ export default function ConsultationWorkflowPage() {
   } = useWorkflowNotifications();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
 
   useEffect(() => {
     if (consultation) {
       setActiveStep(consultation.current_step);
+      setIsCompleted(consultation.status === 'completed');
       setFormData({
         chief_complaint: consultation.chief_complaint || "",
         history_of_present_illness: consultation.history_of_present_illness || "",
@@ -123,10 +127,53 @@ export default function ConsultationWorkflowPage() {
         setActiveStep((prev) => prev + 1);
       } else {
         // Complete consultation
+        setIsCompleting(true);
+        
+        // Generate clean summary without duplication
+        const patientSummary = `CONSULTATION SUMMARY
+
+Patient: ${consultation.patient?.first_name} ${consultation.patient?.last_name}
+MRN: ${consultation.patient?.mrn}
+Date: ${new Date().toLocaleDateString()}
+Doctor: ${consultation.doctor?.first_name} ${consultation.doctor?.last_name}
+
+CHIEF COMPLAINT:
+${formData.chief_complaint || 'Not documented'}
+
+DIAGNOSIS:
+${formData.final_diagnosis?.join(', ') || 'Not documented'}
+
+TREATMENT PLAN:
+${formData.treatment_plan || 'Not documented'}
+
+PRESCRIPTIONS:
+${formData.prescriptions?.map((rx: any) => `- ${rx.medication} ${rx.dosage}, ${rx.frequency} for ${rx.duration}`).join('\n') || 'None'}
+
+LAB ORDERS:
+${formData.lab_orders?.map((order: any) => `- ${order.test} (${order.priority})`).join('\n') || 'None'}
+
+FOLLOW-UP:
+${formData.follow_up_date ? `Date: ${new Date(formData.follow_up_date).toLocaleDateString()}` : 'No follow-up scheduled'}
+${formData.follow_up_notes || ''}
+
+CLINICAL NOTES:
+${formData.clinical_notes || 'None'}`;
+
+        // Store summary separately, don't append to clinical notes
         await updateConsultation.mutateAsync({
           id,
           status: "completed",
           completed_at: new Date().toISOString(),
+        });
+
+        // Store summary as a document for patient access
+        await supabase.from('documents').insert({
+          patient_id: consultation.patient_id,
+          hospital_id: consultation.hospital_id,
+          document_type: 'consultation_summary',
+          title: `Consultation - ${new Date().toLocaleDateString()} - ${consultation.doctor?.first_name} ${consultation.doctor?.last_name}`,
+          content: patientSummary,
+          created_by: consultation.doctor_id,
         });
 
         const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
@@ -152,23 +199,48 @@ export default function ConsultationWorkflowPage() {
               patientName,
               prescriptionResult.id
             );
+            toast.success(`${formData.prescriptions.length} prescription(s) sent to pharmacy`);
           } catch (err) {
             console.error('Error creating prescription:', err);
+            toast.error('Failed to send prescriptions to pharmacy');
           }
         }
 
-        // Notify lab for any unsubmitted lab orders
+        // Create lab orders in the database and notify lab
         if (formData.lab_orders?.length > 0 && formData.lab_notified) {
-          for (const order of formData.lab_orders) {
-            if (!order.isSubmitted) {
+          try {
+            for (const order of formData.lab_orders) {
+              // Create lab order record
+              const { data: labOrder, error: labError } = await supabase
+                .from('lab_orders')
+                .insert({
+                  hospital_id: consultation.hospital_id,
+                  patient_id: consultation.patient_id,
+                  consultation_id: id,
+                  ordered_by: consultation.doctor_id,
+                  test_name: order.test,
+                  priority: order.priority || 'routine',
+                  status: 'pending',
+                  notes: order.notes || formData.handoff_notes,
+                })
+                .select()
+                .single();
+
+              if (labError) throw labError;
+
+              // Notify lab technicians
               await notifyLabOrderCreated(
                 consultation.patient_id,
                 patientName,
                 order.test,
-                order.labOrderId || '',
-                order.priority
+                labOrder.id,
+                order.priority || 'routine'
               );
             }
+            toast.success(`${formData.lab_orders.length} lab order(s) sent to laboratory`);
+          } catch (err) {
+            console.error('Error creating lab orders:', err);
+            toast.error('Failed to send lab orders to laboratory');
           }
         }
 
@@ -181,11 +253,18 @@ export default function ConsultationWorkflowPage() {
           );
         }
 
-        toast.success("Consultation completed!");
-        navigate("/consultations");
+        setIsCompleted(true);
+        toast.success("Consultation completed successfully!");
+        
+        // Redirect after a short delay to show completion state
+        setTimeout(() => {
+          navigate("/doctor");
+        }, 1500);
       }
     } catch (error) {
       // Error is handled by the hook
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -194,6 +273,25 @@ export default function ConsultationWorkflowPage() {
       setActiveStep((prev) => prev - 1);
     }
   };
+
+  if (isCompleted) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-96 gap-4">
+          <div className="rounded-full bg-success/10 p-6">
+            <Check className="h-16 w-16 text-success" />
+          </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold">Consultation Completed!</h2>
+            <p className="text-muted-foreground">
+              Patient: {consultation?.patient?.first_name} {consultation?.patient?.last_name}
+            </p>
+            <p className="text-sm text-muted-foreground">Redirecting to consultations list...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -381,12 +479,12 @@ export default function ConsultationWorkflowPage() {
               </Button>
               <Button
                 onClick={handleNextStep}
-                disabled={updateConsultation.isPending || advanceStep.isPending}
+                disabled={updateConsultation.isPending || advanceStep.isPending || isCompleting || isCompleted}
               >
-                {(updateConsultation.isPending || advanceStep.isPending) && (
+                {(updateConsultation.isPending || advanceStep.isPending || isCompleting) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {activeStep === 5 ? "Complete" : "Next"}
+                {activeStep === 5 ? (isCompleting ? "Completing..." : "Complete Consultation") : "Next"}
                 {activeStep < 5 && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
             </div>

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Play, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { UATTestRunner } from '@/testing/UATTestRunner';
+import { sanitizeHtml, sanitizeLogMessage } from '@/utils/sanitize';
 
 export const UATDashboard = () => {
   const [isRunning, setIsRunning] = useState(false);
@@ -17,7 +18,7 @@ export const UATDashboard = () => {
       const testReport = await runner.runCoreWorkflowTests();
       setReport(testReport);
     } catch (error) {
-      console.error('UAT failed:', error);
+      console.error('UAT failed:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsRunning(false);
     }
@@ -104,7 +105,7 @@ export const UATDashboard = () => {
                   </div>
                   {result.error && (
                     <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                      Error: {result.error}
+                      Error: {sanitizeHtml(result.error)}
                     </div>
                   )}
                 </CardContent>

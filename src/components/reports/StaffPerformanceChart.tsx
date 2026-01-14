@@ -1,19 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
+import { useRecharts, ChartSkeleton } from '@/components/ui/lazy-chart';
 import { useStaffPerformanceMetrics } from '@/hooks/useStaffAnalytics';
 
 export function StaffPerformanceChart() {
   const { data: metrics, isLoading } = useStaffPerformanceMetrics();
+  const { components: Recharts, loading: chartsLoading } = useRecharts();
 
   if (isLoading) {
     return (
@@ -46,24 +38,30 @@ export function StaffPerformanceChart() {
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
             No performance data available
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis type="number" className="text-xs" />
-              <YAxis type="category" dataKey="name" width={100} className="text-xs" />
-              <Tooltip
+        ) : chartsLoading ? (
+          <ChartSkeleton />
+        ) : Recharts ? (
+          <Recharts.ResponsiveContainer width="100%" height={300}>
+            <Recharts.BarChart data={chartData} layout="vertical">
+              <Recharts.CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <Recharts.XAxis type="number" className="text-xs" />
+              <Recharts.YAxis type="category" dataKey="name" width={100} className="text-xs" />
+              <Recharts.Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                 }}
               />
-              <Legend />
-              <Bar dataKey="consultations" fill="hsl(var(--primary))" name="Consultations" />
-              <Bar dataKey="prescriptions" fill="hsl(var(--chart-2))" name="Prescriptions" />
-            </BarChart>
-          </ResponsiveContainer>
+              <Recharts.Legend />
+              <Recharts.Bar dataKey="consultations" fill="hsl(var(--primary))" name="Consultations" />
+              <Recharts.Bar dataKey="prescriptions" fill="hsl(var(--chart-2))" name="Prescriptions" />
+            </Recharts.BarChart>
+          </Recharts.ResponsiveContainer>
+        ) : (
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            Failed to load charts
+          </div>
         )}
       </CardContent>
     </Card>

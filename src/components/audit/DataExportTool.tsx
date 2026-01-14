@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/card';
 import { Download, FileText, Shield, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import { sanitizeForLog } from '@/utils/sanitize';
 import type { Database } from '@/integrations/supabase/types';
 
 type TableNames = keyof Database['public']['Tables'];
@@ -75,7 +76,7 @@ export function DataExportTool() {
             headers.map(header => {
               const value = (row as Record<string, unknown>)[header];
               if (value === null || value === undefined) return '';
-              if (typeof value === 'object') return JSON.stringify(value).replace(/"/g, '""');
+              if (typeof value === 'object') return sanitizeForLog(value).replace(/"/g, '""');
               return String(value).replace(/"/g, '""');
             }).join(',')
           )

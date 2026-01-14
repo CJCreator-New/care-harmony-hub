@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
+import { abacManager, UserAttributes, ResourceAttributes, EnvironmentAttributes, PermissionRequest } from '@/utils/abacManager';
 
 interface Permissions {
   // Patient Management
@@ -7,44 +8,44 @@ interface Permissions {
   canCreatePatients: boolean;
   canEditPatients: boolean;
   canDeletePatients: boolean;
-  
+
   // Appointments
   canViewAppointments: boolean;
   canCreateAppointments: boolean;
   canEditAppointments: boolean;
   canCheckInPatients: boolean;
-  
+
   // Consultations
   canViewConsultations: boolean;
   canStartConsultation: boolean;
   canRecordVitals: boolean;
   canPrescribe: boolean;
   canOrderLabs: boolean;
-  
+
   // Pharmacy
   canViewPharmacy: boolean;
   canDispenseMedication: boolean;
   canManageInventory: boolean;
-  
+
   // Laboratory
   canViewLaboratory: boolean;
   canProcessLabOrders: boolean;
   canUploadResults: boolean;
-  
+
   // Billing
   canViewBilling: boolean;
   canProcessPayments: boolean;
   canGenerateInvoices: boolean;
-  
+
   // Staff Management
   canViewStaff: boolean;
   canManageStaff: boolean;
   canInviteStaff: boolean;
-  
+
   // Settings
   canViewSettings: boolean;
   canManageHospitalSettings: boolean;
-  
+
   // Reports
   canViewReports: boolean;
   canGenerateReports: boolean;
@@ -329,4 +330,136 @@ export function hasAnyRole(userRoles: UserRole[], requiredRoles: UserRole[]): bo
 
 export function hasAllRoles(userRoles: UserRole[], requiredRoles: UserRole[]): boolean {
   return requiredRoles.every(role => userRoles.includes(role));
+}
+
+// ABAC-based permission checking
+async function checkABACPermission(
+  user: any,
+  profile: any,
+  roles: UserRole[],
+  primaryRole: UserRole,
+  hospital: any,
+  resource: ResourceAttributes,
+  action: string,
+  environment?: Partial<EnvironmentAttributes>
+): Promise<{ allowed: boolean; reason?: string }> {
+  if (!user || !profile) {
+    return { allowed: false, reason: 'User not authenticated' };
+  }
+
+  const userAttributes: UserAttributes = {
+    id: user.id,
+    roles,
+    primaryRole,
+    hospitalId: profile.hospital_id,
+    department: profile.department || undefined,
+    seniority: profile.seniority || undefined,
+    clearanceLevel: profile.clearance_level || 'low',
+    isActive: profile.is_active !== false,
+    lastLoginAt: profile.last_login_at || undefined,
+    deviceType: environment?.deviceType,
+    location: environment?.location
+  };
+
+  const defaultEnvironment: EnvironmentAttributes = {
+    time: new Date(),
+    ipAddress: environment?.ipAddress,
+    userAgent: environment?.userAgent,
+    deviceType: environment?.deviceType || 'unknown',
+    location: environment?.location || 'unknown',
+    isEmergency: environment?.isEmergency || false,
+    accessLevel: environment?.accessLevel || 'normal'
+  };
+
+  const request: PermissionRequest = {
+    user: userAttributes,
+    resource,
+    action,
+    environment: { ...defaultEnvironment, ...environment }
+  };
+
+  return await abacManager.evaluateAccess(request);
+}
+
+// Enhanced permission checking with both RBAC and ABAC
+export function useEnhancedPermissions(): {
+  permissions: Permissions;
+  checkPermission: (resource: ResourceAttributes, action: string, environment?: Partial<EnvironmentAttributes>) => Promise<{ allowed: boolean; reason?: string }>;
+  hasRole: (role: UserRole) => boolean;
+  hasAnyRole: (roles: UserRole[]) => boolean;
+  hasAllRoles: (roles: UserRole[]) => boolean;
+} {
+  const { user, profile, hospital, roles, primaryRole } = useAuth();
+  const basicPermissions = usePermissions();
+
+  const checkPermission = async (
+    resource: ResourceAttributes,
+    action: string,
+    environment?: Partial<EnvironmentAttributes>
+  ): Promise<{ allowed: boolean; reason?: string }> => {
+    // First check ABAC (more fine-grained)
+    const abacResult = await checkABACPermission(user, profile, roles, primaryRole, hospital, resource, action, environment);
+    if (abacResult.allowed) {
+      return abacResult;
+    }
+
+    // Fallback to basic RBAC permissions for backward compatibility
+    const rbacAllowed = checkBasicPermission(action, basicPermissions);
+    return {
+      allowed: rbacAllowed,
+      reason: rbacAllowed ? 'RBAC permission granted' : abacResult.reason
+    };
+  };
+
+  const hasRole = (role: UserRole): boolean => roles.includes(role);
+
+  const hasAnyRoleFn = (requiredRoles: UserRole[]): boolean => hasAnyRole(roles, requiredRoles);
+
+  const hasAllRolesFn = (requiredRoles: UserRole[]): boolean => hasAllRoles(roles, requiredRoles);
+
+  return {
+    permissions: basicPermissions,
+    checkPermission,
+    hasRole,
+    hasAnyRole: hasAnyRoleFn,
+    hasAllRoles: hasAllRolesFn
+  };
+}
+
+// Helper function to map actions to basic permissions
+function checkBasicPermission(action: string, permissions: Permissions): boolean {
+  const actionMap: Record<string, keyof Permissions> = {
+    'view_patients': 'canViewPatients',
+    'create_patients': 'canCreatePatients',
+    'edit_patients': 'canEditPatients',
+    'delete_patients': 'canDeletePatients',
+    'view_appointments': 'canViewAppointments',
+    'create_appointments': 'canCreateAppointments',
+    'edit_appointments': 'canEditAppointments',
+    'checkin_patients': 'canCheckInPatients',
+    'view_consultations': 'canViewConsultations',
+    'start_consultation': 'canStartConsultation',
+    'record_vitals': 'canRecordVitals',
+    'prescribe': 'canPrescribe',
+    'order_labs': 'canOrderLabs',
+    'view_pharmacy': 'canViewPharmacy',
+    'dispense_medication': 'canDispenseMedication',
+    'manage_inventory': 'canManageInventory',
+    'view_laboratory': 'canViewLaboratory',
+    'process_lab_orders': 'canProcessLabOrders',
+    'upload_results': 'canUploadResults',
+    'view_billing': 'canViewBilling',
+    'process_payments': 'canProcessPayments',
+    'generate_invoices': 'canGenerateInvoices',
+    'view_staff': 'canViewStaff',
+    'manage_staff': 'canManageStaff',
+    'invite_staff': 'canInviteStaff',
+    'view_settings': 'canViewSettings',
+    'manage_hospital_settings': 'canManageHospitalSettings',
+    'view_reports': 'canViewReports',
+    'generate_reports': 'canGenerateReports'
+  };
+
+  const permissionKey = actionMap[action];
+  return permissionKey ? permissions[permissionKey] : false;
 }

@@ -1,4 +1,5 @@
 import { onCLS, onINP, onLCP, onFCP, onTTFB, type Metric } from 'web-vitals';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 interface PerformanceMetric {
   name: string;
@@ -9,7 +10,7 @@ interface PerformanceMetric {
 
 const sendToAnalytics = (metric: PerformanceMetric) => {
   if (import.meta.env.PROD) {
-    console.log('Performance Metric:', metric);
+    console.log('Performance Metric:', sanitizeForLog(metric));
     
     fetch('/api/analytics/performance', {
       method: 'POST',

@@ -25,6 +25,19 @@ export interface LabSample {
   hospital_id: string;
   created_at: string;
   updated_at: string;
+  patient?: {
+    first_name: string;
+    last_name: string;
+    medical_record_number: string;
+  };
+  collector?: {
+    first_name: string;
+    last_name: string;
+  };
+  technician?: {
+    first_name: string;
+    last_name: string;
+  };
 }
 
 export interface SampleTracking {

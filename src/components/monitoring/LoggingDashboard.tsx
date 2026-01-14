@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Activity, Users, Clock, Search, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import { sanitizeHtml, sanitizeLogMessage } from '@/utils/sanitize';
 
 interface ErrorLog {
   id: string;
@@ -110,7 +111,7 @@ export function LoggingDashboard() {
       });
       setErrorLogs(transformedData);
     } catch (error) {
-      console.error('Failed to fetch error logs:', error);
+      console.error('Failed to fetch error logs:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -161,7 +162,7 @@ export function LoggingDashboard() {
       if (error) throw error;
       setActivityLogs(data as UserActivityLog[] || []);
     } catch (error) {
-      console.error('Failed to fetch activity logs:', error);
+      console.error('Failed to fetch activity logs:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -410,7 +411,7 @@ export function LoggingDashboard() {
                         </TableCell>
                         <TableCell className="max-w-md">
                           <div className="truncate" title={log.message}>
-                            {log.message}
+                            {sanitizeHtml(log.message)}
                           </div>
                         </TableCell>
                         <TableCell className="max-w-sm">

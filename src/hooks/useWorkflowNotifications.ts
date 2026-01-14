@@ -25,7 +25,7 @@ export function useWorkflowNotifications() {
       .eq('role', role);
 
     if (error) {
-      console.error('Error fetching staff by role:', error);
+      console.error('Error fetching staff by role:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return [];
     }
 
@@ -65,7 +65,7 @@ export function useWorkflowNotifications() {
     const { error } = await supabase.from('notifications').insert(notifications);
 
     if (error) {
-      console.error('Error sending patient ready notifications:', error);
+      console.error('Error sending patient ready notifications:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, [hospital?.id, profile?.user_id, getStaffByRole]);
 
@@ -101,7 +101,7 @@ export function useWorkflowNotifications() {
     const { error } = await supabase.from('notifications').insert(notifications);
 
     if (error) {
-      console.error('Error sending check-in notifications:', error);
+      console.error('Error sending check-in notifications:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, [hospital?.id, profile?.user_id, getStaffByRole]);
 
@@ -127,7 +127,7 @@ export function useWorkflowNotifications() {
     });
 
     if (error) {
-      console.error('Error sending vitals notification:', error);
+      console.error('Error sending vitals notification:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, [hospital?.id, profile?.user_id]);
 
@@ -163,7 +163,7 @@ export function useWorkflowNotifications() {
     const { error } = await supabase.from('notifications').insert(notifications);
 
     if (error) {
-      console.error('Error sending consultation complete notifications:', error);
+      console.error('Error sending consultation complete notifications:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, [hospital?.id, profile?.user_id, getStaffByRole]);
 
@@ -199,7 +199,7 @@ export function useWorkflowNotifications() {
     const { error } = await supabase.from('notifications').insert(notifications);
 
     if (error) {
-      console.error('Error sending prescription notifications:', error);
+      console.error('Error sending prescription notifications:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, [hospital?.id, profile?.user_id, getStaffByRole]);
 
@@ -237,7 +237,7 @@ export function useWorkflowNotifications() {
     const { error } = await supabase.from('notifications').insert(notifications);
 
     if (error) {
-      console.error('Error sending lab order notifications:', error);
+      console.error('Error sending lab order notifications:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, [hospital?.id, profile?.user_id, getStaffByRole]);
 

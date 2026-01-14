@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CPTCode, ClinicalTemplate } from '@/types/soap';
 
@@ -7,7 +7,7 @@ export const useCPTCodes = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCPTCodes = async (category?: string) => {
+  const loadCPTCodes = useCallback(async (category?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -28,7 +28,7 @@ export const useCPTCodes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const searchCPTCodes = async (searchTerm: string) => {
     setLoading(true);
@@ -51,7 +51,7 @@ export const useCPTCodes = () => {
 
   useEffect(() => {
     loadCPTCodes();
-  }, []);
+  }, [loadCPTCodes]);
 
   return {
     cptCodes,
@@ -67,7 +67,7 @@ export const useClinicalTemplates = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTemplates = async (type?: string, specialty?: string) => {
+  const loadTemplates = useCallback(async (type?: string, specialty?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -91,7 +91,7 @@ export const useClinicalTemplates = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const createTemplate = async (template: Omit<ClinicalTemplate, 'id' | 'created_at'>) => {
     setLoading(true);
@@ -116,7 +116,7 @@ export const useClinicalTemplates = () => {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [loadTemplates]);
 
   return {
     templates,

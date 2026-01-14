@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Copy, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTwoFactorAuth } from '@/hooks/useTwoFactorAuth';
 import { toast } from 'sonner';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 interface TwoFactorSetupModalProps {
   open: boolean;
@@ -140,7 +141,7 @@ export const TwoFactorSetupModal: React.FC<TwoFactorSetupModalProps> = ({
                 Can't scan? Enter this code manually:
               </p>
               <code className="px-3 py-1.5 bg-muted rounded font-mono text-sm break-all">
-                {setupData.secret}
+                {sanitizeHtml(setupData.secret)}
               </code>
             </div>
             <Button onClick={() => setStep('verify')} className="w-full">

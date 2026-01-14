@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface OptimisticMutationOptions<TData, TVariables, TContext = unknown>
   extends Omit<UseMutationOptions<TData, Error, TVariables, TContext>, 'onMutate' | 'onError' | 'onSuccess'> {
@@ -47,7 +48,7 @@ export function useOptimisticMutation<TData, TVariables, TContext = unknown>({
 
       const message = errorMessage || 'An error occurred';
       toast.error(message);
-      console.error('Mutation error:', err);
+      console.error('Mutation error:', sanitizeLogMessage(err instanceof Error ? err.message : 'Unknown error'));
     },
     onSuccess: (data, variables, context) => {
       if (successMessage) {

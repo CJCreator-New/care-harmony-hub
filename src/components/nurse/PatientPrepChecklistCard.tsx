@@ -26,6 +26,7 @@ import {
 import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
 import { useActiveQueue, useUpdateQueueEntry } from '@/hooks/useQueue';
 import { toast } from 'sonner';
+import { sanitizeLogMessage, sanitizeForLog } from '@/utils/sanitize';
 import { AllergiesVerificationModal } from './AllergiesVerificationModal';
 import { ChiefComplaintModal } from './ChiefComplaintModal';
 import { MedicationsReviewModal } from './MedicationsReviewModal';
@@ -112,7 +113,7 @@ export function PatientPrepChecklistCard({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Failed to start checklist: ${errorMessage}`);
-      console.error('Error creating checklist:', error);
+      console.error('Error creating checklist:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -199,7 +200,7 @@ export function PatientPrepChecklistCard({
       setChecklist(checklist);
       const errorMessage = error instanceof Error ? error.message : 'Update failed';
       toast.error(`Failed to update checklist: ${errorMessage}`);
-      console.error('Error updating checklist:', error);
+      console.error('Error updating checklist:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -228,7 +229,7 @@ export function PatientPrepChecklistCard({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Failed to mark patient as ready: ${errorMessage}`);
-      console.error('Error marking patient ready:', error);
+      console.error('Error marking patient ready:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -463,7 +464,7 @@ export function PatientPrepChecklistCard({
         appointmentId={appointmentId}
         onSave={(assessment) => {
           // Handle triage assessment save
-          console.log('Triage assessment saved:', assessment);
+          console.log('Triage assessment saved:', sanitizeForLog(assessment));
         }}
       />
 
@@ -472,7 +473,7 @@ export function PatientPrepChecklistCard({
           patientId={patientId}
           appointmentId={appointmentId}
           onSave={(reconciliation) => {
-            console.log('Medication reconciliation saved:', reconciliation);
+            console.log('Medication reconciliation saved:', sanitizeForLog(reconciliation));
             setShowMedReconciliation(false);
             handleCheckItem('medications_reviewed', true);
           }}

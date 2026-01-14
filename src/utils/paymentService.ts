@@ -77,6 +77,7 @@ export interface PaymentMethod {
   };
 }
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeLogMessage } from './sanitize';
 
 // Payment Service for CareSync HMS
 export class PaymentService {
@@ -88,7 +89,7 @@ export class PaymentService {
   }
 
   private async initializeStripe(): Promise<Stripe | null> {
-    const stripePublishableKey = process.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
     if (!stripePublishableKey) {
       console.warn('Stripe publishable key not found. Payment features will be disabled.');
@@ -98,7 +99,7 @@ export class PaymentService {
     try {
       return await loadStripe(stripePublishableKey);
     } catch (error) {
-      console.error('Failed to initialize Stripe:', error);
+      console.error('Failed to initialize Stripe:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return null;
     }
   }
@@ -136,7 +137,7 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Payment intent creation failed:', error);
+        console.error('Payment intent creation failed:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { error: error.message || 'Failed to create payment intent' };
       }
 
@@ -145,7 +146,7 @@ export class PaymentService {
         paymentIntentId: data.paymentIntentId
       };
     } catch (error) {
-      console.error('Payment intent creation error:', error);
+      console.error('Payment intent creation error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         error: error instanceof Error ? error.message : 'Unknown payment error'
       };
@@ -172,13 +173,13 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Payment confirmation failed:', error);
+        console.error('Payment confirmation failed:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { success: false, error: error.message || 'Payment failed' };
       }
 
       return { success: true, paymentIntent: paymentIntent || undefined };
     } catch (error) {
-      console.error('Payment processing error:', error);
+      console.error('Payment processing error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown payment error'
@@ -206,13 +207,13 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Payment plan creation failed:', error);
+        console.error('Payment plan creation failed:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { success: false, error: error.message || 'Failed to create payment plan' };
       }
 
       return { success: true, planId: data.planId };
     } catch (error) {
-      console.error('Payment plan creation error:', error);
+      console.error('Payment plan creation error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -242,7 +243,7 @@ export class PaymentService {
 
       return this.processPayment(data.clientSecret, cardElement, billingDetails);
     } catch (error) {
-      console.error('Installment processing error:', error);
+      console.error('Installment processing error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -266,13 +267,13 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Refund failed:', error);
+        console.error('Refund failed:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { success: false, error: error.message || 'Refund failed' };
       }
 
       return { success: true, refund: data.refund };
     } catch (error) {
-      console.error('Refund error:', error);
+      console.error('Refund error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown refund error'
@@ -288,13 +289,13 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Failed to get payment methods:', error);
+        console.error('Failed to get payment methods:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { success: false, error: error.message || 'Failed to get payment methods' };
       }
 
       return { success: true, paymentMethods: data.paymentMethods };
     } catch (error) {
-      console.error('Get payment methods error:', error);
+      console.error('Get payment methods error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -313,13 +314,13 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Failed to attach payment method:', error);
+        console.error('Failed to attach payment method:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { success: false, error: error.message || 'Failed to attach payment method' };
       }
 
       return { success: true };
     } catch (error) {
-      console.error('Attach payment method error:', error);
+      console.error('Attach payment method error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -348,13 +349,13 @@ export class PaymentService {
       });
 
       if (error) {
-        console.error('Customer creation failed:', error);
+        console.error('Customer creation failed:', sanitizeLogMessage(error.message || 'Unknown error'));
         return { success: false, error: error.message || 'Failed to create customer' };
       }
 
       return { success: true, customerId: data.customerId };
     } catch (error) {
-      console.error('Customer creation error:', error);
+      console.error('Customer creation error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

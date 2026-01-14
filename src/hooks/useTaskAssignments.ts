@@ -84,7 +84,7 @@ export function useTaskAssignments() {
       });
     },
     onError: (error) => {
-      console.error('Error creating task assignment:', error);
+      console.error('Error creating task assignment:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to create task assignment. Please try again.",
@@ -120,7 +120,7 @@ export function useTaskAssignments() {
       });
     },
     onError: (error) => {
-      console.error('Error updating task assignment:', error);
+      console.error('Error updating task assignment:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to update task assignment. Please try again.",

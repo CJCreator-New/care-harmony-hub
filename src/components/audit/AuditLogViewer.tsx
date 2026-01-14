@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Search, Download, Filter, Shield, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { sanitizeHtml, sanitizeForLog } from '@/utils/sanitize';
 
 interface AuditLog {
   id: string;
@@ -224,7 +225,7 @@ export function AuditLogViewer() {
                       {log.ip_address || '—'}
                     </TableCell>
                     <TableCell className="max-w-xs truncate">
-                      {log.details ? JSON.stringify(log.details) : '—'}
+                      {log.details ? sanitizeHtml(sanitizeForLog(log.details)) : '—'}
                     </TableCell>
                   </TableRow>
                 ))}

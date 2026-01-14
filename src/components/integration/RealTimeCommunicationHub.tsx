@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { MessageSquare, AlertTriangle, Users, Clock, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const RealTimeCommunicationHub = () => {
   const {
@@ -242,7 +243,7 @@ const RealTimeCommunicationHub = () => {
                     </span>
                   </div>
                 </div>
-                <p className="text-gray-700">{message.message}</p>
+                <p className="text-gray-700">{sanitizeHtml(message.message)}</p>
                 {message.message_type === 'alert' && (
                   <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
                     <AlertTriangle className="h-4 w-4 inline mr-1 text-yellow-600" />

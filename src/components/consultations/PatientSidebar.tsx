@@ -3,6 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { User, Calendar, Phone, Mail, AlertTriangle, Pill } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
+import { useEffect } from "react";
+import { useActivityLog } from "@/hooks/useActivityLog";
+import { useDataMasking } from "@/hooks/useDataProtection";
 
 interface PatientSidebarProps {
   patient?: {
@@ -22,6 +25,32 @@ interface PatientSidebarProps {
 }
 
 export function PatientSidebar({ patient }: PatientSidebarProps) {
+  const { logActivity } = useActivityLog();
+  const { maskData } = useDataMasking();
+
+  useEffect(() => {
+    if (patient) {
+      // Log patient record access with masked data for audit purposes
+      const maskedPatientData = maskData({
+        patient_name: `${patient.first_name} ${patient.last_name}`,
+        mrn: patient.mrn,
+        age: differenceInYears(new Date(), new Date(patient.date_of_birth)),
+        gender: patient.gender,
+        blood_type: patient.blood_type,
+        allergies_count: patient.allergies?.length || 0,
+        chronic_conditions_count: patient.chronic_conditions?.length || 0,
+        medications_count: patient.current_medications?.length || 0,
+      });
+
+      logActivity({
+        actionType: 'patient_record_view',
+        entityType: 'patient',
+        entityId: patient.id,
+        details: maskedPatientData
+      });
+    }
+  }, [patient, logActivity, maskData]);
+
   if (!patient) return null;
 
   const age = differenceInYears(new Date(), new Date(patient.date_of_birth));

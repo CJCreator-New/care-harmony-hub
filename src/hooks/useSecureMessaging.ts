@@ -142,7 +142,7 @@ export function useSendMessage() {
     },
     onError: (error) => {
       toast.error('Failed to send message');
-      console.error('Error sending message:', error);
+      console.error('Error sending message:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     },
   });
 }

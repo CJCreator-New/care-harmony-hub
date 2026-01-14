@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 export interface DrugUtilizationCriteria {
   id: string;
@@ -177,7 +178,7 @@ export function useDrugUtilizationReview() {
         description: "Failed to complete DUR analysis.",
         variant: "destructive",
       });
-      console.error('DUR analysis error:', error);
+      console.error('DUR analysis error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     },
   });
 
@@ -210,7 +211,7 @@ export function useDrugUtilizationReview() {
         description: "Failed to record DUR finding.",
         variant: "destructive",
       });
-      console.error('DUR finding error:', error);
+      console.error('DUR finding error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     },
   });
 
@@ -267,7 +268,7 @@ export function useDrugUtilizationReview() {
         description: "Failed to generate DUR report.",
         variant: "destructive",
       });
-      console.error('DUR report error:', error);
+      console.error('DUR report error:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     },
   });
 

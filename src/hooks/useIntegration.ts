@@ -1,5 +1,6 @@
 // Phase 8: Cross-Role Integration Hooks
 import { useState, useEffect } from 'react';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 import { 
   TaskAssignment, 
   PatientStatusBoard, 
@@ -61,7 +62,7 @@ export const useTaskAssignments = (hospitalId: string, userId: string) => {
         high_priority_tasks: mockTasks.filter(t => ['high', 'urgent'].includes(t.priority)).length
       });
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('Error fetching tasks:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export const useTaskAssignments = (hospitalId: string, userId: string) => {
       await fetchTasks();
       return { success: true };
     } catch (error) {
-      console.error('Error creating task:', error);
+      console.error('Error creating task:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };
@@ -86,7 +87,7 @@ export const useTaskAssignments = (hospitalId: string, userId: string) => {
       await fetchTasks();
       return { success: true };
     } catch (error) {
-      console.error('Error updating task status:', error);
+      console.error('Error updating task status:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };
@@ -176,7 +177,7 @@ export const useStatusBoard = (hospitalId: string) => {
       setQueues(mockQueues);
       setMetrics(mockMetrics);
     } catch (error) {
-      console.error('Error fetching status board:', error);
+      console.error('Error fetching status board:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -189,7 +190,7 @@ export const useStatusBoard = (hospitalId: string) => {
       await fetchStatusBoard();
       return { success: true };
     } catch (error) {
-      console.error('Error updating patient status:', error);
+      console.error('Error updating patient status:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };
@@ -244,7 +245,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
       setUnreadCount(mockMessages.filter(m => m.recipient_id === userId && !m.read_at).length);
       setUrgentCount(mockMessages.filter(m => m.recipient_id === userId && m.message_type === 'urgent' && !m.read_at).length);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Error fetching messages:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -257,7 +258,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
       await fetchMessages();
       return { success: true };
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending message:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };
@@ -269,7 +270,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
       await fetchMessages();
       return { success: true };
     } catch (error) {
-      console.error('Error marking as read:', error);
+      console.error('Error marking as read:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };
@@ -281,7 +282,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
       await fetchMessages();
       return { success: true };
     } catch (error) {
-      console.error('Error acknowledging message:', error);
+      console.error('Error acknowledging message:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };
@@ -329,7 +330,7 @@ export const useWorkflowMetrics = (hospitalId: string) => {
 
       setMetrics(mockMetrics);
     } catch (error) {
-      console.error('Error fetching metrics:', error);
+      console.error('Error fetching metrics:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -342,7 +343,7 @@ export const useWorkflowMetrics = (hospitalId: string) => {
       await fetchMetrics();
       return { success: true };
     } catch (error) {
-      console.error('Error recording metric:', error);
+      console.error('Error recording metric:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return { success: false, error };
     }
   };

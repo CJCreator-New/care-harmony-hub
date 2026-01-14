@@ -4,6 +4,34 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAutomatedAlerts } from '@/hooks/useAutomatedAlerts';
 import React from 'react';
 
+// Mock Supabase
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        in: vi.fn(() => ({
+          is: vi.fn(() => ({
+            order: vi.fn(() => ({
+              limit: vi.fn(() => Promise.resolve({
+                data: [
+                  {
+                    id: '1',
+                    severity: 'high',
+                    action_type: 'system_error',
+                    created_at: '2024-01-01T00:00:00Z',
+                    details: { message: 'Test alert', acknowledged: false }
+                  }
+                ],
+                error: null
+              }))
+            }))
+          }))
+        }))
+      }))
+    }))
+  }
+}));
+
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {

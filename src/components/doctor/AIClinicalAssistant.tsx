@@ -20,19 +20,18 @@ interface ClinicalAI {
   };
 }
 
-interface DiagnosisSuggestion {
-  condition: string;
-  probability: number;
-  icd10: string;
-  evidence: string[];
-  recommendedTests: string[];
+interface DrugInteraction {
+  drugs: string[];
+  severity: string;
+  mechanism: string;
+  recommendation: string;
 }
 
 export const AIClinicalAssistant = ({ patientId }: { patientId: string }) => {
   const [symptoms, setSymptoms] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<DiagnosisSuggestion[]>([]);
-  const [drugInteractions, setDrugInteractions] = useState([]);
+  const [drugInteractions, setDrugInteractions] = useState<DrugInteraction[]>([]);
 
   const analyzeSymptoms = async () => {
     setIsAnalyzing(true);

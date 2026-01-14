@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, X } from 'lucide-react';
 import { CPTCode } from '@/types/soap';
-import { supabase } from '@/integrations/supabase/client';
+import { useCPTCodes } from '@/hooks/useCPTCodes';
 
 interface CPTCodeMapperProps {
   selectedCodes: string[];
@@ -18,36 +18,16 @@ export const CPTCodeMapper: React.FC<CPTCodeMapperProps> = ({
   onChange, 
   diagnosisCode 
 }) => {
-  const [cptCodes, setCptCodes] = useState<CPTCode[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { cptCodes, loading, searchCPTCodes } = useCPTCodes();
 
   useEffect(() => {
-    loadCPTCodes();
-  }, []);
-
-  const loadCPTCodes = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('cpt_codes')
-        .select('*')
-        .order('category', { ascending: true });
-
-      if (error) throw error;
-      setCptCodes(data || []);
-    } catch (error) {
-      console.error('Error loading CPT codes:', error);
-    } finally {
-      setLoading(false);
+    if (searchTerm.length >= 2) {
+      searchCPTCodes(searchTerm);
     }
-  };
+  }, [searchTerm, searchCPTCodes]);
 
-  const filteredCodes = cptCodes.filter(code =>
-    code.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    code.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    code.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCodes = searchTerm.length >= 2 ? cptCodes : cptCodes.slice(0, 20); // Show first 20 if no search
 
   const handleAddCode = (code: string) => {
     if (!selectedCodes.includes(code)) {
@@ -124,7 +104,7 @@ export const CPTCodeMapper: React.FC<CPTCodeMapperProps> = ({
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {loading ? (
             <p className="text-center text-muted-foreground">Loading CPT codes...</p>
-          ) : (
+          ) : filteredCodes.length > 0 ? (
             filteredCodes.map(code => (
               <div
                 key={code.code}
@@ -150,6 +130,14 @@ export const CPTCodeMapper: React.FC<CPTCodeMapperProps> = ({
                 </Button>
               </div>
             ))
+          ) : (
+            <div className="text-center py-4 text-muted-foreground">
+              {searchTerm.length >= 2 ? (
+                <p>No CPT codes found for "{searchTerm}"</p>
+              ) : (
+                <p>Type at least 2 characters to search CPT codes</p>
+              )}
+            </div>
           )}
         </div>
 

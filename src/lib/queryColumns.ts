@@ -16,9 +16,9 @@ export const APPOINTMENT_COLUMNS = {
 };
 
 export const CONSULTATION_COLUMNS = {
-  list: 'id, status, created_at, patient_id, doctor_id, appointment_id',
-  detail: 'id, chief_complaint, history_of_present_illness, assessment, plan, status, created_at, updated_at, patient_id, doctor_id, appointment_id',
-  summary: 'id, chief_complaint, assessment, created_at, patient_id, doctor_id',
+  list: 'id, status, current_step, created_at, patient_id, doctor_id, appointment_id, started_at',
+  detail: 'id, hospital_id, appointment_id, patient_id, doctor_id, nurse_id, status, current_step, vitals, chief_complaint, history_of_present_illness, physical_examination, symptoms, provisional_diagnosis, final_diagnosis, treatment_plan, prescriptions, lab_orders, referrals, clinical_notes, follow_up_date, follow_up_notes, handoff_notes, pharmacy_notified, lab_notified, billing_notified, started_at, completed_at, auto_save_data, last_auto_save, created_at, updated_at',
+  summary: 'id, chief_complaint, status, created_at, patient_id, doctor_id',
 };
 
 export const LAB_ORDER_COLUMNS = {

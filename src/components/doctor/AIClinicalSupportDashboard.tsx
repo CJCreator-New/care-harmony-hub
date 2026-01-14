@@ -10,31 +10,30 @@ import { useState } from 'react';
 
 export function AIClinicalSupportDashboard() {
   const { 
-    analyzeSymptoms, 
-    checkDrugInteractions, 
-    assessRisk,
-    getTreatmentRecommendations,
-    isAnalyzing 
+    generateDifferentialDiagnosis, 
+    isGeneratingDiagnosis,
+    predictPatientRisk,
+    isPredictingRisk,
+    autoCodeEncounter,
+    isCoding
   } = useAIClinicalSupport();
 
   const [selectedPatient, setSelectedPatient] = useState('');
   const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [medications, setMedications] = useState<string[]>([]);
 
   const handleSymptomAnalysis = () => {
     if (symptoms.length === 0) return;
     
-    analyzeSymptoms({
+    generateDifferentialDiagnosis({
       symptoms,
-      vital_signs: {
+      patientHistory: 'hypertension',
+      vitals: {
         blood_pressure_systolic: 140,
         blood_pressure_diastolic: 90,
         heart_rate: 80,
         temperature: 37.2,
         oxygen_saturation: 98
-      },
-      medical_history: ['hypertension'],
-      medications: medications
+      }
     });
   };
 
@@ -80,7 +79,7 @@ export function AIClinicalSupportDashboard() {
       </div>
 
       {/* Quick Analysis Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Symptom Analysis</CardTitle>
@@ -110,47 +109,10 @@ export function AIClinicalSupportDashboard() {
 
             <Button 
               onClick={handleSymptomAnalysis}
-              disabled={symptoms.length === 0 || isAnalyzing}
+              disabled={symptoms.length === 0 || isGeneratingDiagnosis}
               className="w-full"
             >
-              {isAnalyzing ? 'Analyzing...' : 'Analyze Symptoms'}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Drug Interaction Check</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Current Medications</label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {['warfarin', 'aspirin', 'metformin', 'lisinopril', 'atorvastatin'].map(med => (
-                  <Button
-                    key={med}
-                    size="sm"
-                    variant={medications.includes(med) ? "default" : "outline"}
-                    onClick={() => {
-                      setMedications(prev => 
-                        prev.includes(med) 
-                          ? prev.filter(m => m !== med)
-                          : [...prev, med]
-                      );
-                    }}
-                  >
-                    {med}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <Button 
-              onClick={() => checkDrugInteractions(medications)}
-              disabled={medications.length < 2}
-              className="w-full"
-            >
-              Check Interactions
+              {isGeneratingDiagnosis ? 'Analyzing...' : 'Analyze Symptoms'}
             </Button>
           </CardContent>
         </Card>

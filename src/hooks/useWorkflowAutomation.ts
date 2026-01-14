@@ -206,6 +206,32 @@ export function useWorkflowAutomation() {
     },
   });
 
+  // Assign task to user
+  const assignTaskMutation = useMutation({
+    mutationFn: async ({ taskId, userId, role }: { taskId: string; userId: string; role: string }) => {
+      const { data, error } = await supabase
+        .from('workflow_tasks')
+        .update({
+          assigned_to: userId,
+          assigned_role: role,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', taskId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as WorkflowTask;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-tasks'] });
+      toast.success('Task assigned successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to assign task: ' + error.message);
+    },
+  });
+
   // Trigger workflow automation
   const triggerWorkflowAutomation = async (event: string, data: Record<string, any>) => {
     try {

@@ -17,26 +17,26 @@ const TEMPLATES = {
     name: 'OLDCARTS',
     description: 'Onset, Location, Duration, Character, Aggravating factors, Relieving factors, Timing, Severity',
     fields: [
-      { key: 'onset', label: 'Onset', type: 'text', required: true },
-      { key: 'location', label: 'Location', type: 'text', required: true },
-      { key: 'duration', label: 'Duration', type: 'text', required: true },
-      { key: 'character', label: 'Character', type: 'text', required: true },
-      { key: 'aggravating', label: 'Aggravating Factors', type: 'text' },
-      { key: 'relieving', label: 'Relieving Factors', type: 'text' },
-      { key: 'timing', label: 'Timing', type: 'text' },
-      { key: 'severity', label: 'Severity (1-10)', type: 'number', min: 1, max: 10 }
+      { key: 'onset', label: 'Onset', type: 'text' as const, required: true },
+      { key: 'location', label: 'Location', type: 'text' as const, required: true },
+      { key: 'duration', label: 'Duration', type: 'text' as const, required: true },
+      { key: 'character', label: 'Character', type: 'text' as const, required: true },
+      { key: 'aggravating', label: 'Aggravating Factors', type: 'text' as const },
+      { key: 'relieving', label: 'Relieving Factors', type: 'text' as const },
+      { key: 'timing', label: 'Timing', type: 'text' as const },
+      { key: 'severity', label: 'Severity (1-10)', type: 'number' as const, min: 1, max: 10 }
     ]
   },
   OPQRST: {
     name: 'OPQRST',
     description: 'Onset, Provocation, Quality, Radiation, Severity, Timing',
     fields: [
-      { key: 'onset', label: 'Onset', type: 'text', required: true },
-      { key: 'provocation', label: 'Provocation/Palliation', type: 'text' },
-      { key: 'quality', label: 'Quality', type: 'text', required: true },
-      { key: 'radiation', label: 'Radiation', type: 'text' },
-      { key: 'severity', label: 'Severity (1-10)', type: 'number', min: 1, max: 10, required: true },
-      { key: 'timing', label: 'Timing', type: 'text', required: true }
+      { key: 'onset', label: 'Onset', type: 'text' as const, required: true },
+      { key: 'provocation', label: 'Provocation/Palliation', type: 'text' as const },
+      { key: 'quality', label: 'Quality', type: 'text' as const, required: true },
+      { key: 'radiation', label: 'Radiation', type: 'text' as const },
+      { key: 'severity', label: 'Severity (1-10)', type: 'number' as const, min: 1, max: 10, required: true },
+      { key: 'timing', label: 'Timing', type: 'text' as const, required: true }
     ]
   }
 };

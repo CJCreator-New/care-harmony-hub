@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeLogMessage, sanitizeForLog } from '@/utils/sanitize';
 
 export interface ErrorLog {
   id: string;
@@ -56,14 +57,14 @@ export function useErrorTracking() {
         });
 
       if (dbError) {
-        console.error('Failed to log error to database:', dbError);
+        console.error('Failed to log error to database:', sanitizeLogMessage(dbError.message));
       }
 
       // Also log to console for development
-      console.error('Error logged:', errorLog);
+      console.error('Error logged:', sanitizeForLog(errorLog));
 
     } catch (loggingError) {
-      console.error('Failed to log error:', loggingError);
+      console.error('Failed to log error:', sanitizeLogMessage(loggingError instanceof Error ? loggingError.message : 'Unknown error'));
     }
   }, []);
 
@@ -78,7 +79,7 @@ export function useErrorTracking() {
         entity_id: (await supabase.auth.getUser()).data.user?.id || '',
       });
     } catch (error) {
-      console.error('Failed to log user action:', error);
+      console.error('Failed to log user action:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
     }
   }, []);
 
@@ -92,13 +93,13 @@ export function useErrorTracking() {
 export function setupGlobalErrorHandling() {
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
+    console.error('Unhandled promise rejection:', sanitizeLogMessage(String(event.reason)));
     // You could log this to your error tracking service
   });
 
   // Handle uncaught errors
   window.addEventListener('error', (event) => {
-    console.error('Uncaught error:', event.error);
+    console.error('Uncaught error:', sanitizeLogMessage(event.error?.message || 'Unknown error'));
     // You could log this to your error tracking service
   });
 

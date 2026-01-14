@@ -22,8 +22,9 @@ import {
   Database,
   Activity,
 } from 'lucide-react';
+import { memo } from 'react';
 
-export function AdminDashboard() {
+export function AdminDashboardComponent() {
   const { profile, hospital, roles } = useAuth();
   const needsRepair = !hospital || !roles.includes('admin');
 
@@ -132,3 +133,5 @@ export function AdminDashboard() {
     </>
   );
 }
+
+export const AdminDashboard = memo(AdminDashboardComponent);

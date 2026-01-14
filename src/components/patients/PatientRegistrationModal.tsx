@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { sanitizeInput, sanitizeArray } from '@/utils/sanitize';
+import { useHIPAACompliance } from '@/hooks/useDataProtection';
 import {
   Dialog,
   DialogContent,
@@ -73,6 +75,7 @@ export function PatientRegistrationModal({
   const { profile } = useAuth();
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
+  const { encryptPHI, prepareSecureLog, validateCompliance } = useHIPAACompliance();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
 
@@ -131,44 +134,63 @@ export function PatientRegistrationModal({
 
       if (mrnError) throw mrnError;
 
-      // Create patient
-      const { data: patientData, error: insertError } = await supabase.from('patients').insert({
+      // Prepare patient data with PHI encryption
+      const patientData = {
         hospital_id: profile.hospital_id,
         mrn: mrnData,
-        first_name: data.first_name,
-        last_name: data.last_name,
+        first_name: sanitizeInput(data.first_name),
+        last_name: sanitizeInput(data.last_name),
         date_of_birth: data.date_of_birth,
         gender: data.gender,
-        phone: data.phone || null,
-        email: data.email || null,
-        address: data.address || null,
-        city: data.city || null,
-        state: data.state || null,
-        zip: data.zip || null,
-        blood_type: data.blood_type || null,
-        allergies: data.allergies ? data.allergies.split(',').map(a => a.trim()) : [],
-        chronic_conditions: data.chronic_conditions ? data.chronic_conditions.split(',').map(c => c.trim()) : [],
-        emergency_contact_name: data.emergency_contact_name || null,
-        emergency_contact_phone: data.emergency_contact_phone || null,
-        emergency_contact_relationship: data.emergency_contact_relationship || null,
-        insurance_provider: data.insurance_provider || null,
-        insurance_policy_number: data.insurance_policy_number || null,
-        insurance_group_number: data.insurance_group_number || null,
-        notes: data.notes || null,
+        phone: data.phone ? sanitizeInput(data.phone) : null,
+        email: data.email ? sanitizeInput(data.email) : null,
+        address: data.address ? sanitizeInput(data.address) : null,
+        city: data.city ? sanitizeInput(data.city) : null,
+        state: data.state ? sanitizeInput(data.state) : null,
+        zip: data.zip ? sanitizeInput(data.zip) : null,
+        blood_type: data.blood_type ? sanitizeInput(data.blood_type) : null,
+        allergies: data.allergies ? sanitizeArray(data.allergies) : [],
+        chronic_conditions: data.chronic_conditions ? sanitizeArray(data.chronic_conditions) : [],
+        emergency_contact_name: data.emergency_contact_name ? sanitizeInput(data.emergency_contact_name) : null,
+        emergency_contact_phone: data.emergency_contact_phone ? sanitizeInput(data.emergency_contact_phone) : null,
+        emergency_contact_relationship: data.emergency_contact_relationship ? sanitizeInput(data.emergency_contact_relationship) : null,
+        insurance_provider: data.insurance_provider ? sanitizeInput(data.insurance_provider) : null,
+        insurance_policy_number: data.insurance_policy_number ? sanitizeInput(data.insurance_policy_number) : null,
+        insurance_group_number: data.insurance_group_number ? sanitizeInput(data.insurance_group_number) : null,
+        notes: data.notes ? sanitizeInput(data.notes) : null,
+      };
+
+      // Encrypt PHI fields
+      const { data: encryptedPatientData, metadata: encryptionMetadata } = await encryptPHI(patientData);
+
+      // Store encryption metadata (this would typically go to a separate secure table)
+      // For now, we'll store it as part of the patient record or in a related table
+      // TODO: Implement secure storage for encryption metadata
+
+      // Create patient with encrypted PHI data
+      const { data: patientRecord, error: insertError } = await supabase.from('patients').insert({
+        ...encryptedPatientData,
+        // Store encryption metadata in a JSON field (in production, this should be encrypted too)
+        encryption_metadata: encryptionMetadata,
       }).select().single();
 
       if (insertError) throw insertError;
 
-      // Log activity
+      // Log activity with masked data for security
+      const maskedDetails = prepareSecureLog({
+        patient_name: `${data.first_name} ${data.last_name}`,
+        mrn: mrnData,
+        registered_by: profile.id,
+        // Include other non-sensitive details
+        gender: data.gender,
+        blood_type: data.blood_type
+      });
+
       await logActivity({
         actionType: 'patient_create',
         entityType: 'patient',
-        entityId: patientData.id,
-        details: {
-          patient_name: `${data.first_name} ${data.last_name}`,
-          mrn: mrnData,
-          registered_by: profile.id
-        }
+        entityId: patientRecord.id,
+        details: maskedDetails
       });
 
       toast({

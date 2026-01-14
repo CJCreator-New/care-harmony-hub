@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 import type { CareGap, CreateCareGapData, UpdateCareGapData } from '@/types/enhancement';
 
 export function useCareGaps() {
@@ -83,7 +84,7 @@ export function useCareGaps() {
       });
     },
     onError: (error) => {
-      console.error('Error creating care gap:', error);
+      console.error('Error creating care gap:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to create care gap. Please try again.",
@@ -119,7 +120,7 @@ export function useCareGaps() {
       });
     },
     onError: (error) => {
-      console.error('Error updating care gap:', error);
+      console.error('Error updating care gap:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to update care gap. Please try again.",
@@ -153,7 +154,7 @@ export function useCareGaps() {
       });
     },
     onError: (error) => {
-      console.error('Error closing care gap:', error);
+      console.error('Error closing care gap:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to close care gap. Please try again.",

@@ -29,4 +29,16 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-expressions": "warn",
     },
   },
+  {
+    files: ["src/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/contexts/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": ["warn", { allowExportNames: ["useAuth", "useTheme", "useVideoModal", "useImagePreloader", "isPasswordStrong"] }],
+    },
+  },
 );

@@ -74,3 +74,52 @@ CareSync is a comprehensive Hospital Management System built with React 18, Type
 - `tests/e2e/`: Complete E2E test suite with 155+ tests covering all critical workflows
 - `src/hooks/usePatients.ts`: Example data fetching pattern
 - `src/contexts/AuthContext.tsx`: Authentication state management
+
+## Advanced Patterns & Conventions
+
+### Component Architecture
+- **Lazy Loading**: Use `React.lazy()` for route components with `Suspense` boundaries
+- **Error Boundaries**: Wrap async components with `ErrorBoundary` for graceful failures
+- **Role-Based Rendering**: Use `hasAnyRole()` hook for conditional UI elements
+- **Performance**: Implement `React.memo()` for expensive components, use `useMemo()` for computed values
+
+### Data Fetching Patterns
+- **Hospital Scoping**: All queries automatically filter by `hospital_id` from auth context
+- **Query Keys**: Use descriptive keys like `['patients', hospitalId]` for cache management
+- **Optimistic Updates**: Use TanStack Query mutations with `onMutate` for immediate UI feedback
+- **Error Handling**: Use `toast.error()` from Sonner for user-friendly error messages
+
+### Form Validation
+- **Schema Validation**: Define Zod schemas for form data validation
+- **React Hook Form**: Use `useForm()` with `zodResolver()` for type-safe forms
+- **Field Arrays**: Use `useFieldArray()` for dynamic form sections (medications, allergies)
+
+### Supabase Integration
+- **RLS Policies**: All tables have hospital-scoped Row Level Security
+- **Edge Functions**: Use for complex business logic (AI recommendations, notifications)
+- **Real-time**: Subscribe to changes with `supabase.channel()` for live updates
+- **Type Safety**: Use generated `Database` types from Supabase
+
+### Testing Patterns
+- **Mock Setup**: Mock `@/contexts/AuthContext` and `@/hooks/usePermissions` in tests
+- **Query Client**: Wrap tests with `QueryClientProvider` for TanStack Query
+- **E2E Coverage**: Focus on critical patient flows (check-in → consultation → discharge)
+- **Role Testing**: Test each role's access patterns and UI restrictions
+
+### Deployment & CI/CD
+- **Build Optimization**: Use `vite.config.production.ts` for production builds
+- **Environment Config**: Separate configs for staging/production deployments
+- **Health Checks**: Automated health checks with `scripts/health-check.sh`
+- **Rollback**: Automated rollback procedures with `scripts/rollback.sh`
+
+### Integration Points
+- **External APIs**: FHIR integration for healthcare interoperability
+- **File Uploads**: Use Supabase Storage for secure file handling
+- **Notifications**: Real-time notifications via Supabase Realtime
+- **Analytics**: Custom analytics engine for KPI tracking and reporting
+
+### Performance Considerations
+- **Bundle Splitting**: Lazy load route components to reduce initial bundle size
+- **Image Optimization**: Use `optimized-image.tsx` component for responsive images
+- **Caching Strategy**: Leverage TanStack Query's intelligent caching (5min stale time)
+- **PWA Features**: Service worker for offline functionality and fast loading

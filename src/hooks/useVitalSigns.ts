@@ -133,7 +133,7 @@ export function useRecordVitals() {
       toast.success('Vitals recorded successfully');
     },
     onError: (error) => {
-      console.error('Error recording vitals:', error);
+      console.error('Error recording vitals:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast.error('Failed to record vitals');
     },
   });

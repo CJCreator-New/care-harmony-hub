@@ -59,7 +59,7 @@ export function useTriageAssessments() {
       });
     },
     onError: (error) => {
-      console.error('Error creating triage assessment:', error);
+      console.error('Error creating triage assessment:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to create triage assessment. Please try again.",

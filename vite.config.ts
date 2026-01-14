@@ -7,12 +7,48 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      }
-    }),
+    // VitePWA temporarily disabled due to build issues
+    // VitePWA({
+    //   registerType: 'autoUpdate',
+    //   includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+    //   manifest: {
+    //     name: 'MediCare HMS',
+    //     short_name: 'MediCare',
+    //     description: 'Hospital Management System',
+    //     theme_color: '#0ea5e9',
+    //     icons: [
+    //       {
+    //         src: 'pwa-192x192.png',
+    //         sizes: '192x192',
+    //         type: 'image/png'
+    //       },
+    //       {
+    //         src: 'pwa-512x512.png',
+    //         sizes: '512x512',
+    //         type: 'image/png'
+    //       }
+    //     ]
+    //   },
+    //   workbox: {
+    //     globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+    //     runtimeCaching: [
+    //       {
+    //         urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+    //         handler: 'NetworkFirst',
+    //         options: {
+    //           cacheName: 'supabase-cache',
+    //           expiration: {
+    //             maxEntries: 50,
+    //             maxAgeSeconds: 60 * 60 * 24 // 24 hours
+    //           }
+    //         }
+    //       }
+    //     ]
+    //   },
+    //   devOptions: {
+    //     enabled: false
+    //   }
+    // }),
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,6 +67,88 @@ const genderLabels: Record<string, string> = {
   other: 'Other',
   prefer_not_to_say: 'Not Specified',
 };
+
+// Memoized Patient Row Component for performance optimization
+const PatientRow = memo(({ patient, onViewProfile, calculateAge }: {
+  patient: any;
+  onViewProfile: (patient: any) => void;
+  calculateAge: (dob: string) => number;
+}) => (
+  <TableRow key={patient.id}>
+    <TableCell>
+      <Badge variant="outline" className="font-mono">
+        {patient.mrn}
+      </Badge>
+    </TableCell>
+    <TableCell className="font-medium">
+      {patient.first_name} {patient.last_name}
+    </TableCell>
+    <TableCell>
+      <div className="flex items-center gap-2">
+        <span>{calculateAge(patient.date_of_birth)} yrs</span>
+        <Badge variant="secondary" className="text-xs">
+          {genderLabels[patient.gender] || patient.gender}
+        </Badge>
+      </div>
+    </TableCell>
+    <TableCell>
+      <div className="space-y-1">
+        {patient.phone && (
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Phone className="h-3 w-3" />
+            {patient.phone}
+          </div>
+        )}
+        {patient.email && (
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            {patient.email}
+          </div>
+        )}
+        {!patient.phone && !patient.email && (
+          <span className="text-sm text-muted-foreground">—</span>
+        )}
+      </div>
+    </TableCell>
+    <TableCell>
+      {patient.blood_type ? (
+        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
+          {patient.blood_type}
+        </Badge>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      )}
+    </TableCell>
+    <TableCell className="text-muted-foreground">
+      {format(new Date(patient.created_at), 'MMM d, yyyy')}
+    </TableCell>
+    <TableCell>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onViewProfile(patient)}>
+            <Eye className="h-4 w-4 mr-2" />
+            View Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Calendar className="h-4 w-4 mr-2" />
+            Book Appointment
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <FileText className="h-4 w-4 mr-2" />
+            Medical Records
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TableCell>
+  </TableRow>
+));
+
+PatientRow.displayName = 'PatientRow';
 
 export default function PatientsPage() {
   const { profile } = useAuth();
@@ -248,88 +330,20 @@ export default function PatientsPage() {
               </TableHeader>
               <TableBody>
                 {patients.map((patient) => (
-                  <TableRow key={patient.id}>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono">
-                        {patient.mrn}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {patient.first_name} {patient.last_name}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{calculateAge(patient.date_of_birth)} yrs</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {genderLabels[patient.gender] || patient.gender}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {patient.phone && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {patient.phone}
-                          </div>
-                        )}
-                        {patient.email && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {patient.email}
-                          </div>
-                        )}
-                        {!patient.phone && !patient.email && (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {patient.blood_type ? (
-                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
-                          {patient.blood_type}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(patient.created_at), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              logActivity({
-                                actionType: 'patient_view',
-                                entityType: 'patient',
-                                entityId: patient.id,
-                                details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
-                              });
-                              toast({ title: 'Patient view logged', description: `Viewing ${patient.first_name} ${patient.last_name}` });
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Profile
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Calendar className="h-4 w-4 mr-2" />
-                            Book Appointment
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <FileText className="h-4 w-4 mr-2" />
-                            Medical Records
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                  <PatientRow
+                    key={patient.id}
+                    patient={patient}
+                    calculateAge={calculateAge}
+                    onViewProfile={(patient) => {
+                      logActivity({
+                        actionType: 'patient_view',
+                        entityType: 'patient',
+                        entityId: patient.id,
+                        details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
+                      });
+                      toast({ title: 'Patient view logged', description: `Viewing ${patient.first_name} ${patient.last_name}` });
+                    }}
+                  />
                 ))}
               </TableBody>
             </Table>

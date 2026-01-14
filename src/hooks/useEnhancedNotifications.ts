@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface NotificationChannel {
   id: string;
@@ -151,7 +152,7 @@ export const useEnhancedNotifications = () => {
       queryClient.invalidateQueries({ queryKey: ['real-time-messages'] });
     },
     onError: (error) => {
-      console.error('Error sending message:', error);
+      console.error('Error sending message:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",

@@ -22,15 +22,17 @@ import {
   Loader2,
   UserCheck,
   AlertTriangle,
+  Zap,
 } from 'lucide-react';
 import { useDoctorQueue } from '@/hooks/useDoctorStats';
 import { useTodayAppointments } from '@/hooks/useAppointments';
-import { useCreateConsultation } from '@/hooks/useConsultations';
+import { useGetOrCreateConsultation } from '@/hooks/useConsultations';
 import { usePatients } from '@/hooks/usePatients';
 import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format, differenceInYears, differenceInMinutes } from 'date-fns';
+import { QuickConsultationModal } from './QuickConsultationModal';
 
 interface StartConsultationModalProps {
   open: boolean;
@@ -44,25 +46,35 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
   const { data: appointments, isLoading: appointmentsLoading } = useTodayAppointments();
   const { data: patients, isLoading: patientsLoading } = usePatients();
   const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
-  const createConsultation = useCreateConsultation();
+  const getOrCreateConsultation = useGetOrCreateConsultation();
   const [startingId, setStartingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [quickConsultation, setQuickConsultation] = useState<any>(null);
 
-  const handleStartConsultation = async (patientId: string, appointmentId?: string | null) => {
+  const handleStartConsultation = async (patientId: string) => {
     if (!profile?.id || !hospital?.id) return;
 
     setStartingId(patientId);
     try {
-      const result = await createConsultation.mutateAsync({
-        patient_id: patientId,
-        appointment_id: appointmentId || null,
-      });
-
-      toast.success('Consultation started');
+      const result = await getOrCreateConsultation.mutateAsync(patientId);
       onOpenChange(false);
       navigate(`/consultations/${result.id}`);
     } catch (error) {
-      toast.error('Failed to start consultation');
+      console.error('Failed to start consultation:', error);
+    } finally {
+      setStartingId(null);
+    }
+  };
+
+  const handleQuickConsultation = async (patientId: string) => {
+    if (!profile?.id || !hospital?.id) return;
+
+    setStartingId(patientId);
+    try {
+      const result = await getOrCreateConsultation.mutateAsync(patientId);
+      setQuickConsultation(result);
+    } catch (error) {
+      console.error('Failed to start consultation:', error);
     } finally {
       setStartingId(null);
     }
@@ -192,20 +204,38 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
                           </div>
                         )}
                       </div>
-                      <Button
-                        onClick={() => handleStartConsultation(entry.patient_id, entry.appointment_id)}
-                        disabled={startingId === entry.patient_id}
-                        className="bg-success hover:bg-success/90"
-                      >
-                        {startingId === entry.patient_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            Start
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleQuickConsultation(entry.patient_id)}
+                          disabled={startingId === entry.patient_id}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {startingId === entry.patient_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Quick
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={() => handleStartConsultation(entry.patient_id)}
+                          disabled={startingId === entry.patient_id}
+                          className="bg-success hover:bg-success/90"
+                          size="sm"
+                        >
+                          {startingId === entry.patient_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-2" />
+                              Full
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -258,7 +288,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
                         </div>
                       </div>
                       <Button
-                        onClick={() => handleStartConsultation(entry.patient_id, entry.appointment_id)}
+                        onClick={() => handleStartConsultation(entry.patient_id)}
                         disabled={startingId === entry.patient_id}
                       >
                         {startingId === entry.patient_id ? (
@@ -322,7 +352,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
                         )}
                       </div>
                       <Button
-                        onClick={() => handleStartConsultation(apt.patient_id, apt.id)}
+                        onClick={() => handleStartConsultation(apt.patient_id)}
                         disabled={startingId === apt.patient_id}
                       >
                         {startingId === apt.patient_id ? (
@@ -414,6 +444,20 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Quick Consultation Modal */}
+      {quickConsultation && (
+        <QuickConsultationModal
+          open={!!quickConsultation}
+          onOpenChange={(open) => {
+            if (!open) {
+              setQuickConsultation(null);
+              onOpenChange(false);
+            }
+          }}
+          consultation={quickConsultation}
+        />
+      )}
     </Dialog>
   );
 }

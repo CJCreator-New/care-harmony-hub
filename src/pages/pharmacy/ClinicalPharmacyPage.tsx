@@ -41,29 +41,29 @@ export default function ClinicalPharmacyPage() {
           <StatsCard
             title="Clinical Interventions"
             value="24"
-            description="This month"
-            icon={<Stethoscope className="h-4 w-4" />}
+            subtitle="This month"
+            icon={Stethoscope}
             trend={{ value: 12, isPositive: true }}
           />
           <StatsCard
             title="Therapy Reviews"
             value="18"
-            description="Completed"
-            icon={<Users className="h-4 w-4" />}
+            subtitle="Completed"
+            icon={Users}
             trend={{ value: 8, isPositive: true }}
           />
           <StatsCard
             title="DUR Findings"
             value="31"
-            description="7 unresolved"
-            icon={<Target className="h-4 w-4" />}
+            subtitle="7 unresolved"
+            icon={Target}
             trend={{ value: -3, isPositive: false }}
           />
           <StatsCard
             title="Cost Savings"
             value="$2,450"
-            description="This month"
-            icon={<TrendingUp className="h-4 w-4" />}
+            subtitle="This month"
+            icon={TrendingUp}
             trend={{ value: 15, isPositive: true }}
           />
         </div>

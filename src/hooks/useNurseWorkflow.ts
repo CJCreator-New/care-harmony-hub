@@ -430,12 +430,25 @@ export const useCreateChecklist = () => {
   }) => {
     setLoading(true);
     try {
+      // Get current user's hospital_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('hospital_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.hospital_id) throw new Error('Hospital ID not found');
+
       const { data: result, error } = await supabase
         .from('patient_prep_checklists')
         .insert({
           patient_id: data.patientId,
           queue_entry_id: data.queueEntryId,
           appointment_id: data.appointmentId,
+          hospital_id: profile.hospital_id,
           vitals_completed: false,
           allergies_verified: false,
           medications_reviewed: false,

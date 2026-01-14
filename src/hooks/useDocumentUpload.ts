@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 interface UploadOptions {
   patientId?: string;
@@ -85,7 +86,7 @@ export const useDocumentUpload = () => {
       toast.success('Document uploaded successfully');
       return docData;
     } catch (error) {
-      console.error('Error uploading document:', error);
+      console.error('Error uploading document:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast.error('Failed to upload document');
       return null;
     } finally {

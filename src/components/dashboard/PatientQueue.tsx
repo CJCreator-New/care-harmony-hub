@@ -32,7 +32,7 @@ const statusLabels = {
 
 export function PatientQueue() {
   const { data: queue = [], isLoading } = useActiveQueue();
-  const { data: checklists = [] } = usePatientChecklists();
+  const { checklists = [] } = usePatientChecklists();
 
   // Enable realtime updates
   useQueueRealtime();

@@ -84,7 +84,12 @@ export function useConsultations() {
   return useQuery({
     queryKey: ['consultations', hospital?.id],
     queryFn: async () => {
-      if (!hospital?.id) return [];
+      if (!hospital?.id) {
+        console.log('No hospital ID available');
+        return [];
+      }
+
+      console.log('Fetching consultations for hospital:', hospital.id);
 
       const { data, error } = await supabase
         .from('consultations')
@@ -94,10 +99,14 @@ export function useConsultations() {
           doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
         `)
         .eq('hospital_id', hospital.id)
-        .neq('status', 'completed')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching consultations:', error);
+        throw error;
+      }
+      
+      console.log('Consultations fetched:', data?.length || 0);
       return data as Consultation[];
     },
     enabled: !!hospital?.id,
@@ -135,25 +144,28 @@ export function useCreateConsultation() {
     mutationFn: async (data: ConsultationInsert) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
 
-      // Check for existing active consultation first
+      // Check for existing consultation for this patient (any status)
       const { data: existingConsultation } = await supabase
         .from('consultations')
-        .select('id')
+        .select('id, status')
         .eq('patient_id', data.patient_id)
-        .eq('doctor_id', profile.id)
         .neq('status', 'completed')
         .maybeSingle();
 
       if (existingConsultation) {
-        // Return existing consultation instead of creating duplicate
+        // Return existing consultation
         const { data: consultation, error } = await supabase
           .from('consultations')
-          .select()
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
           .eq('id', existingConsultation.id)
           .single();
         
         if (error) throw error;
-        toast.info('Consultation already exists for this patient');
+        toast.info('Resuming existing consultation');
         return consultation as Consultation;
       }
 
@@ -167,7 +179,11 @@ export function useCreateConsultation() {
           current_step: 1,
           started_at: new Date().toISOString(),
         })
-        .select()
+        .select(`
+          ${CONSULTATION_COLUMNS.detail},
+          patient:patients(${PATIENT_COLUMNS.detail}),
+          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+        `)
         .single();
 
       if (error) throw error;
@@ -179,6 +195,83 @@ export function useCreateConsultation() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to start consultation: ${error.message}`);
+    },
+  });
+}
+
+export function useGetOrCreateConsultation() {
+  const queryClient = useQueryClient();
+  const { hospital, profile } = useAuth();
+
+  return useMutation({
+    mutationFn: async (patientId: string) => {
+      if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
+
+      // First, try to find existing consultation
+      const { data: existingConsultation } = await supabase
+        .from('consultations')
+        .select(`
+          ${CONSULTATION_COLUMNS.detail},
+          patient:patients(${PATIENT_COLUMNS.detail}),
+          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+        `)
+        .eq('patient_id', patientId)
+        .neq('status', 'completed')
+        .maybeSingle();
+
+      if (existingConsultation) {
+        // Update queue entry to in_service if not already
+        await supabase
+          .from('queue_entries')
+          .update({ 
+            status: 'in_service', 
+            service_start_time: new Date().toISOString() 
+          })
+          .eq('patient_id', patientId)
+          .in('status', ['waiting', 'called']);
+
+        return existingConsultation as Consultation;
+      }
+
+      // Create new consultation if none exists
+      const { data: consultation, error } = await supabase
+        .from('consultations')
+        .insert({
+          patient_id: patientId,
+          hospital_id: hospital.id,
+          doctor_id: profile.id,
+          status: 'patient_overview' as ConsultationStatus,
+          current_step: 1,
+          started_at: new Date().toISOString(),
+        })
+        .select(`
+          ${CONSULTATION_COLUMNS.detail},
+          patient:patients(${PATIENT_COLUMNS.detail}),
+          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      // Update queue entry to in_service
+      await supabase
+        .from('queue_entries')
+        .update({ 
+          status: 'in_service', 
+          service_start_time: new Date().toISOString() 
+        })
+        .eq('patient_id', patientId)
+        .in('status', ['waiting', 'called']);
+
+      return consultation as Consultation;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['consultations'] });
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
+      toast.success('Consultation started');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to load consultation: ${error.message}`);
     },
   });
 }
@@ -257,7 +350,7 @@ export function useAutoSaveConsultation(consultationId: string | undefined) {
         last_auto_save: new Date().toISOString(),
       });
     }, 30000);
-  }, [consultationId, updateConsultation]);
+  }, [updateConsultation]);
 
   useEffect(() => {
     return () => {
@@ -297,4 +390,31 @@ export function useConsultationsRealtime() {
       supabase.removeChannel(channel);
     };
   }, [hospital?.id, queryClient]);
+}
+
+export function usePatientsReadyForConsultation() {
+  const { hospital } = useAuth();
+
+  return useQuery({
+    queryKey: ['ready-patients', hospital?.id],
+    queryFn: async () => {
+      if (!hospital?.id) return [];
+
+      const { data, error } = await supabase
+        .from('patient_prep_checklists')
+        .select(`
+          *,
+          patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
+          queue_entry:queue_entries!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
+        `)
+        .eq('hospital_id', hospital.id)
+        .eq('ready_for_doctor', true)
+        .in('queue_entry.status', ['waiting', 'called']);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!hospital?.id,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
 }
