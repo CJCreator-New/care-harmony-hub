@@ -292,5 +292,4 @@ export function DeviceManagement() {
       </Card>
     </div>
   );
-}</content>
-<parameter name="filePath">c:\Users\HP\OneDrive\Desktop\Projects\VS Code\AroCord-HIMS\care-harmony-hub\src\components\user\DeviceManagement.tsx
+}

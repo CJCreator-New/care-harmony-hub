@@ -568,5 +568,7 @@ export function SecurityMonitoringDashboard() {
             </div>
           )}
         </CardContent>
-      </Card></content>
-<parameter name="filePath">c:\Users\HP\OneDrive\Desktop\Projects\VS Code\AroCord-HIMS\care-harmony-hub\src\components\admin\SecurityMonitoringDashboard.tsx
+      </Card>
+    </div>
+  );
+}

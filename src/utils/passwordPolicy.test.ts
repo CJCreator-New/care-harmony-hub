@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { passwordPolicyManager } from '../passwordPolicy';
+import { supabase } from '@/integrations/supabase/client';
 
 // Mock Supabase client
 vi.mock('@/integrations/supabase/client', () => ({
@@ -43,7 +44,7 @@ describe('PasswordPolicyManager', () => {
         max_age_days: 60,
       };
 
-      const mockSupabase = vi.mocked(require('@/integrations/supabase/client').supabase);
+      const mockSupabase = vi.mocked(supabase);
       mockSupabase.from.mockReturnValueOnce({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -127,7 +128,7 @@ describe('PasswordPolicyManager', () => {
       expect(/[A-Z]/.test(password)).toBe(true);
       expect(/[a-z]/.test(password)).toBe(true);
       expect(/\d/.test(password)).toBe(true);
-      expect(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)).toBe(true);
+      expect(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?]/.test(password)).toBe(true);
     });
   });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { deviceManager } from '../deviceManager';
+import { supabase } from '@/integrations/supabase/client';
 
 // Mock Supabase client
 vi.mock('@/integrations/supabase/client', () => ({
@@ -73,7 +74,7 @@ describe('DeviceManager', () => {
 
     it('should handle registration errors gracefully', async () => {
       // Mock a failure scenario
-      const mockSupabase = vi.mocked(require('@/integrations/supabase/client').supabase);
+      const mockSupabase = vi.mocked(supabase);
       mockSupabase.from.mockReturnValueOnce({
         insert: vi.fn(() => Promise.resolve({ data: null, error: new Error('DB Error') })),
       } as any);
@@ -95,7 +96,7 @@ describe('DeviceManager', () => {
         },
       ];
 
-      const mockSupabase = vi.mocked(require('@/integrations/supabase/client').supabase);
+      const mockSupabase = vi.mocked(supabase);
       mockSupabase.from.mockReturnValueOnce({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({

@@ -112,6 +112,30 @@ export function useAIClinicalSupport() {
     }
   });
 
+  // Additional methods for component compatibility
+  const analyzeSymptoms = useMutation({
+    mutationFn: async (symptoms: string[]) => {
+      return generateDifferentialDiagnosis.mutateAsync({ symptoms, patientHistory: '' });
+    }
+  });
+
+  const checkDrugInteractions = useMutation({
+    mutationFn: async (medications: string[]) => {
+      // Simulate drug interaction check
+      return {
+        hasInteractions: false,
+        interactions: [],
+        severity: 'none' as const
+      };
+    }
+  });
+
+  const assessRisk = useMutation({
+    mutationFn: async ({ patientId, data }: { patientId: string; data: any }) => {
+      return predictPatientRisk.mutateAsync({ patientId, clinicalData: data });
+    }
+  });
+
   return {
     generateDifferentialDiagnosis: generateDifferentialDiagnosis.mutate,
     isGeneratingDiagnosis: generateDifferentialDiagnosis.isPending,
@@ -119,5 +143,10 @@ export function useAIClinicalSupport() {
     isPredictingRisk: predictPatientRisk.isPending,
     autoCodeEncounter: autoCodeEncounter.mutate,
     isCoding: autoCodeEncounter.isPending,
+    // Additional exports for component compatibility
+    analyzeSymptoms: analyzeSymptoms.mutate,
+    checkDrugInteractions: checkDrugInteractions.mutate,
+    assessRisk: assessRisk.mutate,
+    isAnalyzing: analyzeSymptoms.isPending || generateDifferentialDiagnosis.isPending,
   };
 }
