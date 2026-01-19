@@ -19,6 +19,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useLabTechStats, usePendingLabOrders } from '@/hooks/usePharmacyLabStats';
+import { CriticalValueAlert } from '@/components/lab/CriticalValueAlert';
 import { formatDistanceToNow, differenceInYears } from 'date-fns';
 
 export function LabTechDashboard() {
@@ -69,6 +70,9 @@ export function LabTechDashboard() {
 
   return (
     <>
+      {/* Critical Value Alert Background Component */}
+      <CriticalValueAlert />
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

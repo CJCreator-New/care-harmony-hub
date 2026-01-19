@@ -38,7 +38,7 @@ export function useAuditLogger() {
         referrer: document.referrer
       });
     }
-  }, [user, hospital, window.location.pathname]);
+  }, [user, hospital]); // Removed window.location.pathname as it's not reactive
 
   return { logActivity };
 }

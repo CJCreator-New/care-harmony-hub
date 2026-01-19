@@ -35,6 +35,7 @@ import { useUpdateAppointmentRequest } from '@/hooks/useAppointmentRequests';
 import { PatientCheckInModal } from '@/components/receptionist/PatientCheckInModal';
 import { PatientCheckOutModal } from '@/components/receptionist/PatientCheckOutModal';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
+import { EnhancedCheckIn } from '@/components/receptionist/EnhancedCheckIn';
 import { format, parseISO } from 'date-fns';
 
 export function ReceptionistDashboard() {
@@ -167,8 +168,11 @@ export function ReceptionistDashboard() {
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Scheduled Appointments */}
+        {/* Left Column - Enhanced Check-In & Appointments */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Enhanced Check-In */}
+          <EnhancedCheckIn />
+
           {/* Pending Appointment Requests */}
           {pendingRequests.length > 0 && (
             <Card>

@@ -308,7 +308,7 @@ export function useCrossRoleCommunication() {
     return () => {
       channel.unsubscribe();
     };
-  }, [profile?.id, hospital?.id, queryClient]);
+  }, [profile?.id, profile?.role, hospital?.id, queryClient]);
 
   // Get messages by type
   const getMessagesByType = (type: CommunicationMessage['message_type']) => {

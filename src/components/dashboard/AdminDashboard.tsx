@@ -10,6 +10,7 @@ import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 import { StaffOnboardingWizard } from '@/components/admin/StaffOnboardingWizard';
 import { TestDataSeederCard } from '@/components/admin/TestDataSeederCard';
 import { RealTimeDashboard } from '@/components/admin/RealTimeDashboard';
+import { WorkflowMetricsDashboard } from '@/components/workflow/WorkflowMetricsDashboard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -105,13 +106,16 @@ export function AdminDashboardComponent() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6">
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <PatientQueue />
-              <UpcomingAppointments />
-            </div>
-            <div>
-              <RecentActivity />
+          <div className="space-y-6">
+            <WorkflowMetricsDashboard />
+            <div className="grid lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <PatientQueue />
+                <UpcomingAppointments />
+              </div>
+              <div>
+                <RecentActivity />
+              </div>
             </div>
           </div>
         </TabsContent>
