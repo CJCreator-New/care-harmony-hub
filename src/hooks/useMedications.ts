@@ -153,7 +153,7 @@ export function useMedicationsRealtime() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [hospital?.id, queryClient]);
 }

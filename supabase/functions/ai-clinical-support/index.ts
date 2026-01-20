@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit } from "../_shared/rateLimit.ts";
+import { validateAIClinicalRequest } from "../_shared/validation.ts";
+import { authorize } from "../_shared/authorize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,12 +31,31 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Apply rate limiting
+  const rateLimitResponse = await rateLimit(req, { limit: 10, window: 60 });
+  if (rateLimitResponse) return rateLimitResponse;
+
+  // Check authorization
+  const authResponse = await authorize(req, ["doctor", "admin"]);
+  if (authResponse) return authResponse;
+
   try {
     const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, data } = await req.json();
+    const body = await req.json();
+    
+    // Validate input
+    const validation = validateAIClinicalRequest(body);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { action, data } = validation.data;
 
     switch (action) {
       case 'analyze_symptoms':

@@ -65,7 +65,7 @@ export function useReceptionistStats() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [hospital?.id, queryClient]);
 

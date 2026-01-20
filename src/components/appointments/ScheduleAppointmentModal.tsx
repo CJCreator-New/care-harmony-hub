@@ -224,46 +224,44 @@ export function ScheduleAppointmentModal({
                           onChange={(e) => setPatientSearch(e.target.value)}
                         />
                       </div>
-                      {patientSearch && (
-                        <div className="border rounded-md max-h-48 overflow-auto">
-                          <Table>
-                            <TableHeader>
+                      <div className="border rounded-md max-h-48 overflow-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>MRN</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {patientsLoading ? (
                               <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>MRN</TableHead>
+                                <TableCell colSpan={2} className="text-center py-4">
+                                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                </TableCell>
                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {patientsLoading ? (
-                                <TableRow>
-                                  <TableCell colSpan={2} className="text-center py-4">
-                                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                            ) : filteredPatients?.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
+                                  {patientSearch ? "No patients found" : "No patients available"}
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredPatients?.slice(0, 10).map((patient) => (
+                                <TableRow
+                                  key={patient.id}
+                                  className="cursor-pointer hover:bg-muted/50"
+                                  onClick={() => handlePatientSelect(patient)}
+                                >
+                                  <TableCell>
+                                    {patient.first_name} {patient.last_name}
                                   </TableCell>
+                                  <TableCell>{patient.mrn}</TableCell>
                                 </TableRow>
-                              ) : filteredPatients?.length === 0 ? (
-                                <TableRow>
-                                  <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
-                                    No patients found
-                                  </TableCell>
-                                </TableRow>
-                              ) : (
-                                filteredPatients?.slice(0, 5).map((patient) => (
-                                  <TableRow
-                                    key={patient.id}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() => handlePatientSelect(patient)}
-                                  >
-                                    <TableCell>
-                                      {patient.first_name} {patient.last_name}
-                                    </TableCell>
-                                    <TableCell>{patient.mrn}</TableCell>
-                                  </TableRow>
-                                ))
-                              )}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                   <FormMessage />

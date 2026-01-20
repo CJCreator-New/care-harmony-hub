@@ -1,11 +1,14 @@
 import { useWorkflowMetrics, useWorkflowStages } from '@/hooks/useWorkflowMetrics';
+import { useBottleneckDetection } from '@/hooks/useBottleneckDetection';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Clock, TrendingUp, Users } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Activity, Clock, TrendingUp, Users, AlertTriangle } from 'lucide-react';
 
 export function WorkflowMetricsDashboard() {
   const { data: metrics, isLoading } = useWorkflowMetrics();
   const stages = useWorkflowStages();
+  const { data: bottlenecks } = useBottleneckDetection();
 
   if (isLoading) {
     return <div className="text-center py-8">Loading metrics...</div>;
@@ -86,6 +89,38 @@ export function WorkflowMetricsDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {bottlenecks && bottlenecks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Detected Bottlenecks
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {bottlenecks.map((bottleneck, index) => (
+                <Alert key={index} variant={bottleneck.severity === 'critical' ? 'destructive' : 'default'}>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle className="flex items-center gap-2">
+                    {bottleneck.stage_name}
+                    <Badge variant={bottleneck.severity === 'critical' ? 'destructive' : 'secondary'}>
+                      {bottleneck.severity}
+                    </Badge>
+                  </AlertTitle>
+                  <AlertDescription>
+                    <div className="text-sm space-y-1">
+                      <p>Average wait: {bottleneck.avg_wait_time.toFixed(1)} min | Queue: {bottleneck.queue_length}</p>
+                      <p className="font-medium">{bottleneck.recommendation}</p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

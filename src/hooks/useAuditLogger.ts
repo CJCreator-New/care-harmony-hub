@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 export function useAuditLogger() {
   const { user, hospital } = useAuth();
@@ -26,7 +27,7 @@ export function useAuditLogger() {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Failed to log audit activity:', error);
+      console.error('Failed to log audit activity:', sanitizeForLog(String(error)));
     }
   };
 

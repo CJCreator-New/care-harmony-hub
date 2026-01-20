@@ -64,6 +64,7 @@ const SmartSchedulerPage = lazy(() => import("./pages/receptionist/SmartSchedule
 const ClinicalPharmacyPage = lazy(() => import("./pages/pharmacy/ClinicalPharmacyPage"));
 const LabAutomationPage = lazy(() => import("./pages/lab/LabAutomationPage"));
 const WorkflowDashboard = lazy(() => import("./pages/integration/WorkflowDashboard"));
+const WorkflowOptimizationPage = lazy(() => import("./pages/workflow/WorkflowOptimizationPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -472,6 +473,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']}>
             <WorkflowDashboard />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/workflow/optimization"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']}>
+            <WorkflowOptimizationPage />
           </RoleProtectedRoute>
         }
       />

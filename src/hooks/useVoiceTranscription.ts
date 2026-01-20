@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { sanitizeLogMessage } from '@/utils/sanitize';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 interface VoiceTranscriptionOptions {
   language?: string;

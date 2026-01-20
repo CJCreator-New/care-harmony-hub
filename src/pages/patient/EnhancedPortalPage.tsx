@@ -37,6 +37,7 @@ import { MedicationHistory } from '@/components/patient/MedicationHistory';
 import { useHealthMonitoring, VitalSign, HealthMetric, HealthGoal } from '@/hooks/useHealthMonitoring';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const VITAL_SIGNS_CONFIG = [
   { type: 'blood_pressure', name: 'Blood Pressure', unit: 'mmHg', icon: Heart, color: 'text-red-500' },
@@ -270,9 +271,7 @@ export function EnhancedPortalPage() {
               <Bell className="h-4 w-4" />
               <AlertTitle>{alert.alert_type.replace('_', ' ').toUpperCase()}</AlertTitle>
               <AlertDescription className="flex justify-between items-center">
-                <span className="whitespace-pre-wrap break-words">
-                  {alert.message?.replace(/<[^>]*>/g, '')}
-                </span>
+                <span className="whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: sanitizeHtml(alert.message || '') }} />
                 <Button
                   variant="outline"
                   size="sm"
@@ -460,9 +459,7 @@ export function EnhancedPortalPage() {
                         <div className="text-right">
                           <p className="font-bold">{vital.value} {vital.unit}</p>
                           {vital.notes && (
-                            <p className="text-xs text-muted-foreground">
-                              {vital.notes.replace(/<[^>]*>/g, '')}
-                            </p>
+                            <p className="text-xs text-muted-foreground" dangerouslySetInnerHTML={{ __html: sanitizeHtml(vital.notes) }} />
                           )}
                         </div>
                       </div>

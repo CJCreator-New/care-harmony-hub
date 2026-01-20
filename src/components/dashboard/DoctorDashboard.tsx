@@ -28,6 +28,7 @@ import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
 import { useDoctorStats } from '@/hooks/useDoctorStats';
 import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
+import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 import { differenceInMinutes } from 'date-fns';
 
 export function DoctorDashboard() {
@@ -134,6 +135,8 @@ export function DoctorDashboard() {
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Enhanced Task Management */}
+          <EnhancedTaskManagement />
           {/* Patients Ready for Consultation */}
           {patientsReady.length > 0 && (
             <Card className="border-success/50">

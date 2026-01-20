@@ -60,9 +60,10 @@ class EncryptionKeyManager {
     if (this.initialized) return;
 
     try {
+      const encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY || 'default-dev-key-change-in-production';
       const keyMaterial = await crypto.subtle.importKey(
         'raw',
-        new TextEncoder().encode(process.env.VITE_ENCRYPTION_KEY || 'default-dev-key-change-in-production'),
+        new TextEncoder().encode(encryptionKey),
         'PBKDF2',
         false,
         ['deriveKey']

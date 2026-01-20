@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "latest",
+    "@vitest/ui": "latest",
+    "vitest": "latest"
+  }
+}

@@ -60,7 +60,7 @@ export function UrgencyBanner() {
                   <Clock className="w-4 h-4" />
                   <div className="flex items-center gap-1 font-mono font-bold text-sm">
                     <motion.span
-                      key={timeLeft.hours}
+                      key={`hours-${timeLeft.hours}`}
                       initial={{ y: -10, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       className="bg-primary-foreground/20 px-1.5 py-0.5 rounded"
@@ -69,7 +69,7 @@ export function UrgencyBanner() {
                     </motion.span>
                     <span>:</span>
                     <motion.span
-                      key={timeLeft.minutes}
+                      key={`minutes-${timeLeft.minutes}`}
                       initial={{ y: -10, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       className="bg-primary-foreground/20 px-1.5 py-0.5 rounded"
@@ -78,7 +78,7 @@ export function UrgencyBanner() {
                     </motion.span>
                     <span>:</span>
                     <motion.span
-                      key={timeLeft.seconds}
+                      key={`seconds-${timeLeft.seconds}`}
                       initial={{ y: -10, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       className="bg-primary-foreground/20 px-1.5 py-0.5 rounded"

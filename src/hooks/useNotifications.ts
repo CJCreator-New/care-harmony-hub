@@ -1,7 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { toast } from 'sonner';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 type NotificationType = 'appointment_reminder' | 'prescription_ready' | 'lab_results' | 'invoice' | 'custom';
 

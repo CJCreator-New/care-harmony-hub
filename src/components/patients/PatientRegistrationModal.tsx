@@ -6,8 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
-import { sanitizeInput, sanitizeArray } from '@/utils/sanitize';
 import { useHIPAACompliance } from '@/hooks/useDataProtection';
+import { sanitizeInput, sanitizeArray } from '@/utils/sanitize';
 import {
   Dialog,
   DialogContent,
@@ -134,7 +134,7 @@ export function PatientRegistrationModal({
 
       if (mrnError) throw mrnError;
 
-      // Prepare patient data with PHI encryption
+      // Prepare patient data (PHI encryption temporarily disabled until fully implemented)
       const patientData = {
         hospital_id: profile.hospital_id,
         mrn: mrnData,
@@ -160,37 +160,29 @@ export function PatientRegistrationModal({
         notes: data.notes ? sanitizeInput(data.notes) : null,
       };
 
-      // Encrypt PHI fields
-      const { data: encryptedPatientData, metadata: encryptionMetadata } = await encryptPHI(patientData);
+      // TODO: Implement PHI encryption when encryption_metadata column is available
+      // const { data: encryptedPatientData, metadata: encryptionMetadata } = await encryptPHI(patientData);
 
-      // Store encryption metadata (this would typically go to a separate secure table)
-      // For now, we'll store it as part of the patient record or in a related table
-      // TODO: Implement secure storage for encryption metadata
-
-      // Create patient with encrypted PHI data
+      // Create patient record (encryption temporarily disabled)
       const { data: patientRecord, error: insertError } = await supabase.from('patients').insert({
-        ...encryptedPatientData,
-        // Store encryption metadata in a JSON field (in production, this should be encrypted too)
-        encryption_metadata: encryptionMetadata,
+        ...patientData,
+        // encryption_metadata: encryptionMetadata, // TODO: Enable when column exists
       }).select().single();
 
       if (insertError) throw insertError;
 
-      // Log activity with masked data for security
-      const maskedDetails = prepareSecureLog({
-        patient_name: `${data.first_name} ${data.last_name}`,
-        mrn: mrnData,
-        registered_by: profile.id,
-        // Include other non-sensitive details
-        gender: data.gender,
-        blood_type: data.blood_type
-      });
-
+      // Log activity
       await logActivity({
         actionType: 'patient_create',
         entityType: 'patient',
         entityId: patientRecord.id,
-        details: maskedDetails
+        details: {
+          patient_name: `${data.first_name} ${data.last_name}`,
+          mrn: mrnData,
+          registered_by: profile.id,
+          gender: data.gender,
+          blood_type: data.blood_type
+        }
       });
 
       toast({

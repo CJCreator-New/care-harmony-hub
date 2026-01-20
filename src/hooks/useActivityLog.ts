@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ACTIVITY_LOG_COLUMNS } from '@/lib/queryColumns';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 export type ActionType = 
   | 'login'
@@ -71,10 +72,10 @@ export function useActivityLog() {
         });
 
       if (error) {
-        console.error('Error logging activity:', error);
+        console.error('Error logging activity:', sanitizeForLog(String(error)));
       }
     } catch (err) {
-      console.error('Failed to log activity:', err);
+      console.error('Failed to log activity:', sanitizeForLog(String(err)));
     }
   }, [user, hospital]);
 

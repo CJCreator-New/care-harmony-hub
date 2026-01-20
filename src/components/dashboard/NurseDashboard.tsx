@@ -22,6 +22,7 @@ import { NursePatientQueue } from '@/components/nurse/NursePatientQueue';
 import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { usePendingHandovers, usePatientChecklists } from '@/hooks/useNurseWorkflow';
+import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 
 export function NurseDashboard() {
   const { profile } = useAuth();
@@ -129,6 +130,7 @@ export function NurseDashboard() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <NursePatientQueue />
+          <EnhancedTaskManagement />
         </div>
         <div className="space-y-6">
           <Card>

@@ -241,6 +241,82 @@ export function useWorkflowNotifications() {
     }
   }, [hospital?.id, profile?.user_id, getStaffByRole]);
 
+  // Notify doctor when lab results are ready
+  const notifyLabResultsReady = useCallback(async (
+    doctorUserId: string,
+    patientName: string,
+    testName: string,
+    isCritical: boolean = false
+  ) => {
+    if (!hospital?.id || !profile?.user_id) return;
+
+    const { error } = await supabase.from('notifications').insert({
+      hospital_id: hospital.id,
+      recipient_id: doctorUserId,
+      sender_id: profile.user_id,
+      type: isCritical ? 'alert' : 'info',
+      title: isCritical ? '🚨 Critical Lab Results' : 'Lab Results Ready',
+      message: `${testName} results for ${patientName} are ready.`,
+      priority: isCritical ? 'urgent' : 'normal',
+      category: 'clinical',
+      action_url: '/laboratory',
+    });
+
+    if (error) {
+      console.error('Error sending lab results notification:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }, [hospital?.id, profile?.user_id]);
+
+  // Notify patient when prescription is ready
+  const notifyPrescriptionReady = useCallback(async (
+    patientId: string,
+    medicationName: string
+  ) => {
+    if (!hospital?.id || !profile?.user_id) return;
+
+    const { error } = await supabase.from('notifications').insert({
+      hospital_id: hospital.id,
+      recipient_id: patientId,
+      sender_id: profile.user_id,
+      type: 'info',
+      title: 'Prescription Ready for Pickup',
+      message: `Your prescription for ${medicationName} is ready for pickup.`,
+      priority: 'normal',
+      category: 'pharmacy',
+      action_url: '/patient/prescriptions',
+    });
+
+    if (error) {
+      console.error('Error sending prescription ready notification:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }, [hospital?.id, profile?.user_id]);
+
+  // Notify patient about billing
+  const notifyBillingUpdate = useCallback(async (
+    patientId: string,
+    invoiceAmount: number,
+    invoiceId: string
+  ) => {
+    if (!hospital?.id || !profile?.user_id) return;
+
+    const { error } = await supabase.from('notifications').insert({
+      hospital_id: hospital.id,
+      recipient_id: patientId,
+      sender_id: profile.user_id,
+      type: 'info',
+      title: 'Invoice Generated',
+      message: `Your invoice of $${invoiceAmount.toFixed(2)} is ready for payment.`,
+      priority: 'normal',
+      category: 'billing',
+      action_url: '/patient/billing',
+      metadata: { invoiceId, amount: invoiceAmount },
+    });
+
+    if (error) {
+      console.error('Error sending billing notification:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }, [hospital?.id, profile?.user_id]);
+
   return {
     notifyPatientReady,
     notifyPatientCheckedIn,
@@ -248,5 +324,8 @@ export function useWorkflowNotifications() {
     notifyConsultationComplete,
     notifyPrescriptionCreated,
     notifyLabOrderCreated,
+    notifyLabResultsReady,
+    notifyPrescriptionReady,
+    notifyBillingUpdate,
   };
 }

@@ -1,0 +1,65 @@
+/* Mobile-first responsive styles */
+
+/* Base mobile styles (< 640px) */
+@media (max-width: 639px) {
+  .mobile-layout {
+    font-size: 14px;
+  }
+
+  .mobile-card {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .mobile-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .mobile-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Tablet styles (640px - 1023px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mobile-layout {
+    font-size: 15px;
+  }
+
+  .mobile-card {
+    padding: 16px;
+  }
+}
+
+/* Desktop styles (>= 1024px) */
+@media (min-width: 1024px) {
+  .mobile-layout {
+    font-size: 16px;
+  }
+}
+
+/* Touch-friendly targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #f59e0b;
+  color: white;
+  padding: 8px;
+  text-align: center;
+  z-index: 9999;
+}

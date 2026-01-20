@@ -258,7 +258,7 @@ ${formData.clinical_notes || 'None'}`;
         
         // Redirect after a short delay to show completion state
         setTimeout(() => {
-          navigate("/doctor");
+          navigate("/consultations");
         }, 1500);
       }
     } catch (error) {

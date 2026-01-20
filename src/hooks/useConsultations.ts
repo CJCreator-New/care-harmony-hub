@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect, useCallback, useRef } from 'react';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 export type ConsultationStatus = 'pending' | 'patient_overview' | 'clinical_assessment' | 'treatment_planning' | 'final_review' | 'handoff' | 'completed';
 
@@ -102,7 +103,7 @@ export function useConsultations() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching consultations:', error);
+        console.error('Error fetching consultations:', sanitizeForLog(String(error)));
         throw error;
       }
       
@@ -387,7 +388,7 @@ export function useConsultationsRealtime() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [hospital?.id, queryClient]);
 }

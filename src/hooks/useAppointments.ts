@@ -314,7 +314,7 @@ export function useAppointmentsRealtime() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [hospital?.id, queryClient]);
 }

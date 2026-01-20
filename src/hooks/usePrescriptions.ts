@@ -1,8 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { toast } from 'sonner';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { useEffect } from 'react';
+import { sanitizeForLog } from '@/utils/sanitize';
 
 export interface Prescription {
   id: string;
@@ -241,7 +246,7 @@ export function usePrescriptionsRealtime() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [hospital?.id, queryClient]);
 }

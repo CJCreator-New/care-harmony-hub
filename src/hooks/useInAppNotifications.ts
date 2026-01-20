@@ -131,7 +131,7 @@ export function useInAppNotifications() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [user?.id, queryClient]);
 

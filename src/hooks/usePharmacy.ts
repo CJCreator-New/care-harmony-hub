@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeForLog } from '@/utils/sanitize';
 import { 
   EPrescription, 
   FormularyDrug, 
@@ -586,7 +588,7 @@ export const useDrugSafetyCheck = () => {
       setSafetyAlerts(alerts);
       return alerts;
     } catch (error) {
-      console.error('Safety check failed:', error);
+      console.error('Safety check failed:', sanitizeForLog(String(error))));
       return [];
     } finally {
       setLoading(false);

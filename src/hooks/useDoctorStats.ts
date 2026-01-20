@@ -32,81 +32,22 @@ export function useDoctorStats() {
         };
       }
 
-      // Fetch today's appointments for this doctor
-      const { data: todaysAppointments } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('hospital_id', hospital.id)
-        .eq('doctor_id', profile.id)
-        .eq('scheduled_date', today);
+      // Single optimized query using RPC function
+      const { data, error } = await supabase.rpc('get_doctor_stats', {
+        p_doctor_id: profile.id,
+        p_hospital_id: hospital.id,
+        p_date: today
+      });
 
-      // Fetch completed consultations today
-      const { data: completedConsults } = await supabase
-        .from('consultations')
-        .select('id, started_at, completed_at')
-        .eq('hospital_id', hospital.id)
-        .eq('doctor_id', profile.id)
-        .eq('status', 'completed')
-        .gte('completed_at', `${today}T00:00:00`)
-        .lte('completed_at', `${today}T23:59:59`);
-
-      // Calculate average consultation duration
-      let avgDuration = 0;
-      if (completedConsults && completedConsults.length > 0) {
-        const durations = completedConsults
-          .filter(c => c.started_at && c.completed_at)
-          .map(c => {
-            const start = new Date(c.started_at!).getTime();
-            const end = new Date(c.completed_at!).getTime();
-            return (end - start) / (1000 * 60); // minutes
-          });
-        if (durations.length > 0) {
-          avgDuration = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
-        }
-      }
-
-      // Fetch pending lab orders for this doctor's patients
-      const { data: pendingLabs } = await supabase
-        .from('lab_orders')
-        .select('id')
-        .eq('hospital_id', hospital.id)
-        .eq('ordered_by', profile.id)
-        .in('status', ['pending', 'in_progress', 'collected']);
-
-      // Fetch completed lab orders needing review
-      const { data: labsToReview } = await supabase
-        .from('lab_orders')
-        .select('id')
-        .eq('hospital_id', hospital.id)
-        .eq('ordered_by', profile.id)
-        .eq('status', 'completed');
-
-      // Fetch pending prescriptions (not yet dispensed)
-      const { data: pendingRx } = await supabase
-        .from('prescriptions')
-        .select('id')
-        .eq('hospital_id', hospital.id)
-        .eq('prescribed_by', profile.id)
-        .is('dispensed_at', null);
-
-      // Fetch consultations needing follow-up notes
-      const { data: pendingFollowUps } = await supabase
-        .from('consultations')
-        .select('id')
-        .eq('hospital_id', hospital.id)
-        .eq('doctor_id', profile.id)
-        .eq('status', 'completed')
-        .not('follow_up_date', 'is', null)
-        .is('follow_up_notes', null);
-
-      return {
-        todaysPatients: todaysAppointments?.length || 0,
-        completedConsultations: completedConsults?.length || 0,
-        pendingLabs: pendingLabs?.length || 0,
-        avgConsultationDuration: avgDuration,
-        pendingLabReviews: labsToReview?.length || 0,
-        pendingPrescriptions: pendingRx?.length || 0,
-        pendingFollowUps: pendingFollowUps?.length || 0,
+      if (error) throw error;
+      return data || {
+        todaysPatients: 0,
+        completedConsultations: 0,
+        pendingLabs: 0,
+        avgConsultationDuration: 0,
+        pendingLabReviews: 0,
+        pendingPrescriptions: 0,
+        pendingFollowUps: 0,
       };
     },
     enabled: !!profile?.id && !!hospital?.id,

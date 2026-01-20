@@ -1,30 +1,33 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
-interface OfflineState {
-  isOnline: boolean;
-  pendingOperations: Array<{
-    id: string;
-    operation: string;
-    data: any;
-    timestamp: number;
-  }>;
+interface OfflineCache {
+  patientData: any[];
+  vitals: any[];
+  medications: any[];
+  syncStatus: 'pending' | 'synced' | 'error';
 }
 
-export function useOfflineSync() {
-  const [offlineState, setOfflineState] = useState<OfflineState>({
-    isOnline: navigator.onLine,
-    pendingOperations: []
+export const useOfflineSync = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [cache, setCache] = useState<OfflineCache>({
+    patientData: [],
+    vitals: [],
+    medications: [],
+    syncStatus: 'synced'
   });
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleOnline = () => {
-      setOfflineState(prev => ({ ...prev, isOnline: true }));
-      // Sync pending operations when back online
-      syncPendingOperations();
+      setIsOnline(true);
+      syncData();
+      toast({ title: "Back online", description: "Syncing data..." });
     };
 
     const handleOffline = () => {
-      setOfflineState(prev => ({ ...prev, isOnline: false }));
+      setIsOnline(false);
+      toast({ title: "Offline mode", description: "Changes will sync when online", variant: "destructive" });
     };
 
     window.addEventListener('online', handleOnline);
@@ -36,34 +39,21 @@ export function useOfflineSync() {
     };
   }, []);
 
-  const addPendingOperation = (operation: string, data: any) => {
-    const id = crypto.randomUUID();
-    setOfflineState(prev => ({
-      ...prev,
-      pendingOperations: [...prev.pendingOperations, {
-        id,
-        operation,
-        data,
-        timestamp: Date.now()
-      }]
-    }));
-    
-    // Store in localStorage for persistence
-    localStorage.setItem('pendingOperations', JSON.stringify(offlineState.pendingOperations));
-    return id;
+  const syncData = async () => {
+    if (cache.syncStatus === 'pending') {
+      setCache(prev => ({ ...prev, syncStatus: 'synced' }));
+    }
   };
 
-  const syncPendingOperations = async () => {
-    // Implementation would sync with server
-    console.log('Syncing pending operations...');
-    // Clear operations after successful sync
-    setOfflineState(prev => ({ ...prev, pendingOperations: [] }));
-    localStorage.removeItem('pendingOperations');
+  const cacheData = (type: keyof OfflineCache, data: any) => {
+    if (!isOnline) {
+      setCache(prev => ({
+        ...prev,
+        [type]: Array.isArray(prev[type]) ? [...prev[type], data] : data,
+        syncStatus: 'pending'
+      }));
+    }
   };
 
-  return {
-    isOnline: offlineState.isOnline,
-    pendingOperations: offlineState.pendingOperations,
-    addPendingOperation
-  };
-}
+  return { isOnline, cache, cacheData, syncData };
+};
