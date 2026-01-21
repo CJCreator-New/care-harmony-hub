@@ -34,14 +34,18 @@ class CacheManager {
       const ttl = config?.ttl || 300; // 5 minutes default
       const prefixedKey = config?.prefix ? `${config.prefix}:${key}` : key;
       await this.redis?.setex(prefixedKey, ttl, JSON.stringify(value));
-    } catch {}
+    } catch (error) {
+      console.warn('Cache set failed:', error);
+    }
   }
 
   async del(key: string): Promise<void> {
     if (!this.enabled) return;
     try {
       await this.redis?.del(key);
-    } catch {}
+    } catch (error) {
+      console.warn('Cache delete failed:', error);
+    }
   }
 
   async invalidatePattern(pattern: string): Promise<void> {
@@ -51,7 +55,9 @@ class CacheManager {
       if (keys?.length) {
         await this.redis?.del(...keys);
       }
-    } catch {}
+    } catch (error) {
+      console.warn('Cache pattern invalidation failed:', error);
+    }
   }
 }
 

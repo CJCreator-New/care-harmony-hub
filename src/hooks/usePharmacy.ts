@@ -588,7 +588,7 @@ export const useDrugSafetyCheck = () => {
       setSafetyAlerts(alerts);
       return alerts;
     } catch (error) {
-      console.error('Safety check failed:', sanitizeForLog(String(error))));
+      console.error('Safety check failed:', sanitizeForLog(String(error)));
       return [];
     } finally {
       setLoading(false);
