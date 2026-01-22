@@ -26,12 +26,14 @@ const ForgotPasswordPage = lazy(() => import("./pages/hospital/ForgotPasswordPag
 const ResetPasswordPage = lazy(() => import("./pages/hospital/ResetPasswordPage"));
 const JoinPage = lazy(() => import("./pages/hospital/JoinPage"));
 const ProfileSetupPage = lazy(() => import("./pages/hospital/ProfileSetupPage"));
+const AdminRoleSetupPage = lazy(() => import("./pages/hospital/AdminRoleSetupPage"));
 const AccountSetupPage = lazy(() => import("./pages/hospital/AccountSetupPage"));
 const QuickAccessPage = lazy(() => import("./pages/hospital/QuickAccessPage"));
 const PatientRegisterPage = lazy(() => import("./pages/patient/PatientRegisterPage"));
 const PatientLoginPage = lazy(() => import("./pages/patient/PatientLoginPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const PatientsPage = lazy(() => import("./pages/patients/PatientsPage"));
+const PatientProfilePage = lazy(() => import("./pages/patients/PatientProfilePage"));
 const StaffManagementPage = lazy(() => import("./pages/settings/StaffManagementPage"));
 const StaffPerformancePage = lazy(() => import("./pages/settings/StaffPerformancePage"));
 const HospitalSettingsPage = lazy(() => import("./pages/settings/HospitalSettingsPage"));
@@ -197,6 +199,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/hospital/role-setup"
+        element={
+          <ProtectedRoute>
+            <AdminRoleSetupPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/hospital/account-setup"
         element={<AccountSetupPage />}
       />
@@ -218,6 +228,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
             <PatientsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/patients/:id"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+            <PatientProfilePage />
           </RoleProtectedRoute>
         }
       />

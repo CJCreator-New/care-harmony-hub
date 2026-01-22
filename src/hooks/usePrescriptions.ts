@@ -1,13 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { useAuth } from '@/contexts/AuthContext';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { toast } from 'sonner';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { useEffect } from 'react';
-import { sanitizeForLog } from '@/utils/sanitize';
 
 export interface Prescription {
   id: string;
@@ -119,37 +114,6 @@ export function usePrescriptionStats() {
   });
 }
 
-export function useDispensePrescription() {
-  const queryClient = useQueryClient();
-  const { profile } = useAuth();
-
-  return useMutation({
-    mutationFn: async (prescriptionId: string) => {
-      const { data, error } = await supabase
-        .from('prescriptions')
-        .update({
-          status: 'dispensed',
-          dispensed_by: profile?.id,
-          dispensed_at: new Date().toISOString(),
-        })
-        .eq('id', prescriptionId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
-      queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
-      toast.success('Prescription dispensed successfully');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to dispense: ${error.message}`);
-    },
-  });
-}
-
 export function useCreatePrescription() {
   const queryClient = useQueryClient();
   const { hospital, profile } = useAuth();
@@ -249,4 +213,44 @@ export function usePrescriptionsRealtime() {
       channel.unsubscribe();
     };
   }, [hospital?.id, queryClient]);
+}
+
+export function useDispensePrescription() {
+  const queryClient = useQueryClient();
+  const { profile } = useAuth();
+
+  return useMutation({
+    mutationFn: async (prescriptionId: string) => {
+      if (!profile?.id) throw new Error('No profile context');
+
+      const { error } = await supabase
+        .from('prescriptions')
+        .update({
+          status: 'dispensed',
+          dispensed_by: profile.id,
+          dispensed_at: new Date().toISOString(),
+        })
+        .eq('id', prescriptionId);
+
+      if (error) throw error;
+
+      // Also update prescription items as dispensed
+      const { error: itemsError } = await supabase
+        .from('prescription_items')
+        .update({ is_dispensed: true })
+        .eq('prescription_id', prescriptionId);
+
+      if (itemsError) throw itemsError;
+
+      return { id: prescriptionId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
+      toast.success('Prescription dispensed successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to dispense: ${error.message}`);
+    },
+  });
 }

@@ -5,6 +5,7 @@ import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
   Activity,
@@ -14,11 +15,14 @@ import {
   ClipboardList,
   CheckCircle2,
   ListChecks,
+  LayoutGrid,
+  ClipboardCheck,
 } from 'lucide-react';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { ShiftHandoverModal } from '@/components/nurse/ShiftHandoverModal';
 import { MedicationAdministrationModal } from '@/components/nurse/MedicationAdministrationModal';
 import { NursePatientQueue } from '@/components/nurse/NursePatientQueue';
+import { PatientPrepStation } from '@/components/nurse/PatientPrepStation';
 import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { usePendingHandovers, usePatientChecklists } from '@/hooks/useNurseWorkflow';
@@ -126,37 +130,61 @@ export function NurseDashboard() {
         />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <NursePatientQueue />
-          <EnhancedTaskManagement />
-        </div>
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link to="/queue">
-                  <Users className="h-4 w-4 mr-2" />
-                  Manage Queue
-                </Link>
-              </Button>
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link to="/consultations">
-                  <Activity className="h-4 w-4 mr-2" />
-                  Active Consultations
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[450px]">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="prep-station" className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Prep Station
+            {waitingPatients.length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                {waitingPatients.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          {/* Main Content Grid */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <NursePatientQueue />
+              <EnhancedTaskManagement />
+            </div>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button className="w-full justify-start" variant="outline" asChild>
+                    <Link to="/queue">
+                      <Users className="h-4 w-4 mr-2" />
+                      Manage Queue
+                    </Link>
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline" asChild>
+                    <Link to="/consultations">
+                      <Activity className="h-4 w-4 mr-2" />
+                      Active Consultations
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="prep-station">
+          <PatientPrepStation />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <RecordVitalsModal

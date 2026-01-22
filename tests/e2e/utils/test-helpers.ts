@@ -1,22 +1,25 @@
 import { Page, expect } from '@playwright/test';
 
+// Generate unique identifier for this test run to ensure fresh data
+const RUN_ID = Date.now().toString().slice(-6);
+
 // Test data constants
 export const TEST_DATA = {
   HOSPITAL: {
-    name: 'Test General Hospital',
+    name: `Test General Hospital ${RUN_ID}`,
     address: '123 Test Street',
     city: 'Test City',
     state: 'Test State',
     zip: '12345',
     phone: '(555) 123-4567',
-    email: 'admin@testgeneral.com',
-    license: 'LIC123456'
+    email: `hospital_${RUN_ID}@testgeneral.com`,
+    license: `LIC${RUN_ID}`
   },
   
   ADMIN: {
     firstName: 'John',
     lastName: 'Admin',
-    email: 'admin@testgeneral.com',
+    email: `admin_${RUN_ID}@testgeneral.com`,
     password: 'TestPass123!'
   },
   
@@ -87,7 +90,44 @@ export async function setTestRole(page: Page, role: UserRole) {
 }
 
 /**
+ * Register test hospital if it doesn't exist
+ */
+export async function registerTestHospital(page: Page) {
+  await page.goto('/hospital/signup');
+  
+  // Step 1: Hospital Info
+  await page.getByLabel(/Hospital Name/i).fill(TEST_DATA.HOSPITAL.name);
+  await page.getByLabel(/Address/i).fill(TEST_DATA.HOSPITAL.address);
+  await page.getByLabel(/City/i).fill(TEST_DATA.HOSPITAL.city);
+  await page.getByLabel(/State/i).fill(TEST_DATA.HOSPITAL.state);
+  await page.getByLabel(/ZIP Code/i).fill(TEST_DATA.HOSPITAL.zip);
+  await page.getByLabel(/Phone/i).fill(TEST_DATA.HOSPITAL.phone);
+  await page.getByLabel(/Hospital Email/i).fill(TEST_DATA.HOSPITAL.email);
+  await page.getByLabel(/License Number/i).fill(TEST_DATA.HOSPITAL.license);
+  
+  await page.getByRole('button', { name: /Continue/i }).click();
+  
+  // Step 2: Admin Info
+  await page.getByLabel(/First Name/i).fill(TEST_DATA.ADMIN.firstName);
+  await page.getByLabel(/Last Name/i).fill(TEST_DATA.ADMIN.lastName);
+  await page.getByLabel(/Admin Email/i).fill(TEST_DATA.ADMIN.email);
+  await page.getByLabel(/^Password/i).fill(TEST_DATA.ADMIN.password);
+  await page.getByLabel(/Confirm Password/i).fill(TEST_DATA.ADMIN.password);
+  
+  await page.getByRole('button', { name: /Create Account/i }).click();
+  
+  // Wait for registration to complete and redirect
+  await expect(page).toHaveURL(/.*(role-setup|dashboard).*/, { timeout: 15000 });
+  
+  // If we ended up on role-setup, go to dashboard
+  if (page.url().includes('role-setup')) {
+    await page.goto('/dashboard');
+  }
+}
+
+/**
  * Login with test credentials
+ * Handles missing user by registering if login fails
  */
 export async function loginAsTestUser(page: Page, role: UserRole = 'admin') {
   await page.goto('/hospital/login');
@@ -96,7 +136,22 @@ export async function loginAsTestUser(page: Page, role: UserRole = 'admin') {
   await page.getByLabel('Password').fill(TEST_DATA.ADMIN.password);
   await page.getByRole('button', { name: /sign in|login/i }).click();
   
-  await expect(page).toHaveURL(/.*dashboard.*/);
+  try {
+    // Try to expect dashboard URL with a short timeout
+    await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 3000 });
+  } catch (e) {
+    // If login failed, check if it's due to invalid credentials
+    const invalidCreds = await page.getByText(/Invalid login credentials/i).isVisible();
+    const loginFailed = await page.getByText(/Login Failed/i).isVisible();
+    
+    if (invalidCreds || loginFailed) {
+      console.log('Login failed: User lookup failed. Attempting registration...');
+      await registerTestHospital(page);
+    } else {
+      // Re-throw if it wasn't a credential issue
+      throw e;
+    }
+  }
   
   if (role !== 'admin') {
     await setTestRole(page, role);

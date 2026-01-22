@@ -31,6 +31,7 @@ import {
   Bell
 } from 'lucide-react';
 import { SymptomChecker } from '@/components/patient/SymptomChecker';
+import { MedicationReminders } from '@/components/patient/MedicationReminders';
 import { AllergyRecords } from '@/components/patient/AllergyRecords';
 import { ImmunizationRecords } from '@/components/patient/ImmunizationRecords';
 import { MedicationHistory } from '@/components/patient/MedicationHistory';

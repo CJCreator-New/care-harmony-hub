@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
   Calendar,
@@ -24,6 +25,7 @@ import {
   FileText,
   Loader2,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { useActiveQueue } from '@/hooks/useQueue';
 import {
@@ -36,10 +38,12 @@ import { PatientCheckInModal } from '@/components/receptionist/PatientCheckInMod
 import { PatientCheckOutModal } from '@/components/receptionist/PatientCheckOutModal';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
 import { EnhancedCheckIn } from '@/components/receptionist/EnhancedCheckIn';
+import { QueueOptimizer } from '@/components/receptionist/QueueOptimizer';
 import { format, parseISO } from 'date-fns';
 
 export function ReceptionistDashboard() {
   const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutOpen, setCheckOutOpen] = useState(false);
   const [walkInOpen, setWalkInOpen] = useState(false);
@@ -134,8 +138,18 @@ export function ReceptionistDashboard() {
         </Button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="queue-optimization" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Queue Optimization
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-8">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Today's Appointments"
           value={statsLoading ? '...' : stats?.todayAppointments || 0}
@@ -430,6 +444,12 @@ export function ReceptionistDashboard() {
           </Card>
         </div>
       </div>
+    </TabsContent>
+
+      <TabsContent value="queue-optimization">
+        <QueueOptimizer />
+      </TabsContent>
+    </Tabs>
 
       {/* Modals */}
       <PatientCheckInModal open={checkInOpen} onOpenChange={setCheckInOpen} />

@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User } from 'lucide-react';
+import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/auth';
 
@@ -35,13 +36,72 @@ export default function SignupPage() {
   const [zip, setZip] = useState('');
   const [phone, setPhone] = useState('');
   const [hospitalEmail, setHospitalEmail] = useState('');
+  const [isHospitalEmailAvailable, setIsHospitalEmailAvailable] = useState<boolean | null>(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const [licenseNumber, setLicenseNumber] = useState('');
 
   // Admin details
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
+  const [isAdminEmailAvailable, setIsAdminEmailAvailable] = useState<boolean | null>(null);
+  const [checkingAdminEmail, setCheckingAdminEmail] = useState(false);
   const [password, setPassword] = useState('');
+
+  // Email availability check for hospital
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!hospitalEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hospitalEmail)) {
+        setIsHospitalEmailAvailable(null);
+        return;
+      }
+
+      setCheckingEmail(true);
+      const { data, error } = await supabase
+        .from('hospitals')
+        .select('id')
+        .eq('email', hospitalEmail)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking email:', error);
+      } else {
+        setIsHospitalEmailAvailable(!data);
+      }
+      setCheckingEmail(false);
+    };
+
+    const timer = setTimeout(checkEmail, 500);
+    return () => clearTimeout(timer);
+  }, [hospitalEmail]);
+
+  // Email availability check for admin
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!adminEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+        setIsAdminEmailAvailable(null);
+        return;
+      }
+
+      setCheckingAdminEmail(true);
+      // Checking profiles for existing user accounts
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', adminEmail)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking admin email:', error);
+      } else {
+        setIsAdminEmailAvailable(!data);
+      }
+      setCheckingAdminEmail(false);
+    };
+
+    const timer = setTimeout(checkEmail, 500);
+    return () => clearTimeout(timer);
+  }, [adminEmail]);
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Role selection
@@ -63,6 +123,8 @@ export default function SignupPage() {
     if (!hospitalEmail.trim()) newErrors.hospitalEmail = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hospitalEmail)) {
       newErrors.hospitalEmail = 'Invalid email format';
+    } else if (isHospitalEmailAvailable === false) {
+      newErrors.hospitalEmail = 'This hospital email is already registered';
     }
     if (!licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
 
@@ -78,6 +140,8 @@ export default function SignupPage() {
     if (!adminEmail.trim()) newErrors.adminEmail = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
       newErrors.adminEmail = 'Invalid email format';
+    } else if (isAdminEmailAvailable === false) {
+      newErrors.adminEmail = 'This email is already associated with an account';
     }
 
     const allPasswordRequirementsMet = passwordRequirements.every(req => req.regex.test(password));
@@ -148,9 +212,9 @@ export default function SignupPage() {
 
       toast({
         title: 'Registration Successful!',
-        description: 'Welcome to AROCORD-HIMS. Let\'s configure your hospital...',
+        description: 'Welcome to AROCORD-HIMS. Now let\'s set up your team...',
       });
-      navigate('/hospital/profile-setup');
+      navigate('/hospital/role-setup');
     } catch (error) {
       toast({
         title: 'Registration Failed',
@@ -218,6 +282,16 @@ export default function SignupPage() {
               <div>
                 <p className="font-semibold">Administrator Account</p>
                 <p className="text-sm text-white/70">Create your admin credentials</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 text-white/50">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-white/70">Assign Staff Roles</p>
+                <p className="text-sm text-white/50">Invite team members (next step)</p>
               </div>
             </div>
           </div>
@@ -338,14 +412,25 @@ export default function SignupPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="hospitalEmail">Hospital Email *</Label>
-                  <Input
-                    id="hospitalEmail"
-                    type="email"
-                    placeholder="info@hospital.com"
-                    value={hospitalEmail}
-                    onChange={(e) => setHospitalEmail(e.target.value)}
-                    className={cn(errors.hospitalEmail && 'border-destructive')}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="hospitalEmail"
+                      type="email"
+                      placeholder="info@hospital.com"
+                      value={hospitalEmail}
+                      onChange={(e) => setHospitalEmail(e.target.value)}
+                      className={cn(
+                        errors.hospitalEmail && 'border-destructive',
+                        isHospitalEmailAvailable === true && 'border-green-500',
+                        isHospitalEmailAvailable === false && 'border-destructive'
+                      )}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      {checkingEmail && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {!checkingEmail && isHospitalEmailAvailable === true && <Check className="w-4 h-4 text-green-500" />}
+                      {!checkingEmail && isHospitalEmailAvailable === false && <X className="w-4 h-4 text-destructive" />}
+                    </div>
+                  </div>
                   {errors.hospitalEmail && (
                     <p className="text-sm text-destructive">{errors.hospitalEmail}</p>
                   )}
@@ -396,14 +481,25 @@ export default function SignupPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="adminEmail">Admin Email *</Label>
-                  <Input
-                    id="adminEmail"
-                    type="email"
-                    placeholder="admin@hospital.com"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className={cn(errors.adminEmail && 'border-destructive')}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="adminEmail"
+                      type="email"
+                      placeholder="admin@hospital.com"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      className={cn(
+                        errors.adminEmail && 'border-destructive',
+                        isAdminEmailAvailable === true && 'border-green-500',
+                        isAdminEmailAvailable === false && 'border-destructive'
+                      )}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      {checkingAdminEmail && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {!checkingAdminEmail && isAdminEmailAvailable === true && <Check className="w-4 h-4 text-green-500" />}
+                      {!checkingAdminEmail && isAdminEmailAvailable === false && <X className="w-4 h-4 text-destructive" />}
+                    </div>
+                  </div>
                   {errors.adminEmail && (
                     <p className="text-sm text-destructive">{errors.adminEmail}</p>
                   )}

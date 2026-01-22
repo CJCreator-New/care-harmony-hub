@@ -135,7 +135,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
 
     setIsLoading(true);
     try {
-      // Get current user ID for invited_by
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -147,7 +146,7 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
         invited_by: user.id,
         token: crypto.randomUUID(),
         status: 'pending' as const,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
 
       const { error } = await supabase
@@ -157,8 +156,8 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
       if (error) throw error;
 
       toast({
-        title: 'Invitation sent!',
-        description: `An invitation has been sent to ${formData.email}`,
+        title: 'Success!',
+        description: `Invitation sent to ${formData.email} with ${formData.roles.length} role(s).`,
       });
 
       // Reset and close

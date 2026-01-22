@@ -23,13 +23,18 @@ import {
   UserCheck,
   AlertTriangle,
   Smartphone,
+  BarChart,
+  LayoutDashboard,
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StaffPerformanceMetrics } from "@/components/analytics/StaffPerformanceMetrics";
 import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
 import { useDoctorStats } from '@/hooks/useDoctorStats';
 import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
 import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 import { differenceInMinutes } from 'date-fns';
+import { useAudit } from '@/hooks/useAudit';
 
 export function DoctorDashboard() {
   const { profile } = useAuth();
@@ -38,6 +43,17 @@ export function DoctorDashboard() {
   const { data: stats, isLoading: statsLoading } = useDoctorStats();
   const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
   const [showConsultationModal, setShowConsultationModal] = useState(false);
+  const { logActivity } = useAudit();
+
+  const handleStartConsultation = (patientId: string) => {
+    logActivity({
+      actionType: 'START_CONSULTATION',
+      entityType: 'patients',
+      entityId: patientId,
+      severity: 'info'
+    });
+    navigate(`/consultations?patientId=${patientId}`);
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -65,8 +81,21 @@ export function DoctorDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3 mb-8">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="overview" className="gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            Clinical Overview
+          </TabsTrigger>
+          <TabsTrigger value="performance" className="gap-2">
+            <BarChart className="h-4 w-4" />
+            My Performance
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Quick Actions */}
+          <div className="flex flex-wrap gap-3">
         <Button onClick={() => setShowConsultationModal(true)}>
           <Play className="h-4 w-4 mr-2" />
           Start Consultation
@@ -196,9 +225,7 @@ export function DoctorDashboard() {
                           </div>
                           <Button
                             size="sm"
-                            onClick={() => {
-                              setShowConsultationModal(true);
-                            }}
+                            onClick={() => handleStartConsultation(entry.patient.id)}
                           >
                             <Play className="h-4 w-4 mr-1" />
                             Start
@@ -279,6 +306,12 @@ export function DoctorDashboard() {
           </Card>
         </div>
       </div>
+      </TabsContent>
+
+      <TabsContent value="performance">
+        <StaffPerformanceMetrics role="doctor" />
+      </TabsContent>
+      </Tabs>
 
       {/* Start Consultation Modal */}
       <StartConsultationModal 

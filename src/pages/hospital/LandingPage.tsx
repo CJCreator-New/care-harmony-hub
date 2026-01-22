@@ -1,24 +1,14 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Testimonial } from '@/components/ui/design-testimonial';
 import { Hero } from '@/components/ui/hero';
 import { NavigationHeader } from '@/components/landing/NavigationHeader';
-import { LogoCarousel } from '@/components/landing/LogoCarousel';
-import { WorkflowTabs } from '@/components/landing/WorkflowTabs';
-import { MetricsSection } from '@/components/landing/MetricsSection';
-import { PricingSection } from '@/components/landing/PricingSection';
-import { FAQSection } from '@/components/landing/FAQSection';
-import { EnhancedFooter } from '@/components/landing/EnhancedFooter';
-import { FloatingCTA } from '@/components/landing/FloatingCTA';
-import { UrgencyBanner } from '@/components/landing/UrgencyBanner';
-import { SocialProofPopup } from '@/components/landing/SocialProofPopup';
-import { ScrollProgress } from '@/components/landing/ScrollProgress';
-import { CursorTrail } from '@/components/landing/CursorTrail';
-import { HeroDashboardMockup } from '@/components/landing/HeroDashboardMockup';
-import { VideoModal, useVideoModal } from '@/components/landing/VideoModal';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useVideoModal } from '@/components/landing/VideoModal';
 import {
   Shield,
   Users,
@@ -34,6 +24,28 @@ import {
   Bed,
   BarChart3,
 } from 'lucide-react';
+
+// Lazy loaded components for better performance
+const LogoCarousel = lazy(() => import('@/components/landing/LogoCarousel').then(m => ({ default: m.LogoCarousel })));
+const WorkflowTabs = lazy(() => import('@/components/landing/WorkflowTabs').then(m => ({ default: m.WorkflowTabs })));
+const MetricsSection = lazy(() => import('@/components/landing/MetricsSection').then(m => ({ default: m.MetricsSection })));
+const PricingSection = lazy(() => import('@/components/landing/PricingSection').then(m => ({ default: m.PricingSection })));
+const FAQSection = lazy(() => import('@/components/landing/FAQSection').then(m => ({ default: m.FAQSection })));
+const EnhancedFooter = lazy(() => import('@/components/landing/EnhancedFooter').then(m => ({ default: m.EnhancedFooter })));
+const FloatingCTA = lazy(() => import('@/components/landing/FloatingCTA').then(m => ({ default: m.FloatingCTA })));
+const UrgencyBanner = lazy(() => import('@/components/landing/UrgencyBanner').then(m => ({ default: m.UrgencyBanner })));
+const SocialProofPopup = lazy(() => import('@/components/landing/SocialProofPopup').then(m => ({ default: m.SocialProofPopup })));
+const HeroDashboardMockup = lazy(() => import('@/components/landing/HeroDashboardMockup').then(m => ({ default: m.HeroDashboardMockup })));
+const VideoModal = lazy(() => import('@/components/landing/VideoModal').then(m => ({ default: m.VideoModal })));
+const ScrollProgress = lazy(() => import('@/components/landing/ScrollProgress').then(m => ({ default: m.ScrollProgress })));
+const CursorTrail = lazy(() => import('@/components/landing/CursorTrail').then(m => ({ default: m.CursorTrail })));
+
+// Skeletons for Suspense
+const SectionSkeleton = () => (
+  <div className="py-20 container mx-auto px-4">
+    <Skeleton className="h-[400px] w-full rounded-xl" />
+  </div>
+);
 
 const features = [
   {
@@ -95,23 +107,54 @@ export default function LandingPage() {
   
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>CareSync HIMS | Modern Hospital Management System</title>
+        <meta name="description" content="Streamline your hospital operations with CareSync. Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
+        <meta name="keywords" content="hospital management system, HIMS, EMR, healthcare software, clinic management, medical records" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "CareSync HIMS",
+            "applicationCategory": "HealthApplication",
+            "operatingSystem": "Web",
+            "offers": {
+              "@type": "Offer",
+              "price": "0.00",
+              "priceCurrency": "USD"
+            },
+            "description": "Enterprise-grade Hospital Management System for modern healthcare facilities."
+          })}
+        </script>
+      </Helmet>
+
       {/* Cursor Trail Effect */}
-      <CursorTrail />
+      <Suspense fallback={null}>
+        <CursorTrail />
+      </Suspense>
       
       {/* Scroll Progress Indicator */}
-      <ScrollProgress />
+      <Suspense fallback={null}>
+        <ScrollProgress />
+      </Suspense>
       
       {/* Floating CTA */}
-      <FloatingCTA />
+      <Suspense fallback={null}>
+        <FloatingCTA />
+      </Suspense>
       
       {/* Social Proof Popups */}
-      <SocialProofPopup />
+      <Suspense fallback={null}>
+        <SocialProofPopup />
+      </Suspense>
       
       {/* Navigation Header */}
       <NavigationHeader />
       
       {/* Urgency Banner */}
-      <UrgencyBanner />
+      <Suspense fallback={null}>
+        <UrgencyBanner />
+      </Suspense>
 
       {/* Hero Section with Dashboard Mockup */}
       <div className="pt-10">
@@ -176,17 +219,23 @@ export default function LandingPage() {
 
             {/* Right: Dashboard Mockup */}
             <div className="hidden lg:block">
-              <HeroDashboardMockup />
+              <Suspense fallback={<Skeleton className="h-[400px] w-full rounded-xl" />}>
+                <HeroDashboardMockup />
+              </Suspense>
             </div>
           </div>
         </div>
       </div>
 
       {/* Video Modal */}
-      <VideoModal isOpen={isVideoOpen} onClose={closeVideoModal} />
+      <Suspense fallback={null}>
+        <VideoModal isOpen={isVideoOpen} onClose={closeVideoModal} />
+      </Suspense>
 
       {/* Social Proof / Logo Carousel */}
-      <LogoCarousel />
+      <Suspense fallback={<div className="h-20" />}>
+        <LogoCarousel />
+      </Suspense>
 
       {/* Features Section */}
       <section id="features" className="py-20 bg-background">
@@ -243,13 +292,19 @@ export default function LandingPage() {
       </section>
 
       {/* Workflow Tabs */}
-      <WorkflowTabs />
+      <Suspense fallback={<SectionSkeleton />}>
+        <WorkflowTabs />
+      </Suspense>
 
       {/* Metrics Section */}
-      <MetricsSection />
+      <Suspense fallback={<SectionSkeleton />}>
+        <MetricsSection />
+      </Suspense>
 
       {/* Pricing Section */}
-      <PricingSection />
+      <Suspense fallback={<SectionSkeleton />}>
+        <PricingSection />
+      </Suspense>
 
       {/* Testimonials Section */}
       <section id="testimonials" className="py-20 bg-background">
@@ -270,7 +325,9 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section */}
-      <FAQSection />
+      <Suspense fallback={<SectionSkeleton />}>
+        <FAQSection />
+      </Suspense>
 
       {/* Security Section */}
       <section id="security" className="py-20 bg-background overflow-hidden">
@@ -478,7 +535,9 @@ export default function LandingPage() {
       </section>
 
       {/* Enhanced Footer */}
-      <EnhancedFooter />
+      <Suspense fallback={<div className="h-60 bg-muted" />}>
+        <EnhancedFooter />
+      </Suspense>
     </div>
   );
 }

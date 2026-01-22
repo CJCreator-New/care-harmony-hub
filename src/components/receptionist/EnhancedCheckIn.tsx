@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueue } from '@/hooks/useQueue';
-import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
+import { useWorkflowOrchestrator } from '@/hooks/useWorkflowOrchestrator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ export function EnhancedCheckIn() {
   const [walkInData, setWalkInData] = useState({ firstName: '', lastName: '', phone: '', dob: '' });
   const { hospital } = useAuth();
   const { addToQueue } = useQueue();
-  const { notifyPatientCheckedIn } = useWorkflowNotifications();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   const { data: patients, isLoading } = useQuery({
     queryKey: ['patients-search', searchTerm, hospital?.id],
@@ -75,11 +75,16 @@ export function EnhancedCheckIn() {
         status: 'waiting',
       });
 
-      await notifyPatientCheckedIn(
-        patient.id,
-        `${patient.first_name} ${patient.last_name}`,
-        queueEntry.queue_number
-      );
+      await triggerWorkflow({
+        type: 'patient_check_in',
+        patientId: patient.id,
+        priority: priority === 'urgent' ? 'urgent' : 'normal',
+        data: {
+          patientName: `${patient.first_name} ${patient.last_name}`,
+          queueNumber: queueEntry.queue_number,
+          mrn: patient.mrn
+        }
+      });
 
       toast.success(`${patient.first_name} ${patient.last_name} checked in successfully`);
       setSearchTerm('');

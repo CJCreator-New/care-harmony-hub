@@ -10,7 +10,9 @@ import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 import { StaffOnboardingWizard } from '@/components/admin/StaffOnboardingWizard';
 import { TestDataSeederCard } from '@/components/admin/TestDataSeederCard';
 import { RealTimeDashboard } from '@/components/admin/RealTimeDashboard';
+import { WorkflowOrchestrationPanel } from '@/components/admin/WorkflowOrchestrationPanel';
 import { WorkflowMetricsDashboard } from '@/components/workflow/WorkflowMetricsDashboard';
+import { StaffPerformanceMetrics } from '@/components/analytics/StaffPerformanceMetrics';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +24,7 @@ import {
   Bed,
   Database,
   Activity,
+  Zap,
 } from 'lucide-react';
 import { memo } from 'react';
 
@@ -92,6 +95,10 @@ export function AdminDashboardComponent() {
             <Activity className="h-4 w-4" />
             Real-time Monitoring
           </TabsTrigger>
+          <TabsTrigger value="workflows" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Automation
+          </TabsTrigger>
           <TabsTrigger value="resources" className="flex items-center gap-2">
             <Bed className="h-4 w-4" />
             Resources
@@ -103,6 +110,10 @@ export function AdminDashboardComponent() {
           <TabsTrigger value="testing" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Test Data
+          </TabsTrigger>
+          <TabsTrigger value="performance" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Staff Performance
           </TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6">
@@ -122,6 +133,9 @@ export function AdminDashboardComponent() {
         <TabsContent value="monitoring" className="mt-6">
           <RealTimeDashboard />
         </TabsContent>
+        <TabsContent value="workflows" className="mt-6">
+          <WorkflowOrchestrationPanel />
+        </TabsContent>
         <TabsContent value="resources" className="mt-6">
           <ResourceManagement />
         </TabsContent>
@@ -132,6 +146,9 @@ export function AdminDashboardComponent() {
           <div className="max-w-2xl">
             <TestDataSeederCard />
           </div>
+        </TabsContent>
+        <TabsContent value="performance" className="mt-6">
+          <StaffPerformanceMetrics role="admin" />
         </TabsContent>
       </Tabs>
     </>

@@ -14,6 +14,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Consultation } from "@/hooks/useConsultations";
+import { VitalsTrendChart } from "@/components/consultations/VitalsTrendChart";
 
 interface SummaryStepProps {
   data: Record<string, any>;
@@ -124,6 +125,9 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
           onChange={(e) => onUpdate("clinical_notes", e.target.value)}
         />
       </div>
+
+      {/* Vitals Clinical Trends */}
+      <VitalsTrendChart />
 
       {/* Follow-up */}
       <Card>

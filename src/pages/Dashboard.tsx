@@ -1,19 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
-import { DoctorDashboard } from '@/components/dashboard/DoctorDashboard';
-import { NurseDashboard } from '@/components/dashboard/NurseDashboard';
-import { ReceptionistDashboard } from '@/components/dashboard/ReceptionistDashboard';
-import { PharmacistDashboard } from '@/components/dashboard/PharmacistDashboard';
-import { LabTechDashboard } from '@/components/dashboard/LabTechDashboard';
-import { PatientDashboard } from '@/components/dashboard/PatientDashboard';
 import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
+import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load role-specific dashboards
+const AdminDashboard = lazy(() => import('@/components/dashboard/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const DoctorDashboard = lazy(() => import('@/components/dashboard/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
+const NurseDashboard = lazy(() => import('@/components/dashboard/NurseDashboard').then(m => ({ default: m.NurseDashboard })));
+const ReceptionistDashboard = lazy(() => import('@/components/dashboard/ReceptionistDashboard').then(m => ({ default: m.ReceptionistDashboard })));
+const PharmacistDashboard = lazy(() => import('@/components/dashboard/PharmacistDashboard').then(m => ({ default: m.PharmacistDashboard })));
+const LabTechDashboard = lazy(() => import('@/components/dashboard/LabTechDashboard').then(m => ({ default: m.LabTechDashboard })));
+const PatientDashboard = lazy(() => import('@/components/dashboard/PatientDashboard').then(m => ({ default: m.PatientDashboard })));
 
 type RoleKey = 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient';
 
 export default function Dashboard() {
   const { primaryRole } = useAuth();
+  useRealtimeUpdates();
   const [testRole, setTestRole] = useState<RoleKey | null>(() => {
     const stored = localStorage.getItem('testRole');
     return stored ? stored as RoleKey : null;
@@ -50,7 +55,13 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout testRole={testRole}>
-      {renderDashboard()}
+      <Suspense fallback={
+        <div className="flex items-center justify-center p-12 min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        {renderDashboard()}
+      </Suspense>
       {import.meta.env.DEV && (
         <RoleSwitcher 
           currentRole={activeRole as RoleKey} 

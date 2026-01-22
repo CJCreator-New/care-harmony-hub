@@ -1,4 +1,5 @@
 import { useState, useCallback, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -151,6 +152,7 @@ const PatientRow = memo(({ patient, onViewProfile, calculateAge }: {
 PatientRow.displayName = 'PatientRow';
 
 export default function PatientsPage() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { canCreatePatients } = usePermissions();
   const { logActivity } = useActivityLog();
@@ -341,7 +343,7 @@ export default function PatientsPage() {
                         entityId: patient.id,
                         details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
                       });
-                      toast({ title: 'Patient view logged', description: `Viewing ${patient.first_name} ${patient.last_name}` });
+                      navigate(`/patients/${patient.id}`);
                     }}
                   />
                 ))}

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { Stethoscope, Pill, FlaskConical, Send, Loader2 } from 'lucide-react';
+import { Stethoscope, Pill, FlaskConical, Send, Loader2, Mic } from 'lucide-react';
 import { ICD10Autocomplete } from './ICD10Autocomplete';
 import { CPTCodeMapper } from './CPTCodeMapper';
 import { ICD10Code, StructuredDiagnosis } from '@/types/icd10';
@@ -15,6 +15,9 @@ import { useCreatePrescription } from '@/hooks/usePrescriptions';
 import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { VoiceDocumentation } from '../doctor/VoiceDocumentation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface QuickConsultationModalProps {
   open: boolean;
@@ -221,15 +224,35 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
 
           {/* Clinical Notes */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Clinical Notes (Optional)</CardTitle>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Clinical Documentation</CardTitle>
+              <Badge variant="outline" className="bg-primary/5 text-primary text-[10px] gap-1">
+                <Mic className="h-3 w-3" /> Dictation Enabled
+              </Badge>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs border border-dashed border-primary/20 hover:bg-primary/5 mb-2">
+                    <span className="flex items-center gap-2">
+                      <Mic className="h-3.5 w-3.5 text-primary" />
+                      Show Voice Dictation Assistant
+                    </span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">AI Powered</span>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pb-4">
+                  <VoiceDocumentation 
+                    onSave={(voiceNote) => setNotes(prev => prev + (prev ? '\n\n' : '') + voiceNote)} 
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Brief clinical notes..."
-                className="min-h-20"
+                className="min-h-24"
               />
             </CardContent>
           </Card>

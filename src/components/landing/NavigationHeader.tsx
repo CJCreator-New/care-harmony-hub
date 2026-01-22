@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -22,6 +24,11 @@ import {
   Building2,
   Stethoscope,
   ChevronDown,
+  PlusCircle,
+  ClipboardCheck,
+  FlaskConical,
+  HeartPulse,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +69,7 @@ export function NavigationHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isIdle, setIsIdle] = useState(false);
   const { scrollY } = useScroll();
+  const { user } = useAuth();
   
   // Animate header height based on scroll
   const headerHeight = useTransform(scrollY, [0, 100], [64, 56]);
@@ -172,31 +180,39 @@ export function NavigationHeader() {
 
         {/* Desktop CTA */}
         <div className="hidden lg:flex items-center gap-3">
-          <Button variant="ghost" asChild>
-            <Link to="/hospital/login">Sign In</Link>
-          </Button>
-          <motion.div
-            animate={isIdle ? {
-              boxShadow: [
-                '0 0 0 0 hsl(var(--primary) / 0.4)',
-                '0 0 0 8px hsl(var(--primary) / 0)',
-                '0 0 0 0 hsl(var(--primary) / 0)',
-              ],
-            } : {}}
-            transition={{
-              duration: 1.5,
-              repeat: isIdle ? Infinity : 0,
-              repeatDelay: 0.5,
-            }}
-            className="rounded-lg"
-          >
+          {user ? (
             <Button variant="hero" asChild>
-              <Link to="/hospital/signup">
-                <Stethoscope className="w-4 h-4 mr-2" />
-                Book Demo
-              </Link>
+              <Link to="/dashboard">Go to Dashboard</Link>
             </Button>
-          </motion.div>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/hospital/login">Sign In</Link>
+              </Button>
+              <motion.div
+                animate={isIdle ? {
+                  boxShadow: [
+                    '0 0 0 0 hsl(var(--primary) / 0.4)',
+                    '0 0 0 8px hsl(var(--primary) / 0)',
+                    '0 0 0 0 hsl(var(--primary) / 0)',
+                  ],
+                } : {}}
+                transition={{
+                  duration: 1.5,
+                  repeat: isIdle ? Infinity : 0,
+                  repeatDelay: 0.5,
+                }}
+                className="rounded-lg"
+              >
+                <Button variant="hero" asChild>
+                  <Link to="/hospital/signup">
+                    <Stethoscope className="w-4 h-4 mr-2" />
+                    Book Demo
+                  </Link>
+                </Button>
+              </motion.div>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu */}
@@ -214,6 +230,52 @@ export function NavigationHeader() {
                 </div>
                 <span className="font-bold">AROCORD-HIMS</span>
               </div>
+
+              {/* Mobile Quick Actions for Logged-in Users */}
+              {user && (
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm font-medium text-muted-foreground mb-2 px-2 flex items-center justify-between">
+                    <span>Clinical Quick Actions</span>
+                    <Badge variant="outline" className="text-[10px] py-0">Hospital Admin</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      to="/reception"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-colors group"
+                    >
+                      <ClipboardCheck className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">Check-in</span>
+                    </Link>
+                    <Link
+                      to="/doctor"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/10 transition-colors group"
+                    >
+                      <PlusCircle className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">New Order</span>
+                    </Link>
+                    <Link
+                      to="/lab"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/10 transition-colors group"
+                    >
+                      <FlaskConical className="w-5 h-5 text-purple-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">Order Lab</span>
+                    </Link>
+                    <Link
+                      to="/records"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-green-500/5 hover:bg-green-500/10 border border-green-500/10 transition-colors group"
+                    >
+                      <History className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">History</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              <div className="h-px bg-border my-2" />
 
               {/* Mobile Nav Links */}
               <div className="flex flex-col gap-2">
@@ -261,16 +323,26 @@ export function NavigationHeader() {
               <div className="h-px bg-border" />
 
               <div className="flex flex-col gap-3 mt-4">
-                <Button variant="outline" asChild className="w-full">
-                  <Link to="/hospital/login" onClick={() => setMobileOpen(false)}>
-                    Sign In
-                  </Link>
-                </Button>
-                <Button variant="hero" asChild className="w-full">
-                  <Link to="/hospital/signup" onClick={() => setMobileOpen(false)}>
-                    Book Demo
-                  </Link>
-                </Button>
+                {user ? (
+                  <Button variant="hero" asChild className="w-full">
+                    <Link to="/dashboard" onClick={() => setMobileOpen(false)}>
+                      Go to Dashboard
+                    </Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link to="/hospital/login" onClick={() => setMobileOpen(false)}>
+                        Sign In
+                      </Link>
+                    </Button>
+                    <Button variant="hero" asChild className="w-full">
+                      <Link to="/hospital/signup" onClick={() => setMobileOpen(false)}>
+                        Book Demo
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </SheetContent>

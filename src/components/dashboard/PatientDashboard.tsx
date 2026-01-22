@@ -13,7 +13,12 @@ import {
   ArrowRight,
   User,
   Heart,
+  LayoutDashboard,
+  Sparkles,
+  Search,
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PatientHealthInsights } from '@/components/patient/PatientHealthInsights';
 import {
   usePatientProfile,
   usePatientAppointments,
@@ -66,8 +71,21 @@ export function PatientDashboard() {
         )}
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="overview" className="gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            My Care Overview
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            Health Hub (AI)
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
@@ -314,6 +332,12 @@ export function PatientDashboard() {
           </CardContent>
         </Card>
       </div>
+    </TabsContent>
+
+        <TabsContent value="insights">
+          <PatientHealthInsights />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

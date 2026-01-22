@@ -24,13 +24,14 @@ import {
   CONSULTATION_STEPS,
 } from "@/hooks/useConsultations";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
-import { useWorkflowNotifications } from "@/hooks/useWorkflowNotifications";
+import { useWorkflowOrchestrator } from "@/hooks/useWorkflowOrchestrator";
 import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
 import { PhysicalExamStep } from "@/components/consultations/steps/PhysicalExamStep";
 import { DiagnosisStepEnhanced } from "@/components/consultations/steps/DiagnosisStepEnhanced";
 import { TreatmentPlanStep } from "@/components/consultations/steps/TreatmentPlanStep";
 import { SummaryStep } from "@/components/consultations/steps/SummaryStep";
 import { PatientSidebar } from "@/components/consultations/PatientSidebar";
+import { AIConsultationAssistant } from "@/components/consultations/AIConsultationAssistant";
 import { toast } from "sonner";
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];
@@ -42,11 +43,7 @@ export default function ConsultationWorkflowPage() {
   const updateConsultation = useUpdateConsultation();
   const advanceStep = useAdvanceConsultationStep();
   const createPrescription = useCreatePrescription();
-  const { 
-    notifyPrescriptionCreated, 
-    notifyLabOrderCreated, 
-    notifyConsultationComplete 
-  } = useWorkflowNotifications();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isCompleting, setIsCompleting] = useState(false);
@@ -82,6 +79,18 @@ export default function ConsultationWorkflowPage() {
 
   const handleUpdateField = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleApplyAIRecommendation = (type: string, value: any) => {
+    if (type === 'diagnosis') {
+      const currentDiagnoses = formData.diagnoses || [];
+      if (typeof value === 'string' && !currentDiagnoses.includes(value)) {
+        handleUpdateField('diagnoses', [...currentDiagnoses, value]);
+        toast.success(`Applied AI recommendation: ${value}`);
+      }
+    } else if (type === 'lab') {
+      toast.info(`AI Recommendation: ${value} - Please go to Lab tab to order.`);
+    }
   };
 
   const handleSaveStep = async () => {
@@ -193,12 +202,16 @@ ${formData.clinical_notes || 'None'}`;
               })),
               notes: formData.handoff_notes,
             });
-            // Notify pharmacists
-            await notifyPrescriptionCreated(
-              consultation.patient_id,
-              patientName,
-              prescriptionResult.id
-            );
+            // Notify pharmacists via workflow orchestrator
+            await triggerWorkflow({
+              type: 'prescription_created',
+              patientId: consultation.patient_id,
+              data: {
+                patientName,
+                prescriptionId: prescriptionResult.id,
+                medicationCount: formData.prescriptions.length
+              }
+            });
             toast.success(`${formData.prescriptions.length} prescription(s) sent to pharmacy`);
           } catch (err) {
             console.error('Error creating prescription:', err);
@@ -228,14 +241,18 @@ ${formData.clinical_notes || 'None'}`;
 
               if (labError) throw labError;
 
-              // Notify lab technicians
-              await notifyLabOrderCreated(
-                consultation.patient_id,
-                patientName,
-                order.test,
-                labOrder.id,
-                order.priority || 'routine'
-              );
+              // Notify lab technicians via workflow orchestrator
+              await triggerWorkflow({
+                type: 'lab_order_created',
+                patientId: consultation.patient_id,
+                data: {
+                  patientName,
+                  testName: order.test,
+                  labOrderId: labOrder.id,
+                  priority: order.priority || 'routine'
+                },
+                priority: order.priority === 'urgent' ? 'urgent' : 'normal'
+              });
             }
             toast.success(`${formData.lab_orders.length} lab order(s) sent to laboratory`);
           } catch (err) {
@@ -244,13 +261,17 @@ ${formData.clinical_notes || 'None'}`;
           }
         }
 
-        // Notify receptionist/billing when consultation is complete
+        // Notify receptionist/billing via workflow orchestrator
         if (formData.billing_notified) {
-          await notifyConsultationComplete(
-            consultation.patient_id,
-            patientName,
-            id
-          );
+          await triggerWorkflow({
+            type: 'consultation_completed',
+            patientId: consultation.patient_id,
+            data: {
+              patientName,
+              consultationId: id,
+              completedAt: new Date().toISOString()
+            }
+          });
         }
 
         setIsCompleted(true);
@@ -491,9 +512,13 @@ ${formData.clinical_notes || 'None'}`;
           </div>
         </div>
 
-        {/* Patient Sidebar */}
-        <div className="w-full lg:w-80">
-          <PatientSidebar patient={consultation.patient} />
+        {/* Sidebars */}
+        <div className="w-full lg:w-80 space-y-6">
+          <PatientSidebar patient={consultation?.patient} />
+          <AIConsultationAssistant 
+            formData={formData} 
+            onApplyRecommendation={handleApplyAIRecommendation} 
+          />
         </div>
       </div>
     </DashboardLayout>

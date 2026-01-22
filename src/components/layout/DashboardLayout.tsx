@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { NotificationsSystem } from '@/components/common/NotificationsSystem';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -286,7 +286,7 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
               <ThemeToggle />
 
               {/* Notifications */}
-              <NotificationCenter />
+              <NotificationsSystem />
 
               {/* Logout Button */}
               <Button 

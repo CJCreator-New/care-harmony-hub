@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { usePatients } from '@/hooks/usePatients';
+import { PredictiveAlerts } from './PredictiveAlerts';
 
 interface Patient {
   id: string;
@@ -206,6 +207,20 @@ export function RecordVitalsModal({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Predictive Intelligence Integration */}
+          {selectedPatient && (
+            <PredictiveAlerts 
+              patientId={selectedPatient.id}
+              vitals={{
+                blood_pressure: `${vitals.blood_pressure_systolic}/${vitals.blood_pressure_diastolic}`,
+                heart_rate: vitals.heart_rate,
+                temperature: vitals.temperature,
+                resp_rate: vitals.respiratory_rate,
+                oxygen_sat: vitals.oxygen_saturation
+              }}
+            />
+          )}
+
           {/* Patient Selector */}
           {showPatientSelector && (
             <Card>

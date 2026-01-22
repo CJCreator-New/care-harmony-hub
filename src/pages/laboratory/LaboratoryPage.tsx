@@ -50,6 +50,7 @@ import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 import { Pagination } from '@/components/ui/pagination';
+import { AIResultInterpretation } from '@/components/lab/AIResultInterpretation';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'warning' | 'info' | 'success' | 'destructive' }> = {
   pending: { label: 'Pending', variant: 'warning' },
@@ -409,6 +410,17 @@ export default function LaboratoryPage() {
                 disabled={selectedOrder?.status === 'completed'}
               />
             </div>
+
+            {/* AI Interpretation Integration */}
+            {(resultNotes.length > 10 || selectedOrder?.status === 'completed') && (
+              <AIResultInterpretation 
+                results={[{
+                  test_name: selectedOrder?.test_name || '',
+                  value: resultNotes
+                }]}
+              />
+            )}
+
             {selectedOrder?.status !== 'completed' && (
               <div className="flex items-center space-x-2 p-3 rounded-lg border border-destructive/20 bg-destructive/5">
                 <input

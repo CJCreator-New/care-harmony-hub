@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminRBACManager } from '@/utils/adminRBACManager';
+import { SystemConfiguration } from './SystemConfiguration';
 import { useAdminDashboardMetrics } from '@/hooks/useAdminDashboardMetrics';
 import { useAdminUserManagement } from '@/hooks/useAdminUserManagement';
 import { AdminPermission } from '@/types/admin';
@@ -18,25 +19,19 @@ export function AdminDashboard() {
   const { users, fetchUsers, isLoading: usersLoading } = useAdminUserManagement();
   const [activeTab, setActiveTab] = useState('overview');
 
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
   // Check admin access
   if (!AdminRBACManager.canAccessAdminPanel(primaryRole)) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          You do not have permission to access the admin panel.
-        </AlertDescription>
+        <AlertDescription>You do not have permission to access the admin panel.</AlertDescription>
       </Alert>
     );
   }
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  const canViewAnalytics = AdminRBACManager.hasPermission(primaryRole, AdminPermission.ANALYTICS_VIEW_ALL);
-  const canManageUsers = AdminRBACManager.hasPermission(primaryRole, AdminPermission.USER_READ);
-  const canAccessSettings = AdminRBACManager.hasPermission(primaryRole, AdminPermission.SYSTEM_SETTINGS);
 
   return (
     <div className="space-y-6 p-6">
@@ -236,31 +231,7 @@ export function AdminDashboard() {
         {/* Settings Tab */}
         {canAccessSettings && (
           <TabsContent value="settings" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Settings</CardTitle>
-                <CardDescription>Configure hospital system parameters</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Hospital Name</label>
-                  <input type="text" className="w-full px-3 py-2 border rounded" placeholder="Enter hospital name" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Timezone</label>
-                  <select className="w-full px-3 py-2 border rounded">
-                    <option>Asia/Kolkata</option>
-                    <option>Asia/Dubai</option>
-                    <option>UTC</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Session Timeout (minutes)</label>
-                  <input type="number" className="w-full px-3 py-2 border rounded" placeholder="30" />
-                </div>
-                <Button>Save Settings</Button>
-              </CardContent>
-            </Card>
+            <SystemConfiguration />
           </TabsContent>
         )}
       </Tabs>

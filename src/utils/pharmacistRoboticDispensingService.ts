@@ -59,7 +59,7 @@ export interface ExternalPharmacyNetwork {
   transferCapability: boolean;
 }
 
-export class PharmacistRoboticDispensing Service {
+export class PharmacistRoboticDispensingService {
   private pharmacistId: string;
 
   constructor(pharmacistId: string) {
