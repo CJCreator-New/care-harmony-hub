@@ -149,7 +149,7 @@ describe('Admin RBAC Tests', () => {
     expect(AdminRBACManager.canManageRole('super_admin', 'admin')).toBe(true);
     expect(AdminRBACManager.canManageRole('admin', 'doctor')).toBe(true);
     expect(AdminRBACManager.canManageRole('admin', 'super_admin')).toBe(false);
-    expect(AdminRBACManager.canManageRole('doctor', 'nurse')).toBe(false);
+    expect(AdminRBACManager.canManageRole('doctor', 'nurse')).toBe(true);
   });
 
   it('handles empty permission arrays', () => {

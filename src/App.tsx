@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { TestingProvider } from "@/contexts/TestingContext";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
@@ -67,6 +68,7 @@ const ClinicalPharmacyPage = lazy(() => import("./pages/pharmacy/ClinicalPharmac
 const LabAutomationPage = lazy(() => import("./pages/lab/LabAutomationPage"));
 const WorkflowDashboard = lazy(() => import("./pages/integration/WorkflowDashboard"));
 const WorkflowOptimizationPage = lazy(() => import("./pages/workflow/WorkflowOptimizationPage"));
+const TestingDashboardPage = lazy(() => import("./pages/testing/TestingDashboardPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -502,6 +504,14 @@ function AppRoutes() {
           </RoleProtectedRoute>
         }
       />
+      <Route
+        path="/testing"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <TestingDashboardPage />
+          </RoleProtectedRoute>
+        }
+      />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
@@ -516,18 +526,20 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system">
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true,
-              }}
-            >
-              <AppContent />
-            </BrowserRouter>
-          </TooltipProvider>
+          <TestingProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
+                <AppContent />
+              </BrowserRouter>
+            </TooltipProvider>
+          </TestingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

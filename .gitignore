@@ -98,3 +98,21 @@ playwright/.cache/
 
 # Supabase
 .supabase/
+
+# Testing artifacts
+screenshots/
+videos/
+.pytest_cache/
+__pycache__/
+*.pyc
+htmlcov/
+.coverage
+.k6/
+test-logs/
+.playwright/
+
+# Automated scripts artifacts
+temp-scripts/
+automated-logs/
+*.tmp
+*.bak
