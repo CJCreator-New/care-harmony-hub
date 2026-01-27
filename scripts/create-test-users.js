@@ -44,9 +44,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   }
 });
 
-// Test user data matching the migration
+// Test user data matching the database migration - WITH SPECIFIC UUIDs
 const testUsers = [
   {
+    id: '550e8400-e29b-41d4-a716-446655440003', // Admin user ID
     email: 'admin@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -56,6 +57,7 @@ const testUsers = [
     }
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440005', // Doctor user ID
     email: 'doctor@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -65,6 +67,7 @@ const testUsers = [
     }
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440007', // Nurse user ID
     email: 'nurse@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -74,6 +77,7 @@ const testUsers = [
     }
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440009', // Receptionist user ID
     email: 'reception@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -83,6 +87,7 @@ const testUsers = [
     }
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440011', // Pharmacist user ID
     email: 'pharmacy@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -92,6 +97,7 @@ const testUsers = [
     }
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440013', // Lab Tech user ID
     email: 'lab@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -101,6 +107,7 @@ const testUsers = [
     }
   },
   {
+    id: '550e8400-e29b-41d4-a716-446655440015', // Patient user ID
     email: 'patient@testgeneral.com',
     password: 'TestPass123!',
     user_metadata: {
@@ -116,9 +123,10 @@ async function createTestUsers() {
 
   for (const userData of testUsers) {
     try {
-      console.log(`Creating user: ${userData.email}`);
+      console.log(`Creating user: ${userData.email} (ID: ${userData.id})`);
 
       const { data, error } = await supabase.auth.admin.createUser({
+        id: userData.id, // Use specific UUID to match database
         email: userData.email,
         password: userData.password,
         user_metadata: userData.user_metadata,
@@ -139,10 +147,13 @@ async function createTestUsers() {
     }
   }
 
-  console.log('\n🎉 Test users creation completed!');
-  console.log('\n📋 Test User Credentials:');
+  console.log('\n🎉 Test users creation completed!');  console.log('\n📋 Test User Credentials:');
   testUsers.forEach(user => {
-    console.log(`  ${user.email} / ${user.password}`);
+    console.log(`  ${user.email} / ${user.password} (Role: ${user.user_metadata.role})`);
+  });
+  console.log('\n� User IDs for reference:');
+  testUsers.forEach(user => {
+    console.log(`  ${user.email} -> ${user.id}`);
   });
 }
 
