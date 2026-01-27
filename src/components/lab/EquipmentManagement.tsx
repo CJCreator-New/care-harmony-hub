@@ -8,7 +8,6 @@ import {
   Activity, 
   AlertTriangle, 
   CheckCircle2, 
-  Tool, 
   Thermometer, 
   BarChart3,
   Calendar,

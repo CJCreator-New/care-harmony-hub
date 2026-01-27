@@ -24,7 +24,7 @@ export function AdminDashboard() {
   }, [fetchUsers]);
 
   // Check admin access
-  if (!AdminRBACManager.canAccessAdminPanel(primaryRole)) {
+  if (!AdminRBACManager.canAccessAdminPanel(primaryRole ?? undefined)) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
@@ -32,6 +32,11 @@ export function AdminDashboard() {
       </Alert>
     );
   }
+
+  // Check specific permissions
+  const canManageUsers = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_CREATE);
+  const canViewAnalytics = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.ANALYTICS_VIEW_ALL);
+  const canAccessSettings = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.SYSTEM_SETTINGS);
 
   return (
     <div className="space-y-6 p-6">
@@ -239,7 +244,7 @@ export function AdminDashboard() {
   );
 }
 
-function MetricCard({ title, value, icon, trend }: any) {
+function MetricCard({ title, value, icon, trend }: { title: string; value: string | number; icon: React.ReactNode; trend: string }) {
   return (
     <Card>
       <CardContent className="pt-6">

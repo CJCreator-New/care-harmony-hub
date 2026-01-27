@@ -1,17 +1,72 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuditLogger } from '@/hooks/useAuditLogger';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Shield, Eye, Download, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useState } from 'react';
+
+interface AuditLogEntry {
+  id: string;
+  user_id: string;
+  action: string;
+  action_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  severity: string | null;
+  ip_address: string | null;
+  created_at: string;
+}
 
 export function AuditTrailDashboard() {
-  const { auditTrail, isLoading } = useAuditLogger();
+  const { hospital } = useAuth();
+  const [auditTrail, setAuditTrail] = useState<AuditLogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const getSeverityColor = (severity: string) => {
+  useEffect(() => {
+    if (hospital?.id) {
+      fetchAuditLogs();
+    }
+  }, [hospital?.id]);
+
+  const fetchAuditLogs = async () => {
+    if (!hospital?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('hospital_id', hospital.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      
+      // Map activity_logs to AuditLogEntry format
+      const mappedData: AuditLogEntry[] = (data || []).map(log => ({
+        id: log.id,
+        user_id: log.user_id,
+        action: log.action_type,
+        action_type: log.action_type,
+        entity_type: log.entity_type,
+        entity_id: log.entity_id,
+        severity: log.severity,
+        ip_address: log.ip_address,
+        created_at: log.created_at,
+      }));
+      
+      setAuditTrail(mappedData);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getSeverityColor = (severity: string | null) => {
     switch (severity) {
       case 'low': return 'bg-blue-100 text-blue-800';
       case 'medium': return 'bg-yellow-100 text-yellow-800';
@@ -28,13 +83,13 @@ export function AuditTrailDashboard() {
     return <Shield className="h-4 w-4" />;
   };
 
-  const filteredLogs = auditTrail?.filter(log => 
+  const filteredLogs = auditTrail.filter(log => 
     log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.resource_type.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+    (log.entity_type?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+  );
 
-  const criticalEvents = auditTrail?.filter(log => log.severity === 'critical').length || 0;
-  const highRiskEvents = auditTrail?.filter(log => log.severity === 'high').length || 0;
+  const criticalEvents = auditTrail.filter(log => log.severity === 'critical').length;
+  const highRiskEvents = auditTrail.filter(log => log.severity === 'high').length;
 
   if (isLoading) {
     return <div className="p-4">Loading audit trail...</div>;
@@ -49,7 +104,7 @@ export function AuditTrailDashboard() {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{auditTrail?.length || 0}</div>
+            <div className="text-2xl font-bold">{auditTrail.length}</div>
           </CardContent>
         </Card>
 
@@ -116,14 +171,14 @@ export function AuditTrailDashboard() {
                       <div className="flex items-center space-x-2">
                         <span className="font-medium">{log.action.replace('_', ' ')}</span>
                         <Badge className={getSeverityColor(log.severity)}>
-                          {log.severity}
+                          {log.severity || 'info'}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {log.resource_type} • {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                        {log.entity_type || 'system'} • {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        IP: {log.ip_address} • User: {log.user_id.slice(0, 8)}...
+                        IP: {log.ip_address || 'N/A'} • User: {log.user_id.slice(0, 8)}...
                       </p>
                     </div>
                   </div>

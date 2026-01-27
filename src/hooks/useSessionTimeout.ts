@@ -5,17 +5,20 @@ const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const WARNING_TIME = 5 * 60 * 1000; // 5 minutes before timeout
 
 interface UseSessionTimeoutProps {
-  logout: () => Promise<void>;
-  isAuthenticated: boolean;
+  logout?: () => Promise<void>;
+  isAuthenticated?: boolean;
+  enabled?: boolean;
 }
 
-export function useSessionTimeout({ logout, isAuthenticated }: UseSessionTimeoutProps) {
+export function useSessionTimeout({ logout, isAuthenticated, enabled }: UseSessionTimeoutProps = {}) {
+  // Support both old interface (logout + isAuthenticated) and new interface (enabled)
+  const isActive = enabled ?? isAuthenticated ?? false;
   const timeoutRef = useRef<NodeJS.Timeout>();
   const warningRef = useRef<NodeJS.Timeout>();
   const lastActivityRef = useRef<number>(Date.now());
 
   const resetTimeout = useCallback(() => {
-    if (!isAuthenticated) return;
+    if (!isActive) return;
 
     // Clear existing timeouts
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -37,9 +40,9 @@ export function useSessionTimeout({ logout, isAuthenticated }: UseSessionTimeout
     // Set logout timeout
     timeoutRef.current = setTimeout(() => {
       toast.error('Session expired due to inactivity');
-      logout();
+      logout?.();
     }, SESSION_TIMEOUT);
-  }, [isAuthenticated, logout]);
+  }, [isActive, logout]);
 
   const handleActivity = useCallback(() => {
     if (Date.now() - lastActivityRef.current > 60000) { // Only reset if more than 1 minute since last activity
@@ -48,7 +51,7 @@ export function useSessionTimeout({ logout, isAuthenticated }: UseSessionTimeout
   }, [resetTimeout]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isActive) return;
 
     resetTimeout();
 
@@ -65,7 +68,7 @@ export function useSessionTimeout({ logout, isAuthenticated }: UseSessionTimeout
         document.removeEventListener(event, handleActivity, true);
       });
     };
-  }, [isAuthenticated, handleActivity, resetTimeout]);
+  }, [isActive, handleActivity, resetTimeout]);
 
   return { resetTimeout };
 }

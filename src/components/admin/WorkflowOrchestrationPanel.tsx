@@ -67,7 +67,8 @@ const actions = [
 ];
 
 export function WorkflowOrchestrationPanel() {
-  const { hospitalId } = useAuth();
+  const { hospital } = useAuth();
+  const hospitalId = hospital?.id;
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [newRule, setNewRule] = useState<Partial<WorkflowRule>>({

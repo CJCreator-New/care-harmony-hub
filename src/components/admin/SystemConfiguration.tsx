@@ -43,7 +43,8 @@ const defaultSettings: HospitalSettings = {
 };
 
 export function SystemConfiguration() {
-  const { hospitalId } = useAuth();
+  const { hospital } = useAuth();
+  const hospitalId = hospital?.id;
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +58,7 @@ export function SystemConfiguration() {
   }, [hospitalId]);
 
   const fetchSettings = async () => {
+    if (!hospitalId) return;
     try {
       const { data, error } = await supabase
         .from('hospitals')
@@ -81,11 +83,12 @@ export function SystemConfiguration() {
   };
 
   const handleSave = async () => {
+    if (!hospitalId) return;
     setSaving(true);
     try {
       const { error } = await supabase
         .from('hospitals')
-        .update({ settings })
+        .update({ settings: JSON.parse(JSON.stringify(settings)) })
         .eq('id', hospitalId);
 
       if (error) throw error;

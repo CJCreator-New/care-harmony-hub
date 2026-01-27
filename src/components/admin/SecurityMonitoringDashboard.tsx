@@ -53,6 +53,8 @@ export function SecurityMonitoringDashboard() {
   const { data: securityEvents, isLoading: eventsLoading } = useQuery({
     queryKey: ['security-events', hospitalId, selectedTimeframe],
     queryFn: async () => {
+      if (!hospitalId) return [];
+      
       const now = new Date();
       let startDate: Date;
 
@@ -69,7 +71,7 @@ export function SecurityMonitoringDashboard() {
       }
 
       const { data, error } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .select('*')
         .eq('hospital_id', hospitalId)
         .gte('created_at', startDate.toISOString())
@@ -77,7 +79,21 @@ export function SecurityMonitoringDashboard() {
         .limit(100);
 
       if (error) throw error;
-      return data as SecurityEvent[];
+      
+      // Map activity_logs to SecurityEvent format
+      return (data || []).map(log => ({
+        id: log.id,
+        user_id: log.user_id,
+        action: log.action_type,
+        resource_type: log.entity_type || 'unknown',
+        resource_id: log.entity_id || undefined,
+        details: log.details,
+        ip_address: log.ip_address || undefined,
+        user_agent: log.user_agent || undefined,
+        severity: (log.severity as 'low' | 'medium' | 'high' | 'critical') || 'low',
+        created_at: log.created_at,
+        hospital_id: log.hospital_id || undefined,
+      })) as SecurityEvent[];
     },
     enabled: !!hospitalId,
   });
@@ -125,6 +141,15 @@ export function SecurityMonitoringDashboard() {
   const { data: securityStats, isLoading: statsLoading } = useQuery({
     queryKey: ['security-stats', hospitalId, selectedTimeframe],
     queryFn: async () => {
+      if (!hospitalId) return {
+        totalEvents: 0,
+        criticalEvents: 0,
+        activeDevices: 0,
+        failedLogins: 0,
+        suspiciousActivities: 0,
+        intrusionAlerts: 0,
+      };
+      
       const now = new Date();
       let startDate: Date;
 
@@ -142,14 +167,14 @@ export function SecurityMonitoringDashboard() {
 
       // Get total events
       const { count: totalEvents } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .gte('created_at', startDate.toISOString());
 
       // Get critical events
       const { count: criticalEvents } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .eq('severity', 'critical')
@@ -157,7 +182,7 @@ export function SecurityMonitoringDashboard() {
 
       // Get active devices (count unique user_agents in recent logs)
       const { data: recentLogs } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .select('user_agent')
         .eq('hospital_id', hospitalId)
         .gte('created_at', startDate.toISOString());
@@ -166,15 +191,15 @@ export function SecurityMonitoringDashboard() {
 
       // Get failed logins (access_denied actions)
       const { count: failedLogins } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
-        .eq('action', 'access_denied')
+        .eq('action_type', 'access_denied')
         .gte('created_at', startDate.toISOString());
 
       // Get suspicious activities (high/critical severity)
       const { count: suspiciousActivities } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .in('severity', ['high', 'critical'])
@@ -250,7 +275,7 @@ export function SecurityMonitoringDashboard() {
 
     try {
       const { error } = await supabase
-        .from('audit_logs')
+        .from('activity_logs')
         .delete()
         .eq('hospital_id', hospitalId)
         .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Older than 30 days
