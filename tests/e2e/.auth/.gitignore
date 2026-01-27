@@ -1,0 +1,5 @@
+# Auth states contain session tokens - never commit
+*.json
+
+# Keep the directory structure
+!.gitkeep

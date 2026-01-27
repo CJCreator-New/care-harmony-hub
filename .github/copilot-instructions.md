@@ -1,65 +1,37 @@
-# CareSync AI Coding Guidelines
+# CareSync AI Development Playbook
 
-## Architecture Overview
-CareSync is a multi-tenant Hospital Management System. Key architectural decisions:
-- **Multi-tenancy**: All data scoped by `hospital_id` via Supabase RLS policies
-- **Role-based workflows**: 6 clinical roles (Admin, Doctor, Nurse, Receptionist, Pharmacist, Lab Tech) + Patient portal
-- **Lazy loading**: All routes use `React.lazy()` in [App.tsx](../src/App.tsx) for 96% bundle reduction
+## Code Quality & Standards
+- Follow SOLID and DRY principles; keep functions under ~50 lines and name symbols explicitly for the clinical domain.
+- Reuse shared hooks and helpers from the central hooks library and shared utilities in the lib suite instead of duplicating logic in components.
+- Default to self-explanatory code; add brief comments only for domain rules or RLS constraints that are not obvious.
 
-## Critical Patterns
+## Error Handling & Security
+- Always sanitize inputs with the sanitize utilities module and log through sanitizeForLog to strip PHI.
+- Wrap Supabase calls in try/catch, surface friendly Sonner toasts, and avoid leaking stack traces to end users.
+- Encrypt and decrypt PHI via useHIPAACompliance(); persist encryption_metadata when mutating patient data (see the patients data hook for examples).
+- Protect routes with the RoleProtectedRoute component and respect role checks from usePermissions().
 
-### Data Hooks (MUST follow)
-All data queries go through TanStack Query hooks that auto-scope to current hospital:
-```typescript
-// ✅ Correct - uses hospital context automatically
-const { data: patients } = usePatients();
+## Performance & Optimization
+- Use TanStack Query caching with hospital-scoped keys to prevent redundant Supabase calls.
+- Keep React routes lazy-loaded as demonstrated in the main App composition and paginate heavy lists through existing hooks (patients, appointments, etc.).
+- Prefer memoized selectors or derived data functions instead of recomputing inside render when dealing with analytics dashboards.
 
-// ❌ Wrong - never query Supabase directly in components
-const { data } = await supabase.from('patients').select('*');
-```
-Query keys always include `hospitalId`: `['patients', hospital?.id]`. See [usePatients.ts](../src/hooks/usePatients.ts).
+## Testing & Documentation
+- Targeted commands: npm run dev, npm run test:unit, npm run test:security, npm run test:accessibility, npm run test:integration, npm run test:e2e (configured in Playwright’s project file).
+- Add Vitest specs under the dedicated frontend test tree and mock AuthContext/permissions using the shared E2E fixtures.
+- Document new cross-role flows in the consolidated workflow guide and update README sections only if behavior changes materially.
 
-### Authentication & Permissions
-```typescript
-const { user, hospital, roles, profile } = useAuth();  // User context
-const { canViewPatients, canPrescribe } = usePermissions();  // Permission checks
-const hasAccess = hasAnyRole(roles, ['doctor', 'nurse']);  // Role checks
-```
-Protect routes with `<RoleProtectedRoute allowedRoles={['doctor', 'nurse']}>`. See [RoleProtectedRoute.tsx](../src/components/auth/RoleProtectedRoute.tsx).
+## Modern Best Practices
+- Use async/await for Supabase calls, prefer immutable updates, and manage side effects through hooks rather than within components.
+- Adhere to project TypeScript settings (strict mode) and use const/let consistently; leverage Zod schemas with React Hook Form for validation.
+- Apply principle of least privilege by checking hospital identifiers and allowed roles before exposing controls.
 
-### Security (HIPAA Compliance)
-- **Log sanitization**: Use `sanitizeForLog()` for any logged data containing potential PHI
-- **Input sanitization**: Use `sanitizeInput()` from [src/utils/sanitize.ts](../src/utils/sanitize.ts)
-- **PHI encryption**: Use `useHIPAACompliance()` hook for encryption/decryption
+## Code Organization
+- Keep data access in hooks (hospital context lives within the AuthContext provider) and UI primitives in the shared UI component library.
+- Group role-specific features under dedicated folders (patients, pharmacy, laboratory, etc.) and share utilities via the lib toolbox.
+- Store environment-dependent configuration in Vite env files; do not hardcode URLs or keys.
 
-## Development Commands
-```bash
-npm run dev              # Start dev server (localhost:5173)
-npm run test             # Vitest unit tests
-npm run test:e2e         # Playwright tests (requires dev server on :8080)
-npm run test:e2e:ui      # Playwright with UI
-npm run build:prod       # Production build with vite.config.production.ts
-npm run analyze          # Bundle analysis
-```
-
-## Testing
-- **Unit tests**: `src/test/` with Vitest - mock `AuthContext` and `usePermissions`
-- **E2E tests**: `tests/e2e/` with Playwright - test users defined in [test-data.ts](../tests/e2e/fixtures/test-data.ts)
-- **E2E base URL**: `http://localhost:8080` (see [playwright.config.ts](../playwright.config.ts))
-
-## Project Structure
-```
-src/
-├── components/{role}/   # Role-specific components (admin/, doctor/, nurse/, etc.)
-├── components/ui/       # Shadcn/UI primitives
-├── hooks/use*.ts        # Data hooks (100+ specialized hooks)
-├── contexts/            # AuthContext, ThemeContext
-├── integrations/supabase/  # Supabase client + generated types
-└── utils/               # sanitize.ts, encryption, validators
-```
-
-## Code Style
-- **UI Components**: Use Shadcn from `@/components/ui/`, style with design tokens (`bg-card`, `text-muted-foreground`)
-- **Forms**: React Hook Form + Zod: `useForm<FormData>({ resolver: zodResolver(schema) })`
-- **Toasts**: Use `toast.success()` / `toast.error()` from Sonner
-- **Class merging**: Use `cn()` utility for conditional Tailwind classes
+## Version Control Considerations
+- When schema changes are required, add migrations in the Supabase migrations folder and regenerate Supabase types before committing.
+- Keep commits focused (feature, fix, or refactor) and avoid mixing RLS policy updates with unrelated UI changes.
+- Ensure backward compatibility for shared hooks and exported types; update downstream consumers when signatures change.
