@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBilling } from '@/hooks/useBilling';
+import { useCreateInvoice } from '@/hooks/useBilling';
 import { getSuggestedCPTCodes } from '@/hooks/useCPTCodeSuggestion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 export function EnhancedBillingQueue() {
   const { hospital } = useAuth();
-  const { createInvoice } = useBilling();
+  const createInvoiceMutation = useCreateInvoice();
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
 
   const { data: consultations, isLoading } = useQuery({
@@ -52,15 +52,13 @@ export function EnhancedBillingQueue() {
 
     const suggestedCodes = getSuggestedCPTCodes(duration, 'moderate');
 
-    await createInvoice({
-      patient_id: consultation.patient_id,
-      consultation_id: consultation.id,
+    await createInvoiceMutation.mutateAsync({
+      patientId: consultation.patient_id,
+      consultationId: consultation.id,
       items: suggestedCodes.map(code => ({
         description: code.description,
-        code: code.code,
         quantity: 1,
         unit_price: code.typical_fee,
-        total: code.typical_fee,
       })),
     });
   };

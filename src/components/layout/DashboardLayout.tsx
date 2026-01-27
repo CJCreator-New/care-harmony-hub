@@ -122,7 +122,6 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
   // HIPAA-compliant session timeout - 30 min inactivity auto-logout
   useSessionTimeout({
     enabled: isAuthenticated,
-    onTimeout: () => navigate('/hospital/login'),
   });
 
   // Keyboard shortcut for search
