@@ -25,12 +25,12 @@ export function UserManagement() {
   });
 
   // Check permissions
-  const canCreateUsers = AdminRBACManager.hasPermission(primaryRole, AdminPermission.USER_CREATE);
-  const canUpdateUsers = AdminRBACManager.hasPermission(primaryRole, AdminPermission.USER_UPDATE);
-  const canDeleteUsers = AdminRBACManager.hasPermission(primaryRole, AdminPermission.USER_DELETE);
-  const canAssignRoles = AdminRBACManager.hasPermission(primaryRole, AdminPermission.USER_ASSIGN_ROLE);
+  const canCreateUsers = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_CREATE);
+  const canUpdateUsers = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_UPDATE);
+  const canDeleteUsers = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_DELETE);
+  const canAssignRoles = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_ASSIGN_ROLE);
 
-  if (!AdminRBACManager.hasPermission(primaryRole, AdminPermission.USER_READ)) {
+  if (!AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_READ)) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
