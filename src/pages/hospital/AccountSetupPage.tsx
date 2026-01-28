@@ -220,9 +220,12 @@ export default function AccountSetupPage() {
       return;
     }
 
+    // Do not perform a client-side insert into `user_roles` here.
+    // Instead record the user's selection locally and show confirmation
+    // so an admin or server-side process can grant the role.
     setIsSubmitting(true);
     try {
-      // Get the user's hospital_id from their profile
+      // Verify hospital exists on the profile so we can record the intent
       const { data: userProfile } = await supabase
         .from('profiles')
         .select('hospital_id')
@@ -233,16 +236,11 @@ export default function AccountSetupPage() {
         throw new Error('Hospital not found. Please go back and create a hospital first.');
       }
 
-      // Create user role
-      const { error } = await supabase.from('user_roles').insert({
-        user_id: user.id,
-        role: selectedRole,
-        hospital_id: userProfile.hospital_id,
+      // Inform the user that role assignment requires admin approval
+      toast({
+        title: 'Role request submitted',
+        description: 'Your role selection has been noted and will be approved by an administrator.',
       });
-
-      if (error && error.code !== '23505') throw error;
-
-      toast({ title: 'Setup complete!', description: 'Your account is ready to use.' });
       setCurrentStep('complete');
 
       // Navigate to dashboard after a short delay
@@ -251,7 +249,7 @@ export default function AccountSetupPage() {
       }, 1500);
     } catch (error: any) {
       console.error('Role error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to assign role. Please try again.', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message || 'Failed to save role selection. Please try again.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }

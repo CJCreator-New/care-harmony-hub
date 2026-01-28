@@ -40,6 +40,7 @@ const StaffPerformancePage = lazy(() => import("./pages/settings/StaffPerformanc
 const HospitalSettingsPage = lazy(() => import("./pages/settings/HospitalSettingsPage"));
 const ActivityLogsPage = lazy(() => import("./pages/settings/ActivityLogsPage"));
 const UserProfilePage = lazy(() => import("./pages/settings/UserProfilePage"));
+const SystemMonitoringPage = lazy(() => import("./pages/settings/SystemMonitoringPage"));
 const ConsultationsPage = lazy(() => import("./pages/consultations/ConsultationsPage"));
 const ConsultationWorkflowPage = lazy(() => import("./pages/consultations/ConsultationWorkflowPage"));
 const MobileConsultationPage = lazy(() => import("./pages/consultations/MobileConsultationPage"));
@@ -69,6 +70,14 @@ const LabAutomationPage = lazy(() => import("./pages/lab/LabAutomationPage"));
 const WorkflowDashboard = lazy(() => import("./pages/integration/WorkflowDashboard"));
 const WorkflowOptimizationPage = lazy(() => import("./pages/workflow/WorkflowOptimizationPage"));
 const TestingDashboardPage = lazy(() => import("./pages/testing/TestingDashboardPage"));
+const AIDemoPage = lazy(() => import("./pages/AIDemoPage"));
+const DifferentialDiagnosisPage = lazy(() => import("./pages/DifferentialDiagnosisPage"));
+const TreatmentRecommendationsPage = lazy(() => import("./pages/TreatmentRecommendationsPage"));
+const TreatmentPlanOptimizationPage = lazy(() => import("./pages/TreatmentPlanOptimizationPage"));
+const PredictiveAnalyticsPage = lazy(() => import("./pages/PredictiveAnalyticsPage"));
+const LengthOfStayForecastingPage = lazy(() => import("./pages/LengthOfStayForecastingPage"));
+const ResourceUtilizationOptimizationPage = lazy(() => import("./pages/ResourceUtilizationOptimizationPage"));
+const VoiceClinicalNotesPage = lazy(() => import("./pages/VoiceClinicalNotesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -437,6 +446,78 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin']}>
             <ActivityLogsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/monitoring"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <SystemMonitoringPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai-demo"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <AIDemoPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/differential-diagnosis"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <DifferentialDiagnosisPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/treatment-recommendations"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <TreatmentRecommendationsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/treatment-plan-optimization"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <TreatmentPlanOptimizationPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/predictive-analytics"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <PredictiveAnalyticsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/length-of-stay-forecasting"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <LengthOfStayForecastingPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/resource-utilization-optimization"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+            <ResourceUtilizationOptimizationPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/voice-clinical-notes"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}>
+            <VoiceClinicalNotesPage />
           </RoleProtectedRoute>
         }
       />

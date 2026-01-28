@@ -1,0 +1,98 @@
+{
+  "basePath": ".",
+  "excludePatterns": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    ".git/**",
+    "*.min.js",
+    "*.test.*",
+    "*.spec.*",
+    "*.config.*",
+    "coverage/**",
+    ".next/**",
+    "public/**",
+    "docs/**",
+    "*.md",
+    "*.txt",
+    "*.json",
+    "*.lock"
+  ],
+  "categories": {
+    "security": {
+      "enabled": true,
+      "filePatterns": [
+        "**/*.{ts,tsx,js,jsx}",
+        "**/*.{sql,migration}",
+        "**/*.env*"
+      ]
+    },
+    "compliance": {
+      "enabled": true,
+      "filePatterns": [
+        "**/*.{ts,tsx,js,jsx}",
+        "**/*.{sql,migration}"
+      ]
+    },
+    "performance": {
+      "enabled": true,
+      "filePatterns": [
+        "**/*.{ts,tsx,js,jsx}",
+        "**/*.{sql,migration}"
+      ]
+    },
+    "quality": {
+      "enabled": true,
+      "filePatterns": [
+        "**/*.{ts,tsx,js,jsx}",
+        "**/*.{sql,migration}"
+      ]
+    },
+    "accessibility": {
+      "enabled": true,
+      "filePatterns": [
+        "**/*.{ts,tsx,js,jsx,html}",
+        "**/*.css"
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "filePatterns": [
+        "**/*.{ts,tsx,js,jsx}",
+        "**/*.test.*",
+        "**/*.spec.*"
+      ]
+    }
+  },
+  "ci": {
+    "failOnSeverity": "high",
+    "maxIssues": 100,
+    "reportFormats": [
+      "json",
+      "html",
+      "sarif"
+    ],
+    "notifications": {
+      "slack": false,
+      "email": false,
+      "github": true
+    }
+  },
+  "reporting": {
+    "includeCodeSnippets": true,
+    "groupByCategory": true,
+    "showProgress": true,
+    "maxIssuesPerFile": 50,
+    "includeHealthcareContext": true
+  },
+  "rules": {
+    "customRulesPath": "./src/utils/codeReviewerRules.ts",
+    "enableExperimentalRules": false,
+    "severityOverrides": {
+      "hardcoded-secret": "critical",
+      "phi-logging": "critical",
+      "sql-injection-risk": "high",
+      "missing-audit-trail": "high"
+    }
+  }
+}

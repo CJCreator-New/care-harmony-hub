@@ -10,6 +10,7 @@ interface TrailDot {
 export function CursorTrail() {
   const [trail, setTrail] = useState<TrailDot[]>([]);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
     // Check if desktop
@@ -24,7 +25,20 @@ export function CursorTrail() {
   }, []);
 
   useEffect(() => {
-    if (!isDesktop) return;
+    // Check for reduced motion preference
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktop || prefersReducedMotion) return;
 
     let idCounter = 0;
 
@@ -40,7 +54,7 @@ export function CursorTrail() {
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isDesktop]);
+  }, [isDesktop, prefersReducedMotion]);
 
   // Clean up old dots
   useEffect(() => {
@@ -53,7 +67,7 @@ export function CursorTrail() {
     return () => clearTimeout(timeout);
   }, [trail]);
 
-  if (!isDesktop) return null;
+  if (!isDesktop || prefersReducedMotion) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none z-[100]">

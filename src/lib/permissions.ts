@@ -15,7 +15,7 @@ export type Permission =
   | 'telemedicine' | 'telemedicine:read' | 'telemedicine:write'
   | 'clinical-pharmacy' | 'laboratory' | 'lab-orders' | 'samples'
   | 'portal' | 'staff-management' | 'settings' | 'workflow-dashboard'
-  | 'staff-performance' | 'activity-logs';
+  | 'staff-performance' | 'activity-logs' | 'system-monitoring' | 'ai-demo' | 'differential-diagnosis' | 'treatment-recommendations' | 'treatment-plan-optimization' | 'predictive-analytics' | 'length-of-stay-forecasting' | 'resource-utilization-optimization' | 'voice-clinical-notes';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   admin: ['*'],
@@ -26,7 +26,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'prescriptions', 'prescriptions:read', 'prescriptions:write',
     'lab', 'lab:read', 'lab:write',
     'telemedicine', 'telemedicine:read', 'telemedicine:write',
-    'queue:read', 'vitals:read'
+    'queue:read', 'vitals:read',
+    'ai-demo', 'differential-diagnosis', 'treatment-recommendations', 'treatment-plan-optimization', 'predictive-analytics', 'length-of-stay-forecasting', 'resource-utilization-optimization', 'voice-clinical-notes'
   ],
   nurse: [
     'patients', 'patients:read',
@@ -34,7 +35,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'vitals', 'vitals:read', 'vitals:write',
     'medications', 'medications:read', 'medications:write',
     'inventory:read',
-    'consultations:read'
+    'consultations:read',
+    'voice-clinical-notes'
   ],
   receptionist: [
     'patients', 'patients:read', 'patients:write',
@@ -113,6 +115,14 @@ export function getAccessibleRoutes(role: string | undefined): string[] {
   if (hasPermission(role, 'staff-performance')) routes.push('/staff/performance');
   if (hasPermission(role, 'activity-logs')) routes.push('/activity-logs');
   if (hasPermission(role, 'portal')) routes.push('/patient/portal');
+  if (hasPermission(role, 'ai-demo')) routes.push('/ai-demo');
+  if (hasPermission(role, 'differential-diagnosis')) routes.push('/differential-diagnosis');
+  if (hasPermission(role, 'treatment-recommendations')) routes.push('/treatment-recommendations');
+  if (hasPermission(role, 'treatment-plan-optimization')) routes.push('/treatment-plan-optimization');
+  if (hasPermission(role, 'predictive-analytics')) routes.push('/predictive-analytics');
+  if (hasPermission(role, 'length-of-stay-forecasting')) routes.push('/length-of-stay-forecasting');
+  if (hasPermission(role, 'resource-utilization-optimization')) routes.push('/resource-utilization-optimization');
+  if (hasPermission(role, 'voice-clinical-notes')) routes.push('/voice-clinical-notes');
   
   return routes;
 }

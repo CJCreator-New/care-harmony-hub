@@ -88,6 +88,14 @@ CareSync is a comprehensive Hospital Management System designed to streamline he
 - Generate system reports
 - Manage hospital settings
 
+### Department Head
+- Department user/role approvals (within hospital scope)
+- Staffing, schedule/coverage oversight
+- SLA/quality monitoring and incident follow-up
+- Escalations to System Administrator for cross-department needs
+
+**Access scope (all roles):** Data is hospital-scoped via RLS; cross-hospital visibility is blocked. Patient-facing access is restricted to the patient’s own records.
+
 ## Patient Portal
 
 ### Dashboard Overview
@@ -136,6 +144,16 @@ The patient dashboard provides:
 5. Download statements
 
 ### Secure Messaging
+### Patient Portal Scope and Limits
+- Access limited to the patient’s own records; no cross-patient visibility.
+- Portal supports scheduling, refills, billing, secure messaging, and viewing results. In-clinic-only steps (triage, in-person check-in, on-site payments) stay at reception.
+- Notifications: appointment confirmations/changes, lab results ready, prescription ready, billing due.
+
+### Integrations (Patient-Facing)
+- Insurance verification: initiated during registration/check-in; results reflected in billing views.
+- Payments: routed through PCI-compliant processor; receipts available in billing.
+- Lab results: imported when available; portal shows only the patient’s own results.
+- Pharmacy: prescription readiness notifications when pharmacy marks as ready.
 
 1. Access "Messages" from the dashboard
 2. Start new conversation with healthcare provider
@@ -203,12 +221,18 @@ The patient dashboard provides:
 
 CareSync includes advanced workflow automation and real-time communication features to streamline healthcare operations and improve team collaboration.
 
+### Feature Status (current)
+- Real-time messaging: core notifications live; cross-role chat is in progress.
+- Task automation: workflow events/rules/tasks live; auto-routing/retries are pending.
+- AI assistance: basic suggestions live; advanced diagnostics/early warning pending.
+- Mobile/PWA: responsive with partial offline; full offline workflows pending.
+
 ### Workflow Dashboard
 
 Access the Workflow Dashboard from your main navigation to view automated task assignments, workflow metrics, and communication hub.
 
 #### Task Management
-- **Automated Task Assignment**: AI-powered task routing based on your role, expertise, and current workload
+- **Automated Task Assignment**: Event/rule-driven tasks; broader AI routing is in progress
 - **Task Priority**: Tasks are automatically prioritized (Urgent, High, Normal, Low)
 - **Task Status Tracking**: Monitor task progress with real-time status updates
 - **Overdue Alerts**: Automatic notifications for tasks approaching or past due dates
@@ -221,7 +245,7 @@ Access the Workflow Dashboard from your main navigation to view automated task a
 ### Communication Hub
 
 #### Real-Time Messaging
-- **Cross-Role Communication**: Send messages to any healthcare role in your hospital
+- **Cross-Role Communication**: Notifications live; cross-role chat is being rolled out
 - **Priority Levels**: Set message priority (Urgent, High, Normal)
 - **Message History**: Complete audit trail with read receipts
 - **Bulk Notifications**: Send announcements to multiple roles or the entire team
@@ -253,6 +277,10 @@ Access the Workflow Dashboard from your main navigation to view automated task a
 - Use bulk notifications sparingly to avoid notification fatigue
 
 ### Performance Analytics
+### Performance & Resilience Notes
+- Orchestration actions (rules → tasks/notifications) do not auto-retry; monitor failed actions in admin views.
+- Client caching uses TanStack Query; prefer using existing hooks/queries to avoid duplicate calls.
+- Offline support is partial; critical workflows require connectivity.
 
 Monitor your team's performance through the Workflow Dashboard:
 - **Task Completion Rates**: Track how quickly tasks are completed

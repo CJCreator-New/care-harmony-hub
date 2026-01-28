@@ -45,6 +45,7 @@ interface Permissions {
   // Settings
   canViewSettings: boolean;
   canManageHospitalSettings: boolean;
+  canViewSystemMonitoring: boolean;
 
   // Reports
   canViewReports: boolean;
@@ -80,6 +81,7 @@ const rolePermissions: Record<UserRole, Partial<Permissions>> = {
     canInviteStaff: true,
     canViewSettings: true,
     canManageHospitalSettings: true,
+    canViewSystemMonitoring: true,
     canViewReports: true,
     canGenerateReports: true,
   },

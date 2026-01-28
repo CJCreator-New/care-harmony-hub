@@ -217,3 +217,64 @@ FROM hospitals h
 CROSS JOIN profiles p
 WHERE p.role = 'admin'
 LIMIT 1;
+
+-- Insert workflow rules for clinical workflows
+INSERT INTO workflow_rules (hospital_id, name, description, trigger_event, trigger_conditions, actions, priority, created_by)
+SELECT 
+  h.id,
+  'Lab Results Ready Notification',
+  'Notify ordering doctor when lab results are completed',
+  'lab_results_ready',
+  '{}',
+  '[{"type": "send_notification", "target_role": "doctor", "target_user": "{{orderedBy}}", "message": "Lab results for {{testName}} are ready for {{patientName}}"}]',
+  1,
+  p.id
+FROM hospitals h
+CROSS JOIN profiles p
+WHERE p.role = 'admin'
+LIMIT 1;
+
+INSERT INTO workflow_rules (hospital_id, name, description, trigger_event, trigger_conditions, actions, priority, created_by)
+SELECT 
+  h.id,
+  'Prescription Review Task',
+  'Create task for pharmacist to review new prescriptions',
+  'prescription_created',
+  '{}',
+  '[{"type": "create_task", "target_role": "pharmacist", "message": "Review prescription for {{patientName}} ({{medicationCount}} medications)"}]',
+  1,
+  p.id
+FROM hospitals h
+CROSS JOIN profiles p
+WHERE p.role = 'admin'
+LIMIT 1;
+
+INSERT INTO workflow_rules (hospital_id, name, description, trigger_event, trigger_conditions, actions, priority, created_by)
+SELECT 
+  h.id,
+  'Lab Order Processing',
+  'Create task for lab technician when lab order is created',
+  'lab_order_created',
+  '{}',
+  '[{"type": "create_task", "target_role": "lab_technician", "message": "Process {{testName}} for {{patientName}}"}]',
+  1,
+  p.id
+FROM hospitals h
+CROSS JOIN profiles p
+WHERE p.role = 'admin'
+LIMIT 1;
+
+INSERT INTO workflow_rules (hospital_id, name, description, trigger_event, trigger_conditions, actions, priority, created_by)
+SELECT 
+  h.id,
+  'Consultation Completion Notification',
+  'Notify billing/reception when consultation is completed',
+  'consultation_completed',
+  '{}',
+  '[{"type": "send_notification", "target_role": "receptionist", "message": "Consultation completed for {{patientName}} - ready for checkout"}]',
+  1,
+  p.id
+FROM hospitals h
+CROSS JOIN profiles p
+WHERE p.role = 'admin'
+LIMIT 1;

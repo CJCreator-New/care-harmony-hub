@@ -3,6 +3,8 @@
 ## Overview
 The Nurse role supports patient preparation, monitoring, and care coordination. This workflow includes all recent updates, automation, and analytics features.
 
+**Back to consolidated:** [CONSOLIDATED_ROLE_WORKFLOWS.md](../CONSOLIDATED_ROLE_WORKFLOWS.md#nurse-workflow)
+
 ---
 
 ## 1. Login & Access
@@ -42,3 +44,12 @@ The Nurse role supports patient preparation, monitoring, and care coordination. 
 - All actions logged (HIPAA compliance)
 - Real-time updates via Supabase Realtime
 - Pending: Wearable integration, predictive analytics, advanced education
+
+## Automation & Notifications
+- Orders from doctors create nursing tasks; abnormal vitals should trigger alerts via workflow rules.
+- Medication administration reminders depend on provider orders; discharge tasks flow from doctor updates.
+- No automatic retries on failed actions; verify tasks/notifications if something looks missing.
+
+## Access & Scope
+- Hospital-scoped via RLS; no cross-hospital visibility.
+- Access limited to assigned patients within the hospital context.

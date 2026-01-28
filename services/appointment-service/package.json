@@ -1,0 +1,50 @@
+{
+  "name": "appointment-service",
+  "version": "1.0.0",
+  "description": "Appointment Scheduling Service - CareSync HIMS Microservice",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "migrate": "tsx migrations/migrate.ts",
+    "docker:build": "docker build -t appointment-service .",
+    "docker:run": "docker run -p 3006:3006 appointment-service"
+  },
+  "keywords": ["healthcare", "appointments", "scheduling", "microservice"],
+  "author": "CareSync Team",
+  "license": "MIT",
+  "dependencies": {
+    "fastify": "^4.26.0",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/helmet": "^11.1.1",
+    "pg": "^8.11.3",
+    "redis": "^4.6.12",
+    "kafkajs": "^2.2.4",
+    "zod": "^3.22.4",
+    "pino": "^8.17.2",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "@types/pg": "^8.10.9",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

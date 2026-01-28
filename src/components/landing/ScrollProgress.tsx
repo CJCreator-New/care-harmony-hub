@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function ScrollProgress() {
   const [scrollProgress, setScrollProgress] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
   
   const spring = useSpring(scrollProgress, {
-    stiffness: 100,
-    damping: 30,
+    stiffness: prefersReducedMotion ? 300 : 100,
+    damping: prefersReducedMotion ? 50 : 30,
     restDelta: 0.001,
   });
 

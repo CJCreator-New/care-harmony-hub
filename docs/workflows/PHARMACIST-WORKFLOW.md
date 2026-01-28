@@ -3,6 +3,8 @@
 ## Overview
 The Pharmacist role ensures safe medication dispensing, patient counseling, and medication management. This workflow includes all recent automation and analytics features.
 
+**Back to consolidated:** [CONSOLIDATED_ROLE_WORKFLOWS.md](../CONSOLIDATED_ROLE_WORKFLOWS.md#pharmacist-workflow)
+
 ---
 
 ## 1. Login & Access
@@ -32,3 +34,12 @@ The Pharmacist role ensures safe medication dispensing, patient counseling, and 
 - All actions logged (HIPAA compliance)
 - Real-time updates via Supabase Realtime
 - Pending: Robotic dispensing, advanced analytics, education platform, external integration
+
+## Automation & Notifications
+- New prescriptions create pharmacy tasks/notifications; drug interaction flags may notify doctors when enabled.
+- Dispense completion can notify patients (ready for pickup) via configured rules.
+- No automatic retries on failed actions; monitor pharmacy tasks/notifications for completion.
+
+## Access & Scope
+- Hospital-scoped via RLS; no cross-hospital visibility.
+- Access constrained to hospital’s prescriptions, inventory, and related patient records.

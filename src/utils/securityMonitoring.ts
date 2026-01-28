@@ -19,7 +19,10 @@ export class SecurityMonitoringService {
     if (this.isRunning) return;
 
     this.isRunning = true;
-    console.log(`Starting security monitoring with ${intervalMinutes} minute intervals`);
+    // Only log in development/test environments
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Starting security monitoring with ${intervalMinutes} minute intervals`);
+    }
 
     this.monitoringInterval = setInterval(async () => {
       await this.runSecurityChecks();
@@ -35,12 +38,16 @@ export class SecurityMonitoringService {
       this.monitoringInterval = null;
     }
     this.isRunning = false;
-    console.log('Security monitoring stopped');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Security monitoring stopped');
+    }
   }
 
   private async runSecurityChecks(): Promise<void> {
     try {
-      console.log('Running automated security checks...');
+      // Only log in development/test environments
+      const log = process.env.NODE_ENV === 'production' ? () => {} : console.log;
+      log('Running automated security checks...');
 
       // Get all active hospitals
       const { data: hospitals, error } = await supabase
@@ -65,19 +72,23 @@ export class SecurityMonitoringService {
           totalAlerts += alerts.length;
 
           if (alerts.length > 0) {
-            console.log(`Security alerts detected for ${hospital.name}: ${alerts.length}`);
+            log(`Security alerts detected for ${hospital.name}: ${alerts.length}`);
           }
         } catch (error) {
-          console.error(`Error checking hospital ${hospital.id}:`, error);
+          if (process.env.NODE_ENV !== 'production') {
+            console.error(`Error checking hospital ${hospital.id}:`, error);
+          }
         }
       }
 
       if (totalAlerts > 0) {
-        console.log(`Security monitoring completed: ${totalAlerts} alerts generated`);
+        log(`Security monitoring completed: ${totalAlerts} alerts generated`);
       }
 
     } catch (error) {
-      console.error('Error in security monitoring:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error in security monitoring:', error);
+      }
     }
   }
 

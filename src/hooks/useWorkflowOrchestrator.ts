@@ -98,65 +98,113 @@ export function useWorkflowOrchestrator() {
   };
 
   const executeWorkflowActions = async (actions: WorkflowAction[], event: WorkflowEvent) => {
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds
+
     for (const action of actions) {
-      try {
-        switch (action.type) {
-          case 'create_task':
-            await supabase.from('workflow_tasks').insert({
-              hospital_id: hospital?.id,
-              patient_id: event.patientId,
-              title: action.message || `Automated task: ${event.type}`,
-              description: JSON.stringify(action.metadata || event.data),
-              assigned_role: action.target_role,
-              assigned_to: action.target_user,
-              priority: event.priority || 'normal',
-              status: 'pending',
-              workflow_type: event.type
-            });
-            break;
+      await executeActionWithRetry(action, event, maxRetries, retryDelay);
+    }
+  };
 
-          case 'send_notification':
-            await supabase.from('notifications').insert({
-              hospital_id: hospital?.id,
-              user_id: action.target_user,
-              title: `Workflow Alert: ${event.type}`,
-              message: action.message,
-              type: 'workflow',
-              priority: event.priority === 'urgent' ? 'critical' : 'high'
-            });
-            break;
+  const executeActionWithRetry = async (
+    action: WorkflowAction,
+    event: WorkflowEvent,
+    maxRetries: number,
+    delay: number,
+    attempt: number = 1
+  ): Promise<void> => {
+    try {
+      await executeSingleAction(action, event);
+    } catch (actionError) {
+      console.error(`Failed to execute action ${action.type} (attempt ${attempt}):`, actionError);
 
-          case 'update_status':
-            // Logic to update patient_status or other entities
-            if (event.patientId && action.metadata?.status) {
-              await supabase
-                .from('patients')
-                .update({ status: action.metadata.status })
-                .eq('id', event.patientId);
-            }
-            break;
+      if (attempt < maxRetries) {
+        console.log(`Retrying action ${action.type} in ${delay}ms...`);
+        setTimeout(() => {
+          executeActionWithRetry(action, event, maxRetries, delay * 2, attempt + 1); // Exponential backoff
+        }, delay);
+      } else {
+        console.error(`Action ${action.type} failed after ${maxRetries} attempts`);
 
-          case 'trigger_function':
-            if (action.metadata?.function_name) {
-              await supabase.functions.invoke(action.metadata.function_name, {
-                body: { ...event.data, patient_id: event.patientId }
-              });
-            }
-            break;
+        // Log failed action for admin review
+        await supabase.from('workflow_action_failures').insert({
+          hospital_id: hospital?.id,
+          workflow_event_id: event.type,
+          action_type: action.type,
+          action_metadata: action,
+          error_message: actionError instanceof Error ? actionError.message : 'Unknown error',
+          retry_attempts: maxRetries,
+          patient_id: event.patientId,
+          created_at: new Date().toISOString()
+        });
 
-          case 'escalate':
-            await supabase.from('escalations').insert({
-              hospital_id: hospital?.id,
-              related_event_id: event.type,
-              patient_id: event.patientId,
-              reason: action.message,
-              severity: 'high'
-            });
-            break;
-        }
-      } catch (actionError) {
-        console.error(`Failed to execute action ${action.type}:`, actionError);
+        // Send notification to admin about failed action
+        await supabase.from('notifications').insert({
+          hospital_id: hospital?.id,
+          user_id: null, // System notification
+          title: 'Workflow Action Failed',
+          message: `Failed to execute ${action.type} for event ${event.type} after ${maxRetries} retries`,
+          type: 'system',
+          priority: 'high'
+        });
       }
+    }
+  };
+
+  const executeSingleAction = async (action: WorkflowAction, event: WorkflowEvent) => {
+    switch (action.type) {
+      case 'create_task':
+        await supabase.from('workflow_tasks').insert({
+          hospital_id: hospital?.id,
+          patient_id: event.patientId,
+          title: action.message || `Automated task: ${event.type}`,
+          description: JSON.stringify(action.metadata || event.data),
+          assigned_role: action.target_role,
+          assigned_to: action.target_user,
+          priority: event.priority || 'normal',
+          status: 'pending',
+          workflow_type: event.type
+        });
+        break;
+
+      case 'send_notification':
+        await supabase.from('notifications').insert({
+          hospital_id: hospital?.id,
+          user_id: action.target_user,
+          title: `Workflow Alert: ${event.type}`,
+          message: action.message,
+          type: 'workflow',
+          priority: event.priority === 'urgent' ? 'critical' : 'high'
+        });
+        break;
+
+      case 'update_status':
+        // Logic to update patient_status or other entities
+        if (event.patientId && action.metadata?.status) {
+          await supabase
+            .from('patients')
+            .update({ status: action.metadata.status })
+            .eq('id', event.patientId);
+        }
+        break;
+
+      case 'trigger_function':
+        if (action.metadata?.function_name) {
+          await supabase.functions.invoke(action.metadata.function_name, {
+            body: { ...event.data, patient_id: event.patientId }
+          });
+        }
+        break;
+
+      case 'escalate':
+        await supabase.from('escalations').insert({
+          hospital_id: hospital?.id,
+          related_event_id: event.type,
+          patient_id: event.patientId,
+          reason: action.message,
+          severity: 'high'
+        });
+        break;
     }
   };
 

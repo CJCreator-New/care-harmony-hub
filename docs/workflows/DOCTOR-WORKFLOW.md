@@ -3,6 +3,8 @@
 ## Overview
 The Doctor role is central to patient care, diagnosis, and treatment. This workflow reflects all recent enhancements, including advanced AI, RBAC, and integrated analytics.
 
+**Back to consolidated:** [CONSOLIDATED_ROLE_WORKFLOWS.md](../CONSOLIDATED_ROLE_WORKFLOWS.md#doctor-workflow)
+
 ---
 
 ## 1. Login & Access
@@ -44,3 +46,12 @@ The Doctor role is central to patient care, diagnosis, and treatment. This workf
 - Real-time updates via Supabase Realtime
 - Role-based feature toggles
 - Pending: Advanced AI, biometric auth, peer benchmarking
+
+## Automation & Notifications
+- Events from consultations, orders, and critical labs create tasks/notifications via workflow rules.
+- Critical lab values notify doctor; prescription creation notifies pharmacy; consult tasks notify nursing when applicable.
+- No automatic retries on failed actions; monitor notifications/tasks for completion.
+
+## Access & Scope
+- Hospital-scoped via RLS; no cross-hospital visibility.
+- Patient data limited to the hospital; follow least-privilege policies for role actions.

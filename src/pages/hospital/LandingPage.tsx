@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
+import { VideoModal } from '@/components/landing/VideoModal';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -8,7 +9,7 @@ import { Testimonial } from '@/components/ui/design-testimonial';
 import { Hero } from '@/components/ui/hero';
 import { NavigationHeader } from '@/components/landing/NavigationHeader';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useVideoModal } from '@/components/landing/VideoModal';
+
 import {
   Shield,
   Users,
@@ -36,7 +37,7 @@ const FloatingCTA = lazy(() => import('@/components/landing/FloatingCTA').then(m
 const UrgencyBanner = lazy(() => import('@/components/landing/UrgencyBanner').then(m => ({ default: m.UrgencyBanner })));
 const SocialProofPopup = lazy(() => import('@/components/landing/SocialProofPopup').then(m => ({ default: m.SocialProofPopup })));
 const HeroDashboardMockup = lazy(() => import('@/components/landing/HeroDashboardMockup').then(m => ({ default: m.HeroDashboardMockup })));
-const VideoModal = lazy(() => import('@/components/landing/VideoModal').then(m => ({ default: m.VideoModal })));
+
 const ScrollProgress = lazy(() => import('@/components/landing/ScrollProgress').then(m => ({ default: m.ScrollProgress })));
 const CursorTrail = lazy(() => import('@/components/landing/CursorTrail').then(m => ({ default: m.CursorTrail })));
 
@@ -103,7 +104,9 @@ const itemVariants = {
 };
 
 export default function LandingPage() {
-  const { isOpen: isVideoOpen, openModal: openVideoModal, closeModal: closeVideoModal } = useVideoModal();
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const openVideoModal = () => setIsVideoOpen(true);
+  const closeVideoModal = () => setIsVideoOpen(false);
   
   return (
     <div className="min-h-screen bg-background">
@@ -228,9 +231,7 @@ export default function LandingPage() {
       </div>
 
       {/* Video Modal */}
-      <Suspense fallback={null}>
-        <VideoModal isOpen={isVideoOpen} onClose={closeVideoModal} />
-      </Suspense>
+      <VideoModal isOpen={isVideoOpen} onClose={closeVideoModal} />
 
       {/* Social Proof / Logo Carousel */}
       <Suspense fallback={<div className="h-20" />}>

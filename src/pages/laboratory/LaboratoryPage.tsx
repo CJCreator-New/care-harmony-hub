@@ -43,6 +43,7 @@ import {
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
 import { usePatient } from '@/hooks/usePatients';
 import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
+import { useWorkflowOrchestrator } from '@/hooks/useWorkflowOrchestrator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
@@ -114,6 +115,7 @@ export default function LaboratoryPage() {
   const { data: stats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
   const { notifyLabResults } = useNotificationTriggers();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   const handleCollectSample = (order: LabOrder) => {
     updateOrder.mutate({
@@ -151,9 +153,9 @@ export default function LaboratoryPage() {
       },
     });
 
-    // Notify the ordering doctor about results
+    // Trigger workflow for lab results ready
     if (selectedOrder.ordered_by) {
-      // Get patient name for notification
+      // Get patient name for workflow
       const { data: patient } = await supabase
         .from('patients')
         .select('first_name, last_name')
@@ -162,13 +164,18 @@ export default function LaboratoryPage() {
 
       if (patient) {
         const patientName = `${patient.first_name} ${patient.last_name}`;
-        await notifyLabResults(
-          selectedOrder.ordered_by,
-          patientName,
-          selectedOrder.test_name,
-          selectedOrder.id,
-          isCriticalValue
-        );
+        await triggerWorkflow({
+          type: 'lab_results_ready',
+          patientId: selectedOrder.patient_id,
+          data: {
+            patientName,
+            testName: selectedOrder.test_name,
+            labOrderId: selectedOrder.id,
+            isCritical: isCriticalValue,
+            orderedBy: selectedOrder.ordered_by
+          },
+          priority: isCriticalValue ? 'urgent' : 'normal'
+        });
       }
     }
 

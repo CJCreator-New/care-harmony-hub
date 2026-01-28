@@ -94,6 +94,7 @@ export async function setTestRole(page: Page, role: UserRole) {
  */
 export async function registerTestHospital(page: Page) {
   await page.goto('/hospital/signup');
+  await page.waitForLoadState('networkidle');
   
   // Step 1: Hospital Info
   await page.getByLabel(/Hospital Name/i).fill(TEST_DATA.HOSPITAL.name);
@@ -105,7 +106,17 @@ export async function registerTestHospital(page: Page) {
   await page.getByLabel(/Hospital Email/i).fill(TEST_DATA.HOSPITAL.email);
   await page.getByLabel(/License Number/i).fill(TEST_DATA.HOSPITAL.license);
   
-  await page.getByRole('button', { name: /Continue/i }).click();
+  // Ensure no validation errors are visible
+  await expect(page.locator('.text-red-500, .text-destructive')).toHaveCount(0);
+  
+  // Wait for continue button to be enabled
+  const continueButton = page.getByRole('button', { name: /Continue/i });
+  await expect(continueButton).toBeEnabled();
+  
+  await continueButton.click();
+  
+  // Wait for step 2 to be visible
+  await expect(page.getByLabel(/First Name/i)).toBeVisible();
   
   // Step 2: Admin Info
   await page.getByLabel(/First Name/i).fill(TEST_DATA.ADMIN.firstName);
@@ -114,7 +125,17 @@ export async function registerTestHospital(page: Page) {
   await page.getByLabel(/^Password/i).fill(TEST_DATA.ADMIN.password);
   await page.getByLabel(/Confirm Password/i).fill(TEST_DATA.ADMIN.password);
   
-  await page.getByRole('button', { name: /Create Account/i }).click();
+  // Ensure password meets requirements (check if all requirements show check marks)
+  await expect(page.locator('svg.lucide-check')).toHaveCount(5); // 5 check icons for requirements
+  
+  // Ensure no validation errors
+  await expect(page.locator('.text-red-500, .text-destructive')).toHaveCount(0);
+  
+  // Wait for create account button to be enabled
+  const createButton = page.getByRole('button', { name: /Create Account/i });
+  await expect(createButton).toBeEnabled();
+  
+  await createButton.click();
   
   // Wait for registration to complete and redirect
   await expect(page).toHaveURL(/.*(role-setup|dashboard).*/, { timeout: 15000 });
@@ -122,7 +143,11 @@ export async function registerTestHospital(page: Page) {
   // If we ended up on role-setup, go to dashboard
   if (page.url().includes('role-setup')) {
     await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
   }
+  
+  // Ensure we're on dashboard
+  await expect(page).toHaveURL(/.*dashboard.*/);
 }
 
 /**

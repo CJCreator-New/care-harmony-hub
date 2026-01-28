@@ -39,6 +39,10 @@ import {
   Activity,
   ChevronDown,
   Search,
+  Brain,
+  Target,
+  Clock,
+  Mic,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
 import { hasPermission, Permission } from '@/lib/permissions';
@@ -71,6 +75,15 @@ const navItems: NavItem[] = [
   { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'], permission: 'staff-management' },
   { label: 'Staff Performance', href: '/settings/performance', icon: Activity, roles: ['admin'], permission: 'staff-performance' },
   { label: 'Activity Logs', href: '/settings/activity', icon: ClipboardList, roles: ['admin'], permission: 'activity-logs' },
+  { label: 'System Monitoring', href: '/settings/monitoring', icon: Activity, roles: ['admin'], permission: 'system-monitoring' },
+  { label: 'AI Demo', href: '/ai-demo', icon: Brain, roles: ['admin', 'doctor'], permission: 'ai-demo' },
+  { label: 'Differential Diagnosis', href: '/differential-diagnosis', icon: Stethoscope, roles: ['admin', 'doctor'], permission: 'differential-diagnosis' },
+  { label: 'Treatment Recommendations', href: '/treatment-recommendations', icon: Pill, roles: ['admin', 'doctor'], permission: 'treatment-recommendations' },
+  { label: 'Treatment Plan Optimization', href: '/treatment-plan-optimization', icon: Target, roles: ['admin', 'doctor'], permission: 'treatment-plan-optimization' },
+  { label: 'Predictive Analytics', href: '/predictive-analytics', icon: BarChart3, roles: ['admin', 'doctor'], permission: 'predictive-analytics' },
+  { label: 'Length of Stay Forecasting', href: '/length-of-stay-forecasting', icon: Clock, roles: ['admin', 'doctor'], permission: 'length-of-stay-forecasting' },
+  { label: 'Resource Utilization Optimization', href: '/resource-utilization-optimization', icon: Target, roles: ['admin', 'doctor'], permission: 'resource-utilization-optimization' },
+  { label: 'Voice Clinical Notes', href: '/voice-clinical-notes', icon: Mic, roles: ['admin', 'doctor', 'nurse'], permission: 'voice-clinical-notes' },
   { label: 'Hospital Settings', href: '/settings', icon: Settings, roles: ['admin'], permission: 'settings' },
   // Patient Portal Links
   { label: 'My Health Portal', href: '/patient/portal', icon: Activity, roles: ['patient'], permission: 'portal' },

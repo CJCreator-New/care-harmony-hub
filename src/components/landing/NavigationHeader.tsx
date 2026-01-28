@@ -216,9 +216,9 @@ export function NavigationHeader() {
         </div>
 
         {/* Mobile Menu */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild className="lg:hidden">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="Open navigation menu">
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>

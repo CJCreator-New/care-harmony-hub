@@ -27,34 +27,37 @@ export class TestDataSeeder {
       includeThisMonth = true
     } = options;
 
-    console.log('🌱 Starting test data seeding...');
+    // Use console logging only in development/test environments
+    const log = process.env.NODE_ENV === 'production' ? () => {} : console.log;
+
+    log('🌱 Starting test data seeding...');
 
     try {
       // 1. Create patients
-      console.log(`📋 Creating ${patientCount} patients...`);
+      log(`📋 Creating ${patientCount} patients...`);
       const patients = await this.createPatients(patientCount);
 
       // 2. Create staff members
-      console.log(`👥 Creating ${staffCount} staff members...`);
+      log(`👥 Creating ${staffCount} staff members...`);
       const staff = await this.createStaff(staffCount);
 
       // 3. Create appointments
-      console.log(`📅 Creating ${appointmentCount} appointments...`);
+      log(`📅 Creating ${appointmentCount} appointments...`);
       await this.createAppointments(appointmentCount, patients, staff, includeToday);
 
       // 4. Create billing records
-      console.log(`💰 Creating billing records...`);
+      log(`💰 Creating billing records...`);
       await this.createBillingRecords(patients, includeThisMonth);
 
       // 5. Create queue entries
-      console.log(`⏳ Creating queue entries...`);
+      log(`⏳ Creating queue entries...`);
       await this.createQueueEntries(patients);
 
       // 6. Update staff presence
-      console.log(`🟢 Updating staff presence...`);
+      log(`🟢 Updating staff presence...`);
       await this.updateStaffPresence(staff);
 
-      console.log('✅ Test data seeding completed successfully!');
+      log('✅ Test data seeding completed successfully!');
       return {
         patients: patients.length,
         staff: staff.length,
@@ -62,7 +65,9 @@ export class TestDataSeeder {
         message: 'Test data created successfully'
       };
     } catch (error) {
-      console.error('❌ Error seeding test data:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('❌ Error seeding test data:', error);
+      }
       throw error;
     }
   }
@@ -126,20 +131,27 @@ export class TestDataSeeder {
     const { data, error } = await supabase.from('patients').insert(patients).select();
     if (error) throw error;
 
-    // Log patient registrations
-    for (const patient of data) {
-      await supabase.from('activity_logs').insert({
-        hospital_id: this.hospitalId,
-        user_id: patient.id, // Use patient id as placeholder
-        action_type: 'patient_registered',
-        entity_type: 'patient',
-        entity_id: patient.id,
-        details: {
-          patient_name: `${patient.first_name} ${patient.last_name}`,
-          mrn: patient.mrn,
-          source: 'test_data_seeder'
-        }
-      });
+    // Batch log patient registrations - reduces N+1 queries to single batch insert
+    const activityLogs = data.map(patient => ({
+      hospital_id: this.hospitalId,
+      user_id: patient.id,
+      action_type: 'patient_registered',
+      entity_type: 'patient',
+      entity_id: patient.id,
+      details: {
+        patient_name: `${patient.first_name} ${patient.last_name}`,
+        mrn: patient.mrn,
+        source: 'test_data_seeder'
+      }
+    }));
+
+    // Single batch insert instead of N individual queries
+    const { error: logError } = await supabase.from('activity_logs').insert(activityLogs);
+    if (logError) {
+      // Non-critical error - don't fail the entire seeding process
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Failed to log patient registrations:', logError);
+      }
     }
 
     return data;
@@ -232,11 +244,12 @@ export class TestDataSeeder {
     const { data, error } = await supabase.from('appointments').insert(appointments).select();
     if (error) throw error;
 
-    // Log appointment activities
-    for (const appointment of data) {
-      const patient = patients.find(p => p.id === appointment.patient_id);
-      if (appointment.doctor_id) {
-        await supabase.from('activity_logs').insert({
+    // Batch log appointment activities - reduces N+1 queries
+    const activityLogs = data
+      .filter(appointment => appointment.doctor_id)
+      .map(appointment => {
+        const patient = patients.find(p => p.id === appointment.patient_id);
+        return {
           hospital_id: this.hospitalId,
           user_id: appointment.doctor_id,
           action_type: 'appointment_created',
@@ -248,7 +261,14 @@ export class TestDataSeeder {
             scheduled_time: appointment.scheduled_time,
             source: 'test_data_seeder'
           }
-        });
+        };
+      });
+
+    // Single batch insert for all appointment logs
+    if (activityLogs.length > 0) {
+      const { error: logError } = await supabase.from('activity_logs').insert(activityLogs);
+      if (logError && process.env.NODE_ENV !== 'production') {
+        console.warn('Failed to log appointment activities:', logError);
       }
     }
 
@@ -361,7 +381,8 @@ export class TestDataSeeder {
   }
 
   async cleanup() {
-    console.log('🧹 Cleaning up test data...');
+    const log = process.env.NODE_ENV === 'production' ? () => {} : console.log;
+    log('🧹 Cleaning up test data...');
     
     try {
       // Delete in reverse order of dependencies
@@ -374,9 +395,11 @@ export class TestDataSeeder {
       await supabase.from('profiles').delete().eq('hospital_id', this.hospitalId);
       await supabase.from('patients').delete().eq('hospital_id', this.hospitalId);
       
-      console.log('✅ Test data cleanup completed');
+      log('✅ Test data cleanup completed');
     } catch (error) {
-      console.error('❌ Error cleaning up test data:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('❌ Error cleaning up test data:', error);
+      }
       throw error;
     }
   }

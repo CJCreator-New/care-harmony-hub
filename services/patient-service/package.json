@@ -1,0 +1,78 @@
+{
+  "name": "patient-service",
+  "version": "1.0.0",
+  "description": "Patient Management Microservice - CareSync AI HIMS",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:integration": "vitest --run --config vitest.config.integration.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "type-check": "tsc --noEmit",
+    "migrate": "tsx migrate.ts",
+    "seed": "tsx src/scripts/seed.ts",
+    "docker:build": "docker build -t patient-service .",
+    "docker:run": "docker run -p 3001:3001 patient-service",
+    "health-check": "curl -f http://localhost:3001/health"
+  },
+  "keywords": [
+    "microservice",
+    "patient-management",
+    "healthcare",
+    "rest-api",
+    "typescript"
+  ],
+  "author": "CareSync AI Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/jwt": "^8.0.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/swagger": "^8.14.0",
+    "@fastify/swagger-ui": "^4.0.1",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "fastify-plugin": "^4.5.1",
+    "pg": "^8.12.0",
+    "redis": "^4.7.0",
+    "zod": "^3.23.8",
+    "kafkajs": "^2.2.4",
+    "pino": "^9.4.0",
+    "pino-pretty": "^11.2.2",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/pg": "^8.11.6",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "@typescript-eslint/parser": "^7.16.1",
+    "eslint": "^8.57.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4",
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caresync-ai/care-harmony-hub.git",
+    "directory": "services/patient-service"
+  },
+  "bugs": {
+    "url": "https://github.com/caresync-ai/care-harmony-hub/issues"
+  },
+  "homepage": "https://github.com/caresync-ai/care-harmony-hub#readme"
+}

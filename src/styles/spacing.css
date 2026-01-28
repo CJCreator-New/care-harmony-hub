@@ -1,0 +1,264 @@
+/**
+ * Spacing System
+ * 
+ * 8px base grid system for consistent spacing throughout the application.
+ * All spacing values are multiples of 8px.
+ * 
+ * Usage:
+ * - Use CSS variables for component spacing
+ * - Use utility classes for quick layouts
+ * - Maintain consistent vertical rhythm
+ */
+
+:root {
+  /* Base unit */
+  --space-unit: 0.5rem; /* 8px */
+  
+  /* Spacing scale */
+  --space-0: 0;
+  --space-1: calc(var(--space-unit) * 0.5);   /* 4px */
+  --space-2: var(--space-unit);               /* 8px */
+  --space-3: calc(var(--space-unit) * 1.5);   /* 12px */
+  --space-4: calc(var(--space-unit) * 2);     /* 16px */
+  --space-5: calc(var(--space-unit) * 2.5);   /* 20px */
+  --space-6: calc(var(--space-unit) * 3);     /* 24px */
+  --space-8: calc(var(--space-unit) * 4);     /* 32px */
+  --space-10: calc(var(--space-unit) * 5);    /* 40px */
+  --space-12: calc(var(--space-unit) * 6);    /* 48px */
+  --space-16: calc(var(--space-unit) * 8);    /* 64px */
+  --space-20: calc(var(--space-unit) * 10);   /* 80px */
+  --space-24: calc(var(--space-unit) * 12);   /* 96px */
+  --space-32: calc(var(--space-unit) * 16);   /* 128px */
+  --space-40: calc(var(--space-unit) * 20);   /* 160px */
+  --space-48: calc(var(--space-unit) * 24);   /* 192px */
+  --space-56: calc(var(--space-unit) * 28);   /* 224px */
+  --space-64: calc(var(--space-unit) * 32);   /* 256px */
+  
+  /* Component-specific spacing */
+  --space-card-padding: var(--space-6);
+  --space-card-gap: var(--space-4);
+  --space-section-gap: var(--space-16);
+  --space-form-gap: var(--space-4);
+  --space-button-gap: var(--space-2);
+  --space-input-padding: var(--space-3);
+  --space-list-gap: var(--space-2);
+  --space-modal-padding: var(--space-6);
+  --space-sidebar-padding: var(--space-4);
+  --space-header-height: 4rem;
+  --space-footer-height: 3rem;
+  
+  /* Layout spacing */
+  --space-container-padding: var(--space-4);
+  --space-container-max: 80rem; /* 1280px */
+  --space-content-max: 65ch;
+  
+  /* Responsive spacing */
+  --space-responsive-sm: var(--space-4);
+  --space-responsive-md: var(--space-6);
+  --space-responsive-lg: var(--space-8);
+}
+
+/* Tablet breakpoint */
+@media (min-width: 640px) {
+  :root {
+    --space-container-padding: var(--space-6);
+    --space-responsive-sm: var(--space-6);
+    --space-responsive-md: var(--space-8);
+    --space-responsive-lg: var(--space-12);
+  }
+}
+
+/* Desktop breakpoint */
+@media (min-width: 1024px) {
+  :root {
+    --space-container-padding: var(--space-8);
+    --space-responsive-sm: var(--space-8);
+    --space-responsive-md: var(--space-12);
+    --space-responsive-lg: var(--space-16);
+  }
+}
+
+/* ============================================
+   SPACING UTILITY CLASSES
+   ============================================ */
+
+/* Gap utilities */
+.gap-0 { gap: var(--space-0); }
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.gap-5 { gap: var(--space-5); }
+.gap-6 { gap: var(--space-6); }
+.gap-8 { gap: var(--space-8); }
+.gap-10 { gap: var(--space-10); }
+.gap-12 { gap: var(--space-12); }
+.gap-16 { gap: var(--space-16); }
+
+/* Padding utilities */
+.p-0 { padding: var(--space-0); }
+.p-1 { padding: var(--space-1); }
+.p-2 { padding: var(--space-2); }
+.p-3 { padding: var(--space-3); }
+.p-4 { padding: var(--space-4); }
+.p-5 { padding: var(--space-5); }
+.p-6 { padding: var(--space-6); }
+.p-8 { padding: var(--space-8); }
+.p-10 { padding: var(--space-10); }
+.p-12 { padding: var(--space-12); }
+.p-16 { padding: var(--space-16); }
+
+.px-0 { padding-left: var(--space-0); padding-right: var(--space-0); }
+.px-1 { padding-left: var(--space-1); padding-right: var(--space-1); }
+.px-2 { padding-left: var(--space-2); padding-right: var(--space-2); }
+.px-3 { padding-left: var(--space-3); padding-right: var(--space-3); }
+.px-4 { padding-left: var(--space-4); padding-right: var(--space-4); }
+.px-5 { padding-left: var(--space-5); padding-right: var(--space-5); }
+.px-6 { padding-left: var(--space-6); padding-right: var(--space-6); }
+.px-8 { padding-left: var(--space-8); padding-right: var(--space-8); }
+
+.py-0 { padding-top: var(--space-0); padding-bottom: var(--space-0); }
+.py-1 { padding-top: var(--space-1); padding-bottom: var(--space-1); }
+.py-2 { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.py-3 { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+.py-4 { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+.py-5 { padding-top: var(--space-5); padding-bottom: var(--space-5); }
+.py-6 { padding-top: var(--space-6); padding-bottom: var(--space-6); }
+.py-8 { padding-top: var(--space-8); padding-bottom: var(--space-8); }
+
+/* Margin utilities */
+.m-0 { margin: var(--space-0); }
+.m-1 { margin: var(--space-1); }
+.m-2 { margin: var(--space-2); }
+.m-3 { margin: var(--space-3); }
+.m-4 { margin: var(--space-4); }
+.m-5 { margin: var(--space-5); }
+.m-6 { margin: var(--space-6); }
+.m-8 { margin: var(--space-8); }
+.m-auto { margin: auto; }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* Stack utilities - vertical spacing */
+.stack-0 > * + * { margin-top: var(--space-0); }
+.stack-1 > * + * { margin-top: var(--space-1); }
+.stack-2 > * + * { margin-top: var(--space-2); }
+.stack-3 > * + * { margin-top: var(--space-3); }
+.stack-4 > * + * { margin-top: var(--space-4); }
+.stack-6 > * + * { margin-top: var(--space-6); }
+.stack-8 > * + * { margin-top: var(--space-8); }
+.stack-10 > * + * { margin-top: var(--space-10); }
+.stack-12 > * + * { margin-top: var(--space-12); }
+
+/* Inline utilities - horizontal spacing */
+.inline-0 > * + * { margin-left: var(--space-0); }
+.inline-1 > * + * { margin-left: var(--space-1); }
+.inline-2 > * + * { margin-left: var(--space-2); }
+.inline-3 > * + * { margin-left: var(--space-3); }
+.inline-4 > * + * { margin-left: var(--space-4); }
+.inline-6 > * + * { margin-left: var(--space-6); }
+
+/* ============================================
+   COMPONENT SPACING PATTERNS
+   ============================================ */
+
+/* Card pattern */
+.card-spacing {
+  padding: var(--space-card-padding);
+}
+
+.card-gap {
+  gap: var(--space-card-gap);
+}
+
+/* Section pattern */
+.section-spacing {
+  padding-top: var(--space-section-gap);
+  padding-bottom: var(--space-section-gap);
+}
+
+/* Form pattern */
+.form-spacing {
+  gap: var(--space-form-gap);
+}
+
+.form-group-spacing {
+  gap: var(--space-2);
+}
+
+/* Button group pattern */
+.button-group-spacing {
+  gap: var(--space-button-gap);
+}
+
+/* List pattern */
+.list-spacing {
+  gap: var(--space-list-gap);
+}
+
+/* Container pattern */
+.container-spacing {
+  padding-left: var(--space-container-padding);
+  padding-right: var(--space-container-padding);
+}
+
+.container-max {
+  max-width: var(--space-container-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Content pattern */
+.content-max {
+  max-width: var(--space-content-max);
+}
+
+/* ============================================
+   LAYOUT UTILITIES
+   ============================================ */
+
+/* Responsive padding */
+.responsive-padding {
+  padding: var(--space-responsive-sm);
+}
+
+@media (min-width: 640px) {
+  .responsive-padding {
+    padding: var(--space-responsive-md);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-padding {
+    padding: var(--space-responsive-lg);
+  }
+}
+
+/* Responsive gap */
+.responsive-gap {
+  gap: var(--space-responsive-sm);
+}
+
+@media (min-width: 640px) {
+  .responsive-gap {
+    gap: var(--space-responsive-md);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-gap {
+    gap: var(--space-responsive-lg);
+  }
+}
+
+/* ============================================
+   SPACING HELPER FUNCTIONS
+   Use in CSS calc() operations
+   ============================================ */
+
+/* Example usage:
+ * .my-component {
+ *   padding: calc(var(--space-4) + var(--space-2));
+ *   margin-bottom: var(--space-section-gap);
+ * }
+ */

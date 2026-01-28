@@ -1,12 +1,27 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Calendar, Activity, Clock, TrendingUp, Bell } from 'lucide-react';
 
 export function HeroDashboardMockup() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40, rotateX: 10 }}
+      initial={{ opacity: 0, y: prefersReducedMotion ? 20 : 40, rotateX: prefersReducedMotion ? 0 : 10 }}
       animate={{ opacity: 1, y: 0, rotateX: 0 }}
-      transition={{ duration: 0.8, delay: 0.3 }}
+      transition={{ duration: prefersReducedMotion ? 0.3 : 0.8, delay: 0.3 }}
       className="relative perspective-1000"
     >
       {/* Browser Frame */}
@@ -137,16 +152,28 @@ export function HeroDashboardMockup() {
       </div>
 
       {/* Floating elements for depth */}
-      <motion.div
-        animate={{ y: [0, -8, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute -top-4 -right-4 w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-info/20 border border-primary/20 backdrop-blur-sm"
-      />
-      <motion.div
-        animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-        className="absolute -bottom-4 -left-4 w-12 h-12 rounded-lg bg-gradient-to-br from-success/20 to-primary/20 border border-success/20 backdrop-blur-sm"
-      />
+      {!prefersReducedMotion && (
+        <>
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -top-4 -right-4 w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-info/20 border border-primary/20 backdrop-blur-sm"
+            aria-hidden="true"
+          />
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+            className="absolute -bottom-4 -left-4 w-12 h-12 rounded-lg bg-gradient-to-br from-success/20 to-primary/20 border border-success/20 backdrop-blur-sm"
+            aria-hidden="true"
+          />
+        </>
+      )}
+      {prefersReducedMotion && (
+        <>
+          <div className="absolute -top-4 -right-4 w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-info/20 border border-primary/20 backdrop-blur-sm" aria-hidden="true" />
+          <div className="absolute -bottom-4 -left-4 w-12 h-12 rounded-lg bg-gradient-to-br from-success/20 to-primary/20 border border-success/20 backdrop-blur-sm" aria-hidden="true" />
+        </>
+      )}
     </motion.div>
   );
 }

@@ -3,6 +3,8 @@
 ## Overview
 The Lab Tech role manages specimen processing, testing, and result reporting. This workflow reflects all recent automation, analytics, and compliance enhancements.
 
+**Back to consolidated:** [CONSOLIDATED_ROLE_WORKFLOWS.md](../CONSOLIDATED_ROLE_WORKFLOWS.md#lab-tech-workflow)
+
 ---
 
 ## 1. Login & Access

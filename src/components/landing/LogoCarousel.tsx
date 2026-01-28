@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Shield, Award, CheckCircle2, Server } from 'lucide-react';
@@ -23,6 +24,20 @@ const certifications = [
 ];
 
 export function LogoCarousel() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
   return (
     <section className="py-16 bg-muted/30 overflow-hidden">
       <div className="container mx-auto px-4">
@@ -45,7 +60,7 @@ export function LogoCarousel() {
           <div className="overflow-hidden">
             <motion.div
               className="flex gap-12 items-center"
-              animate={{ x: [0, -1200] }}
+              animate={prefersReducedMotion ? {} : { x: [0, -1200] }}
               transition={{
                 x: {
                   repeat: Infinity,

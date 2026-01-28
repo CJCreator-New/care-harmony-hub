@@ -5,17 +5,20 @@
 
 ## Table of Contents
 1. [Admin Workflow](#admin-workflow)
-2. [Doctor Workflow](#doctor-workflow)
-3. [Nurse Workflow](#nurse-workflow)
-4. [Receptionist Workflow](#receptionist-workflow)
-5. [Pharmacist Workflow](#pharmacist-workflow)
-6. [Lab Tech Workflow](#lab-tech-workflow)
-7. [Patient Workflow](#patient-workflow)
-8. [Cross-Role Interactions](#cross-role-interactions)
+2. [Department Head Workflow](#department-head-workflow)
+3. [Doctor Workflow](#doctor-workflow)
+4. [Nurse Workflow](#nurse-workflow)
+5. [Receptionist Workflow](#receptionist-workflow)
+6. [Pharmacist Workflow](#pharmacist-workflow)
+7. [Lab Tech Workflow](#lab-tech-workflow)
+8. [Patient Workflow](#patient-workflow)
+9. [Cross-Role Interactions](#cross-role-interactions)
 
 ---
 
 ## ADMIN WORKFLOW
+
+**Full workflow:** [docs/workflows/ADMIN-WORKFLOW.md](docs/workflows/ADMIN-WORKFLOW.md)
 
 ### 1. System Access & Dashboard
 - Login via admin credentials (RBAC enforced)
@@ -55,7 +58,39 @@
 
 ---
 
+## DEPARTMENT HEAD WORKFLOW
+
+**Full workflow:** [docs/workflows/DEPARTMENT-HEAD-WORKFLOW.md](docs/workflows/DEPARTMENT-HEAD-WORKFLOW.md)
+
+### 1. Access & Dashboard
+- RBAC-scoped to hospital/department; dashboard shows staffing, queue/load, SLA alerts, incidents, role requests.
+
+### 2. Role Approvals & Staffing
+- Review/approve role requests for department staff; escalate to System Administrator as needed.
+- Verify profiles are hospital-linked before approval.
+- Adjust schedules/coverage based on demand and roster gaps.
+
+### 3. Operations & SLA Oversight
+- Monitor wait times, lab/pharmacy TAT, and consult backlog; trigger task reassignment or workflow rules when SLAs breach.
+- Coordinate with Reception for patient flow changes; request cross-department support via Admin when required.
+
+### 4. Quality & Compliance
+- Review incidents/variances, audit logs, and discharge completeness for the department.
+- Initiate corrective actions and track follow-ups.
+
+### 5. Handoffs & Reporting
+- End-of-day summary: staffing changes, SLA breaches, incidents, open actions.
+- Handoff to next-day lead and System Administrator for cross-department items.
+
+### Technical Notes
+- Hospital/department scoping enforced via RLS; cross-hospital access blocked.
+- Workflow automation tasks/notifications filtered by `hospital_id` and role/department; department heads can trigger escalation rules.
+
+---
+
 ## DOCTOR WORKFLOW
+
+**Full workflow:** [docs/workflows/DOCTOR-WORKFLOW.md](docs/workflows/DOCTOR-WORKFLOW.md)
 
 ### 1. Login & Dashboard Access
 - Secure login via email (RBAC enforced)
@@ -137,6 +172,8 @@
 
 ## NURSE WORKFLOW
 
+**Full workflow:** [docs/workflows/NURSE-WORKFLOW.md](docs/workflows/NURSE-WORKFLOW.md)
+
 ### 1. Login & Dashboard Access
 - Secure login via credentials (RBAC enforced)
 - Dashboard shows:
@@ -199,6 +236,8 @@
 ---
 
 ## RECEPTIONIST WORKFLOW
+
+**Full workflow:** [docs/workflows/RECEPTIONIST-WORKFLOW.md](docs/workflows/RECEPTIONIST-WORKFLOW.md)
 
 ### 1. Login & Dashboard Access
 - Secure login via credentials (RBAC enforced)
@@ -267,6 +306,8 @@
 ---
 
 ## PHARMACIST WORKFLOW
+
+**Full workflow:** [docs/workflows/PHARMACIST-WORKFLOW.md](docs/workflows/PHARMACIST-WORKFLOW.md)
 
 ### 1. Login & Dashboard Access
 - Secure login via credentials (RBAC enforced)
@@ -349,6 +390,8 @@
 
 ## LAB TECH WORKFLOW
 
+**Full workflow:** [docs/workflows/LAB-TECH-WORKFLOW.md](docs/workflows/LAB-TECH-WORKFLOW.md)
+
 ### 1. Login & Dashboard Access
 - Secure login via credentials (RBAC enforced)
 - Dashboard shows:
@@ -425,6 +468,8 @@
 ---
 
 ## PATIENT WORKFLOW
+
+**Full workflow:** [docs/workflows/PATIENT-WORKFLOW.md](docs/workflows/PATIENT-WORKFLOW.md)
 
 ### 1. Registration & Login
 - Register via patient portal
