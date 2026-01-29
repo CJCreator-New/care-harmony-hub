@@ -1,0 +1,737 @@
+# Kong API Gateway Configuration
+# This file defines the declarative configuration for Kong Gateway
+# Used to route traffic to microservices with authentication and security
+
+_format_version: "3.0"
+
+# Upstream services
+upstreams:
+  - name: clinical-service
+    algorithm: round-robin
+    slots: 1000
+    healthchecks:
+      active:
+        type: http
+        http_path: "/health"
+        timeout: 5
+        concurrency: 10
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 3
+          tcp_failures: 3
+          timeouts: 3
+
+  - name: patient-service
+    algorithm: round-robin
+    slots: 1000
+    healthchecks:
+      active:
+        type: http
+        http_path: "/health"
+        timeout: 5
+        concurrency: 10
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 3
+          tcp_failures: 3
+          timeouts: 3
+
+  - name: appointment-service
+    algorithm: round-robin
+    slots: 1000
+    healthchecks:
+      active:
+        type: http
+        http_path: "/health"
+        timeout: 5
+        concurrency: 10
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 3
+          tcp_failures: 3
+          timeouts: 3
+
+# Services
+services:
+  - name: clinical-service
+    url: http://clinical-service:3003
+    routes:
+      - name: clinical-api
+        paths:
+          - /api/clinical
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        strip_path: true
+        plugins:
+          - name: cors
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                  - "X-API-Gateway: kong"
+                  - "X-Request-Time: $(date)"
+          - name: response-transformer
+            config:
+              add:
+                headers:
+                  - "X-API-Version: v1"
+                  - "X-Response-Time: $(date)"
+          - name: key-auth
+            config:
+              key_names: ["apikey", "X-API-Key"]
+              hide_credentials: true
+
+  - name: patient-service
+    url: http://patient-service:3001
+    routes:
+      - name: patient-api
+        paths:
+          - /api/patient
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        strip_path: true
+        plugins:
+          - name: cors
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                  - "X-API-Gateway: kong"
+                  - "X-Request-Time: $(date)"
+          - name: response-transformer
+            config:
+              add:
+                headers:
+                  - "X-API-Version: v1"
+                  - "X-Response-Time: $(date)"
+          - name: key-auth
+            config:
+              key_names: ["apikey", "X-API-Key"]
+              hide_credentials: true
+
+  - name: appointment-service
+    url: http://appointment-service:3002
+    routes:
+      - name: appointment-api
+        paths:
+          - /api/appointment
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        strip_path: true
+        plugins:
+          - name: cors
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                  - "X-API-Gateway: kong"
+                  - "X-Request-Time: $(date)"
+          - name: response-transformer
+            config:
+              add:
+                headers:
+                  - "X-API-Version: v1"
+                  - "X-Response-Time: $(date)"
+          - name: key-auth
+            config:
+              key_names: ["apikey", "X-API-Key"]
+              hide_credentials: true
+
+# Authentication consumers
+consumers:
+  - username: caresync-frontend
+    custom_id: frontend-app
+    tags: ["frontend", "trusted"]
+  - username: caresync-mobile
+    custom_id: mobile-app
+    tags: ["mobile", "trusted"]
+  - username: caresync-admin
+    custom_id: admin-panel
+    tags: ["admin", "trusted"]
+
+# API Keys for consumers
+keyauth_credentials:
+  - consumer: caresync-frontend
+    key: caresync_frontend_key_2026_secure
+  - consumer: caresync-mobile
+    key: caresync_mobile_key_2026_secure
+  - consumer: caresync-admin
+    key: caresync_admin_key_2026_secure
+
+# Plugins
+plugins:
+  # CORS Configuration - Applied to all services
+  - name: cors
+    service: clinical-service
+    config:
+      origins:
+        - "http://localhost:5173"
+        - "http://localhost:3000"
+        - "https://care-harmony-hub.vercel.app"
+        - "https://*.vercel.app"
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-API-Key"]
+      exposed_headers: ["X-API-Version", "X-Response-Time"]
+      credentials: true
+      max_age: 3600
+
+  - name: cors
+    service: patient-service
+    config:
+      origins:
+        - "http://localhost:5173"
+        - "http://localhost:3000"
+        - "https://care-harmony-hub.vercel.app"
+        - "https://*.vercel.app"
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-API-Key"]
+      exposed_headers: ["X-API-Version", "X-Response-Time"]
+      credentials: true
+      max_age: 3600
+
+  - name: cors
+    service: appointment-service
+    config:
+      origins:
+        - "http://localhost:5173"
+        - "http://localhost:3000"
+        - "https://care-harmony-hub.vercel.app"
+        - "https://*.vercel.app"
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-API-Key"]
+      exposed_headers: ["X-API-Version", "X-Response-Time"]
+      credentials: true
+      max_age: 3600
+
+  # Request Size Limiting - Applied to all services
+  - name: request-size-limiting
+    service: clinical-service
+    config:
+      allowed_payload_size: 10485760  # 10MB
+
+  - name: request-size-limiting
+    service: patient-service
+    config:
+      allowed_payload_size: 10485760  # 10MB
+
+  - name: request-size-limiting
+    service: appointment-service
+    config:
+      allowed_payload_size: 10485760  # 10MB
+
+  # Response Rate Limiting - Applied to all services
+  - name: response-ratelimiting
+    service: clinical-service
+    config:
+      limits:
+        minute: 1000
+        hour: 10000
+
+  - name: response-ratelimiting
+    service: patient-service
+    config:
+      limits:
+        minute: 1000
+        hour: 10000
+
+  - name: response-ratelimiting
+    service: appointment-service
+    config:
+      limits:
+        minute: 1000
+        hour: 10000
+
+  # IP Restrictions - Applied to all services
+  - name: ip-restriction
+    service: clinical-service
+    config:
+      allow:
+        - "127.0.0.1"
+        - "172.16.0.0/12"  # Docker networks
+        - "192.168.0.0/16" # Local networks
+      deny: []
+
+  - name: ip-restriction
+    service: patient-service
+    config:
+      allow:
+        - "127.0.0.1"
+        - "172.16.0.0/12"  # Docker networks
+        - "192.168.0.0/16" # Local networks
+      deny: []
+
+  - name: ip-restriction
+    service: appointment-service
+    config:
+      allow:
+        - "127.0.0.1"
+        - "172.16.0.0/12"  # Docker networks
+        - "192.168.0.0/16" # Local networks
+      deny: []
+
+  # Bot Detection - Applied to all services
+  - name: bot-detection
+    service: clinical-service
+    config:
+      allow:
+        - "googlebot"
+        - "bingbot"
+      deny: []
+
+  - name: bot-detection
+    service: patient-service
+    config:
+      allow:
+        - "googlebot"
+        - "bingbot"
+      deny: []
+
+  - name: bot-detection
+    service: appointment-service
+    config:
+      allow:
+        - "googlebot"
+        - "bingbot"
+      deny: []
+
+  - name: loggly
+    service: clinical-service
+    config:
+      key: "caresync-logs"
+      tags: ["api-gateway", "clinical-service"]
+      host: "logs-01.loggly.com"
+
+  # Advanced Rate Limiting - Global Service Level
+  - name: rate-limiting
+    service: clinical-service
+    config:
+      minute: 5000  # 5000 requests per minute
+      hour: 50000   # 50000 requests per hour
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_password:
+      redis_timeout: 2000
+      redis_database: 1
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: patient-service
+    config:
+      minute: 5000  # 5000 requests per minute
+      hour: 50000   # 50000 requests per hour
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_password:
+      redis_timeout: 2000
+      redis_database: 1
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: appointment-service
+    config:
+      minute: 5000  # 5000 requests per minute
+      hour: 50000   # 50000 requests per hour
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_password:
+      redis_timeout: 2000
+      redis_database: 1
+      hide_client_headers: false
+
+  # Burst Rate Limiting - Prevents sudden traffic spikes
+  - name: rate-limiting
+    service: clinical-service
+    config:
+      second: 100  # 100 requests per second (burst protection)
+      minute: 2000 # 2000 requests per minute
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 2
+      identifier: ip
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: patient-service
+    config:
+      second: 100  # 100 requests per second (burst protection)
+      minute: 2000 # 2000 requests per minute
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 2
+      identifier: ip
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: appointment-service
+    config:
+      second: 100  # 100 requests per second (burst protection)
+      minute: 2000 # 2000 requests per minute
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 2
+      identifier: ip
+      hide_client_headers: false
+
+  # User-based Rate Limiting (per consumer/API key)
+  - name: rate-limiting
+    service: clinical-service
+    config:
+      minute: 1000  # 1000 requests per minute per user
+      hour: 5000    # 5000 requests per hour per user
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 3
+      identifier: consumer
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: patient-service
+    config:
+      minute: 1000  # 1000 requests per minute per user
+      hour: 5000    # 5000 requests per hour per user
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 3
+      identifier: consumer
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: appointment-service
+    config:
+      minute: 1000  # 1000 requests per minute per user
+      hour: 5000    # 5000 requests per hour per user
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 3
+      identifier: consumer
+      hide_client_headers: false
+
+  # Endpoint-specific Rate Limiting - Read Operations
+  - name: rate-limiting
+    service: clinical-service
+    config:
+      minute: 3000  # Higher limit for read operations
+      hour: 20000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 4
+      path: /api/clinical/.*GET.*
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: patient-service
+    config:
+      minute: 3000  # Higher limit for read operations
+      hour: 20000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 4
+      path: /api/patient/.*GET.*
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: appointment-service
+    config:
+      minute: 3000  # Higher limit for read operations
+      hour: 20000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 4
+      path: /api/appointment/.*GET.*
+      hide_client_headers: false
+
+  # Endpoint-specific Rate Limiting - Write Operations
+  - name: rate-limiting
+    service: clinical-service
+    config:
+      minute: 1000  # Lower limit for write operations
+      hour: 5000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 5
+      path: /api/clinical/.*(?:POST|PUT|DELETE|PATCH).*
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: patient-service
+    config:
+      minute: 1000  # Lower limit for write operations
+      hour: 5000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 5
+      path: /api/patient/.*(?:POST|PUT|DELETE|PATCH).*
+      hide_client_headers: false
+
+  - name: rate-limiting
+    service: appointment-service
+    config:
+      minute: 1000  # Lower limit for write operations
+      hour: 5000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      redis_database: 5
+      path: /api/appointment/.*(?:POST|PUT|DELETE|PATCH).*
+      hide_client_headers: false
+
+  # Graduated Throttling - Warning before blocking
+  - name: request-transformer
+    service: clinical-service
+    config:
+      add:
+        headers:
+          - "X-Rate-Limit-Remaining: $(remaining)"
+          - "X-Rate-Limit-Reset: $(reset)"
+          - "X-Rate-Limit-Limit: $(limit)"
+
+  - name: request-transformer
+    service: patient-service
+    config:
+      add:
+        headers:
+          - "X-Rate-Limit-Remaining: $(remaining)"
+          - "X-Rate-Limit-Reset: $(reset)"
+          - "X-Rate-Limit-Limit: $(limit)"
+
+  - name: request-transformer
+    service: appointment-service
+    config:
+      add:
+        headers:
+          - "X-Rate-Limit-Remaining: $(remaining)"
+          - "X-Rate-Limit-Reset: $(reset)"
+          - "X-Rate-Limit-Limit: $(limit)"
+
+  # Monitoring and Analytics
+  - name: prometheus
+    service: clinical-service
+    config:
+      per_consumer: true
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+      upstream_health_metrics: true
+
+  - name: prometheus
+    service: patient-service
+    config:
+      per_consumer: true
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+      upstream_health_metrics: true
+
+  - name: prometheus
+    service: appointment-service
+    config:
+      per_consumer: true
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+      upstream_health_metrics: true
+
+  # Response Caching - Default Configuration
+  - name: proxy-cache
+    service: clinical-service
+    config:
+      request_method: ["GET", "HEAD"]
+      response_code: [200, 301, 404]
+      content_type: ["application/json", "application/xml", "text/plain"]
+      cache_ttl: 300  # 5 minutes default
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Accept", "Accept-Language", "Authorization"]
+      cache_control: true
+      storage_ttl: 3600  # 1 hour in memory
+
+  - name: proxy-cache
+    service: patient-service
+    config:
+      request_method: ["GET", "HEAD"]
+      response_code: [200, 301, 404]
+      content_type: ["application/json", "application/xml", "text/plain"]
+      cache_ttl: 300  # 5 minutes default
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Accept", "Accept-Language", "Authorization"]
+      cache_control: true
+      storage_ttl: 3600  # 1 hour in memory
+
+  - name: proxy-cache
+    service: appointment-service
+    config:
+      request_method: ["GET", "HEAD"]
+      response_code: [200, 301, 404]
+      content_type: ["application/json", "application/xml", "text/plain"]
+      cache_ttl: 300  # 5 minutes default
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Accept", "Accept-Language", "Authorization"]
+      cache_control: true
+      storage_ttl: 3600  # 1 hour in memory
+
+  # Patient Data Caching - Longer TTL for stable data
+  - name: proxy-cache
+    service: clinical-service
+    routes:
+      - paths: ["~/api/clinical/patients$", "~/api/clinical/patients/\\d+$"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 600  # 10 minutes for patient data
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Authorization", "X-API-Key"]
+      cache_control: true
+      storage_ttl: 7200  # 2 hours in memory
+
+  - name: proxy-cache
+    service: patient-service
+    routes:
+      - paths: ["~/api/patient/patients$", "~/api/patient/patients/\\d+$"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 600  # 10 minutes for patient data
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Authorization", "X-API-Key"]
+      cache_control: true
+      storage_ttl: 7200  # 2 hours in memory
+
+  # Appointment Availability Caching - Short TTL for dynamic data
+  - name: proxy-cache
+    service: clinical-service
+    routes:
+      - paths: ["~/api/clinical/appointments/availability$"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 60  # 1 minute for availability
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Authorization", "X-API-Key"]
+      cache_control: true
+      storage_ttl: 300  # 5 minutes in memory
+
+  - name: proxy-cache
+    service: appointment-service
+    routes:
+      - paths: ["~/api/appointment/appointments/availability$"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 60  # 1 minute for availability
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: ["Authorization", "X-API-Key"]
+      cache_control: true
+      storage_ttl: 300  # 5 minutes in memory
+
+  # Reference Data Caching - Very long TTL for static data
+  - name: proxy-cache
+    service: clinical-service
+    routes:
+      - paths: ["~/api/clinical/reference/.*"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 3600  # 1 hour for reference data
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: []
+      cache_control: true
+      storage_ttl: 86400  # 24 hours in memory
+
+  - name: proxy-cache
+    service: patient-service
+    routes:
+      - paths: ["~/api/patient/reference/.*"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 3600  # 1 hour for reference data
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: []
+      cache_control: true
+      storage_ttl: 86400  # 24 hours in memory
+
+  - name: proxy-cache
+    service: appointment-service
+    routes:
+      - paths: ["~/api/appointment/reference/.*"]
+    config:
+      request_method: ["GET"]
+      response_code: [200]
+      content_type: ["application/json"]
+      cache_ttl: 3600  # 1 hour for reference data
+      memory:
+        dictionary_name: kong_cache
+      vary_headers: []
+      cache_control: true
+      storage_ttl: 86400  # 24 hours in memory
+
+  # Cache Invalidation Strategy
+  - name: request-transformer
+    service: clinical-service
+    config:
+      add:
+        headers:
+          - "X-Cache-Status: $(cache_status)"
+          - "X-Cache-TTL: $(cache_ttl)"
+          - "X-Cache-Key: $(cache_key)"
+      replace:
+        headers:
+          - "Cache-Control: $(cache_control)"
+
+  - name: request-transformer
+    service: patient-service
+    config:
+      add:
+        headers:
+          - "X-Cache-Status: $(cache_status)"
+          - "X-Cache-TTL: $(cache_ttl)"
+          - "X-Cache-Key: $(cache_key)"
+      replace:
+        headers:
+          - "Cache-Control: $(cache_control)"
+
+  - name: request-transformer
+    service: appointment-service
+    config:
+      add:
+        headers:
+          - "X-Cache-Status: $(cache_status)"
+          - "X-Cache-TTL: $(cache_ttl)"
+          - "X-Cache-Key: $(cache_key)"
+      replace:
+        headers:
+          - "Cache-Control: $(cache_control)"

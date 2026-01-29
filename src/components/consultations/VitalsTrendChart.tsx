@@ -11,6 +11,7 @@ import {
   ReferenceLine
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Activity, Thermometer, Droplets, HeartPulse } from 'lucide-react';
 
 interface VitalsData {
@@ -49,9 +50,9 @@ export function VitalsTrendChart({ data }: Props) {
             <CardTitle className="text-sm">Vitals & Biometric Trends</CardTitle>
           </div>
           <div className="flex gap-2">
-            <HeartPulse className="h-4 w-4 text-primary" title="BP & Pulse" />
-            <Thermometer className="h-4 w-4 text-orange-500" title="Temperature" />
-            <Droplets className="h-4 w-4 text-blue-500" title="SpO2" />
+            <HeartPulse className="h-4 w-4 text-primary" />
+            <Thermometer className="h-4 w-4 text-orange-500" />
+            <Droplets className="h-4 w-4 text-blue-500" />
           </div>
         </div>
         <CardDescription className="text-[10px]">Historical tracking of physiological indicators.</CardDescription>

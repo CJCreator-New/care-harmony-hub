@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Search,
   User,
@@ -52,9 +53,8 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
   const [identityVerified, setIdentityVerified] = useState(false);
   const [insuranceVerified, setInsuranceVerified] = useState(false);
   const [copayAmount, setCopayAmount] = useState('');
-  const [copayCollected, setCopayCollected] = useState(false);
-  const [priority, setPriority] = useState<string>('normal');
-  const [isWalkIn, setIsWalkIn] = useState(false);
+  const [sendSmsConfirmation, setSendSmsConfirmation] = useState(true);
+  const [sendEmailConfirmation, setSendEmailConfirmation] = useState(false);
 
   const { data: searchResults = [], isLoading: isSearching } = useSearchPatients(searchTerm);
   const { data: todayAppointments = [] } = useTodayAppointments();
@@ -74,6 +74,8 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       setCopayCollected(false);
       setPriority('normal');
       setIsWalkIn(false);
+      setSendSmsConfirmation(true);
+      setSendEmailConfirmation(false);
     }
   }, [open]);
 
@@ -289,6 +291,19 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           <Shield className="h-4 w-4" />
           Identity Verification
         </h4>
+
+        {/* ID Scanning Options */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" className="text-xs">
+            <User className="h-3 w-3 mr-1" />
+            Scan Driver's License
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs">
+            <CreditCard className="h-3 w-3 mr-1" />
+            Scan Insurance Card
+          </Button>
+        </div>
+
         <div className="flex items-center gap-2">
           <Checkbox
             id="identityVerified"
@@ -296,7 +311,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             onCheckedChange={(checked) => setIdentityVerified(checked as boolean)}
           />
           <Label htmlFor="identityVerified" className="text-sm">
-            I have verified the patient's identity (Photo ID or DOB confirmation)
+            I have verified the patient's identity (Photo ID, DOB, or scanned document)
           </Label>
         </div>
       </div>
@@ -408,6 +423,36 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           <span className="text-2xl font-bold text-primary">#{selectedAppointment.queue_number}</span>
         </div>
       )}
+
+      {/* Notification Options */}
+      <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+        <h4 className="text-sm font-medium">Send Confirmation</h4>
+        <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="sms-confirmation"
+              checked={sendSmsConfirmation}
+              onCheckedChange={setSendSmsConfirmation}
+            />
+            <Label htmlFor="sms-confirmation" className="text-sm">
+              SMS ({selectedPatient?.phone})
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="email-confirmation"
+              checked={sendEmailConfirmation}
+              onCheckedChange={setSendEmailConfirmation}
+            />
+            <Label htmlFor="email-confirmation" className="text-sm">
+              Email
+            </Label>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Estimated wait time: ~15-20 minutes
+        </p>
+      </div>
     </div>
   );
 

@@ -172,6 +172,22 @@ export function useCreatePrescription() {
 
       if (itemsError) throw itemsError;
 
+      // Add a durable queue entry for pharmacy fulfillment
+      const { error: queueError } = await supabase
+        .from('prescription_queue')
+        .insert({
+          hospital_id: hospital.id,
+          prescription_id: prescription.id,
+          patient_id: patientId,
+          status: 'queued',
+          metadata: { item_count: items.length }
+        });
+
+      if (queueError) {
+        // If queue insertion fails, log and surface the error so callers can handle it
+        throw queueError;
+      }
+
       return prescription;
     },
     onSuccess: () => {

@@ -537,7 +537,7 @@ export class AIServiceOrchestrator {
   private initializeProviders(): void {
     try {
       // Initialize OpenAI provider
-      const openaiKey = process.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      const openaiKey = import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.OPENAI_API_KEY;
       if (openaiKey) {
         const openaiConfig: AIProviderConfig = {
           apiKey: openaiKey,
@@ -548,7 +548,7 @@ export class AIServiceOrchestrator {
       }
 
       // Initialize Anthropic Claude provider
-      const claudeKey = process.env.VITE_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+      const claudeKey = import.meta.env.VITE_ANTHROPIC_API_KEY || import.meta.env.ANTHROPIC_API_KEY;
       if (claudeKey) {
         const claudeConfig: AIProviderConfig = {
           apiKey: claudeKey,

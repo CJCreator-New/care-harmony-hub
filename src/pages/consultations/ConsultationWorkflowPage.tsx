@@ -166,13 +166,28 @@ ${formData.follow_up_date ? `Date: ${new Date(formData.follow_up_date).toLocaleD
 ${formData.follow_up_notes || ''}
 
 CLINICAL NOTES:
-${formData.clinical_notes || 'None'}`;
+${formData.clinical_notes || 'None'}
+
+SOAP NOTES:
+SUBJECTIVE:
+${formData.soap_subjective || 'Not documented'}
+
+OBJECTIVE:
+${formData.soap_objective || 'Not documented'}
+
+ASSESSMENT:
+${formData.soap_assessment || 'Not documented'}
+
+PLAN:
+${formData.soap_plan || 'Not documented'}`;
 
         // Store summary separately, don't append to clinical notes
         await updateConsultation.mutateAsync({
           id,
           status: "completed",
           completed_at: new Date().toISOString(),
+          pharmacy_notified: formData.prescriptions?.length > 0 ? true : formData.pharmacy_notified,
+          lab_notified: formData.lab_orders?.length > 0 ? true : formData.lab_notified,
         });
 
         // Store summary as a document for patient access
@@ -187,8 +202,8 @@ ${formData.clinical_notes || 'None'}`;
 
         const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
 
-        // Create prescriptions in the database and notify pharmacy
-        if (formData.prescriptions?.length > 0 && formData.pharmacy_notified) {
+        // Create prescriptions in the database and automatically notify pharmacy
+        if (formData.prescriptions?.length > 0) {
           try {
             const prescriptionResult = await createPrescription.mutateAsync({
               patientId: consultation.patient_id,
@@ -202,7 +217,7 @@ ${formData.clinical_notes || 'None'}`;
               })),
               notes: formData.handoff_notes,
             });
-            // Notify pharmacists via workflow orchestrator
+            // Always notify pharmacists via workflow orchestrator when prescriptions are created
             await triggerWorkflow({
               type: 'prescription_created',
               patientId: consultation.patient_id,
@@ -212,10 +227,10 @@ ${formData.clinical_notes || 'None'}`;
                 medicationCount: formData.prescriptions.length
               }
             });
-            toast.success(`${formData.prescriptions.length} prescription(s) sent to pharmacy`);
+            toast.success(`${formData.prescriptions.length} prescription(s) created and sent to pharmacy`);
           } catch (err) {
             console.error('Error creating prescription:', err);
-            toast.error('Failed to send prescriptions to pharmacy');
+            toast.error('Failed to create prescriptions');
           }
         }
 

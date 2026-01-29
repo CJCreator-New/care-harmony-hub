@@ -56,7 +56,7 @@ interface PatientData {
 }
 
 export default function TreatmentRecommendationsEngine() {
-  const { generateTreatmentRecommendations, isLoading } = useAI();
+  const { generateTreatmentRecommendations, isLoading } = useAI({ purpose: 'treatment' });
   const { toast } = useToast();
 
   const [patientData, setPatientData] = useState<PatientData>({

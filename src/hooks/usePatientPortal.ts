@@ -21,14 +21,39 @@ export const usePatientProfile = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = async () => {
-    if (!patientId) return;
-    
+    // If patientId is provided, use it directly
+    if (patientId) {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('id', patientId)
+          .single();
+
+        if (error) throw error;
+        setProfile(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch profile');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // If no patientId provided, get patient profile for current authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError('No authenticated user found');
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('patients')
         .select('*')
-        .eq('id', patientId)
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
@@ -54,14 +79,38 @@ export const usePatientAppointments = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAppointments = async () => {
-    if (!patientId) return;
+    let patientRecordId = patientId;
+
+    // If no patientId provided, get patient ID from authenticated user
+    if (!patientRecordId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('No authenticated user found');
+        return;
+      }
+
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (patientError) {
+        setError('Failed to find patient record');
+        return;
+      }
+
+      patientRecordId = patient.id;
+    }
+
+    if (!patientRecordId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('appointments')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', patientRecordId)
         .order('appointment_date', { ascending: false });
 
       if (error) throw error;
@@ -87,14 +136,38 @@ export const usePatientPrescriptions = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPrescriptions = async () => {
-    if (!patientId) return;
+    let patientRecordId = patientId;
+
+    // If no patientId provided, get patient ID from authenticated user
+    if (!patientRecordId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('No authenticated user found');
+        return;
+      }
+
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (patientError) {
+        setError('Failed to find patient record');
+        return;
+      }
+
+      patientRecordId = patient.id;
+    }
+
+    if (!patientRecordId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('prescriptions')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', patientRecordId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -153,14 +226,38 @@ export const usePatientLabResults = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchLabResults = async () => {
-    if (!patientId) return;
+    let patientRecordId = patientId;
+
+    // If no patientId provided, get patient ID from authenticated user
+    if (!patientRecordId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('No authenticated user found');
+        return;
+      }
+
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (patientError) {
+        setError('Failed to find patient record');
+        return;
+      }
+
+      patientRecordId = patient.id;
+    }
+
+    if (!patientRecordId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('lab_results')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', patientRecordId)
         .order('result_date', { ascending: false });
 
       if (error) throw error;

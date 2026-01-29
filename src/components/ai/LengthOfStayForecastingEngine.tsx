@@ -40,6 +40,7 @@ interface ForecastingMetrics {
 export const LengthOfStayForecastingEngine: React.FC = () => {
   const { permissions } = usePermissions();
   const { predictLengthOfStay, isLoading } = useAI();
+  const { patients } = usePatients();
 
   const [selectedPatient, setSelectedPatient] = useState<string>('');
   const [customFactors, setCustomFactors] = useState('');

@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { clinicalApiClient } from '@/services/clinicalApiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect, useCallback, useRef } from 'react';
-import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 import { sanitizeForLog } from '@/utils/sanitize';
+import { supabase } from '@/integrations/supabase/client';
+import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
+import { transformConsultationFromService, transformConsultationsFromService } from '@/utils/consultationTransformers';
 
-export type ConsultationStatus = 'pending' | 'patient_overview' | 'clinical_assessment' | 'treatment_planning' | 'final_review' | 'handoff' | 'completed';
+export type ConsultationStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
 
 export interface Consultation {
   id: string;
@@ -72,11 +74,11 @@ export interface ConsultationInsert {
 }
 
 export const CONSULTATION_STEPS = [
-  { step: 1, status: 'patient_overview' as ConsultationStatus, label: 'Patient Overview', description: 'Demographics, vitals, history' },
-  { step: 2, status: 'clinical_assessment' as ConsultationStatus, label: 'Clinical Assessment', description: 'Symptoms, physical exam' },
-  { step: 3, status: 'treatment_planning' as ConsultationStatus, label: 'Treatment Planning', description: 'Diagnosis, prescriptions, labs' },
-  { step: 4, status: 'final_review' as ConsultationStatus, label: 'Final Review', description: 'Summary, billing' },
-  { step: 5, status: 'handoff' as ConsultationStatus, label: 'Handoff', description: 'Notify pharmacy/lab' },
+  { step: 1, status: 'scheduled' as ConsultationStatus, label: 'Patient Overview', description: 'Demographics, vitals, history' },
+  { step: 2, status: 'in-progress' as ConsultationStatus, label: 'Clinical Assessment', description: 'Symptoms, physical exam' },
+  { step: 3, status: 'in-progress' as ConsultationStatus, label: 'Treatment Planning', description: 'Diagnosis, prescriptions, labs' },
+  { step: 4, status: 'in-progress' as ConsultationStatus, label: 'Final Review', description: 'Summary, billing' },
+  { step: 5, status: 'completed' as ConsultationStatus, label: 'Handoff', description: 'Notify pharmacy/lab' },
 ];
 
 export function useConsultations() {
@@ -92,23 +94,21 @@ export function useConsultations() {
 
       console.log('Fetching consultations for hospital:', hospital.id);
 
-      const { data, error } = await supabase
-        .from('consultations')
-        .select(`
-          ${CONSULTATION_COLUMNS.list},
-          patient:patients(${PATIENT_COLUMNS.minimal}, date_of_birth, gender, allergies, chronic_conditions),
-          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-        `)
-        .eq('hospital_id', hospital.id)
-        .order('created_at', { ascending: false });
+      try {
+        const result = await clinicalApiClient.getConsultations({
+          limit: 100,
+          offset: 0,
+        });
 
-      if (error) {
-        console.error('Error fetching consultations:', sanitizeForLog(String(error)));
+        // Transform the data to match the expected format
+        const transformedData = transformConsultationsFromService(result.data);
+
+        console.log('Consultations fetched:', transformedData.length);
+        return transformedData;
+      } catch (error) {
+        console.error('Error fetching consultations from clinical service:', sanitizeForLog(String(error)));
         throw error;
       }
-      
-      console.log('Consultations fetched:', data?.length || 0);
-      return data as Consultation[];
     },
     enabled: !!hospital?.id,
   });
@@ -120,18 +120,15 @@ export function useConsultation(consultationId: string | undefined) {
     queryFn: async () => {
       if (!consultationId) return null;
 
-      const { data, error } = await supabase
-        .from('consultations')
-        .select(`
-          ${CONSULTATION_COLUMNS.detail},
-          patient:patients(${PATIENT_COLUMNS.detail}),
-          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-        `)
-        .eq('id', consultationId)
-        .maybeSingle();
+      try {
+        const consultation = await clinicalApiClient.getConsultation(consultationId);
 
-      if (error) throw error;
-      return data as Consultation | null;
+        // Transform to match expected format
+        return transformConsultationFromService(consultation);
+      } catch (error) {
+        console.error('Error fetching consultation from clinical service:', sanitizeForLog(String(error)));
+        throw error;
+      }
     },
     enabled: !!consultationId,
   });
@@ -145,50 +142,28 @@ export function useCreateConsultation() {
     mutationFn: async (data: ConsultationInsert) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
 
-      // Check for existing consultation for this patient (any status)
-      const { data: existingConsultation } = await supabase
-        .from('consultations')
-        .select('id, status')
-        .eq('patient_id', data.patient_id)
-        .neq('status', 'completed')
-        .maybeSingle();
-
-      if (existingConsultation) {
-        // Return existing consultation
-        const { data: consultation, error } = await supabase
-          .from('consultations')
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .eq('id', existingConsultation.id)
-          .single();
-        
-        if (error) throw error;
-        toast.info('Resuming existing consultation');
-        return consultation as Consultation;
-      }
-
-      const { data: consultation, error } = await supabase
-        .from('consultations')
-        .insert({
-          ...data,
+      try {
+        // Check for existing consultation for this patient (any status)
+        // Note: This logic needs to be implemented in the clinical service
+        // For now, we'll create a new consultation
+        const consultationData = {
+          patient_id: data.patient_id,
+          provider_id: profile.id,
+          appointment_id: data.appointment_id,
           hospital_id: hospital.id,
-          doctor_id: profile.id,
-          status: 'patient_overview' as ConsultationStatus,
-          current_step: 1,
-          started_at: new Date().toISOString(),
-        })
-        .select(`
-          ${CONSULTATION_COLUMNS.detail},
-          patient:patients(${PATIENT_COLUMNS.detail}),
-          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-        `)
-        .single();
+          consultation_type: 'initial' as const,
+          status: 'scheduled' as const,
+          chief_complaint: '', // Will be filled in the workflow
+        };
 
-      if (error) throw error;
-      return consultation as Consultation;
+        const consultation = await clinicalApiClient.createConsultation(consultationData);
+
+        // Transform to match expected format
+        return transformConsultationFromService(consultation);
+      } catch (error) {
+        console.error('Error creating consultation via clinical service:', sanitizeForLog(String(error)));
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });

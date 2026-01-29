@@ -126,6 +126,79 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
         />
       </div>
 
+      {/* SOAP Notes */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            SOAP Notes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Subjective */}
+          <div className="space-y-2">
+            <Label htmlFor="soap_subjective" className="text-sm font-medium text-blue-700">
+              S - Subjective (Patient's Report)
+            </Label>
+            <Textarea
+              id="soap_subjective"
+              placeholder="Patient's chief complaint, history of present illness, relevant medical history..."
+              className="min-h-20"
+              value={data.soap_subjective || data.chief_complaint || ""}
+              onChange={(e) => onUpdate("soap_subjective", e.target.value)}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Objective */}
+          <div className="space-y-2">
+            <Label htmlFor="soap_objective" className="text-sm font-medium text-green-700">
+              O - Objective (Clinical Findings)
+            </Label>
+            <Textarea
+              id="soap_objective"
+              placeholder="Physical examination findings, vital signs, lab results, imaging..."
+              className="min-h-20"
+              value={data.soap_objective || ""}
+              onChange={(e) => onUpdate("soap_objective", e.target.value)}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Assessment */}
+          <div className="space-y-2">
+            <Label htmlFor="soap_assessment" className="text-sm font-medium text-orange-700">
+              A - Assessment (Diagnosis)
+            </Label>
+            <Textarea
+              id="soap_assessment"
+              placeholder="Clinical impression, differential diagnosis, diagnostic reasoning..."
+              className="min-h-20"
+              value={data.soap_assessment || ""}
+              onChange={(e) => onUpdate("soap_assessment", e.target.value)}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Plan */}
+          <div className="space-y-2">
+            <Label htmlFor="soap_plan" className="text-sm font-medium text-purple-700">
+              P - Plan (Management)
+            </Label>
+            <Textarea
+              id="soap_plan"
+              placeholder="Treatment plan, medications, follow-up, patient education..."
+              className="min-h-20"
+              value={data.soap_plan || ""}
+              onChange={(e) => onUpdate("soap_plan", e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Vitals Clinical Trends */}
       <VitalsTrendChart />
 

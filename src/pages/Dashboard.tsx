@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import { RoleSwitchErrorBoundary } from '@/components/DashboardErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load role-specific dashboards
@@ -55,17 +56,19 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout testRole={testRole}>
-      <Suspense fallback={
-        <div className="flex items-center justify-center p-12 min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      }>
-        {renderDashboard()}
-      </Suspense>
+      <RoleSwitchErrorBoundary currentRole={activeRole}>
+        <Suspense fallback={
+          <div className="flex items-center justify-center p-12 min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        }>
+          {renderDashboard()}
+        </Suspense>
+      </RoleSwitchErrorBoundary>
       {import.meta.env.DEV && (
-        <RoleSwitcher 
-          currentRole={activeRole as RoleKey} 
-          onRoleChange={handleRoleChange} 
+        <RoleSwitcher
+          currentRole={activeRole as RoleKey}
+          onRoleChange={handleRoleChange}
         />
       )}
     </DashboardLayout>

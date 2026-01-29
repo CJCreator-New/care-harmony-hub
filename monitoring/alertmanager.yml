@@ -1,0 +1,48 @@
+global:
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@caresync.com'
+  smtp_auth_username: 'alerts@caresync.com'
+  smtp_auth_password: 'your-smtp-password'
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'email-alerts'
+  routes:
+  - match:
+      alertname: 'ServiceDown'
+    receiver: 'pagerduty-alerts'
+  - match:
+      alertname: 'HighErrorRate'
+    receiver: 'slack-alerts'
+
+receivers:
+- name: 'email-alerts'
+  email_configs:
+  - to: 'devops@caresync.com'
+    subject: 'CareSync Alert: {{ .GroupLabels.alertname }}'
+    body: |
+      {{ range .Alerts }}
+      Alert: {{ .Annotations.summary }}
+      Description: {{ .Annotations.description }}
+      Runbook: {{ .Annotations.runbook_url }}
+      {{ end }}
+
+- name: 'slack-alerts'
+  slack_configs:
+  - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    channel: '#alerts'
+    title: 'CareSync Alert: {{ .GroupLabels.alertname }}'
+    text: |
+      {{ range .Alerts }}
+      *Alert:* {{ .Annotations.summary }}
+      *Description:* {{ .Annotations.description }}
+      *Severity:* {{ .Labels.severity }}
+      {{ end }}
+
+- name: 'pagerduty-alerts'
+  pagerduty_configs:
+  - routing_key: 'your-pagerduty-integration-key'
+    description: 'CareSync Service Down: {{ .GroupLabels.alertname }}'

@@ -1,0 +1,190 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Kong API Gateway - Rate Limiting Dashboard",
+    "tags": ["kong", "api-gateway", "rate-limiting"],
+    "timezone": "UTC",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Rate Limited Requests (429)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(kong_http_requests_total{status=\"429\"}[5m])",
+            "legendFormat": "Rate Limited Requests"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "reqps",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Rate Limiting Percentage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(rate(kong_http_requests_total{status=\"429\"}[5m]) / rate(kong_http_requests_total[5m])) * 100",
+            "legendFormat": "Rate Limited %"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Requests by Consumer",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum(rate(kong_http_requests_total[5m])) by (consumer)",
+            "legendFormat": "{{ consumer }}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Rate Limiting by Endpoint",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum(rate(kong_http_requests_total{status=\"429\"}[5m])) by (path)",
+            "legendFormat": "{{ path }}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Redis Rate Limiting Backend",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "Connected Clients"
+          },
+          {
+            "expr": "redis_used_memory",
+            "legendFormat": "Used Memory"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Kong Upstream Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"clinical-service\"}",
+            "legendFormat": "Clinical Service"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  },
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(rate(kong_cache_datastore_hits_total[5m]) / (rate(kong_cache_datastore_hits_total[5m]) + rate(kong_cache_datastore_misses_total[5m]))) * 100",
+            "legendFormat": "Cache Hit Rate %"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Cache Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(kong_cache_datastore_hits_total[5m])",
+            "legendFormat": "Cache Hits"
+          },
+          {
+            "expr": "rate(kong_cache_datastore_misses_total[5m])",
+            "legendFormat": "Cache Misses"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "reqps",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Response Time Improvement",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(kong_latency_bucket{type=\"request\", cache_status=\"HIT\"}[5m]))",
+            "legendFormat": "Cached Response (95th percentile)"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(kong_latency_bucket{type=\"request\", cache_status=\"MISS\"}[5m]))",
+            "legendFormat": "Uncached Response (95th percentile)"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "seconds",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Cache Storage Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kong_cache_datastore_capacity_total",
+            "legendFormat": "Total Capacity"
+          },
+          {
+            "expr": "kong_cache_datastore_capacity_used",
+            "legendFormat": "Used Capacity"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "bytes",
+            "min": 0
+          }
+        ]
+      }

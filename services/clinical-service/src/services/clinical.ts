@@ -18,14 +18,17 @@ import { logger } from '../utils/logger';
 import { connectDatabase } from '../config/database';
 import { connectRedis } from '../config/redis';
 import { getProducer } from '../config/kafka';
+import { WorkflowStateManager } from './workflowStateManager';
 
 export class ClinicalService {
   private fastify?: FastifyInstance;
+  private workflowStateManager: WorkflowStateManager;
 
   constructor(fastify?: FastifyInstance) {
     if (fastify) {
       this.fastify = fastify;
     }
+    this.workflowStateManager = new WorkflowStateManager(fastify);
   }
 
   // Consultation methods
@@ -479,12 +482,18 @@ export class ClinicalService {
         throw new Error('Workflow not found');
       }
 
-      // Update step status
-      const updatedSteps = workflow.steps.map(step => {
+      // Get current state from state manager
+      const currentState = await this.workflowStateManager.getWorkflowState(workflow.id);
+      if (!currentState) {
+        throw new Error('Workflow state not found');
+      }
+
+      // Update step status in state
+      const updatedSteps = currentState.steps.map(step => {
         if (step.id === stepId) {
           return {
             ...step,
-            status,
+            status: status as any,
             completed_at: status === 'completed' ? new Date().toISOString() : step.completed_at,
             notes: notes || step.notes,
           };
@@ -492,35 +501,38 @@ export class ClinicalService {
         return step;
       });
 
-      // Update current step if this step is now in progress
-      let currentStep = workflow.current_step;
+      // Determine new workflow state and current step
+      let newWorkflowState = currentState.state;
+      let newCurrentStep = currentState.current_step;
+
       if (status === 'in_progress') {
-        currentStep = stepId;
+        newCurrentStep = stepId;
+        if (currentState.state === 'pending') {
+          newWorkflowState = 'in_progress';
+        }
       }
 
-      // Update workflow status
-      let workflowStatus = workflow.status;
       const allStepsCompleted = updatedSteps.every(step => step.status === 'completed');
       if (allStepsCompleted) {
-        workflowStatus = 'completed';
-      } else if (updatedSteps.some(step => step.status === 'in_progress')) {
-        workflowStatus = 'in_progress';
+        newWorkflowState = 'completed';
       }
 
-      const query = `
-        UPDATE clinical_workflows
-        SET steps = $1, current_step = $2, status = $3, updated_at = NOW()
-        WHERE consultation_id = $4 AND hospital_id = $5
-        RETURNING *
-      `;
-
-      const result = await client.query(query, [
-        JSON.stringify(updatedSteps),
-        currentStep,
-        workflowStatus,
-        consultationId,
-        hospitalId,
-      ]);
+      // Transition workflow state using state manager
+      const newState = await this.workflowStateManager.transitionWorkflowState(
+        workflow.id,
+        newWorkflowState,
+        newCurrentStep,
+        userId,
+        `Step ${stepId} updated to ${status}`,
+        {
+          step_update: {
+            step_id: stepId,
+            old_status: currentState.steps.find(s => s.id === stepId)?.status,
+            new_status: status,
+            notes
+          }
+        }
+      );
 
       await client.query('COMMIT');
 
@@ -533,21 +545,32 @@ export class ClinicalService {
           value: JSON.stringify({
             event: 'workflow_step_updated',
             consultation_id: consultationId,
+            workflow_id: workflow.id,
             step_id: stepId,
             status,
+            new_state: newWorkflowState,
             hospital_id: hospitalId,
           }),
         }],
       });
 
-      logger.info('Workflow step updated', {
+      logger.info('Workflow step updated with state management', {
         consultation_id: consultationId,
+        workflow_id: workflow.id,
         step_id: stepId,
         status,
+        new_state: newWorkflowState,
         hospital_id: hospitalId,
       });
 
-      return result.rows[0];
+      // Return updated workflow with latest state
+      return {
+        ...workflow,
+        status: newWorkflowState,
+        current_step: newCurrentStep,
+        steps: updatedSteps,
+        updated_at: new Date().toISOString()
+      };
     } catch (error) {
       await client.query('ROLLBACK');
       logger.error('Failed to update workflow step', { error, consultation_id: consultationId });
@@ -689,6 +712,234 @@ export class ClinicalService {
     return { records, total };
   }
 
+  // Clinical workflow CRUD methods
+  async createClinicalWorkflow(
+    data: CreateClinicalWorkflow,
+    userId: string,
+    hospitalId: string
+  ): Promise<ClinicalWorkflow> {
+    const pool = connectDatabase();
+    const query = `
+      INSERT INTO clinical_workflows (
+        consultation_id, patient_id, hospital_id, workflow_type,
+        status, priority, current_step, steps, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+
+    const values = [
+      data.consultation_id,
+      data.patient_id,
+      hospitalId,
+      data.workflow_type,
+      data.status,
+      data.priority,
+      data.current_step,
+      JSON.stringify(data.steps),
+      JSON.stringify(data.metadata || {}),
+    ];
+
+    const result = await pool.query(query, values);
+    const workflow = result.rows[0];
+
+    // Publish event
+    const kafkaProducer = await getProducer();
+    await kafkaProducer.send({
+      topic: 'clinical-events',
+      messages: [{
+        key: workflow.id,
+        value: JSON.stringify({
+          event: 'clinical_workflow_created',
+          workflow_id: workflow.id,
+          consultation_id: data.consultation_id,
+          hospital_id: hospitalId,
+        }),
+      }],
+    });
+
+    logger.info('Clinical workflow created', {
+      workflow_id: workflow.id,
+      consultation_id: data.consultation_id,
+      hospital_id: hospitalId,
+    });
+
+    return workflow;
+  }
+
+  async getClinicalWorkflow(id: string, hospitalId: string): Promise<ClinicalWorkflow | null> {
+    const pool = connectDatabase();
+    const query = 'SELECT * FROM clinical_workflows WHERE id = $1 AND hospital_id = $2';
+    const result = await pool.query(query, [id, hospitalId]);
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const workflow = result.rows[0];
+    workflow.steps = JSON.parse(workflow.steps);
+    workflow.metadata = workflow.metadata ? JSON.parse(workflow.metadata) : {};
+
+    return workflow;
+  }
+
+  async updateClinicalWorkflow(
+    id: string,
+    data: Partial<CreateClinicalWorkflow>,
+    userId: string,
+    hospitalId: string
+  ): Promise<ClinicalWorkflow | null> {
+    const pool = connectDatabase();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Build dynamic update query
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (data.status !== undefined) {
+        updates.push(`status = $${paramIndex}`);
+        values.push(data.status);
+        paramIndex++;
+      }
+
+      if (data.priority !== undefined) {
+        updates.push(`priority = $${paramIndex}`);
+        values.push(data.priority);
+        paramIndex++;
+      }
+
+      if (data.current_step !== undefined) {
+        updates.push(`current_step = $${paramIndex}`);
+        values.push(data.current_step);
+        paramIndex++;
+      }
+
+      if (data.steps !== undefined) {
+        updates.push(`steps = $${paramIndex}`);
+        values.push(JSON.stringify(data.steps));
+        paramIndex++;
+      }
+
+      if (data.metadata !== undefined) {
+        updates.push(`metadata = $${paramIndex}`);
+        values.push(JSON.stringify(data.metadata));
+        paramIndex++;
+      }
+
+      updates.push(`updated_at = NOW()`);
+
+      const whereClause = `WHERE id = $${paramIndex} AND hospital_id = $${paramIndex + 1}`;
+      values.push(id, hospitalId);
+
+      const query = `UPDATE clinical_workflows SET ${updates.join(', ')} ${whereClause} RETURNING *`;
+      const result = await client.query(query, values);
+
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const workflow = result.rows[0];
+      workflow.steps = JSON.parse(workflow.steps);
+      workflow.metadata = workflow.metadata ? JSON.parse(workflow.metadata) : {};
+
+      // Publish event
+      const kafkaProducer = await getProducer();
+      await kafkaProducer.send({
+        topic: 'clinical-events',
+        messages: [{
+          key: workflow.id,
+          value: JSON.stringify({
+            event: 'clinical_workflow_updated',
+            workflow_id: workflow.id,
+            consultation_id: workflow.consultation_id,
+            hospital_id: hospitalId,
+          }),
+        }],
+      });
+
+      await client.query('COMMIT');
+
+      logger.info('Clinical workflow updated', {
+        workflow_id: workflow.id,
+        consultation_id: workflow.consultation_id,
+        hospital_id: hospitalId,
+      });
+
+      return workflow;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to update clinical workflow', { error, workflow_id: id });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async searchClinicalWorkflows(
+    search: ClinicalWorkflowSearch,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<{ workflows: ClinicalWorkflow[]; total: number }> {
+    const conditions: string[] = ['hospital_id = $1'];
+    const values: any[] = [search.hospital_id];
+    let paramIndex = 2;
+
+    if (search.patient_id) {
+      conditions.push(`patient_id = $${paramIndex}`);
+      values.push(search.patient_id);
+      paramIndex++;
+    }
+
+    if (search.status) {
+      conditions.push(`status = $${paramIndex}`);
+      values.push(search.status);
+      paramIndex++;
+    }
+
+    if (search.workflow_type) {
+      conditions.push(`workflow_type = $${paramIndex}`);
+      values.push(search.workflow_type);
+      paramIndex++;
+    }
+
+    if (search.priority) {
+      conditions.push(`priority = $${paramIndex}`);
+      values.push(search.priority);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    // Get total count
+    const pool = connectDatabase();
+    const countQuery = `SELECT COUNT(*) FROM clinical_workflows WHERE ${whereClause}`;
+    const countResult = await pool.query(countQuery, values);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get paginated results
+    const dataQuery = `
+      SELECT * FROM clinical_workflows
+      WHERE ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    values.push(limit, offset);
+    const result = await pool.query(dataQuery, values);
+
+    const workflows = result.rows.map(row => ({
+      ...row,
+      steps: JSON.parse(row.steps),
+      metadata: row.metadata ? JSON.parse(row.metadata) : {},
+    }));
+
+    return { workflows, total };
+  }
+
   // Clinical decision support
   async getClinicalAlerts(
     patientId: string,
@@ -763,6 +1014,169 @@ export class ClinicalService {
       content: await decryptData(record.content),
       attachments: record.attachments ? JSON.parse(record.attachments) : undefined,
       tags: record.tags ? JSON.parse(record.tags) : undefined,
+    };
+  }
+
+  // Advanced Workflow State Management Methods
+
+  async getWorkflowState(workflowId: string): Promise<any> {
+    return await this.workflowStateManager.getWorkflowState(workflowId);
+  }
+
+  async transitionWorkflowState(
+    workflowId: string,
+    newState: string,
+    newCurrentStep: string,
+    userId: string,
+    reason?: string,
+    metadata?: Record<string, any>
+  ): Promise<any> {
+    const pool = connectDatabase();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Get workflow to validate hospital access
+      const workflowQuery = 'SELECT hospital_id FROM clinical_workflows WHERE id = $1';
+      const workflowResult = await client.query(workflowQuery, [workflowId]);
+
+      if (workflowResult.rows.length === 0) {
+        throw new Error('Workflow not found');
+      }
+
+      // Transition state using state manager
+      const newStateRecord = await this.workflowStateManager.transitionWorkflowState(
+        workflowId,
+        newState,
+        newCurrentStep,
+        userId,
+        reason,
+        metadata
+      );
+
+      await client.query('COMMIT');
+
+      logger.info('Workflow state transitioned', {
+        workflow_id: workflowId,
+        from_state: newStateRecord.state,
+        to_state: newState,
+        user_id: userId
+      });
+
+      return newStateRecord;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to transition workflow state', { error, workflow_id: workflowId });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getWorkflowHistory(workflowId: string, limit: number = 50): Promise<any[]> {
+    return await this.workflowStateManager.getWorkflowHistory(workflowId, limit);
+  }
+
+  async recoverWorkflowState(
+    workflowId: string,
+    targetVersion: number,
+    userId: string,
+    reason: string
+  ): Promise<any> {
+    const pool = connectDatabase();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Get workflow to validate hospital access
+      const workflowQuery = 'SELECT hospital_id FROM clinical_workflows WHERE id = $1';
+      const workflowResult = await client.query(workflowQuery, [workflowId]);
+
+      if (workflowResult.rows.length === 0) {
+        throw new Error('Workflow not found');
+      }
+
+      // Recover state using state manager
+      const recoveredState = await this.workflowStateManager.recoverWorkflowState(
+        workflowId,
+        targetVersion,
+        userId,
+        reason
+      );
+
+      await client.query('COMMIT');
+
+      logger.info('Workflow state recovered', {
+        workflow_id: workflowId,
+        target_version: targetVersion,
+        recovered_version: recoveredState.version,
+        user_id: userId
+      });
+
+      return recoveredState;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to recover workflow state', { error, workflow_id: workflowId });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async validateWorkflowStateIntegrity(workflowId: string): Promise<boolean> {
+    const pool = connectDatabase();
+    const query = `
+      SELECT id FROM workflow_states
+      WHERE workflow_id = $1
+      ORDER BY version DESC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [workflowId]);
+
+    if (result.rows.length === 0) {
+      return false;
+    }
+
+    // Use the database function to validate checksum
+    const validateQuery = 'SELECT validate_workflow_state_checksum($1) as is_valid';
+    const validateResult = await pool.query(validateQuery, [result.rows[0].id]);
+
+    return validateResult.rows[0].is_valid;
+  }
+
+  async getWorkflowStateStatistics(workflowId: string): Promise<{
+    total_versions: number;
+    current_version: number;
+    state_changes: number;
+    last_modified: string;
+    integrity_valid: boolean;
+  }> {
+    const pool = connectDatabase();
+
+    const statsQuery = `
+      SELECT
+        COUNT(*) as total_versions,
+        MAX(version) as current_version,
+        COUNT(DISTINCT state) - 1 as state_changes,
+        MAX(created_at) as last_modified
+      FROM workflow_states
+      WHERE workflow_id = $1
+    `;
+
+    const statsResult = await pool.query(statsQuery, [workflowId]);
+    const stats = statsResult.rows[0];
+
+    const integrityValid = await this.validateWorkflowStateIntegrity(workflowId);
+
+    return {
+      total_versions: parseInt(stats.total_versions),
+      current_version: parseInt(stats.current_version),
+      state_changes: parseInt(stats.state_changes),
+      last_modified: stats.last_modified,
+      integrity_valid: integrityValid
     };
   }
 }

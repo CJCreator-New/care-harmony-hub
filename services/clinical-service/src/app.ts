@@ -40,6 +40,18 @@ export async function buildApp(clinicalService?: ClinicalService): Promise<Fasti
     secret: config.JWT_SECRET,
   });
 
+  // JWT authentication hook
+  app.addHook('preHandler', async (request, reply) => {
+    try {
+      // Skip JWT verification for health check
+      if (request.url === '/health') return;
+
+      await request.jwtVerify();
+    } catch (err) {
+      reply.code(401).send({ error: 'Unauthorized', message: 'Invalid token' });
+    }
+  });
+
   // Health check endpoint
   app.get('/health', async () => {
     return {

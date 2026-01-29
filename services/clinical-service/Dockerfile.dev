@@ -1,0 +1,31 @@
+# Clinical Service Development Dockerfile
+FROM node:18-alpine
+
+# Install development dependencies
+RUN apk add --no-cache git curl
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S clinical -u 1001
+
+# Change ownership
+RUN chown -R clinical:nodejs /app
+USER clinical
+
+# Expose port
+EXPOSE 3003
+
+# Default command (can be overridden)
+CMD ["npm", "run", "dev"]

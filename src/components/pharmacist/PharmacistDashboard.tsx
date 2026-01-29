@@ -4,8 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PrescriptionQueue } from './PrescriptionQueue';
 import { ClinicalServices } from './ClinicalServices';
 import { RefillRequests } from './RefillRequests';
-import { InventoryDashboard } from './InventoryDashboard';
-import { usePrescriptionStats } from '@/hooks/usePrescriptions';
+import { WorkflowTasks } from './WorkflowTasks';
 import { 
   Pill, 
   Settings, 
@@ -90,7 +89,7 @@ export default function PharmacistDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="queue" className="flex gap-2">
             <ClipboardList className="h-4 w-4" />
             Prescription Queue
@@ -99,6 +98,10 @@ export default function PharmacistDashboard() {
                 {stats?.pending}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="flex gap-2">
+            <Zap className="h-4 w-4" />
+            Workflow Tasks
           </TabsTrigger>
           <TabsTrigger value="refills" className="flex gap-2">
             <RefreshCcw className="h-4 w-4" />
@@ -120,6 +123,10 @@ export default function PharmacistDashboard() {
 
         <TabsContent value="queue" className="space-y-4">
           <PrescriptionQueue />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-4">
+          <WorkflowTasks />
         </TabsContent>
 
         <TabsContent value="refills" className="space-y-4">
@@ -151,5 +158,3 @@ export default function PharmacistDashboard() {
     </div>
   );
 }
-
-import { Clock, CheckCircle2 } from 'lucide-react';

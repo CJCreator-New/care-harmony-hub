@@ -309,6 +309,14 @@ CREATE POLICY "Staff can manage appointments"
   ON public.appointments FOR ALL
   USING (public.user_belongs_to_hospital(auth.uid(), hospital_id));
 
+CREATE POLICY "Patients can view their own appointments"
+  ON public.appointments FOR SELECT
+  USING (
+    patient_id IN (
+      SELECT id FROM public.patients WHERE user_id = auth.uid()
+    )
+  );
+
 -- RLS Policies for consultations
 CREATE POLICY "Staff can view consultations in their hospital"
   ON public.consultations FOR SELECT

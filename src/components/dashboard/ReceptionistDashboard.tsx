@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Users,
   Calendar,
@@ -26,6 +27,7 @@ import {
   Loader2,
   Sparkles,
   Zap,
+  Monitor,
 } from 'lucide-react';
 import { useActiveQueue } from '@/hooks/useQueue';
 import {
@@ -37,16 +39,20 @@ import { useUpdateAppointmentRequest } from '@/hooks/useAppointmentRequests';
 import { PatientCheckInModal } from '@/components/receptionist/PatientCheckInModal';
 import { PatientCheckOutModal } from '@/components/receptionist/PatientCheckOutModal';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
-import { EnhancedCheckIn } from '@/components/receptionist/EnhancedCheckIn';
-import { QueueOptimizer } from '@/components/receptionist/QueueOptimizer';
+import { CheckInKiosk } from '@/components/receptionist/CheckInKiosk';
+import { AppointmentCalendarView } from '@/components/receptionist/AppointmentCalendarView';
+import { QuickPaymentWidget } from '@/components/receptionist/QuickPaymentWidget';
+import { ReceptionistMessaging } from '@/components/receptionist/ReceptionistMessaging';
+import { ReceptionistAnalytics } from '@/components/receptionist/ReceptionistAnalytics';
 import { format, parseISO } from 'date-fns';
+import { toast } from 'sonner';
 
 export function ReceptionistDashboard() {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutOpen, setCheckOutOpen] = useState(false);
   const [walkInOpen, setWalkInOpen] = useState(false);
+  const [kioskMode, setKioskMode] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useReceptionistStats();
   const { data: pendingRequests = [], isLoading: requestsLoading } = usePendingAppointmentRequests();
@@ -126,9 +132,9 @@ export function ReceptionistDashboard() {
           <LogOut className="h-4 w-4 mr-2" />
           Check-Out Patient
         </Button>
-        <Button variant="outline" onClick={() => setWalkInOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Walk-In Registration
+        <Button variant="outline" onClick={() => setKioskMode(true)}>
+          <Monitor className="h-4 w-4 mr-2" />
+          Kiosk Mode
         </Button>
         <Button variant="outline" asChild>
           <Link to="/appointments">
@@ -139,11 +145,19 @@ export function ReceptionistDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="appointment-management" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Appointments
+          </TabsTrigger>
           <TabsTrigger value="queue-optimization" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Queue Optimization
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -376,6 +390,15 @@ export function ReceptionistDashboard() {
             </CardContent>
           </Card>
 
+          {/* Quick Payment Widget */}
+          <QuickPaymentWidget />
+
+          {/* Internal Messaging */}
+          <ReceptionistMessaging compact />
+
+          {/* Performance Analytics */}
+          <ReceptionistAnalytics compact />
+
           {/* Queue Status */}
           <Card>
             <CardHeader className="pb-3">
@@ -446,8 +469,22 @@ export function ReceptionistDashboard() {
       </div>
     </TabsContent>
 
+      <TabsContent value="appointment-management">
+        <AppointmentCalendarView
+          onNewAppointment={() => setWalkInOpen(true)}
+          onAppointmentClick={(appointment) => {
+            // Handle appointment click - could open edit modal
+            console.log('Appointment clicked:', appointment);
+          }}
+        />
+      </TabsContent>
+
       <TabsContent value="queue-optimization">
         <QueueOptimizer />
+      </TabsContent>
+
+      <TabsContent value="analytics">
+        <ReceptionistAnalytics />
       </TabsContent>
     </Tabs>
 
@@ -455,6 +492,31 @@ export function ReceptionistDashboard() {
       <PatientCheckInModal open={checkInOpen} onOpenChange={setCheckInOpen} />
       <PatientCheckOutModal open={checkOutOpen} onOpenChange={setCheckOutOpen} />
       <WalkInRegistrationModal open={walkInOpen} onOpenChange={setWalkInOpen} />
+
+      {/* Kiosk Mode Modal */}
+      <Dialog open={kioskMode} onOpenChange={setKioskMode}>
+        <DialogContent className="max-w-4xl h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Monitor className="h-5 w-5" />
+              Self-Service Check-In Kiosk
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 p-6">
+            <CheckInKiosk
+              onCheckIn={(patientId) => {
+                // Handle kiosk check-in
+                setKioskMode(false);
+                toast.success('Patient checked in via kiosk');
+              }}
+              onNewRegistration={() => {
+                setKioskMode(false);
+                setWalkInOpen(true);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

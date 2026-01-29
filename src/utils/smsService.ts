@@ -52,9 +52,9 @@ export class SMSService {
   }
 
   private initializeClient() {
-    this.accountSid = process.env.VITE_TWILIO_ACCOUNT_SID || null;
-    this.authToken = process.env.VITE_TWILIO_AUTH_TOKEN || null;
-    this.fromNumber = process.env.VITE_TWILIO_PHONE_NUMBER || null;
+    this.accountSid = import.meta.env.VITE_TWILIO_ACCOUNT_SID || null;
+    this.authToken = import.meta.env.VITE_TWILIO_AUTH_TOKEN || null;
+    this.fromNumber = import.meta.env.VITE_TWILIO_PHONE_NUMBER || null;
 
     if (this.accountSid && this.authToken) {
       this.client = new Twilio(this.accountSid, this.authToken);

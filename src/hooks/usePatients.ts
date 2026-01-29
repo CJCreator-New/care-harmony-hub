@@ -1,17 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { useAuth } from '@/contexts/AuthContext';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { toast } from 'sonner';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { Json } from '@/integrations/supabase/types';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { PATIENT_COLUMNS } from '@/lib/queryColumns';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { useHIPAACompliance } from './useDataProtection';
-import { sanitizeForLog } from '@/utils/sanitize';
 
 export interface Patient {
   id: string;

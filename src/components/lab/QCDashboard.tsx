@@ -13,7 +13,7 @@ import {
   ReferenceLine,
   ResponsiveContainer 
 } from 'recharts';
-import { AlertCircle, CheckCircle, FileText, Settings } from 'lucide-react';
+import { AlertCircle, CheckCircle, FileText, Settings, AlertTriangle } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 
 // Mock Data Generation for Levey-Jennings Chart

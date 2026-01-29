@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Brain, Stethoscope, AlertTriangle, CheckCircle } from 'lucide-react';
+import { DiagnosisSuggestion } from '@/services/clinicalDecisionSupport';
 
 interface ClinicalAI {
   diagnosisSupport: {

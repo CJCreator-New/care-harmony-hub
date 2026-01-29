@@ -1,23 +1,46 @@
-# Use Node.js 20 Alpine for smaller image size
-FROM node:20-alpine
+# Multi-stage build for Appointment Service
+# Build stage
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install dependencies first (for better caching)
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+
+# Install all dependencies (including dev dependencies for building)
+RUN npm ci
 
 # Copy source code
-COPY src/ ./src/
-COPY migrations/ ./migrations/
+COPY . .
 
-# Create non-root user for security
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS production
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S appointment -u 1001
 
-# Change ownership of the app directory
-RUN chown -R appointment:nodejs /app
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application from builder stage
+COPY --from=builder --chown=appointment:nodejs /app/dist ./dist
+COPY --from=builder --chown=appointment:nodejs /app/migrations ./migrations
+
+# Switch to non-root user
 USER appointment
 
 # Expose port
@@ -26,6 +49,9 @@ EXPOSE 3002
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3002/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
 CMD ["npm", "start"]

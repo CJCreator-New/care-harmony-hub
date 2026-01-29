@@ -78,6 +78,14 @@ CREATE POLICY "Staff can view prescriptions in their hospital"
 ON public.prescriptions FOR SELECT
 USING (user_belongs_to_hospital(auth.uid(), hospital_id));
 
+CREATE POLICY "Patients can view their own prescriptions"
+ON public.prescriptions FOR SELECT
+USING (
+  patient_id IN (
+    SELECT id FROM public.patients WHERE user_id = auth.uid()
+  )
+);
+
 CREATE POLICY "Doctors can create prescriptions"
 ON public.prescriptions FOR INSERT
 WITH CHECK (user_belongs_to_hospital(auth.uid(), hospital_id) 

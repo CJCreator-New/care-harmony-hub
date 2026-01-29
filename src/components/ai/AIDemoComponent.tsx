@@ -343,7 +343,7 @@ export default function AIDemoComponent() {
                 <AlertTitle>Warnings</AlertTitle>
                 <AlertDescription>
                   <ul className="list-disc list-inside">
-                    {lastResponse.warnings.map((warning, index) => (
+                    {lastResponse.warnings.map((warning: string, index) => (
                       <li key={index}>{warning}</li>
                     ))}
                   </ul>

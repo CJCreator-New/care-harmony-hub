@@ -60,7 +60,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       // Update consultation with minimal data
       await updateConsultation.mutateAsync({
         id: consultation.id,
-        diagnoses: [diagnosis],
+        diagnosis: [diagnosis],
         cpt_codes: cptCodes,
         prescriptions,
         lab_orders: labOrders,

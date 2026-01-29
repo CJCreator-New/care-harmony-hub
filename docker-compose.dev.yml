@@ -1,0 +1,47 @@
+# Development Docker Compose Override
+# This file contains development-specific configurations
+
+version: '3.8'
+
+services:
+  # Development Kong (with debug logging)
+  kong:
+    environment:
+      - KONG_LOG_LEVEL=debug
+      - KONG_ADMIN_GUI_AUTH=basic-auth
+      - KONG_ADMIN_GUI_SESSION_CONF_SECRET=caresync_session_secret_2026
+    volumes:
+      - ./kong.yml:/usr/local/kong/kong.yml:ro
+      - kong-logs:/usr/local/kong/logs
+
+  # Development Clinical Service (with hot reload)
+  clinical-service:
+    build:
+      context: ./services/clinical-service
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - DEBUG=clinical-service:*
+    volumes:
+      - ./services/clinical-service/src:/app/src:ro
+      - ./services/clinical-service/package.json:/app/package.json:ro
+      - /app/node_modules
+    command: ["npm", "run", "dev"]
+
+  # Development Application
+  caresync-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_BASE_URL=http://localhost:8000/api
+      - REACT_APP_CLINICAL_SERVICE_URL=http://localhost:8000/api/clinical
+      - REACT_APP_API_KEY=caresync_frontend_key_2026_secure
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: ["npm", "run", "dev"]
+
+volumes:
+  kong-logs:

@@ -39,15 +39,36 @@ The system has been finalized with advanced production optimizations:
 ### Prerequisites
 
 - Node.js 18+ & npm
+- Docker & Docker Compose (for full microservices setup)
 - Git
 
 ### Installation
+
+#### Option 1: Development with API Gateway (Recommended)
 
 ```bash
 # Clone the repository
 git clone <YOUR_GIT_URL>
 cd caresync
 
+# Install dependencies
+npm install
+
+# Start full microservices stack
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# Initialize Kong API Gateway
+docker-compose --profile init up kong-init
+
+# Start development frontend
+npm run dev
+```
+
+The app will be available at `http://localhost:5173` with API Gateway at `http://localhost:8000`
+
+#### Option 2: Simple Development (Frontend Only)
+
+```bash
 # Install dependencies
 npm install
 
@@ -60,6 +81,8 @@ The app will be available at `http://localhost:5173`
 ### Environment Setup
 
 The project uses Lovable Cloud for backend services. Environment variables are automatically configured.
+
+For local microservices development, see [API_GATEWAY.md](docs/API_GATEWAY.md) for detailed setup instructions.
 
 ### Recent Updates (January 2026)
 

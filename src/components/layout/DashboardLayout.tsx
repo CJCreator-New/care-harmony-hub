@@ -5,6 +5,8 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { NotificationsSystem } from '@/components/common/NotificationsSystem';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { GroupedSidebar } from './GroupedSidebar';
+import { Breadcrumb } from '@/components/navigation/Breadcrumb';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,52 +48,6 @@ import {
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
 import { hasPermission, Permission } from '@/lib/permissions';
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-  roles: UserRole[];
-  permission?: Permission;
-  badge?: string;
-}
-
-const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'], permission: '*' as Permission },
-  { label: 'Patients', href: '/patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'patients' },
-  { label: 'Appointments', href: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'appointments' },
-  { label: 'Queue', href: '/queue', icon: ClipboardList, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'queue' },
-  { label: 'Consultations', href: '/consultations', icon: Stethoscope, roles: ['admin', 'doctor', 'nurse'], permission: 'consultations' },
-  { label: 'Telemedicine', href: '/telemedicine', icon: Video, roles: ['admin', 'doctor', 'nurse'], permission: 'telemedicine' },
-  { label: 'Pharmacy', href: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'], permission: 'pharmacy' },
-  { label: 'Clinical Pharmacy', href: '/pharmacy/clinical', icon: Stethoscope, roles: ['admin', 'pharmacist'], permission: 'clinical-pharmacy' },
-  { label: 'Inventory', href: '/inventory', icon: Package, roles: ['admin', 'pharmacist', 'nurse'], permission: 'inventory:read' },
-  { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'], permission: 'lab' },
-  { label: 'Lab Automation', href: '/laboratory/automation', icon: Activity, roles: ['admin', 'lab_technician'], permission: 'laboratory' },
-  { label: 'Workflow Dashboard', href: '/integration/workflow', icon: BarChart3, roles: ['admin'], permission: 'workflow-dashboard' },
-  { label: 'Documents', href: '/documents', icon: FileText, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'patients' },
-  { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'], permission: 'billing' },
-  { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'], permission: 'reports' },
-  { label: 'Staff Management', href: '/settings/staff', icon: Users, roles: ['admin'], permission: 'staff-management' },
-  { label: 'Staff Performance', href: '/settings/performance', icon: Activity, roles: ['admin'], permission: 'staff-performance' },
-  { label: 'Activity Logs', href: '/settings/activity', icon: ClipboardList, roles: ['admin'], permission: 'activity-logs' },
-  { label: 'System Monitoring', href: '/settings/monitoring', icon: Activity, roles: ['admin'], permission: 'system-monitoring' },
-  { label: 'AI Demo', href: '/ai-demo', icon: Brain, roles: ['admin', 'doctor'], permission: 'ai-demo' },
-  { label: 'Differential Diagnosis', href: '/differential-diagnosis', icon: Stethoscope, roles: ['admin', 'doctor'], permission: 'differential-diagnosis' },
-  { label: 'Treatment Recommendations', href: '/treatment-recommendations', icon: Pill, roles: ['admin', 'doctor'], permission: 'treatment-recommendations' },
-  { label: 'Treatment Plan Optimization', href: '/treatment-plan-optimization', icon: Target, roles: ['admin', 'doctor'], permission: 'treatment-plan-optimization' },
-  { label: 'Predictive Analytics', href: '/predictive-analytics', icon: BarChart3, roles: ['admin', 'doctor'], permission: 'predictive-analytics' },
-  { label: 'Length of Stay Forecasting', href: '/length-of-stay-forecasting', icon: Clock, roles: ['admin', 'doctor'], permission: 'length-of-stay-forecasting' },
-  { label: 'Resource Utilization Optimization', href: '/resource-utilization-optimization', icon: Target, roles: ['admin', 'doctor'], permission: 'resource-utilization-optimization' },
-  { label: 'Voice Clinical Notes', href: '/voice-clinical-notes', icon: Mic, roles: ['admin', 'doctor', 'nurse'], permission: 'voice-clinical-notes' },
-  { label: 'Hospital Settings', href: '/settings', icon: Settings, roles: ['admin'], permission: 'settings' },
-  // Patient Portal Links
-  { label: 'My Health Portal', href: '/patient/portal', icon: Activity, roles: ['patient'], permission: 'portal' },
-  { label: 'My Appointments', href: '/patient/appointments', icon: Calendar, roles: ['patient'], permission: 'appointments:read' },
-  { label: 'My Prescriptions', href: '/patient/prescriptions', icon: Pill, roles: ['patient'], permission: 'prescriptions:read' },
-  { label: 'Lab Results', href: '/patient/lab-results', icon: TestTube2, roles: ['patient'], permission: 'lab:read' },
-  { label: 'Medical History', href: '/patient/medical-history', icon: FileText, roles: ['patient'], permission: 'portal' },
-];
 
 const roleColors: Record<UserRole, string> = {
   admin: 'admin',
@@ -151,11 +107,6 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
   // Use test role for navigation if provided, otherwise use actual role
   const activeRole = persistedTestRole || primaryRole;
-  
-  const filteredNavItems = navItems.filter(
-    item => activeRole && item.roles.includes(activeRole) && 
-    (!item.permission || hasPermission(activeRole, item.permission))
-  );
 
   const handleLogout = async () => {
     logActivity({ actionType: 'logout' });
@@ -212,33 +163,10 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4 px-3">
-            <ul className="space-y-1">
-              {filteredNavItems.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      to={item.href}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      )}
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <item.icon className="w-5 h-5 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {item.badge && (
-                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-semibold">
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <GroupedSidebar
+              userRole={primaryRole}
+              testRole={persistedTestRole}
+            />
           </nav>
 
           {/* User card */}
@@ -362,6 +290,9 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
         {/* Page content */}
         <main id="main-content" className="p-4 lg:p-6" role="main">
+          <div className="mb-4">
+            <Breadcrumb />
+          </div>
           {children}
         </main>
       </div>

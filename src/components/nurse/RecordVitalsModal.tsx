@@ -16,6 +16,11 @@ import {
   AlertCircle,
   Users,
   Search,
+  Mic,
+  FileText,
+  ChevronDown,
+  CheckSquare,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +57,19 @@ interface VitalsData {
   height: string;
   pain_level: string;
   notes: string;
+  chief_complaint: string;
+  allergies: string;
+  current_medications: string;
+  nurse_notes: string;
+  // Structured observations
+  patient_anxious: boolean;
+  language_barrier: boolean;
+  family_present: boolean;
+  requires_assistance: boolean;
+  pain_management_needed: boolean;
+  mobility_concerns: boolean;
+  mark_critical: boolean;
+  requires_followup: boolean;
 }
 
 export function RecordVitalsModal({ 
@@ -81,6 +99,19 @@ export function RecordVitalsModal({
     height: '',
     pain_level: '',
     notes: '',
+    chief_complaint: '',
+    allergies: '',
+    current_medications: '',
+    nurse_notes: '',
+    // Structured observations
+    patient_anxious: false,
+    language_barrier: false,
+    family_present: false,
+    requires_assistance: false,
+    pain_management_needed: false,
+    mobility_concerns: false,
+    mark_critical: false,
+    requires_followup: false,
   });
 
   // Update selected patient when initialPatient changes
@@ -138,6 +169,11 @@ export function RecordVitalsModal({
       return;
     }
 
+    if (!vitals.chief_complaint.trim()) {
+      toast.error('Chief complaint is required');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const bmi = calculateBMI();
@@ -157,6 +193,20 @@ export function RecordVitalsModal({
         pain_level: vitals.pain_level ? parseInt(vitals.pain_level) : null,
         bmi: bmi ? parseFloat(bmi) : null,
         notes: vitals.notes || null,
+        // Additional patient preparation data
+        chief_complaint: vitals.chief_complaint || null,
+        allergies: vitals.allergies || null,
+        current_medications: vitals.current_medications || null,
+        nurse_notes: vitals.nurse_notes || null,
+        // Structured observations
+        patient_anxious: vitals.patient_anxious,
+        language_barrier: vitals.language_barrier,
+        family_present: vitals.family_present,
+        requires_assistance: vitals.requires_assistance,
+        pain_management_needed: vitals.pain_management_needed,
+        mobility_concerns: vitals.mobility_concerns,
+        mark_critical: vitals.mark_critical,
+        requires_followup: vitals.requires_followup,
       });
 
       if (error) {
@@ -179,6 +229,18 @@ export function RecordVitalsModal({
         height: '',
         pain_level: '',
         notes: '',
+        chief_complaint: '',
+        allergies: '',
+        current_medications: '',
+        nurse_notes: '',
+        patient_anxious: false,
+        language_barrier: false,
+        family_present: false,
+        requires_assistance: false,
+        pain_management_needed: false,
+        mobility_concerns: false,
+        mark_critical: false,
+        requires_followup: false,
       });
       setSelectedPatient(null);
       onComplete?.();
@@ -198,7 +260,7 @@ export function RecordVitalsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Record Vital Signs</DialogTitle>
+          <DialogTitle>Patient Preparation</DialogTitle>
           {selectedPatient && !showPatientSelector && (
             <p className="text-sm text-muted-foreground">
               Patient: {selectedPatient.first_name} {selectedPatient.last_name} ({selectedPatient.mrn})
@@ -219,6 +281,41 @@ export function RecordVitalsModal({
                 oxygen_sat: vitals.oxygen_saturation
               }}
             />
+          )}
+
+          {/* Clinical Decision Support Alerts */}
+          {(parseFloat(vitals.temperature) > 38.0 ||
+            parseInt(vitals.heart_rate) > 100 ||
+            parseInt(vitals.blood_pressure_systolic) > 140 ||
+            parseInt(vitals.oxygen_saturation) < 95 ||
+            parseInt(vitals.pain_level) > 7) && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-orange-800">Clinical Alerts</h4>
+                    <ul className="text-sm text-orange-700 space-y-1">
+                      {parseFloat(vitals.temperature) > 38.0 && (
+                        <li>• Temperature elevated - consider documenting associated symptoms</li>
+                      )}
+                      {parseInt(vitals.heart_rate) > 100 && (
+                        <li>• Heart rate elevated - assess for tachycardia causes</li>
+                      )}
+                      {parseInt(vitals.blood_pressure_systolic) > 140 && (
+                        <li>• Blood pressure elevated - monitor for hypertension</li>
+                      )}
+                      {parseInt(vitals.oxygen_saturation) < 95 && (
+                        <li>• Oxygen saturation low - assess respiratory status</li>
+                      )}
+                      {parseInt(vitals.pain_level) > 7 && (
+                        <li>• Severe pain reported - pain management interventions needed</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Patient Selector */}
@@ -410,6 +507,215 @@ export function RecordVitalsModal({
             </CardContent>
           </Card>
 
+          {/* Patient Information */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-blue-500" />
+                <h3 className="font-medium">Patient Information</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="chief_complaint">Chief Complaint *</Label>
+                  <Textarea
+                    id="chief_complaint"
+                    placeholder="What brings the patient in today?"
+                    value={vitals.chief_complaint}
+                    onChange={(e) => handleChange('chief_complaint', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="allergies">Known Allergies</Label>
+                  <Textarea
+                    id="allergies"
+                    placeholder="List any known allergies (NKDA if none)"
+                    value={vitals.allergies}
+                    onChange={(e) => handleChange('allergies', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="current_medications">Current Medications</Label>
+                  <Textarea
+                    id="current_medications"
+                    placeholder="List current medications and dosages"
+                    value={vitals.current_medications}
+                    onChange={(e) => handleChange('current_medications', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Enhanced Nurse Notes */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="h-5 w-5 text-green-500" />
+                <h3 className="font-medium">Nurse Notes</h3>
+              </div>
+
+              {/* Quick Templates */}
+              <div className="space-y-3 mb-4">
+                <Label className="text-sm font-medium">Quick Templates</Label>
+                <Select onValueChange={(value) => {
+                  const templates = {
+                    stable: "Patient alert and oriented x3. Vital signs stable. No acute distress noted.",
+                    anxious: "Patient appears anxious about procedure. Provided reassurance and education.",
+                    family: "Family member present and updated on patient's condition and plan.",
+                    assistance: "Patient requires assistance with ambulation. Fall risk assessment completed.",
+                    pain: "Patient reporting pain. Pain management interventions initiated.",
+                    language: "Language barrier identified. Interpreter services requested.",
+                  };
+                  if (templates[value as keyof typeof templates]) {
+                    handleChange('nurse_notes', vitals.nurse_notes + (vitals.nurse_notes ? '\n\n' : '') + templates[value as keyof typeof templates]);
+                  }
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Insert common note template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="stable">Patient stable - no concerns</SelectItem>
+                    <SelectItem value="anxious">Patient anxious about procedure</SelectItem>
+                    <SelectItem value="family">Family member present and updated</SelectItem>
+                    <SelectItem value="assistance">Requires special assistance</SelectItem>
+                    <SelectItem value="pain">Pain management needed</SelectItem>
+                    <SelectItem value="language">Language barrier present</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Structured Observations */}
+              <div className="space-y-3 mb-4">
+                <Label className="text-sm font-medium">Structured Observations</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="patient_anxious"
+                      checked={vitals.patient_anxious}
+                      onChange={(e) => handleChange('patient_anxious', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="patient_anxious" className="text-sm">Patient anxious/nervous</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="language_barrier"
+                      checked={vitals.language_barrier}
+                      onChange={(e) => handleChange('language_barrier', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="language_barrier" className="text-sm">Language barrier present</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="family_present"
+                      checked={vitals.family_present}
+                      onChange={(e) => handleChange('family_present', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="family_present" className="text-sm">Family member present</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="requires_assistance"
+                      checked={vitals.requires_assistance}
+                      onChange={(e) => handleChange('requires_assistance', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="requires_assistance" className="text-sm">Requires special assistance</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="pain_management_needed"
+                      checked={vitals.pain_management_needed}
+                      onChange={(e) => handleChange('pain_management_needed', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="pain_management_needed" className="text-sm">Pain management needed</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="mobility_concerns"
+                      checked={vitals.mobility_concerns}
+                      onChange={(e) => handleChange('mobility_concerns', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="mobility_concerns" className="text-sm">Mobility concerns</Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Critical Flags */}
+              <div className="space-y-3 mb-4">
+                <Label className="text-sm font-medium">Critical Flags</Label>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="mark_critical"
+                      checked={vitals.mark_critical}
+                      onChange={(e) => handleChange('mark_critical', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="mark_critical" className="text-sm text-orange-700">☐ Mark as critical for doctor review</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="requires_followup"
+                      checked={vitals.requires_followup}
+                      onChange={(e) => handleChange('requires_followup', e.target.checked.toString())}
+                      className="rounded"
+                    />
+                    <Label htmlFor="requires_followup" className="text-sm text-blue-700">☐ Requires follow-up documentation</Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nurse Notes Textarea */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="nurse_notes">Additional Observations</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => {
+                        // Voice-to-text placeholder - would integrate with Web Speech API
+                        toast.info('Voice-to-text feature coming soon');
+                      }}
+                    >
+                      <Mic className="h-3 w-3 mr-1" />
+                      Voice
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {vitals.nurse_notes.length}/2000
+                    </span>
+                  </div>
+                </div>
+                <Textarea
+                  id="nurse_notes"
+                  placeholder="Additional observations or notes for the doctor..."
+                  value={vitals.nurse_notes}
+                  onChange={(e) => handleChange('nurse_notes', e.target.value)}
+                  rows={4}
+                  maxLength={2000}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           <div className="space-y-2">
             <Label>Notes</Label>
@@ -427,7 +733,7 @@ export function RecordVitalsModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Vitals'}
+            {isSubmitting ? 'Saving...' : 'Complete Preparation'}
           </Button>
         </DialogFooter>
       </DialogContent>

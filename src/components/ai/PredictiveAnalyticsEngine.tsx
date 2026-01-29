@@ -73,7 +73,7 @@ interface PatientData {
 }
 
 export default function PredictiveAnalyticsEngine() {
-  const { predictReadmissionRisk, isLoading } = useAI();
+  const { predictReadmissionRisk, isLoading } = useAI({ purpose: 'research' });
   const { toast } = useToast();
 
   const [selectedPatient, setSelectedPatient] = useState<PatientData | null>(null);

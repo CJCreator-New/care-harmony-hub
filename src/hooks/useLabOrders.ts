@@ -106,6 +106,23 @@ export function useCreateLabOrder() {
         .single();
 
       if (error) throw error;
+      // Create durable lab queue entry for processing/collection
+      const { error: queueError } = await supabase
+        .from('lab_queue')
+        .insert({
+          hospital_id: data.hospital_id,
+          lab_order_id: data.id,
+          patient_id: data.patient_id,
+          status: 'queued',
+          priority: order.priority || 'normal',
+          metadata: { test_name: data.test_name }
+        });
+
+      if (queueError) {
+        // surface queue insertion error
+        throw queueError;
+      }
+
       return data;
     },
     onSuccess: () => {

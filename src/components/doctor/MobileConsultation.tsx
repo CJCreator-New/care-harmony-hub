@@ -15,7 +15,7 @@ interface MobileConsultationProps {
 export function MobileConsultation({ patientId, consultationId }: MobileConsultationProps) {
   const [notes, setNotes] = useState('');
   const { isSupported, isListening, transcript, startListening, stopListening, resetTranscript } = useVoiceTranscription();
-  const { isOnline, pendingSync, saveOffline } = useOfflineSync();
+  const { isOnline, pendingActionCount, queueAction } = useOfflineSync();
 
   const handleVoiceToggle = () => {
     if (isListening) {
@@ -39,7 +39,7 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
       // Save to server
       console.log('Saving online:', consultationData);
     } else {
-      saveOffline('consultation', consultationData);
+      queueAction('create', 'consultations', consultationData);
     }
   };
 
@@ -51,9 +51,9 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
           {isOnline ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
           {isOnline ? 'Online' : 'Offline'}
         </Badge>
-        {pendingSync.length > 0 && (
+        {pendingActionCount > 0 && (
           <Badge variant="outline">
-            {pendingSync.length} pending sync
+            {pendingActionCount} pending sync
           </Badge>
         )}
       </div>

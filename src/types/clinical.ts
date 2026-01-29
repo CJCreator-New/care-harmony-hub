@@ -283,3 +283,138 @@ export interface FormState<T> {
   isSubmitting: boolean;
   isDirty: boolean;
 }
+
+// =====================================================
+// Clinical Service Types (Microservice Integration)
+// =====================================================
+
+export interface Consultation {
+  id: string;
+  patient_id: string;
+  provider_id: string;
+  appointment_id?: string;
+  hospital_id: string;
+  consultation_type: 'initial' | 'followup' | 'emergency' | 'telemedicine';
+  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+  chief_complaint: string;
+  history_of_present_illness?: string;
+  vital_signs?: {
+    blood_pressure?: string;
+    heart_rate?: number;
+    temperature?: number;
+    respiratory_rate?: number;
+    oxygen_saturation?: number;
+    weight?: number;
+    height?: number;
+    bmi?: number;
+  };
+  physical_examination?: string;
+  assessment?: string;
+  plan?: string;
+  diagnosis_codes?: string[];
+  procedure_codes?: string[];
+  medications_prescribed?: Array<{
+    medication_id: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  lab_orders?: string[];
+  imaging_orders?: string[];
+  follow_up_instructions?: string;
+  progress_notes?: string;
+  clinical_notes?: string;
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by: string;
+}
+
+export interface CreateConsultation {
+  patient_id: string;
+  provider_id: string;
+  appointment_id?: string;
+  hospital_id: string;
+  consultation_type: 'initial' | 'followup' | 'emergency' | 'telemedicine';
+  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+  chief_complaint: string;
+  history_of_present_illness?: string;
+  vital_signs?: {
+    blood_pressure?: string;
+    heart_rate?: number;
+    temperature?: number;
+    respiratory_rate?: number;
+    oxygen_saturation?: number;
+    weight?: number;
+    height?: number;
+    bmi?: number;
+  };
+  physical_examination?: string;
+  assessment?: string;
+  plan?: string;
+  diagnosis_codes?: string[];
+  procedure_codes?: string[];
+  medications_prescribed?: Array<{
+    medication_id: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  lab_orders?: string[];
+  imaging_orders?: string[];
+  follow_up_instructions?: string;
+  progress_notes?: string;
+  clinical_notes?: string;
+}
+
+export interface UpdateConsultation extends Partial<CreateConsultation> {}
+
+export interface ClinicalWorkflow {
+  id: string;
+  consultation_id: string;
+  patient_id: string;
+  hospital_id: string;
+  workflow_type: 'consultation' | 'admission' | 'discharge' | 'transfer' | 'procedure';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'on_hold';
+  priority: 'low' | 'medium' | 'high' | 'urgent' | 'critical';
+  current_step: string;
+  steps: Array<{
+    id: string;
+    name: string;
+    status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+    assigned_to?: string;
+    assigned_role?: string;
+    due_date?: string;
+    completed_at?: string;
+    notes?: string;
+  }>;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MedicalRecord {
+  id: string;
+  patient_id: string;
+  hospital_id: string;
+  record_type: 'consultation' | 'lab_result' | 'imaging' | 'prescription' | 'procedure' | 'discharge';
+  record_date: string;
+  provider_id: string;
+  title: string;
+  content: string;
+  attachments?: Array<{
+    id: string;
+    filename: string;
+    content_type: string;
+    size: number;
+    url: string;
+  }>;
+  tags?: string[];
+  is_confidential: boolean;
+  created_at: string;
+  updated_at: string;
+}

@@ -1,0 +1,86 @@
+groups:
+  - name: rate_limiting_alerts
+    rules:
+      # High rate limit usage warning
+      - alert: HighRateLimitUsage
+        expr: rate(kong_http_requests_total{status="429"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "High rate limit usage detected"
+          description: "Rate limit exceeded {{ $value }} times in the last 5 minutes"
+          runbook_url: "https://caresync.runbooks/rate-limiting"
+
+      # Critical rate limit blocking
+      - alert: CriticalRateLimitBlocking
+        expr: rate(kong_http_requests_total{status="429"}[5m]) > 50
+        for: 1m
+        labels:
+          severity: critical
+          service: api-gateway
+        annotations:
+          summary: "Critical rate limit blocking"
+          description: "Rate limit exceeded {{ $value }} times in the last 5 minutes - potential DoS attack"
+          runbook_url: "https://caresync.runbooks/rate-limiting-critical"
+
+      # Service degradation due to rate limiting
+      - alert: ServiceDegradationRateLimit
+        expr: (rate(kong_http_requests_total{status="429"}[10m]) / rate(kong_http_requests_total[10m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "Service degradation due to rate limiting"
+          description: "{{ $value }}% of requests are being rate limited"
+          runbook_url: "https://caresync.runbooks/service-degradation"
+
+      # Redis rate limiting backend issues
+      - alert: RedisRateLimitBackendDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis rate limiting backend is down"
+          description: "Redis is not responding - rate limiting may not work properly"
+          runbook_url: "https://caresync.runbooks/redis-down"
+
+      # Kong service health check
+      - alert: KongServiceUnhealthy
+        expr: up{job="kong"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: api-gateway
+        annotations:
+          summary: "Kong API Gateway is down"
+          description: "Kong service is not responding"
+          runbook_url: "https://caresync.runbooks/kong-down"
+
+      # Upstream service health
+      - alert: UpstreamServiceUnhealthy
+        expr: up{job="clinical-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: clinical-service
+        annotations:
+          summary: "Clinical service is unhealthy"
+          description: "Clinical microservice is not responding"
+          runbook_url: "https://caresync.runbooks/clinical-service-down"
+
+      # High latency due to rate limiting
+      - alert: HighLatencyRateLimitedRequests
+        expr: histogram_quantile(0.95, rate(kong_http_request_duration_seconds_bucket{status="429"}[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "High latency on rate limited requests"
+          description: "95th percentile latency for rate limited requests is {{ $value }}s"
+          runbook_url: "https://caresync.runbooks/high-latency"
