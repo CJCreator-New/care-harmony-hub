@@ -24,6 +24,7 @@ import {
   CONSULTATION_STEPS,
 } from "@/hooks/useConsultations";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
+import { useCreateInvoice } from '@/hooks/useBilling';
 import { useWorkflowOrchestrator } from "@/hooks/useWorkflowOrchestrator";
 import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
 import { PhysicalExamStep } from "@/components/consultations/steps/PhysicalExamStep";
@@ -43,6 +44,7 @@ export default function ConsultationWorkflowPage() {
   const updateConsultation = useUpdateConsultation();
   const advanceStep = useAdvanceConsultationStep();
   const createPrescription = useCreatePrescription();
+  const createInvoice = useCreateInvoice();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -276,17 +278,43 @@ ${formData.soap_plan || 'Not documented'}`;
           }
         }
 
-        // Notify receptionist/billing via workflow orchestrator
+        // Create invoice and notify receptionist/billing via workflow orchestrator
         if (formData.billing_notified) {
-          await triggerWorkflow({
-            type: 'consultation_completed',
-            patientId: consultation.patient_id,
-            data: {
-              patientName,
+          try {
+            const invoiceItems = formData.invoice_items && Array.isArray(formData.invoice_items)
+              ? formData.invoice_items
+              : [
+                  {
+                    description: 'Consultation',
+                    quantity: 1,
+                    unit_price: formData.consultation_fee || 0,
+                    item_type: 'service'
+                  }
+                ];
+
+            const invoice = await createInvoice.mutateAsync({
+              patientId: consultation.patient_id,
               consultationId: id,
-              completedAt: new Date().toISOString()
-            }
-          });
+              items: invoiceItems,
+              notes: 'Auto-generated invoice from consultation completion',
+              dueDate: null,
+            });
+
+            await triggerWorkflow({
+              type: 'invoice_created',
+              patientId: consultation.patient_id,
+              data: {
+                patientName,
+                consultationId: id,
+                invoiceId: invoice.id,
+                invoiceNumber: invoice.invoice_number,
+                amount: invoice.total
+              }
+            });
+          } catch (err) {
+            console.error('Error creating invoice:', err);
+            toast.error('Failed to create invoice for this consultation');
+          }
         }
 
         setIsCompleted(true);

@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { CreditCard, DollarSign, Receipt, AlertCircle, CheckCircle, Printer } from 'lucide-react';
 import { usePatients } from '@/hooks/usePatients';
 import { useInvoices, useRecordPayment } from '@/hooks/useBilling';
+import { CheckoutModal } from '@/components/payments/CheckoutModal';
 import { toast } from 'sonner';
 
 interface QuickPaymentWidgetProps {
@@ -26,6 +27,9 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
   const { data: patients = [] } = usePatients();
   const { data: invoices = [] } = useInvoices();
   const recordPayment = useRecordPayment();
+  const [cardModalOpen, setCardModalOpen] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [pendingAmount, setPendingAmount] = useState<number>(0);
 
   // Get outstanding invoices for selected patient
   const patientInvoices = invoices.filter(
@@ -66,9 +70,22 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
         remainingAmount -= paymentForInvoice;
       }
 
-      // Record payments
-      for (const payment of payments) {
-        await recordPayment.mutateAsync(payment);
+      if (paymentMethod === 'card') {
+        // Open card modal and defer recording until capture completes
+        setPendingPayments(payments);
+        setPendingAmount(amount);
+        setCardModalOpen(true);
+      } else {
+        // Record payments for non-card methods immediately
+        for (const payment of payments) {
+          const payload = {
+            invoiceId: payment.invoice_id || payment.invoiceId || payment.invoiceId,
+            amount: payment.amount,
+            paymentMethod: payment.payment_method || payment.paymentMethod || payment.paymentMethod,
+            notes: payment.notes,
+          };
+          await recordPayment.mutateAsync(payload);
+        }
       }
 
       toast.success(`Payment of $${amount.toFixed(2)} recorded successfully`);
@@ -83,6 +100,21 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleCardSuccess = async () => {
+    // After card capture, record payments with a synthetic reference
+    for (const payment of pendingPayments) {
+      const payload = {
+        invoiceId: payment.invoice_id || payment.invoiceId || payment.invoiceId,
+        amount: payment.amount,
+        paymentMethod: 'card',
+        notes: payment.notes || 'Card payment (receptionist)',
+      };
+      await recordPayment.mutateAsync(payload);
+    }
+    setPendingPayments([]);
+    setPendingAmount(0);
   };
 
   const printReceipt = () => {
@@ -218,6 +250,13 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
               <Printer className="h-4 w-4 mr-2" />
               Print Receipt
             </Button>
+            <CheckoutModal
+              open={cardModalOpen}
+              onOpenChange={setCardModalOpen}
+              amount={pendingAmount}
+              invoiceId={pendingPayments.length > 0 ? pendingPayments[0].invoice_id || pendingPayments[0].invoiceId : null}
+              onSuccess={handleCardSuccess}
+            />
             <Button
               onClick={handlePayment}
               disabled={!selectedPatient || !paymentAmount || processing}
