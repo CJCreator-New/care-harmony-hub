@@ -172,7 +172,7 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
     return 'text-red-600';
   };
 
-  if (!permissions.includes('resource-utilization-optimization')) {
+  if (!permissions.can('resource-utilization-optimization')) {
     return (
       <Alert>
         <AlertTriangle className="h-4 w-4" />

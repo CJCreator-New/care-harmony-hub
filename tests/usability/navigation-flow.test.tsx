@@ -1,6 +1,7 @@
-// tests/usability/navigation-flow.test.ts
+// tests/usability/navigation-flow.test.tsx
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
 
 describe('Usability - Navigation Flow', () => {
   it('should allow efficient navigation between main sections', () => {

@@ -92,7 +92,8 @@ export function ScheduleAppointmentModal({
   selectedDate,
 }: ScheduleAppointmentModalProps) {
   const { hospital } = useAuth();
-  const { data: patients, isLoading: patientsLoading } = usePatients();
+  const { data: patientsData, isLoading: patientsLoading } = usePatients();
+  const patientsList = patientsData?.patients || [];
   const createAppointment = useCreateAppointment();
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<{
@@ -133,14 +134,14 @@ export function ScheduleAppointmentModal({
     },
   });
 
-  const filteredPatients = patients?.filter(
-    (patient) =>
+  const filteredPatients = patientsList.filter(
+    (patient: { first_name: string; last_name: string; mrn: string }) =>
       patient.first_name.toLowerCase().includes(patientSearch.toLowerCase()) ||
       patient.last_name.toLowerCase().includes(patientSearch.toLowerCase()) ||
       patient.mrn.toLowerCase().includes(patientSearch.toLowerCase())
   );
 
-  const handlePatientSelect = (patient: NonNullable<typeof patients>[number]) => {
+  const handlePatientSelect = (patient: (typeof patientsList)[number]) => {
     setSelectedPatient({
       id: patient.id,
       name: `${patient.first_name} ${patient.last_name}`,
@@ -246,7 +247,7 @@ export function ScheduleAppointmentModal({
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              filteredPatients?.slice(0, 10).map((patient) => (
+                              filteredPatients.slice(0, 10).map((patient: (typeof patientsList)[number]) => (
                                 <TableRow
                                   key={patient.id}
                                   className="cursor-pointer hover:bg-muted/50"

@@ -39,7 +39,8 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
   const { profile, hospital } = useAuth();
   const { data: queuePatients, isLoading: queueLoading } = useDoctorQueue();
   const { data: appointments, isLoading: appointmentsLoading } = useTodayAppointments();
-  const { data: patients, isLoading: patientsLoading } = usePatients();
+  const { data: patientsData, isLoading: patientsLoading } = usePatients();
+  const patientsList = patientsData?.patients || [];
   const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
   const getOrCreateConsultation = useGetOrCreateConsultation();
   const [startingId, setStartingId] = useState<string | null>(null);
