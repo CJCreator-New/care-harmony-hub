@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAI } from '@/hooks/useAI';
 import { usePermissions } from '@/hooks/usePermissions';
-import { usePatients } from '@/hooks/usePatients';
+import { usePatients, Patient } from '@/hooks/usePatients';
 import { AlertTriangle, TrendingUp, Clock, Users, Activity, BarChart3, Target, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,7 +40,8 @@ interface ForecastingMetrics {
 export const LengthOfStayForecastingEngine: React.FC = () => {
   const permissions = usePermissions();
   const { predictLengthOfStay, isLoading } = useAI({ purpose: 'length_of_stay' });
-  const { data: patients } = usePatients();
+  const { data: patientsData } = usePatients();
+  const patients = patientsData?.patients || [];
 
   const [selectedPatient, setSelectedPatient] = useState<string>('');
   const [customFactors, setCustomFactors] = useState('');
@@ -93,7 +94,7 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
     }
 
     try {
-      const patient = patients?.find(p => p.id === selectedPatient);
+      const patient = patients.find((p: Patient) => p.id === selectedPatient);
       if (!patient) {
         toast.error('Patient not found');
         return;
@@ -128,7 +129,7 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
     return 'text-red-600';
   };
 
-  if (!permissions.includes('predictive-analytics')) {
+  if (!permissions.can('predictive-analytics')) {
     return (
       <Alert>
         <AlertTriangle className="h-4 w-4" />
@@ -182,7 +183,7 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
                       <SelectValue placeholder="Choose a patient..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {patients?.map((patient) => (
+                      {patients.map((patient: Patient) => (
                         <SelectItem key={patient.id} value={patient.id}>
                           {patient.first_name} {patient.last_name} - {patient.mrn}
                         </SelectItem>

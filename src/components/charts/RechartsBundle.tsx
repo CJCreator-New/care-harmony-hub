@@ -60,10 +60,11 @@ export default function RechartsBundle({
   ...props
 }: RechartsBundleProps) {
   const renderChart = () => {
+    // Only use numeric width/height for charts, not ResponsiveContainer
+    const numericWidth = typeof width === 'number' ? width : undefined;
+    const numericHeight = typeof height === 'number' ? height : 300;
     const commonProps = {
       data,
-      width,
-      height,
       margin: { top: 5, right: 30, left: 20, bottom: 5 }
     };
 
