@@ -11,7 +11,7 @@ import {
 import { captureClinicalError } from '@/lib/monitoring/sentry';
 
 export interface UseAIProps {
-  purpose: 'diagnosis' | 'treatment' | 'education' | 'research';
+  purpose: 'diagnosis' | 'treatment' | 'education' | 'research' | 'length_of_stay' | 'resource_optimization' | 'treatment_plan' | 'recommendations';
   dataRetentionDays?: number;
 }
 

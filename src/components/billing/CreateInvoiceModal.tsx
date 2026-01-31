@@ -40,7 +40,8 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
     { description: "", quantity: 1, unit_price: 0, item_type: "service" },
   ]);
 
-  const { data: patients } = usePatients();
+  const { data: patientsData } = usePatients();
+  const patientsList = patientsData?.patients || [];
   const createInvoice = useCreateInvoice();
 
   const addItem = () => {
@@ -103,7 +104,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                 <SelectValue placeholder="Select patient" />
               </SelectTrigger>
               <SelectContent>
-                {patients?.map((patient) => (
+                {patientsList.map((patient) => (
                   <SelectItem key={patient.id} value={patient.id}>
                     {patient.first_name} {patient.last_name} ({patient.mrn})
                   </SelectItem>

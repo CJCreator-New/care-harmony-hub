@@ -3,7 +3,8 @@
  * Lazy loading strategies for heavy components
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, ReactNode, ComponentType } from 'react';
+import React from 'react';
 
 // Lazy load chart components
 export const LazyCharts = {
@@ -28,36 +29,44 @@ export const LazyDashboards = {
 };
 
 // Loading fallback component
-export const ChartLoadingFallback = () => (
-  <div className="flex items-center justify-center h-64 bg-muted/50 rounded-lg">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-      <p className="text-sm text-muted-foreground">Loading chart...</p>
-    </div>
-  </div>
-);
+export function ChartLoadingFallback(): React.ReactElement {
+  return React.createElement('div', {
+    className: 'flex items-center justify-center h-64 bg-muted/50 rounded-lg'
+  }, React.createElement('div', {
+    className: 'text-center'
+  }, [
+    React.createElement('div', {
+      key: 'spinner',
+      className: 'animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2'
+    }),
+    React.createElement('p', {
+      key: 'text',
+      className: 'text-sm text-muted-foreground'
+    }, 'Loading chart...')
+  ]));
+}
 
 // Wrapper for lazy components with Suspense
 export function withLazyLoading<P extends object>(
-  Component: React.LazyExoticComponent<React.ComponentType<P>>,
-  fallback?: React.ReactNode
+  Component: React.LazyExoticComponent<ComponentType<P>>,
+  fallback?: ReactNode
 ) {
-  return (props: P) => (
-    <Suspense fallback={fallback || <ChartLoadingFallback />}>
-      <Component {...props} />
-    </Suspense>
-  );
+  return function LazyLoadedComponent(props: P) {
+    return React.createElement(Suspense, {
+      fallback: fallback || React.createElement(ChartLoadingFallback)
+    }, React.createElement(Component, props));
+  };
 }
 
 /**
  * Dynamic import for route-based code splitting
  */
-export const dynamicImport = (path: string) => lazy(() => import(path));
+export const dynamicImport = (path: string) => lazy(() => import(/* @vite-ignore */ path));
 
 /**
  * Preload component for better UX
  */
-export function preloadComponent(importFn: () => Promise<any>) {
+export function preloadComponent(importFn: () => Promise<unknown>) {
   importFn().catch(() => {
     // Silently fail - component will load on demand
   });
