@@ -106,7 +106,7 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
         const Icon = item.icon;
 
         return (
-          <div key={item.href} className="flex items-center">
+          <div key={`${item.href}-${index}`} className="flex items-center">
             {index > 0 && (
               <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground/50" />
             )}

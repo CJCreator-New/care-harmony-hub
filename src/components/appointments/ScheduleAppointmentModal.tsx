@@ -92,7 +92,8 @@ export function ScheduleAppointmentModal({
   selectedDate,
 }: ScheduleAppointmentModalProps) {
   const { hospital } = useAuth();
-  const { data: patients, isLoading: patientsLoading } = usePatients();
+  const { data: patientsData, isLoading: patientsLoading } = usePatients();
+  const patients = patientsData?.patients;
   const createAppointment = useCreateAppointment();
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<{

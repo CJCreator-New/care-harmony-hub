@@ -7,6 +7,7 @@ import { NotificationsSystem } from '@/components/common/NotificationsSystem';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { GroupedSidebar } from './GroupedSidebar';
 import { Breadcrumb } from '@/components/navigation/Breadcrumb';
+import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -112,6 +113,11 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
     logActivity({ actionType: 'logout' });
     await logout();
     navigate('/hospital');
+  };
+
+  const handleRoleChange = (role: UserRole) => {
+    localStorage.setItem('testRole', role);
+    window.location.reload(); // Reload to apply the new role
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -299,6 +305,14 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
       {/* Global Search Dialog */}
       <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+
+      {/* Role Switcher for Development */}
+      {import.meta.env.DEV && (
+        <RoleSwitcher
+          onRoleChange={handleRoleChange}
+          currentRole={activeRole || 'admin'}
+        />
+      )}
     </div>
   );
 }

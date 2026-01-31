@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/types/auth';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,7 +21,9 @@ import {
   TestTube2,
 } from 'lucide-react';
 
-const ROLE_CONFIG = {
+const ROLE_CONFIG: Record<UserRole, { label: string; icon: any; color: string }> = {
+  super_admin: { label: 'Super Admin', icon: Shield, color: 'bg-red-500' },
+  dept_head: { label: 'Department Head', icon: Shield, color: 'bg-orange-500' },
   admin: { label: 'Administrator', icon: Shield, color: 'bg-purple-500' },
   doctor: { label: 'Doctor', icon: Stethoscope, color: 'bg-blue-500' },
   nurse: { label: 'Nurse', icon: Heart, color: 'bg-pink-500' },
@@ -32,7 +33,7 @@ const ROLE_CONFIG = {
   patient: { label: 'Patient', icon: User, color: 'bg-gray-500' },
 } as const;
 
-type RoleKey = keyof typeof ROLE_CONFIG;
+type RoleKey = UserRole;
 
 interface RoleSwitcherProps {
   onRoleChange: (role: RoleKey) => void;

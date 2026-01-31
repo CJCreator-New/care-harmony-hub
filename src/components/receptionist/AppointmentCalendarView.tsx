@@ -39,6 +39,21 @@ export function AppointmentCalendarView({ onNewAppointment, onAppointmentClick }
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
 
+  const handleReschedule = () => {
+    // TODO: Implement reschedule functionality
+    console.log('Reschedule appointment:', selectedAppointment?.id);
+  };
+
+  const handleCancelAppointment = () => {
+    // TODO: Implement cancel functionality
+    console.log('Cancel appointment:', selectedAppointment?.id);
+  };
+
+  const handleEditAppointment = () => {
+    // TODO: Implement edit functionality
+    console.log('Edit appointment:', selectedAppointment?.id);
+  };
+
   const { data: appointments = [] } = useAppointments();
 
   // Extract unique doctors from appointments
@@ -290,9 +305,9 @@ export function AppointmentCalendarView({ onNewAppointment, onAppointmentClick }
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline">Reschedule</Button>
-                <Button variant="outline">Cancel</Button>
-                <Button>Edit</Button>
+                <Button variant="outline" onClick={handleReschedule}>Reschedule</Button>
+                <Button variant="outline" onClick={handleCancelAppointment}>Cancel</Button>
+                <Button onClick={handleEditAppointment}>Edit</Button>
               </div>
             </div>
           )}

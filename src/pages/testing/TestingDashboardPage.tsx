@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useTesting } from '../../contexts/TestingContext';
 import { TestCategory, TestCase } from '../../types/testing';
+import { toast } from 'sonner';
 import TestDetailsPanel from '../../components/testing/test-details/TestDetailsPanel';
 import ScriptsLibrary from '../../components/testing/scripts-library/ScriptsLibrary';
 import TestExecutionTracker from '../../components/testing/test-execution/TestExecutionTracker';
@@ -221,7 +222,7 @@ export default function TestingDashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => toast.info('Import Tests functionality coming soon')}>
             <FileText className="h-4 w-4 mr-2" />
             Import Tests
           </Button>
@@ -229,7 +230,7 @@ export default function TestingDashboardPage() {
             <Code className="h-4 w-4 mr-2" />
             Generate Script
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActiveTab('reports')}>
             <BarChart3 className="h-4 w-4 mr-2" />
             View Reports
           </Button>

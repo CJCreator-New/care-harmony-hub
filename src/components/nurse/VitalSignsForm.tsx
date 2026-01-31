@@ -396,7 +396,16 @@ export function VitalSignsForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3">
-        <Button variant="outline">Cancel</Button>
+        <Button variant="outline" onClick={() => setVitals({
+          temperature: 0,
+          systolic: 0,
+          diastolic: 0,
+          pulse: 0,
+          respiration: 0,
+          spo2: 0,
+        })}>
+          Cancel
+        </Button>
         <InteractiveButton
           onClick={handleSave}
           isLoading={isSaving}

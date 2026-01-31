@@ -59,7 +59,7 @@ class EncryptionKeyManager {
   private async initializeDefaultKey(): Promise<void> {
     if (this.initialized) return;
 
-    const encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY;
+    let encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY;
     
     // In production, encryption key is required
     if (!encryptionKey) {

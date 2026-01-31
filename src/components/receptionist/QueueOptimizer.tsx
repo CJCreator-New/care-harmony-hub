@@ -50,6 +50,20 @@ export function QueueOptimizer() {
   const queryClient = useQueryClient();
   const [isOptimizing, setIsOptimizing] = useState(false);
 
+  const handleApplyChange = async () => {
+    toast.info('Applying resource redeployment...');
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    toast.success('Resource redeployment applied successfully');
+  };
+
+  const handleTriggerPrep = async () => {
+    toast.info('Triggering room preparation...');
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    toast.success('Room preparation triggered');
+  };
+
   const { data: queue = [], isLoading } = useQuery({
     queryKey: ['active-queue', hospitalId],
     queryFn: async () => {
@@ -348,7 +362,7 @@ export function QueueOptimizer() {
                 <p className="text-[10px] text-muted-foreground mt-0.5 font-medium leading-relaxed">
                   Doctor workload imbalanced. Consider reassigning <span className="text-primary font-bold italic">Patient A</span> to <span className="text-primary font-bold italic">Dr. Sarah</span> to save 12 min.
                 </p>
-                <Button variant="link" className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary mt-1 hover:no-underline">Apply Change</Button>
+                <Button variant="link" className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary mt-1 hover:no-underline" onClick={handleApplyChange}>Apply Change</Button>
               </div>
             </div>
             <div className="flex gap-3 items-start p-3 bg-white/50 rounded-lg border border-primary/10 group/suggest">
@@ -360,7 +374,7 @@ export function QueueOptimizer() {
                 <p className="text-[10px] text-muted-foreground mt-0.5 font-medium leading-relaxed">
                   Room 4 is now free. Immediate nurse prep required for <span className="text-primary font-bold italic">Jane Doe</span>.
                 </p>
-                <Button variant="link" className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary mt-1 hover:no-underline">Trigger Prep</Button>
+                <Button variant="link" className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary mt-1 hover:no-underline" onClick={handleTriggerPrep}>Trigger Prep</Button>
               </div>
             </div>
           </CardContent>

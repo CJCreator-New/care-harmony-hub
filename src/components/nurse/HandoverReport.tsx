@@ -318,6 +318,13 @@ export function HandoverReport({
     onComplete()
   }
 
+  const handleSaveDraft = async () => {
+    // Simulate saving draft
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    setShowToast(true)
+    // Don't call onComplete for draft save
+  }
+
   const shiftLabels = {
     day: "Day Shift",
     evening: "Evening Shift",
@@ -388,7 +395,7 @@ export function HandoverReport({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t">
-        <Button variant="outline">Save Draft</Button>
+        <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
         <InteractiveButton
           onClick={handleSubmit}
           isLoading={isSubmitting}

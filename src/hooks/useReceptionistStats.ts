@@ -72,7 +72,18 @@ export function useReceptionistStats() {
   return useQuery({
     queryKey: ['receptionist-stats', hospital?.id],
     queryFn: async (): Promise<ReceptionistStats> => {
-      if (!hospital?.id) throw new Error('No hospital context');
+      if (!hospital?.id) {
+        return {
+          todayAppointments: 0,
+          checkedIn: 0,
+          waitingInQueue: 0,
+          pendingRequests: 0,
+          completedToday: 0,
+          avgWaitTime: null,
+          pendingInvoices: 0,
+          totalRevenue: 0,
+        };
+      }
 
       const today = new Date();
       const startOfToday = startOfDay(today).toISOString();
@@ -182,7 +193,7 @@ export function usePendingAppointmentRequests() {
   return useQuery({
     queryKey: ['pending-appointment-requests', hospital?.id],
     queryFn: async () => {
-      if (!hospital?.id) throw new Error('No hospital context');
+      if (!hospital?.id) return [];
 
       const { data, error } = await supabase
         .from('appointment_requests')
@@ -210,7 +221,7 @@ export function useScheduledAppointments() {
   return useQuery({
     queryKey: ['scheduled-appointments-today', hospital?.id],
     queryFn: async () => {
-      if (!hospital?.id) throw new Error('No hospital context');
+      if (!hospital?.id) return [];
 
       const today = new Date().toISOString().split('T')[0];
 
