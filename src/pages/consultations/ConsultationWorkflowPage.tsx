@@ -7,6 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   ArrowRight,
   Check,
@@ -16,6 +22,7 @@ import {
   FileText,
   Send,
   Loader2,
+  Keyboard,
 } from "lucide-react";
 import {
   useConsultation,
@@ -33,6 +40,7 @@ import { TreatmentPlanStep } from "@/components/consultations/steps/TreatmentPla
 import { SummaryStep } from "@/components/consultations/steps/SummaryStep";
 import { PatientSidebar } from "@/components/consultations/PatientSidebar";
 import { AIConsultationAssistant } from "@/components/consultations/AIConsultationAssistant";
+import { EnhancedTaskManagement } from "@/components/workflow/EnhancedTaskManagement";
 import { toast } from "sonner";
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];
@@ -50,6 +58,7 @@ export default function ConsultationWorkflowPage() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isCompleting, setIsCompleting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
   useEffect(() => {
     if (consultation) {
@@ -78,6 +87,30 @@ export default function ConsultationWorkflowPage() {
       });
     }
   }, [consultation]);
+
+  // Keyboard shortcuts for consultation workflow
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+S to save draft
+      if (event.ctrlKey && event.key === 's' && !event.shiftKey) {
+        event.preventDefault();
+        handleSaveStep();
+      }
+      // Ctrl+Enter to go to next step
+      else if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        handleNextStep();
+      }
+      // Ctrl+/ to show keyboard shortcuts help
+      else if (event.ctrlKey && event.key === '/') {
+        event.preventDefault();
+        setShowKeyboardHelp(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [formData, id]);
 
   const handleUpdateField = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -317,6 +350,75 @@ ${formData.soap_plan || 'Not documented'}`;
           }
         }
 
+        // Auto-create tasks from consultation actions
+        try {
+          const tasksToCreate = [];
+
+          // Follow-up task if follow-up date is scheduled
+          if (formData.follow_up_date) {
+            tasksToCreate.push({
+              patient_id: consultation.patient_id,
+              assigned_to: consultation.doctor_id,
+              created_by: consultation.doctor_id,
+              title: `Follow-up: ${consultation.patient?.first_name} ${consultation.patient?.last_name}`,
+              description: `Scheduled follow-up consultation\n${formData.follow_up_notes || ''}\n\nOriginal consultation: ${new Date().toLocaleDateString()}`,
+              priority: 'medium',
+              status: 'pending',
+              due_date: formData.follow_up_date,
+              task_type: 'follow_up'
+            });
+          }
+
+          // Lab review task if lab orders were created
+          if (formData.lab_orders?.length > 0) {
+            const urgentLabs = formData.lab_orders.filter((order: any) => order.priority === 'urgent');
+            const priority = urgentLabs.length > 0 ? 'urgent' : 'high';
+
+            tasksToCreate.push({
+              patient_id: consultation.patient_id,
+              assigned_to: consultation.doctor_id,
+              created_by: consultation.doctor_id,
+              title: `Review Lab Results: ${consultation.patient?.first_name} ${consultation.patient?.last_name}`,
+              description: `Review results for ${formData.lab_orders.length} lab test(s) ordered:\n${formData.lab_orders.map((order: any) => `- ${order.test} (${order.priority})`).join('\n')}\n\nConsultation: ${new Date().toLocaleDateString()}`,
+              priority,
+              status: 'pending',
+              due_date: null, // Will be set when results are available
+              task_type: 'lab_review'
+            });
+          }
+
+          // Referral follow-up task if referrals were made
+          if (formData.referrals?.length > 0) {
+            tasksToCreate.push({
+              patient_id: consultation.patient_id,
+              assigned_to: consultation.doctor_id,
+              created_by: consultation.doctor_id,
+              title: `Follow-up Referral: ${consultation.patient?.first_name} ${consultation.patient?.last_name}`,
+              description: `Follow up on ${formData.referrals.length} referral(s) made:\n${formData.referrals.map((ref: any) => `- ${ref.specialty || ref.type}: ${ref.reason || ''}`).join('\n')}\n\nConsultation: ${new Date().toLocaleDateString()}`,
+              priority: 'medium',
+              status: 'pending',
+              due_date: null,
+              task_type: 'referral_followup'
+            });
+          }
+
+          // Create tasks in database
+          if (tasksToCreate.length > 0) {
+            const { error: taskError } = await supabase
+              .from('task_assignments')
+              .insert(tasksToCreate);
+
+            if (taskError) {
+              console.error('Error creating auto-tasks:', taskError);
+            } else {
+              toast.success(`Created ${tasksToCreate.length} follow-up task(s)`);
+            }
+          }
+        } catch (err) {
+          console.error('Error creating consultation tasks:', err);
+          // Don't show error toast as consultation completion was successful
+        }
+
         setIsCompleted(true);
         toast.success("Consultation completed successfully!");
         
@@ -501,12 +603,17 @@ ${formData.soap_plan || 'Not documented'}`;
                   <DiagnosisStepEnhanced
                     data={formData}
                     onUpdate={handleUpdateField}
+                    patientId={consultation.patient_id}
                   />
                 </TabsContent>
                 <TabsContent value="4" className="mt-0">
                   <TreatmentPlanStep
                     data={formData}
                     onUpdate={handleUpdateField}
+                    patientId={consultation.patient_id}
+                    consultationId={consultation.id}
+                    patientAllergies={consultation.patient?.allergies || []}
+                    patientMedications={consultation.patient?.current_medications || []}
                   />
                 </TabsContent>
                 <TabsContent value="5" className="mt-0">
@@ -531,6 +638,14 @@ ${formData.soap_plan || 'Not documented'}`;
               Previous
             </Button>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowKeyboardHelp(true)}
+                className="px-3"
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleSaveStep}
@@ -558,12 +673,50 @@ ${formData.soap_plan || 'Not documented'}`;
         {/* Sidebars */}
         <div className="w-full lg:w-80 space-y-6">
           <PatientSidebar patient={consultation?.patient} />
+          <EnhancedTaskManagement patientId={consultation?.patient_id} />
           <AIConsultationAssistant 
             formData={formData} 
             onApplyRecommendation={handleApplyAIRecommendation} 
           />
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <Dialog open={showKeyboardHelp} onOpenChange={setShowKeyboardHelp}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Keyboard className="h-5 w-5" />
+              Keyboard Shortcuts
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Save Draft</span>
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl + S</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Next Step</span>
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl + Enter</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Show Shortcuts</span>
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl + /</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">New Consultation</span>
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl + Shift + N</kbd>
+              </div>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Use keyboard shortcuts to navigate and save your work efficiently during consultations.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

@@ -24,6 +24,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 export function PrescriptionQueue() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,7 +108,7 @@ export function PrescriptionQueue() {
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         {p.items?.slice(0, 2).map((item: any) => (
-                          <span key={item.id} className="text-xs">
+                          <span key={`med-${item.id}`} className="text-xs">
                             • {item.medication_name} ({item.dosage})
                           </span>
                         ))}
@@ -188,7 +189,7 @@ export function PrescriptionQueue() {
                     </TableHeader>
                     <TableBody>
                       {selectedPrescription.items?.map((item: any) => (
-                        <TableRow key={item.id}>
+                        <TableRow key={`item-${item.id}`}>
                           <TableCell className="font-medium">{item.medication_name}</TableCell>
                           <TableCell>{item.dosage}</TableCell>
                           <TableCell>{item.frequency}</TableCell>
@@ -215,7 +216,34 @@ export function PrescriptionQueue() {
           )}
 
           <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
-            <Button variant="ghost" onClick={() => {/* TODO: Implement Print */}}>
+            <Button variant="ghost" onClick={() => {
+              // Print prescription label
+              if (selectedPrescription) {
+                const printContent = `
+                  <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2>Prescription Label</h2>
+                    <p><strong>Patient:</strong> ${selectedPrescription.patient?.first_name} ${selectedPrescription.patient?.last_name}</p>
+                    <p><strong>MRN:</strong> ${selectedPrescription.patient?.mrn}</p>
+                    <p><strong>Date:</strong> ${format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                    <hr/>
+                    <h3>Medications:</h3>
+                    ${selectedPrescription.items?.map((item: any) => `
+                      <p><strong>${item.medication_name}</strong> - ${item.dosage} - ${item.frequency} - Qty: ${item.quantity}</p>
+                    `).join('')}
+                    <hr/>
+                    <p><strong>Prescriber:</strong> Dr. ${selectedPrescription.prescriber?.first_name} ${selectedPrescription.prescriber?.last_name}</p>
+                  </div>
+                `;
+                
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  printWindow.document.write(printContent);
+                  printWindow.document.close();
+                  printWindow.print();
+                }
+                toast.success('Printing prescription label...');
+              }
+            }}>
               <Printer className="h-4 w-4 mr-2" />
               Print Label
             </Button>

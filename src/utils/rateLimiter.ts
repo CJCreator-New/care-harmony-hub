@@ -28,6 +28,7 @@ interface RateLimitStatus {
 export class RateLimiter {
   private requests: Map<string, RequestRecord[]> = new Map();
   private blockedKeys: Map<string, number> = new Map();
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private windowMs: number = 60000, // 1 minute
@@ -35,7 +36,17 @@ export class RateLimiter {
     private blockDuration: number = 300000 // 5 minutes
   ) {
     // Clean up old records periodically
-    setInterval(() => this.cleanup(), this.windowMs);
+    this.cleanupInterval = setInterval(() => this.cleanup(), this.windowMs);
+  }
+
+  // Destroy the rate limiter and clean up resources
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.requests.clear();
+    this.blockedKeys.clear();
   }
 
   // Check if request is allowed

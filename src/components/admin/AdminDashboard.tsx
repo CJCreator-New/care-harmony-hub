@@ -155,8 +155,8 @@ export function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map(user => (
-                        <tr key={user.id} className="border-b hover:bg-gray-50">
+                      {users.map((user, idx) => (
+                        <tr key={`user-${idx}`} className="border-b hover:bg-gray-50">
                           <td className="py-2">{user.email}</td>
                           <td className="py-2 capitalize">{user.role}</td>
                           <td className="py-2">

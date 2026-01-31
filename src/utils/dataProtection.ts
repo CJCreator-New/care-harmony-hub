@@ -59,8 +59,20 @@ class EncryptionKeyManager {
   private async initializeDefaultKey(): Promise<void> {
     if (this.initialized) return;
 
+    const encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY;
+    
+    // In production, encryption key is required
+    if (!encryptionKey) {
+      if (import.meta.env.PROD) {
+        throw new Error('VITE_ENCRYPTION_KEY environment variable is required for production. Patient PHI cannot be encrypted without a valid encryption key.');
+      }
+      // Development fallback with warning
+      console.warn('WARNING: Using development encryption key. This should NEVER be used in production!');
+      console.warn('Set VITE_ENCRYPTION_KEY environment variable for production deployment.');
+      encryptionKey = 'caresync-dev-key-do-not-use-in-prod';
+    }
+
     try {
-      const encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY || 'default-dev-key-change-in-production';
       const keyMaterial = await crypto.subtle.importKey(
         'raw',
         new TextEncoder().encode(encryptionKey),

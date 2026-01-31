@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { TestCase, TestStatus, TestPriority, Note, Attachment } from '../../../types/testing';
 import { useTesting } from '../../../contexts/TestingContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TestDetailsPanelProps {
   testCase: TestCase | null;
@@ -46,10 +47,18 @@ const priorityOptions: { value: TestPriority; label: string }[] = [
 ];
 
 export default function TestDetailsPanel({ testCase, isOpen, onClose }: TestDetailsPanelProps) {
+  const { profile } = useAuth();
   const { updateTestCase } = useTesting();
   const [editedTestCase, setEditedTestCase] = useState<TestCase | null>(null);
   const [newNote, setNewNote] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+
+  const getCurrentUser = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    return profile?.email || 'Unknown User';
+  };
 
   useEffect(() => {
     if (testCase) {
@@ -93,7 +102,7 @@ export default function TestDetailsPanel({ testCase, isOpen, onClose }: TestDeta
         id: Date.now().toString(),
         content: newNote.trim(),
         timestamp: new Date(),
-        author: 'Current User', // TODO: Get from auth context
+        author: getCurrentUser(),
       };
       handleFieldChange('notes', [...editedTestCase.notes, note]);
       setNewNote('');

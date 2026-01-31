@@ -118,6 +118,7 @@ export function NotificationCenter() {
                   <button
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
+                    aria-label={`${notification.title}: ${notification.message}`}
                     className={cn(
                       "w-full p-4 text-left hover:bg-accent/50 transition-colors",
                       !notification.is_read && "bg-primary/5"
@@ -174,6 +175,7 @@ export function NotificationCenter() {
                 navigate('/notifications');
                 setOpen(false);
               }}
+              aria-label="View all notifications"
             >
               View all notifications
             </Button>

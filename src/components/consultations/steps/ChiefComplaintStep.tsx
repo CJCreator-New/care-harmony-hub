@@ -2,14 +2,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Thermometer, Heart, Droplets, Wind } from "lucide-react";
+import { Thermometer, Heart, Droplets, Wind, CheckCircle } from "lucide-react";
 import { HPITemplateSelector } from "../HPITemplateSelector";
 import { HPIData } from "@/types/soap";
+import { useLatestVitals } from "@/hooks/useVitalSigns";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 interface ChiefComplaintStepProps {
   data: Record<string, any>;
   onUpdate: (field: string, value: any) => void;
   patient?: {
+    id: string;
     first_name: string;
     last_name: string;
   };
@@ -21,6 +25,44 @@ export function ChiefComplaintStep({
   patient,
 }: ChiefComplaintStepProps) {
   const vitals = data.vitals || {};
+  const { data: latestVitals, isLoading: vitalsLoading } = useLatestVitals(patient?.id || "");
+
+  // Auto-populate vitals from latest readings
+  useEffect(() => {
+    if (latestVitals && !vitals.temperature && !vitals.heart_rate && !vitals.blood_pressure) {
+      const autoVitals: Record<string, any> = {};
+
+      if (latestVitals.temperature) {
+        autoVitals.temperature = latestVitals.temperature.toString();
+      }
+      if (latestVitals.heart_rate) {
+        autoVitals.heart_rate = latestVitals.heart_rate.toString();
+      }
+      if (latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic) {
+        autoVitals.blood_pressure = `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`;
+      }
+      if (latestVitals.respiratory_rate) {
+        autoVitals.respiratory_rate = latestVitals.respiratory_rate.toString();
+      }
+      if (latestVitals.oxygen_saturation) {
+        autoVitals.oxygen_saturation = latestVitals.oxygen_saturation.toString();
+      }
+      if (latestVitals.weight) {
+        autoVitals.weight = latestVitals.weight.toString();
+      }
+      if (latestVitals.height) {
+        autoVitals.height = latestVitals.height.toString();
+      }
+      if (latestVitals.pain_level) {
+        autoVitals.pain_level = latestVitals.pain_level.toString();
+      }
+
+      if (Object.keys(autoVitals).length > 0) {
+        onUpdate("vitals", { ...vitals, ...autoVitals });
+        toast.success("Vitals auto-populated from latest readings");
+      }
+    }
+  }, [latestVitals, vitals, onUpdate]);
 
   const handleVitalsChange = (key: string, value: string) => {
     onUpdate("vitals", { ...vitals, [key]: value });
@@ -38,7 +80,18 @@ export function ChiefComplaintStep({
       {/* Vitals Section */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Vital Signs</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            Vital Signs
+            {latestVitals && Object.keys(vitals).length > 0 && (
+              <span className="flex items-center gap-1 text-xs text-success">
+                <CheckCircle className="h-3 w-3" />
+                Auto-populated
+              </span>
+            )}
+            {vitalsLoading && (
+              <span className="text-xs text-muted-foreground">Loading latest vitals...</span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { TestCase, TestCategoryType, ScriptTemplate } from '../../../types/testing';
 import { useTesting } from '../../../contexts/TestingContext';
+import { toast } from 'sonner';
 
 interface ScriptGeneratorProps {
   testCase?: TestCase;
@@ -233,7 +234,7 @@ export default function ScriptGenerator({ testCase, trigger, open, onOpenChange 
 
   const copyToClipboard = async () => {
     await navigator.clipboard.writeText(generatedScript);
-    // TODO: Show toast notification
+    toast.success('Script copied to clipboard');
   };
 
   const downloadScript = () => {
@@ -264,7 +265,7 @@ export default function ScriptGenerator({ testCase, trigger, open, onOpenChange 
 
     addAutomationScript(script);
     setIsOpen(false);
-    // TODO: Show success toast
+    toast.success('Script saved to library');
   };
 
   return (

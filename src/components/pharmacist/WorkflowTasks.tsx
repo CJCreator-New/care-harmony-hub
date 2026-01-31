@@ -13,15 +13,28 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 export function WorkflowTasks() {
   const [searchTerm, setSearchTerm] = useState('');
-  const { roleTasks, isLoading } = useWorkflowAutomation();
+  const { roleTasks, isLoading, updateTaskStatus } = useWorkflowAutomation();
 
   const filteredTasks = roleTasks?.filter(task =>
     task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     task.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleTaskAction = async (taskId: string, action: 'approve' | 'reject' | 'complete') => {
+    try {
+      await updateTaskStatus.mutateAsync({
+        taskId,
+        status: action === 'complete' ? 'completed' : action === 'approve' ? 'in_progress' : 'cancelled'
+      });
+      toast.success(`Task ${action === 'complete' ? 'completed' : action === 'approve' ? 'started' : 'rejected'}`);
+    } catch (error) {
+      toast.error(`Failed to ${action} task`);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -109,7 +122,8 @@ export function WorkflowTasks() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {/* TODO: Handle task action */}}
+                        onClick={() => handleTaskAction(task.id, 'complete')}
+                        disabled={task.status === 'completed'}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>

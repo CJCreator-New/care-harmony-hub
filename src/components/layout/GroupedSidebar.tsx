@@ -71,8 +71,8 @@ const navGroups: NavGroup[] = [
     roles: ['admin', 'doctor', 'nurse'],
     defaultExpanded: true,
     items: [
-      { label: 'Consultations', href: '/consultations', icon: Stethoscope, roles: ['admin', 'doctor', 'nurse'], permission: 'consultations' },
-      { label: 'Telemedicine', href: '/telemedicine', icon: Video, roles: ['admin', 'doctor', 'nurse'], permission: 'telemedicine' },
+      { label: 'Consultations', href: '/consultations', icon: Stethoscope, roles: ['admin', 'doctor', 'nurse'], permission: 'consultations:read' },
+      { label: 'Telemedicine', href: '/telemedicine', icon: Video, roles: ['admin', 'doctor', 'nurse'], permission: 'telemedicine:read' },
       { label: 'Voice Clinical Notes', href: '/voice-clinical-notes', icon: Mic, roles: ['admin', 'doctor', 'nurse'], permission: 'voice-clinical-notes' },
     ]
   },
@@ -91,7 +91,7 @@ const navGroups: NavGroup[] = [
     icon: TestTube2,
     roles: ['admin', 'lab_technician', 'doctor', 'nurse'],
     items: [
-      { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'], permission: 'lab' },
+      { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'], permission: 'lab:read' },
       { label: 'Lab Automation', href: '/laboratory/automation', icon: Activity, roles: ['admin', 'lab_technician'], permission: 'laboratory' },
     ]
   },
@@ -126,7 +126,7 @@ const navGroups: NavGroup[] = [
     icon: BarChart3,
     roles: ['admin', 'receptionist'],
     items: [
-      { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'], permission: 'billing' },
+      { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'], permission: 'billing:read' },
       { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'], permission: 'reports' },
       { label: 'Workflow Dashboard', href: '/integration/workflow', icon: Zap, roles: ['admin'], permission: 'workflow-dashboard' },
     ]

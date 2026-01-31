@@ -62,7 +62,7 @@ export const QualityMeasuresDashboard: React.FC<QualityMeasuresDashboardProps> =
             </div>
             <div className="flex">
               {[1, 2, 3, 4, 5].map((star) => (
-                <Award key={star} className={`h-6 w-6 ${star <= Math.floor(dashboardData.overall_quality_score / 20) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                <Award key={`star-${star}`} className={`h-6 w-6 ${star <= Math.floor(dashboardData.overall_quality_score / 20) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
               ))}
             </div>
           </div>

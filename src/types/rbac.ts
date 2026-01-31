@@ -142,6 +142,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PermissionCategory.QUEUE_WRITE,
     PermissionCategory.REPORTS_READ,
     PermissionCategory.SETTINGS_READ,
+    // ADD these missing permissions:
+    PermissionCategory.STAFF_INVITE,           // Can invite staff to department
+    PermissionCategory.AUDIT_LOGS,             // Can view audit logs for department
+    PermissionCategory.INVENTORY_READ,         // Can view inventory status
   ],
 
   admin: [

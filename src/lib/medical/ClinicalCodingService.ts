@@ -290,5 +290,5 @@ class ClinicalCodingServiceImpl implements ClinicalCodingService {
 const clinicalCodingService = new ClinicalCodingServiceImpl();
 
 export const useClinicalCodingService = (): ClinicalCodingService => {
-  return useMemo(() => clinicalCodingService, []);
+  return clinicalCodingService;
 };

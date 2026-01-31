@@ -5,16 +5,16 @@ interface PendingAction {
   id: string;
   type: 'create' | 'update' | 'delete';
   table: string;
-  data: any;
+  data: Record<string, unknown>;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
 }
 
 interface OfflineCache {
-  patientData: any[];
-  vitals: any[];
-  medications: any[];
+  patientData: Record<string, unknown>[];
+  vitals: Record<string, unknown>[];
+  medications: Record<string, unknown>[];
   syncStatus: 'pending' | 'synced' | 'error';
   pendingActions: PendingAction[];
 }
@@ -238,7 +238,7 @@ export const useOfflineSync = () => {
   }, [isOnline, cache.pendingActions, executeAction, toast]);
 
   // OPTIMIZED: Queue an action with size limits and deduplication
-  const queueAction = useCallback((type: 'create' | 'update' | 'delete', table: string, data: any) => {
+  const queueAction = useCallback((type: 'create' | 'update' | 'delete', table: string, data: Record<string, unknown>) => {
     // Check if adding this action would exceed size limits
     const actionSize = estimateSize({ type, table, data });
     if (actionSize > 100000) { // 100KB per action limit
@@ -289,7 +289,7 @@ export const useOfflineSync = () => {
   }, [isOnline, syncPendingActions, toast]);
 
   // Legacy cacheData function for backward compatibility
-  const cacheData = useCallback((type: keyof Omit<OfflineCache, 'syncStatus' | 'pendingActions'>, data: any) => {
+  const cacheData = useCallback((type: keyof Omit<OfflineCache, 'syncStatus' | 'pendingActions'>, data: Record<string, unknown>) => {
     if (!isOnline) {
       setCache(prev => ({
         ...prev,

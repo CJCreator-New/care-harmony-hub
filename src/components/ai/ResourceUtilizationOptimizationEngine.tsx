@@ -65,10 +65,10 @@ interface OptimizationMetrics {
 }
 
 export const ResourceUtilizationOptimizationEngine: React.FC = () => {
-  const { permissions } = usePermissions();
-  const { patients } = usePatients();
-  const { appointments } = useAppointments();
-  const { optimizeResourceUtilization, isLoading } = useAI();
+  const permissions = usePermissions();
+  const { data: patients } = usePatients();
+  const { data: appointments } = useAppointments();
+  const { optimizeResourceUtilization, isLoading } = useAI({ purpose: 'resource_optimization' });
 
   const [selectedDepartment, setSelectedDepartment] = useState<string>('emergency');
   const [timeframe, setTimeframe] = useState<string>('24h');
@@ -346,8 +346,8 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
                       <div className="mt-3">
                         <p className="text-sm text-muted-foreground mb-2">Bottleneck Hours:</p>
                         <div className="flex flex-wrap gap-2">
-                          {optimization.scheduling.bottleneckHours.map((hour, index) => (
-                            <Badge key={index} variant="destructive">{hour}</Badge>
+                          {optimization.scheduling.bottleneckHours.map((hour, idx) => (
+                            <Badge key={`bottleneck-${idx}`} variant="destructive">{hour}</Badge>
                           ))}
                         </div>
                       </div>
@@ -356,8 +356,8 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Key Recommendations</h4>
                       <ul className="space-y-2">
-                        {optimization.scheduling.recommendations.slice(0, 3).map((rec, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
+                        {optimization.scheduling.recommendations.slice(0, 3).map((rec, idx) => (
+                          <li key={`rec-${idx}`} className="flex items-start gap-2 text-sm">
                             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2" />
                             {rec}
                           </li>
@@ -565,8 +565,8 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {Object.entries(optimization.equipment.utilization).map(([equipment, utilization]) => (
-                      <div key={equipment} className="space-y-2">
+                    {Object.entries(optimization.equipment.utilization).map(([equipment, utilization], idx) => (
+                      <div key={`equip-${idx}`} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="capitalize">{equipment.replace('_', ' ')}</span>
                           <span className={`font-semibold ${getUtilizationColor(utilization)}`}>
@@ -600,8 +600,8 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
                     <div className="pt-4">
                       <h4 className="font-semibold mb-3">Recommendations</h4>
                       <ul className="space-y-2">
-                        {optimization.equipment.recommendations.map((rec, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
+                        {optimization.equipment.recommendations.map((rec, idx) => (
+                          <li key={`equip-rec-${idx}`} className="flex items-start gap-2 text-sm">
                             <div className="w-2 h-2 bg-purple-500 rounded-full mt-2" />
                             {rec}
                           </li>

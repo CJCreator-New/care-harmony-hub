@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
@@ -28,6 +28,7 @@ import {
   Sparkles,
   Zap,
   Monitor,
+  TrendingUp,
 } from 'lucide-react';
 import { useActiveQueue } from '@/hooks/useQueue';
 import {
@@ -36,6 +37,8 @@ import {
   useScheduledAppointments,
 } from '@/hooks/useReceptionistStats';
 import { useUpdateAppointmentRequest } from '@/hooks/useAppointmentRequests';
+import { useDoctorAvailability } from '@/hooks/useDoctorAvailability';
+import { useAutoApproveAppointmentRequests } from '@/hooks/useAppointmentRequests';
 import { PatientCheckInModal } from '@/components/receptionist/PatientCheckInModal';
 import { PatientCheckOutModal } from '@/components/receptionist/PatientCheckOutModal';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
@@ -44,11 +47,14 @@ import { AppointmentCalendarView } from '@/components/receptionist/AppointmentCa
 import { QuickPaymentWidget } from '@/components/receptionist/QuickPaymentWidget';
 import { ReceptionistMessaging } from '@/components/receptionist/ReceptionistMessaging';
 import { ReceptionistAnalytics } from '@/components/receptionist/ReceptionistAnalytics';
+import { EnhancedCheckIn } from '@/components/receptionist/EnhancedCheckIn';
+import { QueueOptimizer } from '@/components/receptionist/QueueOptimizer';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 export function ReceptionistDashboard() {
   const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutOpen, setCheckOutOpen] = useState(false);
   const [walkInOpen, setWalkInOpen] = useState(false);
@@ -58,34 +64,45 @@ export function ReceptionistDashboard() {
   const { data: pendingRequests = [], isLoading: requestsLoading } = usePendingAppointmentRequests();
   const { data: scheduledAppointments = [] } = useScheduledAppointments();
   const { data: queue = [] } = useActiveQueue();
+  const { data: doctorAvailability = [] } = useDoctorAvailability();
   const updateRequest = useUpdateAppointmentRequest();
+  const autoApprove = useAutoApproveAppointmentRequests();
 
-  const getGreeting = () => {
+  // Memoize greeting to avoid recalculation on every render
+  const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
-  };
+  }, []);
 
-  const handleApproveRequest = (requestId: string) => {
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleApproveRequest = useCallback((requestId: string) => {
     if (!profile?.id) return;
     updateRequest.mutate({
       id: requestId,
       status: 'approved',
       reviewed_by: profile.id,
     });
-  };
+  }, [profile?.id, updateRequest]);
 
-  const handleRejectRequest = (requestId: string) => {
+  const handleRejectRequest = useCallback((requestId: string) => {
     if (!profile?.id) return;
     updateRequest.mutate({
       id: requestId,
       status: 'rejected',
       reviewed_by: profile.id,
     });
-  };
+  }, [profile?.id, updateRequest]);
 
-  const getPriorityBadge = (priority: string | null) => {
+  // Memoize queue stats to avoid recalculating on every render
+  const queueStats = useMemo(() => ({
+    waiting: queue.filter(q => q.status === 'waiting').length,
+    called: queue.filter(q => q.status === 'called').length,
+    inService: queue.filter(q => q.status === 'in_service').length,
+  }), [queue]);
+
+  const getPriorityBadge = useCallback((priority: string | null) => {
     switch (priority) {
       case 'urgent':
       case 'emergency':
@@ -95,7 +112,7 @@ export function ReceptionistDashboard() {
       default:
         return <Badge variant="secondary">normal</Badge>;
     }
-  };
+  }, []);
 
   return (
     <>
@@ -104,7 +121,7 @@ export function ReceptionistDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, {profile?.first_name || 'Receptionist'}!
+              {greeting}, {profile?.first_name || 'Receptionist'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Appointments, check-ins, and billing overview.
@@ -210,6 +227,18 @@ export function ReceptionistDashboard() {
                   Pending Appointment Requests
                   <Badge variant="warning" className="ml-2">{pendingRequests.length}</Badge>
                 </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => autoApprove.mutate(pendingRequests.map(r => r.id))}
+                    disabled={autoApprove.isPending}
+                  >
+                    {autoApprove.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Auto-Approve Eligible
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[280px]">
@@ -390,6 +419,65 @@ export function ReceptionistDashboard() {
             </CardContent>
           </Card>
 
+          {/* Doctor Availability Widget */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                Doctor Availability
+              </CardTitle>
+              <CardDescription>
+                Real-time doctor status and next available slots
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {doctorAvailability.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No doctors available</p>
+                  </div>
+                ) : (
+                  doctorAvailability.slice(0, 5).map((doctor) => (
+                    <div
+                      key={doctor.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`h-3 w-3 rounded-full ${
+                          doctor.status === 'available' ? 'bg-success' :
+                          doctor.status === 'in_consultation' ? 'bg-warning' :
+                          doctor.status === 'break' ? 'bg-info' :
+                          'bg-muted'
+                        }`} />
+                        <div>
+                          <p className="text-sm font-medium">
+                            Dr. {doctor.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {doctor.status.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {doctor.next_available && (
+                          <p className="text-xs text-muted-foreground">
+                            Next: {doctor.next_available}
+                          </p>
+                        )}
+                        {doctor.current_patient_count !== undefined && (
+                          <p className="text-xs text-muted-foreground">
+                            {doctor.current_patient_count} in queue
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Quick Payment Widget */}
           <QuickPaymentWidget />
 
@@ -417,15 +505,15 @@ export function ReceptionistDashboard() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Waiting</span>
-                    <Badge variant="warning">{queue.filter(q => q.status === 'waiting').length}</Badge>
+                    <Badge variant="warning">{queueStats.waiting}</Badge>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Called</span>
-                    <Badge variant="info">{queue.filter(q => q.status === 'called').length}</Badge>
+                    <Badge variant="info">{queueStats.called}</Badge>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">In Service</span>
-                    <Badge variant="success">{queue.filter(q => q.status === 'in_service').length}</Badge>
+                    <Badge variant="success">{queueStats.inService}</Badge>
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-2" asChild>
                     <Link to="/queue">View Full Queue</Link>
@@ -467,26 +555,25 @@ export function ReceptionistDashboard() {
           </Card>
         </div>
       </div>
-    </TabsContent>
+        </TabsContent>
 
-      <TabsContent value="appointment-management">
+        <TabsContent value="appointment-management">
         <AppointmentCalendarView
           onNewAppointment={() => setWalkInOpen(true)}
           onAppointmentClick={(appointment) => {
             // Handle appointment click - could open edit modal
-            console.log('Appointment clicked:', appointment);
           }}
         />
       </TabsContent>
 
-      <TabsContent value="queue-optimization">
-        <QueueOptimizer />
-      </TabsContent>
+        <TabsContent value="queue-optimization">
+          <QueueOptimizer />
+        </TabsContent>
 
-      <TabsContent value="analytics">
-        <ReceptionistAnalytics />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="analytics">
+          <ReceptionistAnalytics />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <PatientCheckInModal open={checkInOpen} onOpenChange={setCheckInOpen} />

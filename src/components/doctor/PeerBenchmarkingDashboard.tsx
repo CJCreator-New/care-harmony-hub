@@ -129,8 +129,8 @@ export function PeerBenchmarkingDashboard() {
               <span className="text-green-500 font-medium">Top Rated</span> in Cardiology
             </p>
             <div className="flex gap-1 mt-2">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className={`h-3 w-3 ${s <= 5 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+              {[1, 2, 3, 4, 5].map((s, idx) => (
+                <Star key={`star-${idx}`} className={`h-3 w-3 ${s <= 5 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
               ))}
             </div>
           </CardContent>
@@ -172,8 +172,8 @@ export function PeerBenchmarkingDashboard() {
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Legend />
-                  <Bar dataKey="you" name="Your volume" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="deptAvg" name="Dept Average" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="you" name="Your volume" fill="#3b82f6" radius={[4, 4, 0, 0]} aria-label="Your patient volume" />
+                  <Bar dataKey="deptAvg" name="Dept Average" fill="#94a3b8" radius={[4, 4, 0, 0]} aria-label="Department average volume" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, AlertCircle, CheckCircle } from "lucide-react";
+import { ICD10Autocomplete } from "../ICD10Autocomplete";
+import { ICD10Code } from "@/types/icd10";
 
 interface DiagnosisStepProps {
   data: Record<string, any>;
@@ -12,40 +14,36 @@ interface DiagnosisStepProps {
 }
 
 export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
-  const [newProvisional, setNewProvisional] = useState("");
-  const [newFinal, setNewFinal] = useState("");
-
   const provisionalDiagnosis = data.provisional_diagnosis || [];
   const finalDiagnosis = data.final_diagnosis || [];
 
-  const addProvisionalDiagnosis = () => {
-    if (newProvisional.trim()) {
-      onUpdate("provisional_diagnosis", [
-        ...provisionalDiagnosis,
-        newProvisional.trim(),
-      ]);
-      setNewProvisional("");
+  const addProvisionalDiagnosis = (code: ICD10Code) => {
+    // Check if code already exists
+    const exists = provisionalDiagnosis.some((d: ICD10Code) => d.code === code.code);
+    if (!exists) {
+      onUpdate("provisional_diagnosis", [...provisionalDiagnosis, code]);
     }
   };
 
   const removeProvisionalDiagnosis = (index: number) => {
     onUpdate(
       "provisional_diagnosis",
-      provisionalDiagnosis.filter((_: string, i: number) => i !== index)
+      provisionalDiagnosis.filter((_: ICD10Code, i: number) => i !== index)
     );
   };
 
-  const addFinalDiagnosis = () => {
-    if (newFinal.trim()) {
-      onUpdate("final_diagnosis", [...finalDiagnosis, newFinal.trim()]);
-      setNewFinal("");
+  const addFinalDiagnosis = (code: ICD10Code) => {
+    // Check if code already exists
+    const exists = finalDiagnosis.some((d: ICD10Code) => d.code === code.code);
+    if (!exists) {
+      onUpdate("final_diagnosis", [...finalDiagnosis, code]);
     }
   };
 
   const removeFinalDiagnosis = (index: number) => {
     onUpdate(
       "final_diagnosis",
-      finalDiagnosis.filter((_: string, i: number) => i !== index)
+      finalDiagnosis.filter((_: ICD10Code, i: number) => i !== index)
     );
   };
 
@@ -73,25 +71,24 @@ export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add provisional diagnosis..."
-              value={newProvisional}
-              onChange={(e) => setNewProvisional(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addProvisionalDiagnosis()}
-            />
-            <Button type="button" size="icon" onClick={addProvisionalDiagnosis}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
+          <ICD10Autocomplete
+            onSelect={addProvisionalDiagnosis}
+            placeholder="Search and add provisional diagnosis..."
+            className="w-full"
+          />
           {provisionalDiagnosis.length > 0 ? (
             <div className="space-y-2">
-              {provisionalDiagnosis.map((diagnosis: string, index: number) => (
+              {provisionalDiagnosis.map((diagnosis: ICD10Code, index: number) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-md"
                 >
-                  <span className="text-sm">{diagnosis}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {diagnosis.code}
+                    </Badge>
+                    <span className="text-sm">{diagnosis.description}</span>
+                  </div>
                   <div className="flex gap-1">
                     <Button
                       type="button"
@@ -131,25 +128,24 @@ export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add final diagnosis..."
-              value={newFinal}
-              onChange={(e) => setNewFinal(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addFinalDiagnosis()}
-            />
-            <Button type="button" size="icon" onClick={addFinalDiagnosis}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
+          <ICD10Autocomplete
+            onSelect={addFinalDiagnosis}
+            placeholder="Search and add final diagnosis..."
+            className="w-full"
+          />
           {finalDiagnosis.length > 0 ? (
             <div className="space-y-2">
-              {finalDiagnosis.map((diagnosis: string, index: number) => (
+              {finalDiagnosis.map((diagnosis: ICD10Code, index: number) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-md"
                 >
-                  <span className="text-sm font-medium">{diagnosis}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {diagnosis.code}
+                    </Badge>
+                    <span className="text-sm font-medium">{diagnosis.description}</span>
+                  </div>
                   <Button
                     type="button"
                     size="sm"

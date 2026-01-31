@@ -3,19 +3,19 @@ import { setTestRole, loginAsTestUser, setupApiMocks, ROLES, UserRole } from './
 
 // Route access matrix - defines which roles can access which routes
 const ROUTE_ACCESS_MATRIX = {
-  '/dashboard': ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
-  '/patients': ['admin', 'doctor', 'nurse', 'receptionist'],
-  '/appointments': ['admin', 'doctor', 'nurse', 'receptionist'],
-  '/consultations': ['admin', 'doctor', 'nurse'],
-  '/prescriptions': ['admin', 'doctor', 'pharmacist'],
-  '/pharmacy': ['admin', 'pharmacist'],
-  '/laboratory': ['admin', 'doctor', 'lab_technician'],
-  '/queue': ['admin', 'nurse', 'receptionist'],
-  '/billing': ['admin', 'receptionist'],
-  '/inventory': ['admin', 'pharmacist'],
-  '/reports': ['admin'],
-  '/settings/staff-management': ['admin'],
-  '/settings/hospital-settings': ['admin']
+  '/dashboard': ['super_admin', 'admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
+  '/patients': ['super_admin', 'dept_head', 'admin', 'doctor', 'nurse', 'receptionist'],
+  '/appointments': ['super_admin', 'dept_head', 'admin', 'doctor', 'nurse', 'receptionist'],
+  '/consultations': ['super_admin', 'dept_head', 'admin', 'doctor', 'nurse'],
+  '/prescriptions': ['super_admin', 'admin', 'doctor', 'pharmacist'],
+  '/pharmacy': ['super_admin', 'dept_head', 'admin', 'pharmacist'],
+  '/laboratory': ['super_admin', 'dept_head', 'admin', 'doctor', 'lab_technician'],
+  '/queue': ['super_admin', 'dept_head', 'admin', 'nurse', 'receptionist'],
+  '/billing': ['super_admin', 'dept_head', 'admin', 'receptionist'],
+  '/inventory': ['super_admin', 'dept_head', 'admin', 'pharmacist'],
+  '/reports': ['super_admin', 'dept_head', 'admin', 'doctor'],
+  '/settings/staff-management': ['super_admin', 'admin'],
+  '/settings/hospital-settings': ['super_admin', 'admin']
 } as const;
 
 test.describe('Role-Based Access Control E2E', () => {

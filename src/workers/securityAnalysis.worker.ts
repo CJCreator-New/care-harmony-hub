@@ -11,14 +11,14 @@
 // Type definitions for worker messages
 interface SecurityAnalysisRequest {
   type: 'analyzeLogs' | 'detectAnomalies' | 'checkPatterns';
-  data: any;
+  data: Record<string, unknown>;
   requestId: string;
 }
 
 interface SecurityAnalysisResponse {
   type: 'result' | 'error';
   requestId: string;
-  data?: any;
+  data?: Record<string, unknown>;
   error?: string;
 }
 
@@ -81,7 +81,7 @@ function generateAlertId(): string {
 /**
  * Analyze security logs for threats
  */
-function analyzeLogs(logs: any[], timeRange: { start: Date; end: Date }): SecurityAlert[] {
+function analyzeLogs(logs: Array<Record<string, unknown>>, timeRange: { start: Date; end: Date }): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   // Group logs by user
@@ -215,7 +215,7 @@ function analyzeLogs(logs: any[], timeRange: { start: Date; end: Date }): Securi
 /**
  * Detect anomalies in user behavior
  */
-function detectAnomalies(userData: any[]): SecurityAlert[] {
+function detectAnomalies(userData: Array<Record<string, unknown>>): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   // Calculate baseline statistics
@@ -268,7 +268,7 @@ function detectAnomalies(userData: any[]): SecurityAlert[] {
 /**
  * Calculate user statistics for baseline
  */
-function calculateUserStats(logs: any[]): {
+function calculateUserStats(logs: Array<Record<string, unknown>>): {
   avgRequestsPerDay: number;
   commonActions: string[];
   typicalHours: number[];
@@ -315,7 +315,7 @@ function calculateUserStats(logs: any[]): {
 /**
  * Check for specific security patterns
  */
-function checkPatterns(logs: any[], patterns: string[]): SecurityAlert[] {
+function checkPatterns(logs: Array<Record<string, unknown>>, patterns: string[]): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   patterns.forEach(pattern => {

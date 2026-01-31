@@ -327,8 +327,8 @@ export default function TreatmentRecommendationsEngine() {
               </TabsList>
 
               <TabsContent value="list" className="space-y-4">
-                {filteredRecommendations.map((rec) => (
-                  <Card key={rec.id} className="border-l-4 border-l-blue-500">
+                {filteredRecommendations.map((rec, idx) => (
+                  <Card key={`rec-${idx}`} className="border-l-4 border-l-blue-500">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
@@ -374,7 +374,7 @@ export default function TreatmentRecommendationsEngine() {
                           </h4>
                           <ul className="text-sm text-muted-foreground space-y-1">
                             {rec.monitoring.map((item, idx) => (
-                              <li key={idx}>• {item}</li>
+                              <li key={`monitor-${idx}`}>• {item}</li>
                             ))}
                           </ul>
                         </div>
@@ -387,7 +387,7 @@ export default function TreatmentRecommendationsEngine() {
                           <AlertDescription>
                             <ul className="space-y-1">
                               {rec.contraindications.map((item, idx) => (
-                                <li key={idx}>• {item}</li>
+                                <li key={`contra-${idx}`}>• {item}</li>
                               ))}
                             </ul>
                           </AlertDescription>
@@ -402,7 +402,7 @@ export default function TreatmentRecommendationsEngine() {
                           </h4>
                           <ul className="text-sm text-muted-foreground space-y-1">
                             {rec.references.map((ref, idx) => (
-                              <li key={idx}>• {ref}</li>
+                              <li key={`ref-${idx}`}>• {ref}</li>
                             ))}
                           </ul>
                         </div>

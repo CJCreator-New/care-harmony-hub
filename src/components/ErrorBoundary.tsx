@@ -34,11 +34,33 @@ export class ErrorBoundary extends Component<Props, State> {
       console.groupEnd();
     }
 
+    // Log error to monitoring service in production
+    if (import.meta.env.PROD) {
+      this.logErrorToService(error, errorInfo);
+    }
+
     this.setState({
       error,
       errorInfo,
     });
   }
+
+  private logErrorToService = (error: Error, errorInfo: ErrorInfo) => {
+    try {
+      const errorData = {
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+      };
+      // Send to error tracking service (e.g., Sentry, LogRocket)
+      console.warn('Error logged:', sanitizeLogMessage(JSON.stringify(errorData)));
+    } catch (e) {
+      console.error('Failed to log error:', e);
+    }
+  };
 
   handleReload = () => {
     window.location.reload();

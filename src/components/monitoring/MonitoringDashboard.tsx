@@ -339,7 +339,7 @@ export default function MonitoringDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {errorSummary?.recentErrors?.map((error) => (
-                  <div key={error.id} className="flex items-start justify-between p-4 border rounded-lg">
+                  <div key={`error-${error.id}`} className="flex items-start justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant={getErrorBadgeVariant(error.level)}>
@@ -382,8 +382,8 @@ export default function MonitoringDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {performanceMetrics?.slowestEndpoints?.map((endpoint, index) => (
-                    <div key={index} className="flex items-center justify-between">
+                  {performanceMetrics?.slowestEndpoints?.map((endpoint, idx) => (
+                    <div key={`endpoint-${endpoint.endpoint}`} className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-medium">{endpoint.endpoint}</p>
                         <p className="text-xs text-muted-foreground">
@@ -415,8 +415,8 @@ export default function MonitoringDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {performanceMetrics?.databaseQueryPerformance?.map((query, index) => (
-                    <div key={index} className="flex items-center justify-between">
+                  {performanceMetrics?.databaseQueryPerformance?.map((query, idx) => (
+                    <div key={`query-${query.query}`} className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-medium truncate" title={query.query}>
                           {query.query.length > 40 ? `${query.query.substring(0, 40)}...` : query.query}

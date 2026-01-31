@@ -64,8 +64,26 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
       setNewPatientName('');
       setNewPatientNotes('');
       setNewTask('');
+    } else if (open && mode === 'create' && queue.length > 0) {
+      // Auto-populate critical patients from queue
+      const criticalFromQueue = queue
+        .filter(entry => entry.priority === 'emergency' || entry.priority === 'urgent')
+        .map(entry => ({
+          patient_id: entry.patient?.id || '',
+          patient_name: `${entry.patient?.first_name} ${entry.patient?.last_name}`,
+          notes: `Priority: ${entry.priority}, Status: ${entry.status}, Reason: ${entry.appointment?.reason_for_visit || 'Not specified'}`
+        }));
+
+      setCriticalPatients(criticalFromQueue);
+
+      // Auto-generate handover notes
+      const queueSummary = `Current queue: ${queue.length} patients. ${queue.filter(p => p.status === 'waiting').length} waiting, ${queue.filter(p => p.status === 'called').length} called, ${queue.filter(p => p.status === 'in_prep').length} in prep.`;
+      const criticalSummary = criticalFromQueue.length > 0 ?
+        `Critical patients requiring immediate attention: ${criticalFromQueue.map(p => p.patient_name).join(', ')}.` : '';
+
+      setNotes(`${queueSummary}${criticalSummary ? ' ' + criticalSummary : ''}`);
     }
-  }, [open]);
+  }, [open, mode, queue]);
 
   const handleAddCriticalPatient = () => {
     if (!newPatientName.trim()) return;

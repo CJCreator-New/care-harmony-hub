@@ -1150,5 +1150,5 @@ class ICD10ServiceImpl implements ICD10Service {
 const icd10Service = new ICD10ServiceImpl();
 
 export const useICD10Service = (): ICD10Service => {
-  return useMemo(() => icd10Service, []);
+  return icd10Service;
 };

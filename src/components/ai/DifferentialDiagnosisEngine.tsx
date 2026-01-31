@@ -463,8 +463,8 @@ Please provide a comprehensive differential diagnosis with:
                       <div>
                         <h4 className="font-medium mb-2">Clinical Reasoning</h4>
                         <ul className="list-disc list-inside space-y-1 text-sm">
-                          {diagnosis.reasoning.map((reason, index) => (
-                            <li key={index}>{reason}</li>
+                          {diagnosis.reasoning.map((reason, idx) => (
+                            <li key={`reason-${idx}`}>{reason}</li>
                           ))}
                         </ul>
                       </div>
@@ -481,8 +481,8 @@ Please provide a comprehensive differential diagnosis with:
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {diagnosis.differentials.map((diff, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    {diagnosis.differentials.map((diff, idx) => (
+                      <div key={`diff-${idx}`} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-medium">{diff.condition}</h4>
                           <p className="text-sm text-muted-foreground">{diff.reasoning}</p>
@@ -504,8 +504,8 @@ Please provide a comprehensive differential diagnosis with:
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {diagnosis.recommendations.map((rec, index) => (
-                      <div key={index} className="flex items-start gap-3">
+                    {diagnosis.recommendations.map((rec, idx) => (
+                      <div key={`rec-${idx}`} className="flex items-start gap-3">
                         <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                         <span>{rec}</span>
                       </div>
@@ -526,8 +526,8 @@ Please provide a comprehensive differential diagnosis with:
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {diagnosis.literature.map((ref, index) => (
-                        <Badge key={index} variant="secondary">{ref}</Badge>
+                      {diagnosis.literature.map((ref, idx) => (
+                        <Badge key={`lit-${idx}`} variant="secondary">{ref}</Badge>
                       ))}
                     </div>
                   </CardContent>

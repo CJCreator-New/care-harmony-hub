@@ -69,7 +69,7 @@ interface PatientData {
 }
 
 export default function TreatmentPlanOptimizationEngine() {
-  const { optimizeTreatmentPlan, isLoading } = useAI();
+  const { optimizeTreatmentPlan, isLoading } = useAI({ purpose: 'treatment_plan' });
   const { toast } = useToast();
 
   const [patientData, setPatientData] = useState<PatientData>({

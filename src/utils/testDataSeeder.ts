@@ -73,7 +73,7 @@ export class TestDataSeeder {
   }
 
   private async createPatients(count: number) {
-    const patients = [];
+    const patients: Array<Record<string, unknown>> = [];
     const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Lisa', 'James', 'Maria', 'William', 'Jennifer', 'Richard', 'Patricia', 'Charles', 'Linda', 'Joseph', 'Barbara', 'Thomas', 'Elizabeth'];
     const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
     const genders: ('male' | 'female' | 'other' | 'prefer_not_to_say')[] = ['male', 'female', 'other'];
@@ -162,7 +162,7 @@ export class TestDataSeeder {
     const firstNames = ['Dr. Alice', 'Dr. Bob', 'Nurse Carol', 'Nurse Dan', 'Emma', 'Frank', 'Grace', 'Henry', 'Ivy', 'Jack'];
     const lastNames = ['Anderson', 'Brown', 'Clark', 'Davis', 'Evans', 'Foster', 'Green', 'Harris', 'Irwin', 'Jackson'];
 
-    const staff = [];
+    const staff: Array<Record<string, unknown>> = [];
     
     // Get existing auth users to use as staff
     const { data: { user } } = await supabase.auth.getUser();
@@ -198,7 +198,7 @@ export class TestDataSeeder {
     return profileData;
   }
 
-  private async createAppointments(count: number, patients: any[], staff: any[], includeToday: boolean) {
+  private async createAppointments(count: number, patients: Array<Record<string, unknown>>, staff: Array<Record<string, unknown>>, includeToday: boolean) {
     const appointmentTypes = ['check-up', 'follow-up', 'consultation', 'emergency', 'vaccination'];
     const statuses: ('scheduled' | 'completed' | 'cancelled')[] = ['scheduled', 'completed', 'cancelled'];
     const priorities: ('low' | 'normal' | 'high' | 'urgent' | 'emergency')[] = ['low', 'normal', 'high', 'urgent'];
@@ -275,9 +275,9 @@ export class TestDataSeeder {
     return data;
   }
 
-  private async createBillingRecords(patients: any[], includeThisMonth: boolean) {
-    const invoices = [];
-    const payments = [];
+  private async createBillingRecords(patients: Array<Record<string, unknown>>, includeThisMonth: boolean) {
+    const invoices: Array<Record<string, unknown>> = [];
+    const payments: Array<Record<string, unknown>> = [];
     
     // Create invoices for random patients
     const invoiceCount = Math.floor(patients.length * 0.3); // 30% of patients have invoices
@@ -335,12 +335,12 @@ export class TestDataSeeder {
     return { invoices: invoiceData, payments: payments.length };
   }
 
-  private async createQueueEntries(patients: any[]) {
+  private async createQueueEntries(patients: Array<Record<string, unknown>>) {
     const queueCount = Math.min(5, patients.length); // Max 5 queue entries
     const departments = ['General', 'Cardiology', 'Pediatrics', 'Emergency'];
     const statuses = ['waiting', 'in_service', 'completed'];
 
-    const queueEntries = [];
+    const queueEntries: Array<Record<string, unknown>> = [];
     
     for (let i = 0; i < queueCount; i++) {
       const patient = patients[Math.floor(Math.random() * patients.length)];
@@ -367,7 +367,7 @@ export class TestDataSeeder {
     return data;
   }
 
-  private async updateStaffPresence(staff: any[]) {
+  private async updateStaffPresence(staff: Array<Record<string, unknown>>) {
     // Skip staff presence update - profiles table doesn't have is_active column for update
     const activeStaffCount = Math.floor(staff.length * 0.7);
     return activeStaffCount;

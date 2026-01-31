@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,20 +7,128 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle2, Clock, AlertCircle, Filter, ArrowUpDown } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, Filter, ArrowUpDown, User, Plus, FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-export function EnhancedTaskManagement() {
+interface EnhancedTaskManagementProps {
+  patientId?: string;
+}
+
+export function EnhancedTaskManagement({ patientId }: EnhancedTaskManagementProps = {}) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('due_date');
+  const [patientIdFilter, setPatientIdFilter] = useState<string>(patientId || 'all');
+
+  // Update filter when patientId prop changes
+  useEffect(() => {
+    if (patientId) {
+      setPatientIdFilter(patientId);
+    }
+  }, [patientId]);
+
+  // Task templates for common consultation outcomes
+  const taskTemplates = [
+    {
+      id: 'follow_up',
+      title: 'Follow-up Consultation',
+      description: 'Schedule and conduct follow-up consultation',
+      priority: 'medium',
+      task_type: 'follow_up'
+    },
+    {
+      id: 'lab_review',
+      title: 'Review Lab Results',
+      description: 'Review and interpret laboratory test results',
+      priority: 'high',
+      task_type: 'lab_review'
+    },
+    {
+      id: 'medication_review',
+      title: 'Medication Review',
+      description: 'Review patient medications and potential interactions',
+      priority: 'medium',
+      task_type: 'medication_review'
+    },
+    {
+      id: 'referral_followup',
+      title: 'Referral Follow-up',
+      description: 'Follow up on specialist referral and patient progress',
+      priority: 'medium',
+      task_type: 'referral_followup'
+    },
+    {
+      id: 'vital_signs',
+      title: 'Monitor Vital Signs',
+      description: 'Monitor and track patient vital signs over time',
+      priority: 'low',
+      task_type: 'monitoring'
+    },
+    {
+      id: 'patient_education',
+      title: 'Patient Education',
+      description: 'Provide patient education on condition and treatment',
+      priority: 'medium',
+      task_type: 'education'
+    },
+    {
+      id: 'prescription_renewal',
+      title: 'Prescription Renewal',
+      description: 'Review and renew patient prescriptions as needed',
+      priority: 'medium',
+      task_type: 'prescription'
+    },
+    {
+      id: 'chronic_care',
+      title: 'Chronic Condition Management',
+      description: 'Manage ongoing care for chronic conditions',
+      priority: 'medium',
+      task_type: 'chronic_care'
+    }
+  ];
+
+  // Get unique patients with tasks for filter dropdown
+  const { data: patientsWithTasks = [] } = useQuery({
+    queryKey: ['task-patients', profile?.user_id],
+    queryFn: async () => {
+      if (!profile?.user_id) return [];
+
+      const { data, error } = await supabase
+        .from('task_assignments')
+        .select(`
+          patient_id,
+          patient:patients(id, first_name, last_name, mrn)
+        `)
+        .eq('assigned_to', profile.user_id)
+        .not('patient_id', 'is', null);
+
+      if (error) throw error;
+
+      // Get unique patients
+      const uniquePatients = data.reduce((acc: any[], item) => {
+        if (item.patient && !acc.find(p => p.id === item.patient.id)) {
+          acc.push(item.patient);
+        }
+        return acc;
+      }, []);
+
+      return uniquePatients;
+    },
+    enabled: !!profile?.user_id,
+  });
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['enhanced-tasks', profile?.user_id, priorityFilter, statusFilter, sortBy],
+    queryKey: ['enhanced-tasks', profile?.user_id, priorityFilter, statusFilter, sortBy, patientIdFilter],
     queryFn: async () => {
       if (!profile?.user_id) return [];
 
@@ -39,6 +147,10 @@ export function EnhancedTaskManagement() {
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
+      }
+
+      if (patientIdFilter !== 'all') {
+        query = query.eq('patient_id', patientIdFilter);
       }
 
       query = query.order(sortBy, { ascending: sortBy === 'due_date' });
@@ -64,6 +176,34 @@ export function EnhancedTaskManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enhanced-tasks'] });
       toast({ title: 'Task status updated' });
+    },
+  });
+
+  const createTaskFromTemplate = useMutation({
+    mutationFn: async (templateId: string) => {
+      const template = taskTemplates.find(t => t.id === templateId);
+      if (!template || !profile?.user_id) throw new Error('Template not found');
+
+      const taskData = {
+        title: template.title,
+        description: template.description,
+        priority: template.priority,
+        status: 'pending',
+        task_type: template.task_type,
+        assigned_to: profile.user_id,
+        created_by: profile.user_id,
+        patient_id: patientIdFilter !== 'all' ? patientIdFilter : null,
+      };
+
+      const { error } = await supabase
+        .from('task_assignments')
+        .insert(taskData);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enhanced-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-patients'] });
+      toast({ title: 'Task created from template' });
     },
   });
 
@@ -97,7 +237,29 @@ export function EnhancedTaskManagement() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>My Tasks</span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Task
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                {taskTemplates.map((template) => (
+                  <DropdownMenuItem
+                    key={template.id}
+                    onClick={() => createTaskFromTemplate.mutate(template.id)}
+                    disabled={createTaskFromTemplate.isPending}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{template.title}</span>
+                      <span className="text-xs text-muted-foreground">{template.description}</span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Badge variant="secondary">{pendingCount} pending</Badge>
             <Badge variant="default">{inProgressCount} in progress</Badge>
             {overdueCount > 0 && <Badge variant="destructive">{overdueCount} overdue</Badge>}
@@ -132,6 +294,20 @@ export function EnhancedTaskManagement() {
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={patientIdFilter} onValueChange={setPatientIdFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Patient" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Patients</SelectItem>
+              {patientsWithTasks.map((patient: any) => (
+                <SelectItem key={patient.id} value={patient.id}>
+                  {patient.first_name} {patient.last_name} ({patient.mrn})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

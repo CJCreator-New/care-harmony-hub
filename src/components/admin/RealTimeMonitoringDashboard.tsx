@@ -66,10 +66,16 @@ export const RealTimeMonitoringDashboard = () => {
     return (totalWorkload / (staff.length * 100)) * 100;
   };
 
-  const getStatusColor = (value: number, thresholds: { warning: number; critical: number }) => {
+  const getProgressVariant = (value: number, thresholds: { warning: number; critical: number }): 'success' | 'warning' | 'destructive' => {
     if (value >= thresholds.critical) return 'destructive';
     if (value >= thresholds.warning) return 'warning';
     return 'success';
+  };
+
+  const getStatusBadgeVariant = (value: number, thresholds: { warning: number; critical: number }): 'destructive' | 'default' | 'secondary' => {
+    if (value >= thresholds.critical) return 'destructive';
+    if (value >= thresholds.warning) return 'default';
+    return 'secondary';
   };
 
   return (
@@ -99,7 +105,7 @@ export const RealTimeMonitoringDashboard = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
-              <TrendingUp className="w-4 h-4 mr-2" />
+              <TrendingUp className="w-4 h-4 mr-2" aria-hidden="true" />
               System Load
             </CardTitle>
           </CardHeader>
@@ -107,9 +113,9 @@ export const RealTimeMonitoringDashboard = () => {
             <div className="text-2xl font-bold">{metrics.systemLoad.toFixed(1)}%</div>
             <Progress 
               value={metrics.systemLoad} 
+              variant={getProgressVariant(metrics.systemLoad, { warning: 70, critical: 90 })}
               className="mt-2"
-              // @ts-ignore
-              variant={getStatusColor(metrics.systemLoad, { warning: 70, critical: 90 })}
+              aria-label={`System load: ${metrics.systemLoad.toFixed(1)} percent`}
             />
           </CardContent>
         </Card>
@@ -137,7 +143,7 @@ export const RealTimeMonitoringDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{metrics.errorRate.toFixed(2)}%</div>
             <Badge 
-              variant={getStatusColor(metrics.errorRate, { warning: 2, critical: 5 })}
+              variant={getStatusBadgeVariant(metrics.errorRate, { warning: 2, critical: 5 })}
               className="mt-1"
             >
               {metrics.errorRate < 2 ? 'Good' : metrics.errorRate < 5 ? 'Warning' : 'Critical'}

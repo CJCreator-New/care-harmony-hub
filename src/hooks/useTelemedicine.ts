@@ -1,9 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeForLog } from '@/utils/sanitize';
 import { useAuth } from '@/contexts/AuthContext';
-import { sanitizeForLog } from '@/utils/sanitize';
 
 interface VideoSession {
   session_id: string;

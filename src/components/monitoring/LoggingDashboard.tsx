@@ -396,8 +396,8 @@ export function LoggingDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {errorLogs.map((log) => (
-                      <TableRow key={log.id}>
+                    {errorLogs.map((log, idx) => (
+                      <TableRow key={`error-${idx}`}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -466,8 +466,8 @@ export function LoggingDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activityLogs.map((log) => (
-                      <TableRow key={log.id}>
+                    {activityLogs.map((log, idx) => (
+                      <TableRow key={`activity-${idx}`}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-muted-foreground" />

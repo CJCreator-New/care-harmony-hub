@@ -40,21 +40,36 @@ export interface Patient {
 
 export type PatientInsert = Omit<Patient, 'id' | 'mrn' | 'created_at' | 'updated_at'>;
 
-export function usePatients() {
+export function usePatients(options?: { page?: number; limit?: number }) {
   const { hospital } = useAuth();
   const { decryptPHI } = useHIPAACompliance();
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
+  const offset = (page - 1) * limit;
 
   return useQuery({
-    queryKey: ['patients', hospital?.id],
+    queryKey: ['patients', hospital?.id, page, limit],
     queryFn: async () => {
-      if (!hospital?.id) return [];
+      if (!hospital?.id) return { patients: [], total: 0 };
+
+      // Get total count for pagination
+      const { count, countError } = await supabase
+        .from('patients')
+        .select('*', { count: 'exact', head: true })
+        .eq('hospital_id', hospital.id)
+        .eq('is_active', true);
+
+      if (countError && countError.code !== 'PGRST116') {
+        throw countError;
+      }
 
       const { data, error } = await supabase
         .from('patients')
         .select(PATIENT_COLUMNS.list + ',encryption_metadata')
         .eq('hospital_id', hospital.id)
         .eq('is_active', true)
-        .order('last_name', { ascending: true });
+        .order('last_name', { ascending: true })
+        .range(offset, offset + limit - 1);
 
       if (error) throw error;
 
@@ -66,8 +81,7 @@ export function usePatients() {
               const decrypted = await decryptPHI(patient, patient.encryption_metadata);
               return { ...patient, ...decrypted } as Patient;
             } catch (decryptError) {
-              console.error('Failed to decrypt patient data:', decryptError);
-              // Return patient with encrypted fields marked as unavailable
+              console.error('Failed to decrypt patient data:', sanitizeForLog(decryptError));
               return {
                 ...patient,
                 phone: '[Encrypted]',
@@ -83,7 +97,13 @@ export function usePatients() {
         })
       );
 
-      return decryptedPatients;
+      return {
+        patients: decryptedPatients,
+        total: count || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((count || 0) / limit),
+      };
     },
     enabled: !!hospital?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - patient data changes infrequently

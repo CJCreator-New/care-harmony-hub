@@ -225,3 +225,106 @@ export function useUpdateAppointmentRequest() {
     },
   });
 }
+
+// Auto-approval hook for smart appointment requests
+export function useAutoApproveAppointmentRequests() {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (requestIds: string[]) => {
+      if (!profile?.id) throw new Error('User not authenticated');
+
+      // Get requests to check eligibility
+      const { data: requests, error: fetchError } = await supabase
+        .from('appointment_requests')
+        .select(`
+          id,
+          appointment_type,
+          patient:patients!appointment_requests_patient_id_fkey (
+            id,
+            insurance_status,
+            last_visit,
+            created_at
+          )
+        `)
+        .in('id', requestIds)
+        .eq('status', 'pending');
+
+      if (fetchError) throw fetchError;
+
+      const approvedRequests: string[] = [];
+      const rejectedRequests: string[] = [];
+
+      // Apply auto-approval rules
+      for (const request of requests || []) {
+        const patient = request.patient as any;
+        const isEligible = (
+          // Established patient (visited before)
+          patient?.last_visit &&
+          // Has active insurance
+          patient?.insurance_status === 'active' &&
+          // Standard appointment types
+          ['follow_up', 'check_up', 'consultation', 'routine'].includes(request.appointment_type) &&
+          // Patient created more than 30 days ago (established)
+          patient?.created_at && new Date(patient.created_at) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        );
+
+        if (isEligible) {
+          approvedRequests.push(request.id);
+        } else {
+          rejectedRequests.push(request.id);
+        }
+      }
+
+      // Update approved requests
+      if (approvedRequests.length > 0) {
+        const { error: approveError } = await supabase
+          .from('appointment_requests')
+          .update({
+            status: 'approved',
+            reviewed_by: profile.id,
+            reviewed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .in('id', approvedRequests);
+
+        if (approveError) throw approveError;
+      }
+
+      // Update rejected requests (mark as needs_review for manual handling)
+      if (rejectedRequests.length > 0) {
+        const { error: rejectError } = await supabase
+          .from('appointment_requests')
+          .update({
+            status: 'needs_review',
+            reviewed_by: profile.id,
+            reviewed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .in('id', rejectedRequests);
+
+        if (rejectError) throw rejectError;
+      }
+
+      return { approved: approvedRequests.length, rejected: rejectedRequests.length };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['appointment-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-appointment-requests'] });
+      toast({
+        title: "Auto-Approval Complete",
+        description: `Approved ${result.approved} requests, ${result.rejected} need manual review.`,
+      });
+    },
+    onError: (error) => {
+      console.error('Error auto-approving requests:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+      toast({
+        title: "Auto-Approval Failed",
+        description: "Failed to process appointment requests. Please try again.",
+        variant: "destructive"
+      });
+    },
+  });
+}

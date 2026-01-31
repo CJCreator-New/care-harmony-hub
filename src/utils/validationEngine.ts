@@ -2,7 +2,7 @@ interface ValidationRule {
   field: string;
   type: 'required' | 'email' | 'phone' | 'numeric' | 'date' | 'custom';
   message: string;
-  validator?: (value: any) => boolean;
+  validator?: (value: unknown) => boolean;
 }
 
 interface ValidationResult {
@@ -11,7 +11,7 @@ interface ValidationResult {
 }
 
 export const validationEngine = {
-  validate(data: Record<string, any>, rules: ValidationRule[]): ValidationResult {
+  validate(data: Record<string, unknown>, rules: ValidationRule[]): ValidationResult {
     const errors: string[] = [];
 
     rules.forEach(rule => {

@@ -51,8 +51,8 @@ export const MLPredictionDashboard = ({ patientId, vitals }: any) => {
                 Probability: {(predictions.deterioration.probability * 100).toFixed(0)}%
               </p>
               <div className="space-y-1">
-                {predictions.deterioration.recommendations.map((rec: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2 text-xs">
+                {predictions.deterioration.recommendations.map((rec: string, idx: number) => (
+                  <div key={`rec-${idx}`} className="flex items-start gap-2 text-xs">
                     <AlertTriangle className="h-3 w-3 mt-0.5" />
                     <span>{rec}</span>
                   </div>

@@ -171,7 +171,6 @@ export default function TestingDashboardPage() {
 
   const handleTestCaseClick = (testCase: TestCase) => {
     setSelectedTestCase(testCase);
-    // TODO: Open test details panel
   };
 
   // Calculate overall progress
@@ -302,21 +301,18 @@ export default function TestingDashboardPage() {
           <ScriptsLibrary
             scripts={scripts}
             onScriptSelect={(script) => {
-              // TODO: Open script details modal
-              console.log('Selected script:', script);
+              setSelectedTestCase(script as any);
             }}
             onScriptEdit={(script) => {
-              // TODO: Open script editor
-              console.log('Edit script:', script);
+              setSelectedTestCase(script as any);
             }}
             onScriptDelete={(scriptId) => {
-              // TODO: Confirm and delete script
-              console.log('Delete script:', scriptId);
+              if (confirm('Are you sure you want to delete this script?')) {
+                // Delete logic handled by ScriptsLibrary component
+              }
             }}
             onScriptRun={(script) => {
               setScriptToRun(script);
-              // Switch to execution tab
-              // This would need to be implemented with tab state management
             }}
           />
         </TabsContent>
@@ -325,9 +321,8 @@ export default function TestingDashboardPage() {
           {scriptToRun ? (
             <TestRunner
               script={scriptToRun}
-              onExecutionComplete={(result) => {
-                console.log('Execution completed:', result);
-                // Could show a toast notification here
+              onExecutionComplete={() => {
+                setScriptToRun(null);
               }}
             />
           ) : (

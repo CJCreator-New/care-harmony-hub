@@ -141,15 +141,15 @@ export function PerformanceDashboard({ className }: PerformanceDashboardProps) {
           <CardContent className="space-y-4">
             {metrics && metrics.length > 0 ? (
               <div className="space-y-3">
-                {metrics.slice(0, 5).map((metric) => (
-                  <div key={metric.id} className="flex items-center justify-between p-3 border rounded-lg">
+                {metrics.slice(0, 5).map((metric, idx) => (
+                  <div key={`metric-${idx}`} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <p className="font-medium text-sm">{metric.metric_name}</p>
                       <p className="text-xs text-muted-foreground">{metric.metric_type}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{metric.value.toFixed(2)}</p>
-                      <Badge variant={metric.status === 'good' ? 'default' : metric.status === 'warning' ? 'secondary' : 'destructive'} className="text-xs">
+                      <Badge variant={metric.status === 'good' ? 'default' : metric.status === 'warning' ? 'secondary' : 'destructive'} className="text-xs" aria-label={`Metric status: ${metric.status}`}>
                         {metric.status}
                       </Badge>
                     </div>

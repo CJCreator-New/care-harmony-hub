@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
@@ -6,11 +6,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { 
   Users, 
   Clock, 
@@ -48,6 +43,19 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
   const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
   const getOrCreateConsultation = useGetOrCreateConsultation();
   const [startingId, setStartingId] = useState<string | null>(null);
+
+  // Keyboard shortcut for opening modal (Ctrl+Shift+N)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key === 'N' && !open) {
+        event.preventDefault();
+        onOpenChange(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onOpenChange]);
   const [searchTerm, setSearchTerm] = useState('');
   const [quickConsultation, setQuickConsultation] = useState<any>(null);
 
@@ -116,13 +124,100 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
            apt.status === 'checked_in'
   ) || [];
 
-  // Filter patients for search
-  const filteredPatients = patients?.filter(
-    (patient) =>
+  // Create unified patient list with intelligent ranking
+  const unifiedPatients = React.useMemo(() => {
+    const patientMap = new Map();
+
+    // Add patients ready for doctor (highest priority)
+    patientsReady.forEach((entry) => {
+      if (entry.patient) {
+        const priority = entry.queue_entry?.priority === 'emergency' ? 100 :
+                        entry.queue_entry?.priority === 'urgent' ? 90 : 80;
+        const waitTime = entry.queue_entry ? differenceInMinutes(new Date(), new Date(entry.queue_entry.created_at)) : 0;
+        const score = priority + Math.min(waitTime / 10, 10); // Cap wait time bonus at 10 points
+
+        patientMap.set(entry.patient.id, {
+          ...entry.patient,
+          source: 'ready',
+          priority: entry.queue_entry?.priority || 'normal',
+          queueNumber: entry.queue_entry?.queue_number,
+          waitTime,
+          score,
+          prepComplete: true,
+          allergies: entry.patient.allergies || []
+        });
+      }
+    });
+
+    // Add queue patients
+    queuePatients?.forEach((entry) => {
+      if (entry.patient && !patientMap.has(entry.patient.id)) {
+        const priority = entry.priority === 'emergency' ? 70 :
+                        entry.priority === 'urgent' ? 60 : 50;
+        const waitTime = differenceInMinutes(new Date(), new Date(entry.created_at));
+        const score = priority + Math.min(waitTime / 10, 10);
+
+        patientMap.set(entry.patient.id, {
+          ...entry.patient,
+          source: 'queue',
+          priority: entry.priority || 'normal',
+          queueNumber: entry.queue_number,
+          waitTime,
+          score,
+          prepComplete: false,
+          allergies: entry.patient.allergies || []
+        });
+      }
+    });
+
+    // Add checked-in appointments
+    readyAppointments.forEach((apt) => {
+      if (apt.patient && !patientMap.has(apt.patient.id)) {
+        const waitTime = differenceInMinutes(new Date(), new Date(apt.created_at));
+        const score = 40 + Math.min(waitTime / 10, 10);
+
+        patientMap.set(apt.patient.id, {
+          ...apt.patient,
+          source: 'appointment',
+          priority: 'normal',
+          waitTime,
+          score,
+          prepComplete: false,
+          allergies: apt.patient.allergies || []
+        });
+      }
+    });
+
+    // Add remaining patients (lowest priority)
+    patients?.forEach((patient) => {
+      if (!patientMap.has(patient.id)) {
+        patientMap.set(patient.id, {
+          ...patient,
+          source: 'search',
+          priority: 'normal',
+          waitTime: 0,
+          score: 10,
+          prepComplete: false,
+          allergies: patient.allergies || []
+        });
+      }
+    });
+
+    // Convert to array and sort by score (descending)
+    return Array.from(patientMap.values())
+      .sort((a, b) => b.score - a.score);
+  }, [patientsReady, queuePatients, readyAppointments, patients]);
+
+  // Filter unified patients by search term
+  const filteredUnifiedPatients = React.useMemo(() => {
+    if (!searchTerm) return unifiedPatients.slice(0, 20); // Show top 20 when no search
+
+    return unifiedPatients.filter((patient) =>
       patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.mrn.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+    ).slice(0, 20); // Limit to 20 results
+  }, [unifiedPatients, searchTerm]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,330 +229,153 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="ready" className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="ready" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              Ready ({patientsReady.length})
-            </TabsTrigger>
-            <TabsTrigger value="queue" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Queue ({queuePatients?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="appointments" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Checked-In ({readyAppointments.length})
-            </TabsTrigger>
-            <TabsTrigger value="search" className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              Search
-            </TabsTrigger>
-          </TabsList>
+        {/* Unified Search Input */}
+        <div className="mt-4 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search patients by name or MRN..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+          </div>
 
-          {/* Patients Ready from Nurse Prep */}
-          <TabsContent value="ready" className="mt-4">
-            <ScrollArea className="h-[400px] pr-4">
-              {readyLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : patientsReady.length > 0 ? (
-                <div className="space-y-3">
-                  {patientsReady.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-success/20 bg-success/5 hover:bg-success/10 transition-colors"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          {entry.queue_entry && (
-                            <span className="font-bold text-success">#{entry.queue_entry.queue_number}</span>
-                          )}
-                          <span className="font-medium">
-                            {entry.patient?.first_name} {entry.patient?.last_name}
-                          </span>
-                          <Badge variant="success" className="flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Prep Complete
-                          </Badge>
-                          {(entry.queue_entry?.priority === 'urgent' || entry.queue_entry?.priority === 'emergency') && (
-                            <Badge variant="destructive" className="flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {entry.queue_entry.priority}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>MRN: {entry.patient?.mrn}</span>
-                          <span>{getAge(entry.patient?.date_of_birth || '')} yrs</span>
-                          <span className="capitalize">{entry.patient?.gender}</span>
-                        </div>
-                        {entry.patient?.allergies && entry.patient.allergies.length > 0 && (
-                          <p className="text-xs text-destructive">
-                            ⚠️ Allergies: {entry.patient.allergies.join(', ')}
-                          </p>
-                        )}
-                        {entry.queue_entry && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            Waiting {differenceInMinutes(new Date(), new Date(entry.queue_entry.check_in_time))} min
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleQuickConsultation(entry.patient_id)}
-                          disabled={startingId === entry.patient_id}
-                          variant="outline"
-                          size="sm"
-                        >
-                          {startingId === entry.patient_id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Zap className="h-4 w-4 mr-2" />
-                              Quick
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={() => handleStartConsultation(entry.patient_id)}
-                          disabled={startingId === entry.patient_id}
-                          className="bg-success hover:bg-success/90"
-                          size="sm"
-                        >
-                          {startingId === entry.patient_id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4 mr-2" />
-                              Full
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <UserCheck className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">No patients ready for consultation</p>
-                  <p className="text-sm text-muted-foreground">
-                    Patients will appear here after nurse prep is complete
-                  </p>
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="queue" className="mt-4">
-            <ScrollArea className="h-[400px] pr-4">
-              {queueLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : queuePatients && queuePatients.length > 0 ? (
-                <div className="space-y-3">
-                  {queuePatients.map((entry: any) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            #{entry.queue_number} - {entry.patient?.first_name} {entry.patient?.last_name}
-                          </span>
-                          {getPriorityBadge(entry.priority)}
-                          {getStatusBadge(entry.status)}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>MRN: {entry.patient?.mrn}</span>
-                          <span>{getAge(entry.patient?.date_of_birth)} yrs</span>
-                          <span className="capitalize">{entry.patient?.gender}</span>
-                        </div>
-                        {entry.appointment?.reason_for_visit && (
-                          <p className="text-sm text-muted-foreground">
-                            Reason: {entry.appointment.reason_for_visit}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          Waiting since {format(new Date(entry.check_in_time), 'h:mm a')}
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => handleStartConsultation(entry.patient_id)}
-                        disabled={startingId === entry.patient_id}
-                      >
-                        {startingId === entry.patient_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            Start
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <CheckCircle2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">No patients in your queue</p>
-                  <p className="text-sm text-muted-foreground">
-                    Check appointments or search for a patient
-                  </p>
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="appointments" className="mt-4">
-            <ScrollArea className="h-[400px] pr-4">
-              {appointmentsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : readyAppointments.length > 0 ? (
-                <div className="space-y-3">
-                  {readyAppointments.map((apt) => (
-                    <div
-                      key={apt.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {apt.patient?.first_name} {apt.patient?.last_name}
-                          </span>
-                          <Badge variant="outline">{apt.appointment_type}</Badge>
-                          {apt.priority === 'urgent' && (
-                            <Badge variant="destructive">Urgent</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>MRN: {apt.patient?.mrn}</span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {apt.scheduled_time}
-                          </span>
-                        </div>
-                        {apt.reason_for_visit && (
-                          <p className="text-sm text-muted-foreground">
-                            Reason: {apt.reason_for_visit}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        onClick={() => handleStartConsultation(apt.patient_id)}
-                        disabled={startingId === apt.patient_id}
-                      >
-                        {startingId === apt.patient_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            Start
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">No checked-in appointments</p>
-                  <p className="text-sm text-muted-foreground">
-                    Patients will appear here after check-in
-                  </p>
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="search" className="mt-4">
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or MRN..."
-                  className="pl-9"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+          {/* Unified Patient List */}
+          <ScrollArea className="h-[400px] pr-4">
+            {readyLoading || appointmentsLoading || patientsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-              <ScrollArea className="h-[350px] pr-4">
-                {patientsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                ) : searchTerm && filteredPatients.length > 0 ? (
-                  <div className="space-y-3">
-                    {filteredPatients.slice(0, 10).map((patient) => (
-                      <div
-                        key={patient.id}
-                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="space-y-1">
-                          <span className="font-medium">
-                            {patient.first_name} {patient.last_name}
-                          </span>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>MRN: {patient.mrn}</span>
-                            <span>{getAge(patient.date_of_birth)} yrs</span>
-                            <span className="capitalize">{patient.gender}</span>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => handleStartConsultation(patient.id)}
-                          disabled={startingId === patient.id}
-                        >
-                          {startingId === patient.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4 mr-2" />
-                              Start
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : searchTerm ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground">No patients found</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground">Enter a name or MRN to search</p>
-                  </div>
-                )}
-              </ScrollArea>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
+            ) : filteredUnifiedPatients.length > 0 ? (
+              <div className="space-y-3">
+                {filteredUnifiedPatients.map((patient) => (
+                  <PatientCard
+                    key={patient.id}
+                    patient={patient}
+                    onStartConsultation={handleStartConsultation}
+                    startingId={startingId}
+                  />
+                ))}
+              </div>
+            ) : searchTerm ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No patients found matching "{searchTerm}"</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No patients available for consultation</p>
+              </div>
+            )}
+          </ScrollArea>
+        </div>
 
-      {/* Quick Consultation Modal */}
-      {quickConsultation && (
-        <QuickConsultationModal
-          open={!!quickConsultation}
-          onOpenChange={(open) => {
-            if (!open) {
-              setQuickConsultation(null);
-              onOpenChange(false);
-            }
-          }}
-          consultation={quickConsultation}
-        />
-      )}
+        {/* Quick Consultation Modal */}
+        {quickConsultation && (
+          <QuickConsultationModal
+            open={!!quickConsultation}
+            onOpenChange={(open) => {
+              if (!open) {
+                setQuickConsultation(null);
+                onOpenChange(false);
+              }
+            }}
+            consultation={quickConsultation}
+          />
+        )}
+      </DialogContent>
     </Dialog>
+  );
+}
+
+// Patient Card Component for unified display
+interface PatientCardProps {
+  patient: any;
+  onStartConsultation: (patientId: string) => void;
+  startingId: string | null;
+}
+
+function PatientCard({ patient, onStartConsultation, startingId }: PatientCardProps) {
+  const getSourceBadge = () => {
+    switch (patient.source) {
+      case 'ready':
+        return <Badge variant="default" className="bg-success text-success-foreground">Ready</Badge>;
+      case 'queue':
+        return <Badge variant="secondary">Queue</Badge>;
+      case 'appointment':
+        return <Badge variant="outline">Appointment</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  const getPriorityBadge = () => {
+    if (patient.priority === 'emergency') {
+      return <Badge variant="destructive" className="flex items-center gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        Emergency
+      </Badge>;
+    }
+    if (patient.priority === 'urgent') {
+      return <Badge variant="destructive">Urgent</Badge>;
+    }
+    return null;
+  };
+
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+      patient.source === 'ready' ? 'border-success/20 bg-success/5 hover:bg-success/10' :
+      patient.prepComplete ? 'border-success/20 bg-success/5 hover:bg-success/10' :
+      'bg-card hover:bg-accent/50'
+    }`}>
+      <div className="space-y-1 flex-1">
+        <div className="flex items-center gap-2">
+          {patient.queueNumber && (
+            <span className="font-bold text-success">#{patient.queueNumber}</span>
+          )}
+          <span className="font-medium">
+            {patient.first_name} {patient.last_name}
+          </span>
+          {getSourceBadge()}
+          {getPriorityBadge()}
+          {patient.prepComplete && (
+            <Badge variant="success" className="flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Prep Complete
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span>MRN: {patient.mrn}</span>
+          <span>{getAge(patient.date_of_birth)} yrs</span>
+          <span className="capitalize">{patient.gender}</span>
+          {patient.waitTime > 0 && (
+            <span>Wait: {Math.floor(patient.waitTime / 60)}h {patient.waitTime % 60}m</span>
+          )}
+        </div>
+        {patient.allergies && patient.allergies.length > 0 && (
+          <p className="text-xs text-destructive">
+            ⚠️ Allergies: {patient.allergies.join(', ')}
+          </p>
+        )}
+      </div>
+      <Button
+        onClick={() => onStartConsultation(patient.id)}
+        disabled={startingId === patient.id}
+        className="ml-4"
+      >
+        {startingId === patient.id ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <>
+            <Play className="h-4 w-4 mr-2" />
+            Start
+          </>
+        )}
+      </Button>
+    </div>
   );
 }

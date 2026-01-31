@@ -1,4 +1,4 @@
-export type UserRole = 'patient' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'admin';
+export { UserRole } from './rbac';
 
 export interface User {
   id: string;

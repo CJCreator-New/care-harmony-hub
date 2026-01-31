@@ -36,6 +36,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'medications', 'medications:read', 'medications:write',
     'inventory:read',
     'consultations:read',
+    'telemedicine:read',
+    'lab:read',
     'voice-clinical-notes'
   ],
   receptionist: [

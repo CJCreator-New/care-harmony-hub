@@ -46,8 +46,8 @@ export const ClinicalDecisionSupportPanel = ({ medications, symptoms, vitals }: 
               <AlertTriangle className="h-4 w-4" />
               Drug Interactions
             </h4>
-            {interactions.map((interaction, i) => (
-              <div key={i} className="p-3 border rounded-lg space-y-1">
+            {interactions.map((interaction, idx) => (
+              <div key={`int-${idx}`} className="p-3 border rounded-lg space-y-1">
                 <Badge variant={getSeverityColor(interaction.severity)}>
                   {interaction.severity}
                 </Badge>
@@ -64,8 +64,8 @@ export const ClinicalDecisionSupportPanel = ({ medications, symptoms, vitals }: 
               <CheckCircle className="h-4 w-4" />
               Diagnosis Suggestions
             </h4>
-            {suggestions.map((suggestion, i) => (
-              <div key={i} className="p-3 border rounded-lg space-y-1">
+            {suggestions.map((suggestion, idx) => (
+              <div key={`sug-${idx}`} className="p-3 border rounded-lg space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{suggestion.name}</span>
                   <Badge variant="outline">{(suggestion.confidence * 100).toFixed(0)}%</Badge>

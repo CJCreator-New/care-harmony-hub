@@ -55,10 +55,11 @@ describe('AIDemoPage', () => {
   it('displays security features', () => {
     render(<AIDemoPage />, { wrapper });
 
-    expect(screen.getByText('HIPAA Compliant')).toBeInTheDocument();
-    expect(screen.getByText('End-to-End Encryption')).toBeInTheDocument();
-    expect(screen.getByText('Full Audit Trail')).toBeInTheDocument();
-    expect(screen.getByText('Real-time Monitoring')).toBeInTheDocument();
+    // Check for the card title with shield icon
+    expect(screen.getByText('All data is encrypted and PHI is automatically sanitized before AI processing.')).toBeInTheDocument();
+    expect(screen.getByText('Patient data is encrypted using AES-GCM with unique keys per session.')).toBeInTheDocument();
+    expect(screen.getByText('Every AI operation is logged with compliance status and data retention policies.')).toBeInTheDocument();
+    expect(screen.getByText('Continuous compliance monitoring with automatic alerts for policy violations.')).toBeInTheDocument();
   });
 
   it('shows demo environment warning', () => {

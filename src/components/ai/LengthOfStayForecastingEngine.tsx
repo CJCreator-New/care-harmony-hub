@@ -38,9 +38,9 @@ interface ForecastingMetrics {
 }
 
 export const LengthOfStayForecastingEngine: React.FC = () => {
-  const { permissions } = usePermissions();
-  const { predictLengthOfStay, isLoading } = useAI();
-  const { patients } = usePatients();
+  const permissions = usePermissions();
+  const { predictLengthOfStay, isLoading } = useAI({ purpose: 'length_of_stay' });
+  const { data: patients } = usePatients();
 
   const [selectedPatient, setSelectedPatient] = useState<string>('');
   const [customFactors, setCustomFactors] = useState('');
@@ -257,8 +257,8 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
                       Key Risk Factors
                     </h4>
                     <ul className="space-y-2">
-                      {prediction.riskFactors.map((factor, index) => (
-                        <li key={index} className="flex items-center gap-2 text-sm">
+                      {prediction.riskFactors.map((factor, idx) => (
+                        <li key={`risk-${idx}`} className="flex items-center gap-2 text-sm">
                           <div className="w-2 h-2 bg-orange-500 rounded-full" />
                           {factor}
                         </li>
@@ -272,8 +272,8 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
                       Clinical Recommendations
                     </h4>
                     <ul className="space-y-2">
-                      {prediction.recommendations.map((rec, index) => (
-                        <li key={index} className="flex items-center gap-2 text-sm">
+                      {prediction.recommendations.map((rec, idx) => (
+                        <li key={`rec-${idx}`} className="flex items-center gap-2 text-sm">
                           <div className="w-2 h-2 bg-green-500 rounded-full" />
                           {rec}
                         </li>

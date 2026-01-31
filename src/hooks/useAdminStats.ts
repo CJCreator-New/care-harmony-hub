@@ -304,33 +304,45 @@ export function useWeeklyAppointmentTrend() {
     queryFn: async () => {
       if (!hospital?.id) return [];
 
-      const result: Array<{ day: string; scheduled: number; completed: number; cancelled: number }> = [];
       const weekStart = startOfWeek(new Date());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
 
+      // OPTIMIZED: Single query instead of 21 separate queries
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('scheduled_date, status', { count: 'exact' })
+        .eq('hospital_id', hospital.id)
+        .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
+        .lt('scheduled_date', format(weekEnd, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+
+      // Aggregate results in JavaScript (much faster than 21 database queries)
+      const dayStats = new Map<string, { scheduled: number; completed: number; cancelled: number }>();
+      
       for (let i = 0; i < 7; i++) {
         const date = new Date(weekStart);
         date.setDate(weekStart.getDate() + i);
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayLabel = format(date, 'EEE');
-
-        const [scheduled, completed, cancelled] = await Promise.all([
-          supabase.from('appointments').select('id', { count: 'exact', head: true })
-            .eq('hospital_id', hospital.id).eq('scheduled_date', dateStr),
-          supabase.from('appointments').select('id', { count: 'exact', head: true })
-            .eq('hospital_id', hospital.id).eq('scheduled_date', dateStr).eq('status', 'completed'),
-          supabase.from('appointments').select('id', { count: 'exact', head: true })
-            .eq('hospital_id', hospital.id).eq('scheduled_date', dateStr).eq('status', 'cancelled'),
-        ]);
-
-        result.push({
-          day: dayLabel,
-          scheduled: scheduled.count || 0,
-          completed: completed.count || 0,
-          cancelled: cancelled.count || 0,
-        });
+        dayStats.set(dayLabel, { scheduled: 0, completed: 0, cancelled: 0 });
       }
 
-      return result;
+      for (const appointment of data || []) {
+        const dayLabel = format(new Date(appointment.scheduled_date), 'EEE');
+        const stats = dayStats.get(dayLabel);
+        if (stats) {
+          stats.scheduled++;
+          if (appointment.status === 'completed') stats.completed++;
+          if (appointment.status === 'cancelled') stats.cancelled++;
+        }
+      }
+
+      return Array.from(dayStats.entries()).map(([day, stats]) => ({
+        day,
+        ...stats
+      }));
     },
     enabled: !!hospital?.id,
   });

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,8 @@ import {
   Plus,
   FileText,
   BadgeInfo,
-  History
+  History,
+  Activity
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,10 +22,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PatientTimeline } from '@/components/patients/PatientTimeline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
 
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [consultationModalOpen, setConsultationModalOpen] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ['patient', id],
@@ -72,7 +76,7 @@ export default function PatientProfilePage() {
               <FileText className="h-4 w-4" />
               EMR Export
             </Button>
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={() => setConsultationModalOpen(true)}>
               <Plus className="h-4 w-4" />
               New Consultation
             </Button>
@@ -161,6 +165,11 @@ export default function PatientProfilePage() {
           </div>
         </div>
       </div>
+
+      <StartConsultationModal
+        open={consultationModalOpen}
+        onOpenChange={setConsultationModalOpen}
+      />
     </DashboardLayout>
   );
 }

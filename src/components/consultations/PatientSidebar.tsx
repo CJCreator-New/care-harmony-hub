@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User, Calendar, Phone, Mail, AlertTriangle, Pill } from "lucide-react";
+import { User, Calendar, Phone, Mail, AlertTriangle, Pill, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { useEffect } from "react";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useDataMasking } from "@/hooks/useDataProtection";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PatientSidebarProps {
   patient?: {
@@ -50,6 +52,31 @@ export function PatientSidebar({ patient }: PatientSidebarProps) {
       });
     }
   }, [patient, logActivity, maskData]);
+
+  // Get task summary for this patient
+  const { data: taskSummary } = useQuery({
+    queryKey: ['patient-task-summary', patient?.id],
+    queryFn: async () => {
+      if (!patient?.id) return null;
+
+      const { data, error } = await supabase
+        .from('task_assignments')
+        .select('status')
+        .eq('patient_id', patient.id);
+
+      if (error) throw error;
+
+      const summary = {
+        pending: data.filter(task => task.status === 'pending').length,
+        in_progress: data.filter(task => task.status === 'in_progress').length,
+        completed: data.filter(task => task.status === 'completed').length,
+        total: data.length
+      };
+
+      return summary;
+    },
+    enabled: !!patient?.id,
+  });
 
   if (!patient) return null;
 
@@ -167,6 +194,36 @@ export function PatientSidebar({ patient }: PatientSidebarProps) {
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">None recorded</p>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Task Summary */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-foreground">
+            Active Tasks
+          </h4>
+          {taskSummary ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center p-2 bg-orange-50 rounded-md">
+                <AlertCircle className="h-4 w-4 text-orange-600 mb-1" />
+                <span className="text-xs font-medium text-orange-700">{taskSummary.pending}</span>
+                <span className="text-xs text-muted-foreground">Pending</span>
+              </div>
+              <div className="flex flex-col items-center p-2 bg-blue-50 rounded-md">
+                <Clock className="h-4 w-4 text-blue-600 mb-1" />
+                <span className="text-xs font-medium text-blue-700">{taskSummary.in_progress}</span>
+                <span className="text-xs text-muted-foreground">In Progress</span>
+              </div>
+              <div className="flex flex-col items-center p-2 bg-green-50 rounded-md">
+                <CheckCircle2 className="h-4 w-4 text-green-600 mb-1" />
+                <span className="text-xs font-medium text-green-700">{taskSummary.completed}</span>
+                <span className="text-xs text-muted-foreground">Completed</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading tasks...</p>
           )}
         </div>
       </CardContent>

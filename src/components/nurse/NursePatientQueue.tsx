@@ -68,6 +68,44 @@ export function NursePatientQueue() {
     entry.patient?.mrn.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Predictive prioritization algorithm
+  const calculatePriorityScore = (entry: any) => {
+    let score = 0;
+
+    // Base priority from explicit priority level
+    const priorityWeights = { emergency: 100, urgent: 50, high: 25, normal: 0 };
+    score += priorityWeights[entry.priority] || 0;
+
+    // Wait time factor (longer wait = higher priority)
+    const waitTimeMinutes = differenceInMinutes(new Date(), new Date(entry.check_in_time));
+    score += Math.min(waitTimeMinutes * 0.5, 30); // Cap at 30 points
+
+    // Age factor (elderly patients get slight boost)
+    const age = entry.patient?.date_of_birth ?
+      new Date().getFullYear() - new Date(entry.patient.date_of_birth).getFullYear() : 0;
+    if (age > 65) score += 10;
+    else if (age > 50) score += 5;
+
+    // Appointment type priority
+    const appointmentPriority = {
+      emergency: 40,
+      urgent_care: 30,
+      follow_up: 10,
+      check_up: 5,
+      consultation: 5
+    };
+    score += appointmentPriority[entry.appointment?.appointment_type] || 0;
+
+    return score;
+  };
+
+  // Sort patients by predictive priority
+  const prioritizedPatients = filteredPatients?.sort((a, b) => {
+    const scoreA = calculatePriorityScore(a);
+    const scoreB = calculatePriorityScore(b);
+    return scoreB - scoreA; // Higher score = higher priority
+  });
+
   const isPrepCompleted = (queueId: string) => {
     return prepStatuses?.some(status => status.queue_entry_id === queueId);
   };
@@ -122,9 +160,9 @@ export function NursePatientQueue() {
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-            ) : filteredPatients && filteredPatients.length > 0 ? (
+            ) : prioritizedPatients && prioritizedPatients.length > 0 ? (
               <div className="space-y-3">
-                {filteredPatients.map((entry) => (
+                {prioritizedPatients.map((entry) => (
                   <div
                     key={entry.id}
                     className={`p-4 rounded-lg border transition-colors ${
@@ -142,6 +180,10 @@ export function NursePatientQueue() {
                           </span>
                           {getStatusBadge(entry)}
                           {getPriorityBadge(entry.priority)}
+                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                            <Activity className="h-3 w-3 mr-1" />
+                            AI Prioritized
+                          </Badge>
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">

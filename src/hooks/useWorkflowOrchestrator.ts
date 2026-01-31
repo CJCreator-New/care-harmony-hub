@@ -4,6 +4,36 @@ import { useQueryClient } from '@tanstack/react-query';
 import { UserRole } from '@/types/auth';
 import { toast } from 'sonner';
 
+// Add new workflow event types
+export const WORKFLOW_EVENT_TYPES = {
+  // Patient Journey Events
+  PATIENT_CHECKED_IN: 'patient.checked_in',
+  VITALS_RECORDED: 'vitals.recorded',
+  PATIENT_READY_FOR_DOCTOR: 'patient.ready_for_doctor',
+  CONSULTATION_STARTED: 'consultation.started',
+  CONSULTATION_COMPLETED: 'consultation.completed',
+  
+  // Lab Events
+  LAB_ORDER_CREATED: 'lab.order_created',
+  LAB_SAMPLE_COLLECTED: 'lab.sample_collected',
+  LAB_RESULTS_READY: 'lab.results_ready',
+  LAB_CRITICAL_ALERT: 'lab.critical_alert',
+  
+  // Pharmacy Events
+  PRESCRIPTION_CREATED: 'prescription.created',
+  PRESCRIPTION_VERIFIED: 'prescription.verified',
+  MEDICATION_DISPENSED: 'medication.dispensed',
+  
+  // Billing Events
+  INVOICE_CREATED: 'invoice.created',
+  PAYMENT_RECEIVED: 'payment.received',
+  
+  // Administrative Events
+  STAFF_INVITED: 'staff.invited',
+  ROLE_ASSIGNED: 'role.assigned',
+  ESCALATION_TRIGGERED: 'escalation.triggered',
+} as const;
+
 export interface WorkflowEvent {
   type: string;
   sourceRole?: UserRole;
@@ -208,5 +238,24 @@ export function useWorkflowOrchestrator() {
     }
   };
 
-  return { triggerWorkflow };
+  // Add workflow step completion tracking
+  const trackStep = async (
+    patientId: string,
+    workflowType: string,
+    stepName: string,
+    completedBy: string,
+    completedByRole: UserRole
+  ) => {
+    await supabase.from('workflow_step_completions').insert({
+      hospital_id: hospital?.id,
+      patient_id: patientId,
+      workflow_type: workflowType,
+      step_name: stepName,
+      completed_by: completedBy,
+      completed_by_role: completedByRole,
+      completed_at: new Date().toISOString()
+    });
+  };
+
+  return { triggerWorkflow, trackStep };
 }

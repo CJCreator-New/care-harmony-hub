@@ -175,22 +175,35 @@ class PasswordPolicyManager {
     const numbers = '0123456789';
     const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
-    let password = '';
-
     // Ensure at least one of each required character type
-    password += uppercase[Math.floor(Math.random() * uppercase.length)];
-    password += lowercase[Math.floor(Math.random() * lowercase.length)];
-    password += numbers[Math.floor(Math.random() * numbers.length)];
-    password += symbols[Math.floor(Math.random() * symbols.length)];
+    const randomBytes = new Uint32Array(length);
+    crypto.getRandomValues(randomBytes);
 
-    // Fill the rest randomly
+    let password = '';
+    
+    // Use cryptographically secure random values
     const allChars = uppercase + lowercase + numbers + symbols;
-    for (let i = password.length; i < length; i++) {
-      password += allChars[Math.floor(Math.random() * allChars.length)];
+    
+    for (let i = 0; i < length; i++) {
+      password += allChars[randomBytes[i] % allChars.length];
     }
 
-    // Shuffle the password
-    return password.split('').sort(() => Math.random() - 0.5).join('');
+    // Ensure at least one of each type by replacing characters if needed
+    const charTypes = [/[A-Z]/, /[a-z]/, /[0-9]/, /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?]/];
+    const typeChars = [uppercase, lowercase, numbers, symbols];
+    
+    // Replace first 4 characters with one from each type
+    let securedPassword = '';
+    for (let i = 0; i < 4 && i < length; i++) {
+      securedPassword += typeChars[i][randomBytes[i + length] % typeChars[i].length];
+    }
+    
+    // Add remaining characters
+    for (let i = 4; i < length; i++) {
+      securedPassword += allChars[randomBytes[i] % allChars.length];
+    }
+    
+    return securedPassword;
   }
 }
 

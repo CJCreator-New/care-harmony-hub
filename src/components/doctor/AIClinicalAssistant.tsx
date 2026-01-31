@@ -41,25 +41,22 @@ export const AIClinicalAssistant = ({ patientId }: { patientId: string }) => {
       // Mock AI analysis - in production, integrate with medical AI service
       const mockSuggestions: DiagnosisSuggestion[] = [
         {
-          condition: 'Hypertension',
-          probability: 0.85,
-          icd10: 'I10',
-          evidence: ['Elevated BP readings', 'Family history', 'Age factor'],
-          recommendedTests: ['ECG', 'Echocardiogram', 'Blood chemistry']
+          name: 'Hypertension',
+          confidence: 0.85,
+          icd10Code: 'I10',
+          supportingFactors: ['Elevated BP readings', 'Family history', 'Age factor']
         },
         {
-          condition: 'Type 2 Diabetes',
-          probability: 0.72,
-          icd10: 'E11.9',
-          evidence: ['Polyuria', 'Polydipsia', 'Weight loss'],
-          recommendedTests: ['HbA1c', 'Fasting glucose', 'Oral glucose tolerance test']
+          name: 'Type 2 Diabetes',
+          confidence: 0.72,
+          icd10Code: 'E11.9',
+          supportingFactors: ['Polyuria', 'Polydipsia', 'Weight loss']
         },
         {
-          condition: 'Anxiety Disorder',
-          probability: 0.45,
-          icd10: 'F41.9',
-          evidence: ['Palpitations', 'Sleep disturbance', 'Stress factors'],
-          recommendedTests: ['Thyroid function', 'Cardiac enzymes']
+          name: 'Anxiety Disorder',
+          confidence: 0.45,
+          icd10Code: 'F41.9',
+          supportingFactors: ['Palpitations', 'Sleep disturbance', 'Stress factors']
         }
       ];
 
@@ -129,24 +126,24 @@ export const AIClinicalAssistant = ({ patientId }: { patientId: string }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {suggestions.map((suggestion, index) => (
-                <div key={index} className="border rounded-lg p-4">
+              {suggestions.map((suggestion, idx) => (
+                <div key={`diagnosis-${suggestion.icd10Code}`} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold">{suggestion.condition}</h4>
+                    <h4 className="font-semibold">{suggestion.name}</h4>
                     <div className="flex items-center gap-2">
-                      <Badge variant={getConfidenceColor(suggestion.probability)}>
-                        {(suggestion.probability * 100).toFixed(0)}% confidence
+                      <Badge variant={getConfidenceColor(suggestion.confidence)}>
+                        {(suggestion.confidence * 100).toFixed(0)}% confidence
                       </Badge>
-                      <Badge variant="outline">{suggestion.icd10}</Badge>
+                      <Badge variant="outline">{suggestion.icd10Code}</Badge>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                     <div>
-                      <h5 className="text-sm font-medium mb-1">Supporting Evidence</h5>
+                      <h5 className="text-sm font-medium mb-1">Supporting Factors</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {suggestion.evidence.map((evidence, i) => (
-                          <li key={i} className="flex items-center">
+                        {suggestion.supportingFactors.map((evidence, idx) => (
+                          <li key={`evidence-${suggestion.icd10Code}-${idx}`} className="flex items-center">
                             <CheckCircle className="w-3 h-3 mr-2 text-green-500" />
                             {evidence}
                           </li>
@@ -157,8 +154,8 @@ export const AIClinicalAssistant = ({ patientId }: { patientId: string }) => {
                     <div>
                       <h5 className="text-sm font-medium mb-1">Recommended Tests</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {suggestion.recommendedTests.map((test, i) => (
-                          <li key={i} className="flex items-center">
+                        {suggestion.supportingFactors.map((test, idx) => (
+                          <li key={`test-${suggestion.icd10Code}-${idx}`} className="flex items-center">
                             <AlertTriangle className="w-3 h-3 mr-2 text-blue-500" />
                             {test}
                           </li>

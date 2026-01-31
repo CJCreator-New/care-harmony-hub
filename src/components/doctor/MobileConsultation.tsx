@@ -5,7 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { Mic, MicOff, Save, Wifi, WifiOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Mic, MicOff, Save, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MobileConsultationProps {
   patientId: string;
@@ -14,6 +16,7 @@ interface MobileConsultationProps {
 
 export function MobileConsultation({ patientId, consultationId }: MobileConsultationProps) {
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const { isSupported, isListening, transcript, startListening, stopListening, resetTranscript } = useVoiceTranscription();
   const { isOnline, pendingActionCount, queueAction } = useOfflineSync();
 
@@ -27,19 +30,29 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
     }
   };
 
-  const handleSave = () => {
-    const consultationData = {
-      patient_id: patientId,
-      consultation_id: consultationId,
-      notes,
-      timestamp: new Date().toISOString(),
-    };
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const consultationData = {
+        patient_id: patientId,
+        consultation_id: consultationId,
+        notes,
+        timestamp: new Date().toISOString(),
+      };
 
-    if (isOnline) {
-      // Save to server
-      console.log('Saving online:', consultationData);
-    } else {
-      queueAction('create', 'consultations', consultationData);
+      if (isOnline) {
+        const { error } = await supabase.from('consultations').insert(consultationData);
+        if (error) throw error;
+        toast.success('Consultation notes saved successfully');
+      } else {
+        queueAction('create', 'consultations', consultationData);
+        toast.success('Consultation notes queued for sync');
+      }
+    } catch (error) {
+      console.error('Error saving consultation:', error);
+      toast.error('Failed to save consultation notes');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -92,9 +105,12 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
           />
 
           <div className="flex gap-2">
-            <Button onClick={handleSave} className="flex-1">
-              <Save className="h-4 w-4 mr-2" />
-              Save Notes
+            <Button onClick={handleSave} disabled={isSaving || !notes.trim()} className="flex-1">
+              {isSaving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              ) : (
+                <><Save className="h-4 w-4 mr-2" /> Save Notes</>
+              )}
             </Button>
           </div>
         </CardContent>

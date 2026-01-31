@@ -5,19 +5,26 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle, X, Star, FileText, Stethoscope, DollarSign } from "lucide-react";
+import { AlertCircle, CheckCircle, X, Star, FileText, Stethoscope, DollarSign, Brain, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ICD10Autocomplete } from "../ICD10Autocomplete";
 import { CPTCodeMapper } from "../CPTCodeMapper";
 import { StructuredDiagnosis, DIAGNOSIS_TYPES, ICD10Code } from "@/types/icd10";
+import { useAIClinicalSuggestions } from "@/hooks/useAIClinicalSuggestions";
+import { useAIClinicalSupport } from "@/hooks/useAIClinicalSupport";
 
 interface DiagnosisStepEnhancedProps {
   data: Record<string, any>;
   onUpdate: (field: string, value: any) => void;
+  patientId?: string;
 }
 
-export function DiagnosisStepEnhanced({ data, onUpdate }: DiagnosisStepEnhancedProps) {
+export function DiagnosisStepEnhanced({ data, onUpdate, patientId }: DiagnosisStepEnhancedProps) {
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+
+  // AI Clinical Support
+  const { generateDifferentialDiagnosis, isGeneratingDiagnosis } = useAIClinicalSupport();
+  const { aiInsights } = useAIClinicalSuggestions(patientId);
 
   // Get diagnoses from data, supporting both old and new formats
   const structuredDiagnoses: StructuredDiagnosis[] = data.diagnoses || [];
@@ -49,6 +56,23 @@ export function DiagnosisStepEnhanced({ data, onUpdate }: DiagnosisStepEnhancedP
     onUpdate("diagnoses", structuredDiagnoses.map(d => 
       d.id === id ? { ...d, type } : d
     ));
+  };
+
+  const handleGenerateDifferentialDiagnosis = async () => {
+    if (!patientId) return;
+
+    try {
+      const symptoms = data.symptoms || [];
+      const vitals = data.vitals || {};
+      
+      await generateDifferentialDiagnosis({
+        symptoms,
+        patientHistory: data.history_of_present_illness || '',
+        vitals
+      });
+    } catch (error) {
+      console.error('Failed to generate differential diagnosis:', error);
+    }
   };
 
   const updateDiagnosisNotes = (id: string, notes: string) => {
@@ -193,6 +217,84 @@ export function DiagnosisStepEnhanced({ data, onUpdate }: DiagnosisStepEnhancedP
           Search and add ICD-10 coded diagnoses. Designate primary, secondary, differential, or rule-out.
         </p>
       </div>
+
+      {/* AI Differential Diagnosis Suggestions */}
+      {patientId && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="h-4 w-4 text-blue-600" />
+              AI Differential Diagnosis
+              <Badge variant="secondary" className="text-xs">Beta</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGenerateDifferentialDiagnosis}
+                disabled={isGeneratingDiagnosis}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Brain className="h-4 w-4" />
+                {isGeneratingDiagnosis ? 'Analyzing...' : 'Generate AI Suggestions'}
+              </Button>
+            </div>
+
+            {aiInsights.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Clinical Insights:</h4>
+                {aiInsights.map((insight, idx) => (
+                  <div key={`insight-${idx}`} className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border">
+                    <div className="flex-shrink-0 mt-0.5">
+                      {insight.type === 'drug_interaction' && <Pill className="h-4 w-4 text-red-500" />}
+                      {insight.type === 'clinical_guideline' && <Target className="h-4 w-4 text-yellow-500" />}
+                      {insight.type === 'risk_assessment' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h5 className="text-sm font-medium">
+                          {insight.type === 'drug_interaction' && 'Drug Interaction Alert'}
+                          {insight.type === 'clinical_guideline' && 'Clinical Guideline'}
+                          {insight.type === 'risk_assessment' && 'Risk Assessment'}
+                        </h5>
+                        <div className="flex items-center gap-2">
+                          {insight.confidence && (
+                            <Badge variant="outline" className="text-xs">
+                              {Math.round(insight.confidence * 100)}% confidence
+                            </Badge>
+                          )}
+                          <Badge 
+                            className={
+                              insight.severity === 'high' ? 'bg-red-100 text-red-800' :
+                              insight.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }
+                          >
+                            {insight.severity}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">{insight.message}</p>
+                      <p className="text-sm font-medium text-blue-600">{insight.recommendation}</p>
+                      <div className="flex gap-1 mt-2">
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          <ThumbsUp className="h-3 w-3 mr-1" />
+                          Helpful
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          <ThumbsDown className="h-3 w-3 mr-1" />
+                          Not Helpful
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ICD-10 Search */}
       <Card>

@@ -538,6 +538,47 @@ export type Database = {
           },
         ]
       }
+      doctor_preferences: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          favorite_diagnoses: Json
+          id: string
+          keyboard_shortcuts: Json
+          lab_panels: Json
+          updated_at: string
+          voice_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          favorite_diagnoses?: Json
+          id?: string
+          keyboard_shortcuts?: Json
+          lab_panels?: Json
+          updated_at?: string
+          voice_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          favorite_diagnoses?: Json
+          id?: string
+          keyboard_shortcuts?: Json
+          lab_panels?: Json
+          updated_at?: string
+          voice_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_preferences_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           consultation_id: string | null

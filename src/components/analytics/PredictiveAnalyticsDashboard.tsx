@@ -71,7 +71,7 @@ const PredictiveAnalyticsDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {predictions.map((prediction, index) => (
+              {predictions.map((prediction) => (
                 <div key={prediction.patient_id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div>
@@ -158,8 +158,8 @@ const PredictiveAnalyticsDashboard = () => {
                     <div>
                       <span className="text-gray-600">Risk factors:</span>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {noShowResult.risk_factors.map((factor: string, index: number) => (
-                          <Badge key={index} variant="outline" className="text-xs">
+                        {noShowResult.risk_factors.map((factor: string, idx: number) => (
+                          <Badge key={`risk-${idx}`} variant="outline" className="text-xs">
                             {factor}
                           </Badge>
                         ))}

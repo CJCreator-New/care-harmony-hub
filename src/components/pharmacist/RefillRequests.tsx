@@ -77,8 +77,8 @@ export function RefillRequests() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {refillsToShow.map((request) => (
-                <TableRow key={request.id}>
+              {refillsToShow.map((request, idx) => (
+                <TableRow key={`refill-${idx}`}>
                   <TableCell>
                     <div>
                       <p className="font-medium">
@@ -90,7 +90,7 @@ export function RefillRequests() {
                   <TableCell>
                     <div className="space-y-1">
                       {request.prescription?.items?.slice(0, 2).map((item: any, idx: number) => (
-                        <p key={idx} className="text-xs">
+                        <p key={`item-${idx}`} className="text-xs">
                           • {item.medication_name} ({item.dosage})
                         </p>
                       ))}

@@ -145,17 +145,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
+        if (!isMounted) return;
+        
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          // Defer data fetching to avoid deadlock
-          setTimeout(() => {
-            fetchUserData(currentSession.user.id);
-          }, 0);
+          // Use requestIdleCallback or microtask to avoid deadlock
+          queueMicrotask(() => {
+            if (isMounted) {
+              fetchUserData(currentSession.user!.id);
+            }
+          });
         } else {
           setProfile(null);
           setHospital(null);
@@ -167,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      if (!isMounted) return;
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       if (currentSession?.user) {
@@ -175,7 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchUserData]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -352,19 +362,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const registerBiometric = useCallback(async (userName: string, userDisplayName: string) => {
-    if (!user?.id) return false;
-    return await biometricAuthManager.registerBiometricCredential(user.id, userName, userDisplayName);
-  }, [user?.id]);
+    const currentUserId = user?.id;
+    if (!currentUserId) return false;
+    return await biometricAuthManager.registerBiometricCredential(currentUserId, userName, userDisplayName);
+  }, [user]);
 
   const authenticateWithBiometric = useCallback(async () => {
-    if (!user?.id) return false;
-    return await biometricAuthManager.authenticateWithBiometric(user.id);
-  }, [user?.id]);
+    const currentUserId = user?.id;
+    if (!currentUserId) return false;
+    return await biometricAuthManager.authenticateWithBiometric(currentUserId);
+  }, [user]);
 
   const hasBiometricEnabled = useCallback(async () => {
-    if (!user?.id) return false;
-    return await biometricAuthManager.hasBiometricEnabled(user.id);
-  }, [user?.id]);
+    const currentUserId = user?.id;
+    if (!currentUserId) return false;
+    return await biometricAuthManager.hasBiometricEnabled(currentUserId);
+  }, [user]);
 
   // Password policy methods
   const validatePassword = useCallback(async (password: string) => {

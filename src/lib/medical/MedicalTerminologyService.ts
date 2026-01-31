@@ -135,7 +135,7 @@ export interface MedicalTerminologyService {
   isMedicalTerm: (term: string) => boolean;
 }
 
-export export export class MedicalTerminologyServiceImpl implements MedicalTerminologyService {
+export class MedicalTerminologyServiceImpl implements MedicalTerminologyService {
   private terms: Map<string, string>;
   private reverseMap: Map<string, string>;
 
@@ -281,7 +281,7 @@ export export export class MedicalTerminologyServiceImpl implements MedicalTermi
 const medicalTerminologyService = new MedicalTerminologyServiceImpl();
 
 export const useMedicalTerminology = (): MedicalTerminologyService => {
-  return useMemo(() => medicalTerminologyService, []);
+  return medicalTerminologyService;
 };
 
 export const useMedicalTermCorrection = () => {

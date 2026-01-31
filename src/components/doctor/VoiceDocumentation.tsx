@@ -30,6 +30,7 @@ export function VoiceDocumentation({ onSave, initialValue = '' }: Props) {
   const [note, setNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const [transcriptHistory, setTranscriptHistory] = useState<string[]>([initialValue]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -53,7 +54,94 @@ export function VoiceDocumentation({ onSave, initialValue = '' }: Props) {
         }
         
         if (finalTranscript) {
-          setTranscript(prev => prev + (prev ? ' ' : '') + finalTranscript);
+          // Process punctuation and editing commands
+          let processedText = finalTranscript.toLowerCase().trim();
+          
+          // Handle punctuation commands
+          if (processedText === 'period' || processedText === 'full stop') {
+            setTranscript(prev => {
+              const newTranscript = prev + '. ';
+              setTranscriptHistory(history => [...history, newTranscript]);
+              return newTranscript;
+            });
+            return;
+          } else if (processedText === 'comma') {
+            setTranscript(prev => {
+              const newTranscript = prev + ', ';
+              setTranscriptHistory(history => [...history, newTranscript]);
+              return newTranscript;
+            });
+            return;
+          } else if (processedText === 'new line' || processedText === 'new paragraph') {
+            setTranscript(prev => {
+              const newTranscript = prev + '\n';
+              setTranscriptHistory(history => [...history, newTranscript]);
+              return newTranscript;
+            });
+            return;
+          } else if (processedText === 'question mark') {
+            setTranscript(prev => {
+              const newTranscript = prev + '? ';
+              setTranscriptHistory(history => [...history, newTranscript]);
+              return newTranscript;
+            });
+            return;
+          } else if (processedText === 'exclamation point' || processedText === 'exclamation mark') {
+            setTranscript(prev => {
+              const newTranscript = prev + '! ';
+              setTranscriptHistory(history => [...history, newTranscript]);
+              return newTranscript;
+            });
+            return;
+          }
+          
+          // Handle editing commands
+          else if (processedText === 'delete' || processedText === 'delete last' || processedText === 'remove last') {
+            setTranscript(prev => {
+              const words = prev.trim().split(/\s+/);
+              const newTranscript = words.slice(0, -1).join(' ') + (words.length > 1 ? ' ' : '');
+              setTranscriptHistory(history => [...history, newTranscript]);
+              return newTranscript;
+            });
+            return;
+          } else if (processedText === 'clear' || processedText === 'clear all' || processedText === 'start over') {
+            setTranscript('');
+            setTranscriptHistory(['']);
+            return;
+          } else if (processedText === 'undo' || processedText === 'undo last') {
+            setTranscriptHistory(history => {
+              if (history.length > 1) {
+                const newHistory = history.slice(0, -1);
+                setTranscript(newHistory[newHistory.length - 1]);
+                return newHistory;
+              }
+              return history;
+            });
+            return;
+          } else if (processedText === 'delete sentence' || processedText === 'remove sentence') {
+            setTranscript(prev => {
+              const lastPeriodIndex = prev.lastIndexOf('.');
+              const lastQuestionIndex = prev.lastIndexOf('?');
+              const lastExclamationIndex = prev.lastIndexOf('!');
+              
+              const lastSentenceEnd = Math.max(lastPeriodIndex, lastQuestionIndex, lastExclamationIndex);
+              
+              if (lastSentenceEnd !== -1) {
+                const newTranscript = prev.substring(0, lastSentenceEnd + 1);
+                setTranscriptHistory(history => [...history, newTranscript]);
+                return newTranscript;
+              }
+              return prev;
+            });
+            return;
+          }
+          
+          // Add space if needed and append normal text
+          setTranscript(prev => {
+            const newTranscript = prev + (prev && !prev.endsWith(' ') && !prev.endsWith('\n') ? ' ' : '') + finalTranscript;
+            setTranscriptHistory(history => [...history, newTranscript]);
+            return newTranscript;
+          });
         }
       };
 
@@ -150,7 +238,10 @@ export function VoiceDocumentation({ onSave, initialValue = '' }: Props) {
           <div className="flex items-center justify-between">
             <Label className="text-xs text-muted-foreground uppercase font-semibold">Live Transcript</Label>
             {transcript && (
-              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setTranscript('')}>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => {
+                setTranscript('');
+                setTranscriptHistory(['']);
+              }}>
                 <RotateCcw className="h-3 w-3 mr-1" /> Clear
               </Button>
             )}
@@ -235,6 +326,19 @@ export function VoiceDocumentation({ onSave, initialValue = '' }: Props) {
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground justify-end">
             <Sparkles className="h-3 w-3 text-indigo-400" /> AI Empowered
           </div>
+        </div>
+
+        <div className="pt-2 border-t border-slate-100">
+          <details className="text-xs">
+            <summary className="text-muted-foreground cursor-pointer hover:text-foreground font-medium">
+              Voice Commands Available
+            </summary>
+            <div className="mt-2 space-y-1 text-[10px] text-muted-foreground">
+              <div><strong>Punctuation:</strong> "period", "comma", "new line", "question mark", "exclamation point"</div>
+              <div><strong>Editing:</strong> "delete", "clear", "undo", "delete sentence"</div>
+              <div><strong>Navigation:</strong> "next step", "go back", "add diagnosis", "new prescription"</div>
+            </div>
+          </details>
         </div>
       </CardContent>
     </Card>

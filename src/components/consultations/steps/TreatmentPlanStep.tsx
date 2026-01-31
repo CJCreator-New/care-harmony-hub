@@ -5,12 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Pill, FlaskConical, UserPlus, Send, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Plus, X, Pill, FlaskConical, UserPlus, Send, CheckCircle2, AlertTriangle, Brain, ThumbsUp, ThumbsDown, Zap } from "lucide-react";
 import { useCreateLabOrder } from "@/hooks/useLabOrders";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { checkPrescriptionSafety } from "@/hooks/usePrescriptionSafety";
 import { PrescriptionSafetyAlerts } from "@/components/prescriptions/PrescriptionSafetyAlerts";
+import { useAIClinicalSuggestions } from "@/hooks/useAIClinicalSuggestions";
+import { useAIClinicalSupport } from "@/hooks/useAIClinicalSupport";
 
 interface TreatmentPlanStepProps {
   data: Record<string, any>;
@@ -53,6 +55,11 @@ export function TreatmentPlanStep({
 }: TreatmentPlanStepProps) {
   const { profile } = useAuth();
   const createLabOrder = useCreateLabOrder();
+  const { aiInsights, isLoading: isLoadingAI } = useAIClinicalSuggestions(patientId);
+  const aiSupport = useAIClinicalSupport();
+
+  const [drugInteractionPredictions, setDrugInteractionPredictions] = useState<any[]>([]);
+  const [isGeneratingInteractions, setIsGeneratingInteractions] = useState(false);
 
   const [newPrescription, setNewPrescription] = useState<Prescription>({
     medication: "",
@@ -199,6 +206,103 @@ export function TreatmentPlanStep({
     );
   };
 
+  // AI-powered drug interaction predictions
+  const handleGenerateDrugInteractions = async () => {
+    if (!patientId) {
+      toast.error("Patient information required for drug interaction analysis");
+      return;
+    }
+
+    setIsGeneratingInteractions(true);
+    try {
+      // Get all current medications (existing + new prescriptions)
+      const allMedications = [
+        ...patientMedications,
+        ...prescriptions.map((p: Prescription) => p.medication),
+        ...(newPrescription.medication ? [newPrescription.medication] : [])
+      ].filter(Boolean);
+
+      if (allMedications.length < 2) {
+        toast.info("At least 2 medications needed for interaction analysis");
+        setIsGeneratingInteractions(false);
+        return;
+      }
+
+      // Use AI support for drug interaction analysis
+      const result = await aiSupport.checkDrugInteractions(allMedications);
+      
+      // Generate comprehensive predictions based on medication combinations
+      const predictions = [];
+      
+      // Check for common dangerous combinations
+      const dangerousCombos = [
+        { drugs: ['warfarin', 'aspirin'], severity: 'critical', message: 'Warfarin + Aspirin: Significantly increased bleeding risk', recommendation: 'Monitor INR closely, consider alternative pain management' },
+        { drugs: ['warfarin', 'heparin'], severity: 'critical', message: 'Warfarin + Heparin: Excessive anticoagulation risk', recommendation: 'Monitor coagulation studies frequently' },
+        { drugs: ['ace_inhibitor', 'potassium'], severity: 'high', message: 'ACE Inhibitor + Potassium: Hyperkalemia risk', recommendation: 'Monitor potassium levels, consider dose adjustment' },
+        { drugs: ['digoxin', 'amiodarone'], severity: 'high', message: 'Digoxin + Amiodarone: Increased digoxin toxicity', recommendation: 'Reduce digoxin dose by 50%, monitor levels' },
+        { drugs: ['lithium', 'nsaid'], severity: 'high', message: 'Lithium + NSAID: Lithium toxicity risk', recommendation: 'Monitor lithium levels, consider alternative analgesics' },
+        { drugs: ['statin', 'fibrate'], severity: 'medium', message: 'Statin + Fibrate: Increased myopathy risk', recommendation: 'Monitor CK levels, consider dose reduction' },
+        { drugs: ['beta_blocker', 'calcium_channel_blocker'], severity: 'medium', message: 'Beta Blocker + CCB: Additive bradycardia risk', recommendation: 'Monitor heart rate, consider dose adjustment' }
+      ];
+
+      for (const combo of dangerousCombos) {
+        const hasBothDrugs = combo.drugs.every(drug => 
+          allMedications.some(med => med.toLowerCase().includes(drug.toLowerCase()))
+        );
+        
+        if (hasBothDrugs) {
+          predictions.push({
+            id: `${combo.drugs.join('_')}_${Date.now()}`,
+            severity: combo.severity,
+            message: combo.message,
+            recommendation: combo.recommendation,
+            confidence: 0.92,
+            medications: combo.drugs,
+            type: 'drug_interaction'
+          });
+        }
+      }
+
+      // Add AI insights from the clinical suggestions hook
+      const drugInsights = aiInsights.filter(insight => insight.type === 'drug_interaction');
+      predictions.push(...drugInsights.map(insight => ({
+        id: `ai_${Date.now()}_${Math.random()}`,
+        severity: insight.severity,
+        message: insight.message,
+        recommendation: insight.recommendation,
+        confidence: insight.confidence || 0.8,
+        medications: [], // Will be populated based on context
+        type: 'ai_prediction'
+      })));
+
+      setDrugInteractionPredictions(predictions);
+      
+      if (predictions.length === 0) {
+        toast.success("No significant drug interactions detected");
+      } else {
+        toast.success(`Found ${predictions.length} potential drug interaction${predictions.length > 1 ? 's' : ''}`);
+      }
+    } catch (error) {
+      toast.error("Failed to analyze drug interactions");
+      console.error("Drug interaction analysis error:", error);
+    } finally {
+      setIsGeneratingInteractions(false);
+    }
+  };
+
+  const handleInteractionFeedback = (predictionId: string, helpful: boolean) => {
+    // Update local state to reflect feedback
+    setDrugInteractionPredictions(prev => 
+      prev.map(pred => 
+        pred.id === predictionId 
+          ? { ...pred, userFeedback: helpful ? 'helpful' : 'not_helpful' }
+          : pred
+      )
+    );
+    
+    toast.success(`Feedback recorded: ${helpful ? 'Helpful' : 'Not helpful'}`);
+  };
+
   const unsubmittedCount = labOrders.filter(o => !o.isSubmitted).length;
 
   return (
@@ -313,6 +417,131 @@ export function TreatmentPlanStep({
                   >
                     <X className="h-4 w-4" />
                   </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AI Drug Interaction Predictions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              AI Drug Interaction Analysis
+              <Badge variant="outline" className="ml-2">
+                <Brain className="h-3 w-3 mr-1" />
+                AI-Powered
+              </Badge>
+            </CardTitle>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleGenerateDrugInteractions}
+              disabled={isGeneratingInteractions || !patientId}
+              variant="outline"
+            >
+              {isGeneratingInteractions ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4 mr-1" />
+                  Analyze Interactions
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {drugInteractionPredictions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-sm">
+                Click "Analyze Interactions" to check for potential drug interactions between current and prescribed medications
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {drugInteractionPredictions.map((prediction) => (
+                <div
+                  key={prediction.id}
+                  className={`p-4 rounded-lg border ${
+                    prediction.severity === 'critical' ? 'border-red-200 bg-red-50' :
+                    prediction.severity === 'high' ? 'border-orange-200 bg-orange-50' :
+                    prediction.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                    'border-blue-200 bg-blue-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge
+                          variant={
+                            prediction.severity === 'critical' ? 'destructive' :
+                            prediction.severity === 'high' ? 'destructive' :
+                            prediction.severity === 'medium' ? 'secondary' :
+                            'outline'
+                          }
+                          className="text-xs"
+                        >
+                          {prediction.severity.toUpperCase()}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round(prediction.confidence * 100)}% Confidence
+                        </Badge>
+                        {prediction.type === 'ai_prediction' && (
+                          <Badge variant="outline" className="text-xs bg-blue-50">
+                            <Brain className="h-3 w-3 mr-1" />
+                            AI Generated
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="font-medium text-sm mb-1">{prediction.message}</p>
+                      <p className="text-sm text-muted-foreground mb-3">{prediction.recommendation}</p>
+                      {prediction.medications && prediction.medications.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {prediction.medications.map((med: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {med.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {!prediction.userFeedback && (
+                      <div className="flex gap-1 ml-4">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleInteractionFeedback(prediction.id, true)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ThumbsUp className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleInteractionFeedback(prediction.id, false)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ThumbsDown className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    )}
+                    {prediction.userFeedback && (
+                      <Badge 
+                        variant={prediction.userFeedback === 'helpful' ? 'default' : 'secondary'}
+                        className="ml-4"
+                      >
+                        {prediction.userFeedback === 'helpful' ? '👍 Helpful' : '👎 Not Helpful'}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ConsentFormProps {
   patientId: string;
@@ -9,6 +10,7 @@ interface ConsentFormProps {
 }
 
 export function ConsentForm({ patientId, onComplete }: ConsentFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const [consents, setConsents] = useState({
     treatment: false,
     dataProcessing: false,
@@ -17,15 +19,27 @@ export function ConsentForm({ patientId, onComplete }: ConsentFormProps) {
   });
 
   const handleSubmit = async () => {
-    await supabase.from('patient_consents').insert({
-      patient_id: patientId,
-      treatment_consent: consents.treatment,
-      data_processing_consent: consents.dataProcessing,
-      telemedicine_consent: consents.telemedicine,
-      data_sharing_consent: consents.dataSharing,
-      consent_date: new Date().toISOString(),
-    });
-    onComplete();
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.from('patient_consents').insert({
+        patient_id: patientId,
+        treatment_consent: consents.treatment,
+        data_processing_consent: consents.dataProcessing,
+        telemedicine_consent: consents.telemedicine,
+        data_sharing_consent: consents.dataSharing,
+        consent_date: new Date().toISOString(),
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Consent saved successfully');
+      onComplete();
+    } catch (error) {
+      console.error('Consent save error:', error);
+      toast.error('Failed to save consent. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,10 +90,10 @@ export function ConsentForm({ patientId, onComplete }: ConsentFormProps) {
 
       <Button 
         onClick={handleSubmit}
-        disabled={!consents.treatment || !consents.dataProcessing}
+        disabled={!consents.treatment || !consents.dataProcessing || isLoading}
         className="w-full"
       >
-        Submit Consent
+        {isLoading ? 'Saving...' : 'Submit Consent'}
       </Button>
     </div>
   );

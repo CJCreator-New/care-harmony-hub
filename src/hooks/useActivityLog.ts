@@ -9,6 +9,7 @@ export type ActionType =
   | 'login'
   | 'logout'
   | 'patient_view'
+  | 'patient_record_view'
   | 'patient_create'
   | 'patient_update'
   | 'appointment_create'

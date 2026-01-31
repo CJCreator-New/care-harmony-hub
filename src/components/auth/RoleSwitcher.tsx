@@ -1,0 +1,71 @@
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { isValidRoleTransition } from '@/utils/roleInterconnectionValidator';
+import { ROLE_INFO } from '@/types/rbac';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Users } from 'lucide-react';
+import { toast } from 'sonner';
+
+export function RoleSwitcher() {
+  const { roles, primaryRole, switchRole } = useAuth();
+  const [switching, setSwitching] = useState(false);
+
+  const handleRoleSwitch = async (targetRole: string) => {
+    if (!primaryRole) return;
+
+    // Validate transition before switching
+    const validation = isValidRoleTransition(primaryRole, targetRole as any);
+
+    if (!validation.valid) {
+      toast.error(`Cannot switch to ${targetRole}: ${validation.reason}`);
+      return;
+    }
+
+    setSwitching(true);
+    try {
+      await switchRole(targetRole as any);
+      toast.success(`Switched to ${ROLE_INFO[targetRole as keyof typeof ROLE_INFO]?.label}`);
+    } catch (error) {
+      toast.error('Failed to switch role');
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  // Filter to only show valid transition targets
+  const availableRoles = roles.filter(role => {
+    if (role === primaryRole) return false;
+    const validation = isValidRoleTransition(primaryRole!, role);
+    return validation.valid;
+  });
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" disabled={switching}>
+          <Users className="h-4 w-4 mr-2" />
+          {ROLE_INFO[primaryRole!]?.label || 'Select Role'}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {availableRoles.map(role => (
+          <DropdownMenuItem
+            key={role}
+            onClick={() => handleRoleSwitch(role)}
+          >
+            <span className={`mr-2 ${ROLE_INFO[role].color}`}>
+              •
+            </span>
+            {ROLE_INFO[role].label}
+          </DropdownMenuItem>
+        ))}
+        {availableRoles.length === 0 && (
+          <DropdownMenuItem disabled>
+            No other roles available
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

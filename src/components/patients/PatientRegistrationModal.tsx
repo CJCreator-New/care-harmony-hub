@@ -160,13 +160,23 @@ export function PatientRegistrationModal({
         notes: data.notes ? sanitizeInput(data.notes) : null,
       };
 
-      // TODO: Implement PHI encryption when encryption_metadata column is available
-      // const { data: encryptedPatientData, metadata: encryptionMetadata } = await encryptPHI(patientData);
+      // Encrypt PHI fields if encryption is available
+      let encryptionMetadata: Record<string, unknown> | null = null;
+      let finalPatientData = patientData;
 
-      // Create patient record (encryption temporarily disabled)
+      try {
+        const { data: encryptedData, metadata } = await encryptPHI(patientData);
+        finalPatientData = encryptedData;
+        encryptionMetadata = metadata;
+      } catch (encryptError) {
+        // If encryption fails, log but continue with unencrypted data
+        console.warn('PHI encryption failed, proceeding with unencrypted data:', encryptError);
+      }
+
+      // Create patient record with encryption metadata if available
       const { data: patientRecord, error: insertError } = await supabase.from('patients').insert({
-        ...patientData,
-        // encryption_metadata: encryptionMetadata, // TODO: Enable when column exists
+        ...finalPatientData,
+        ...(encryptionMetadata && { encryption_metadata: encryptionMetadata }),
       }).select().single();
 
       if (insertError) throw insertError;

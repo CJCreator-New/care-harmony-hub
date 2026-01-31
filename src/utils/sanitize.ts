@@ -1,21 +1,23 @@
 import DOMPurify from 'dompurify';
 
+/**
+ * Sanitize user input for safe display
+ * Uses DOMPurify for XSS prevention
+ * Note: For database queries, use parameterized queries (Supabase handles this)
+ */
 export function sanitizeInput(input: string): string {
   if (!input) return '';
   
-  // Remove HTML tags and sanitize
-  const sanitized = DOMPurify.sanitize(input, { 
+  // Remove HTML tags and sanitize for XSS prevention
+  return DOMPurify.sanitize(input, { 
     ALLOWED_TAGS: [],
     ALLOWED_ATTR: []
-  });
-  
-  // Additional sanitization for SQL injection prevention
-  return sanitized
-    .replace(/['"`;\\]/g, '') // Remove dangerous SQL characters
-    .trim()
-    .substring(0, 1000); // Limit length
+  }).trim().substring(0, 1000);
 }
 
+/**
+ * Sanitize array input (comma-separated values)
+ */
 export function sanitizeArray(input: string): string[] {
   if (!input) return [];
   
@@ -23,9 +25,12 @@ export function sanitizeArray(input: string): string[] {
     .split(',')
     .map(item => sanitizeInput(item))
     .filter(item => item.length > 0)
-    .slice(0, 20); // Limit array size
+    .slice(0, 20);
 }
 
+/**
+ * Sanitize log message - remove potential PHI
+ */
 export function sanitizeLogMessage(message: string | unknown): string {
   // Ensure message is a string
   const msg = typeof message === 'string' ? message : String(message || '');
@@ -35,7 +40,8 @@ export function sanitizeLogMessage(message: string | unknown): string {
     .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]') // SSN
     .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD]') // Credit card
     .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL]') // Email
-    .replace(/\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b/g, '[PHONE]'); // Phone
+    .replace(/\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b/g, '[PHONE]') // Phone
+    .substring(0, 5000); // Limit log message length
 }
 
 export const sanitizeForLog = sanitizeLogMessage;

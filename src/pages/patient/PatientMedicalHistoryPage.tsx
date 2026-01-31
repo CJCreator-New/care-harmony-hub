@@ -163,8 +163,8 @@ export default function PatientMedicalHistoryPage() {
                   <p className="text-sm text-muted-foreground mb-2">Known Allergies</p>
                   {profile.allergies && profile.allergies.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {profile.allergies.map((allergy, index) => (
-                        <Badge key={index} variant="destructive">
+                      {profile.allergies.map((allergy, idx) => (
+                        <Badge key={`allergy-${allergy}`} variant="destructive">
                           {allergy}
                         </Badge>
                       ))}
@@ -180,8 +180,8 @@ export default function PatientMedicalHistoryPage() {
                   <p className="text-sm text-muted-foreground mb-2">Chronic Conditions</p>
                   {profile.chronic_conditions && profile.chronic_conditions.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {profile.chronic_conditions.map((condition, index) => (
-                        <Badge key={index} variant="outline">
+                      {profile.chronic_conditions.map((condition, idx) => (
+                        <Badge key={`condition-${condition}`} variant="outline">
                           {condition}
                         </Badge>
                       ))}

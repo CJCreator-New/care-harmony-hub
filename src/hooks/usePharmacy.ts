@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeForLog } from '@/utils/sanitize';
-import { 
+import {  
   EPrescription, 
   FormularyDrug, 
   DrugInteraction, 

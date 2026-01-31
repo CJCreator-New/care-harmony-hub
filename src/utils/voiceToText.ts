@@ -1,11 +1,11 @@
 export const initVoiceRecognition = () => {
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const SpeechRecognition = (window as unknown as Record<string, unknown>).SpeechRecognition || (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
   
   if (!SpeechRecognition) {
     return null;
   }
 
-  const recognition = new SpeechRecognition();
+  const recognition = new (SpeechRecognition as any)();
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.lang = 'en-US';
@@ -15,7 +15,7 @@ export const initVoiceRecognition = () => {
 
 export const startVoiceInput = (
   onResult: (text: string) => void,
-  onError?: (error: any) => void
+  onError?: (error: Record<string, unknown>) => void
 ) => {
   const recognition = initVoiceRecognition();
   
@@ -24,12 +24,13 @@ export const startVoiceInput = (
     return null;
   }
 
-  recognition.onresult = (event: any) => {
-    const transcript = event.results[0][0].transcript;
+  recognition.onresult = (event: Record<string, unknown>) => {
+    const results = event.results as any[];
+    const transcript = results[0][0].transcript;
     onResult(transcript);
   };
 
-  recognition.onerror = (event: any) => {
+  recognition.onerror = (event: Record<string, unknown>) => {
     onError?.(event);
   };
 
