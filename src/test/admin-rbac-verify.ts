@@ -31,22 +31,10 @@ function assert(condition: boolean, message: string) {
 // AdminRBACManager Tests
 console.log('\n=== AdminRBACManager ===\n');
 
-test('super_admin has all permissions', () => {
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.SYSTEM_FULL_ACCESS), 'super_admin should have SYSTEM_FULL_ACCESS');
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.USER_CREATE), 'super_admin should have USER_CREATE');
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.ANALYTICS_VIEW_ALL), 'super_admin should have ANALYTICS_VIEW_ALL');
-});
-
-test('admin has limited permissions', () => {
+test('admin has full permissions', () => {
+  assert(AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_FULL_ACCESS), 'admin should have SYSTEM_FULL_ACCESS');
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.USER_CREATE), 'admin should have USER_CREATE');
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.ANALYTICS_VIEW_ALL), 'admin should have ANALYTICS_VIEW_ALL');
-  assert(!AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_FULL_ACCESS), 'admin should not have SYSTEM_FULL_ACCESS');
-});
-
-test('dept_head has department permissions', () => {
-  assert(AdminRBACManager.hasPermission('dept_head', AdminPermission.USER_READ), 'dept_head should have USER_READ');
-  assert(AdminRBACManager.hasPermission('dept_head', AdminPermission.ANALYTICS_VIEW_DEPT), 'dept_head should have ANALYTICS_VIEW_DEPT');
-  assert(!AdminRBACManager.hasPermission('dept_head', AdminPermission.USER_CREATE), 'dept_head should not have USER_CREATE');
 });
 
 test('clinical staff has no admin permissions', () => {
@@ -79,18 +67,9 @@ test('hasAllPermissions returns false if user lacks any permission', () => {
   assert(!AdminRBACManager.hasAllPermissions('admin', perms), 'admin should not have all permissions');
 });
 
-test('super_admin can manage all roles', () => {
-  assert(AdminRBACManager.canManageRole('super_admin', 'admin'), 'super_admin should manage admin');
-  assert(AdminRBACManager.canManageRole('super_admin', 'doctor'), 'super_admin should manage doctor');
-});
-
 test('admin can manage lower roles', () => {
   assert(AdminRBACManager.canManageRole('admin', 'doctor'), 'admin should manage doctor');
   assert(AdminRBACManager.canManageRole('admin', 'nurse'), 'admin should manage nurse');
-});
-
-test('admin cannot manage super_admin', () => {
-  assert(!AdminRBACManager.canManageRole('admin', 'super_admin'), 'admin should not manage super_admin');
 });
 
 test('lower roles cannot manage higher roles', () => {
@@ -99,9 +78,7 @@ test('lower roles cannot manage higher roles', () => {
 });
 
 test('admin roles can access panel', () => {
-  assert(AdminRBACManager.canAccessAdminPanel('super_admin'), 'super_admin should access panel');
   assert(AdminRBACManager.canAccessAdminPanel('admin'), 'admin should access panel');
-  assert(AdminRBACManager.canAccessAdminPanel('dept_head'), 'dept_head should access panel');
 });
 
 test('clinical staff cannot access panel', () => {
@@ -115,9 +92,7 @@ test('returns false for undefined role in canAccessAdminPanel', () => {
 });
 
 test('returns correct hierarchy levels', () => {
-  assert(AdminRBACManager.getRoleLevel('super_admin') === 100, 'super_admin should be level 100');
   assert(AdminRBACManager.getRoleLevel('admin') === 80, 'admin should be level 80');
-  assert(AdminRBACManager.getRoleLevel('dept_head') === 90, 'dept_head should be level 90');
   assert(AdminRBACManager.getRoleLevel('doctor') === 70, 'doctor should be level 70');
   assert(AdminRBACManager.getRoleLevel('patient') === 10, 'patient should be level 10');
 });
@@ -162,13 +137,6 @@ test('super_admin full access', () => {
 test('admin restricted access', () => {
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.USER_CREATE), 'admin should have USER_CREATE');
   assert(!AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_FULL_ACCESS), 'admin should not have SYSTEM_FULL_ACCESS');
-});
-
-test('dept_head department access', () => {
-  assert(AdminRBACManager.hasPermission('dept_head', AdminPermission.ANALYTICS_VIEW_DEPT), 'dept_head should have ANALYTICS_VIEW_DEPT');
-  assert(!AdminRBACManager.hasPermission('dept_head', AdminPermission.ANALYTICS_VIEW_ALL), 'dept_head should not have ANALYTICS_VIEW_ALL');
-});
-
 test('clinical staff no admin access', () => {
   const adminPerms = [AdminPermission.USER_CREATE, AdminPermission.SYSTEM_SETTINGS];
   adminPerms.forEach(p => {
@@ -181,9 +149,7 @@ test('clinical staff no admin access', () => {
 console.log('\n=== Role Hierarchy ===\n');
 
 test('enforces hierarchy in management', () => {
-  assert(AdminRBACManager.canManageRole('super_admin', 'admin'), 'super_admin > admin');
   assert(AdminRBACManager.canManageRole('admin', 'doctor'), 'admin > doctor');
-  assert(!AdminRBACManager.canManageRole('admin', 'super_admin'), 'admin < super_admin');
   assert(!AdminRBACManager.canManageRole('doctor', 'nurse'), 'doctor < nurse');
 });
 
@@ -211,7 +177,7 @@ test('handles invalid roles', () => {
 console.log('\n=== Admin Panel Access ===\n');
 
 test('authorized roles can access', () => {
-  const authorized: UserRole[] = ['super_admin', 'admin', 'dept_head'];
+  const authorized: UserRole[] = ['admin'];
   authorized.forEach(r => assert(AdminRBACManager.canAccessAdminPanel(r), `${r} should access panel`));
 });
 
@@ -222,12 +188,6 @@ test('unauthorized roles cannot access', () => {
 
 // Tab Visibility
 console.log('\n=== Tab Visibility ===\n');
-
-test('super_admin sees all tabs', () => {
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.ANALYTICS_VIEW_ALL), 'super_admin should see analytics');
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.USER_READ), 'super_admin should see users');
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.SYSTEM_SETTINGS), 'super_admin should see settings');
-});
 
 test('admin sees most tabs', () => {
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.ANALYTICS_VIEW_ALL), 'admin should see analytics');
@@ -258,12 +218,6 @@ test('admin can assign roles', () => {
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.USER_ASSIGN_ROLE), 'admin should assign roles');
 });
 
-test('dept_head can only read users', () => {
-  assert(AdminRBACManager.hasPermission('dept_head', AdminPermission.USER_READ), 'dept_head should read users');
-  assert(!AdminRBACManager.hasPermission('dept_head', AdminPermission.USER_CREATE), 'dept_head should not create users');
-  assert(!AdminRBACManager.hasPermission('dept_head', AdminPermission.USER_UPDATE), 'dept_head should not update users');
-});
-
 // Analytics Permissions
 console.log('\n=== Analytics Permissions ===\n');
 
@@ -285,14 +239,6 @@ test('dept_head cannot view all analytics', () => {
 
 // System Permissions
 console.log('\n=== System Permissions ===\n');
-
-test('super_admin can access system settings', () => {
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.SYSTEM_SETTINGS), 'super_admin should access settings');
-});
-
-test('super_admin can access audit logs', () => {
-  assert(AdminRBACManager.hasPermission('super_admin', AdminPermission.SYSTEM_AUDIT), 'super_admin should access audit logs');
-});
 
 test('admin can access system settings', () => {
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_SETTINGS), 'admin should access settings');
@@ -317,21 +263,8 @@ test('admin can schedule reports', () => {
   assert(AdminRBACManager.hasPermission('admin', AdminPermission.REPORT_SCHEDULE), 'admin should schedule reports');
 });
 
-test('dept_head can view reports', () => {
-  assert(AdminRBACManager.hasPermission('dept_head', AdminPermission.REPORT_VIEW), 'dept_head should view reports');
-});
-
-test('dept_head cannot schedule reports', () => {
-  assert(!AdminRBACManager.hasPermission('dept_head', AdminPermission.REPORT_SCHEDULE), 'dept_head should not schedule reports');
-});
-
 // Role Comparison
 console.log('\n=== Role Comparison ===\n');
-
-test('super_admin has more permissions than admin', () => {
-  const superAdminPerms = AdminRBACManager.getRolePermissions('super_admin');
-  const adminPerms = AdminRBACManager.getRolePermissions('admin');
-  assert(superAdminPerms.length >= adminPerms.length, 'super_admin should have >= permissions than admin');
 });
 
 test('admin has more permissions than dept_head', () => {

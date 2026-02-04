@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { TestExecutionResult, TestStatus } from '../../../types/testing';
 import { useTesting } from '../../../contexts/TestingContext';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface TestExecutionTrackerProps {
   onExecutionComplete?: (results: TestExecutionResult[]) => void;
@@ -53,6 +54,7 @@ export default function TestExecutionTracker({ onExecutionComplete }: TestExecut
   const [importText, setImportText] = useState('');
   const [importFormat, setImportFormat] = useState<'json' | 'junit' | 'manual'>('json');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const focusTrapRef = useFocusTrap(isImportDialogOpen);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -219,7 +221,7 @@ export default function TestExecutionTracker({ onExecutionComplete }: TestExecut
                     Import Results
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl" ref={focusTrapRef}>
                   <DialogHeader>
                     <DialogTitle>Import Test Results</DialogTitle>
                   </DialogHeader>

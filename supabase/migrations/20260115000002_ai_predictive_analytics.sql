@@ -134,7 +134,12 @@ ALTER TABLE ai_performance_metrics ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for hospital-scoped access
 CREATE POLICY "prediction_models_hospital_access" ON prediction_models
-  FOR ALL USING (true); -- Global models, but could be hospital-specific
+  FOR ALL USING (
+    hospital_id IN (
+      SELECT hospital_id FROM profiles
+      WHERE user_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "predictive_alerts_hospital_access" ON predictive_alerts
   FOR ALL USING (

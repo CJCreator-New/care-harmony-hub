@@ -3,9 +3,7 @@ import { UserRole } from '@/types/auth';
 import { AdminPermission, RolePermissionMapping } from '@/types/admin';
 
 export const ADMIN_ROLE_HIERARCHY: Record<UserRole, number> = {
-  super_admin: 100,
   admin: 80,
-  dept_head: 90,
   doctor: 70,
   nurse: 60,
   receptionist: 50,
@@ -15,7 +13,7 @@ export const ADMIN_ROLE_HIERARCHY: Record<UserRole, number> = {
 };
 
 export const ADMIN_ROLE_PERMISSIONS: Record<UserRole, AdminPermission[]> = {
-  super_admin: [
+  admin: [
     AdminPermission.SYSTEM_FULL_ACCESS,
     AdminPermission.SYSTEM_SETTINGS,
     AdminPermission.SYSTEM_AUDIT,
@@ -31,26 +29,6 @@ export const ADMIN_ROLE_PERMISSIONS: Record<UserRole, AdminPermission[]> = {
     AdminPermission.REPORT_SCHEDULE,
   ],
 
-  admin: [
-    AdminPermission.USER_CREATE,
-    AdminPermission.USER_READ,
-    AdminPermission.USER_UPDATE,
-    AdminPermission.USER_ASSIGN_ROLE,
-    AdminPermission.ANALYTICS_VIEW_ALL,
-    AdminPermission.ANALYTICS_EXPORT,
-    AdminPermission.REPORT_VIEW,
-    AdminPermission.REPORT_EXPORT,
-    AdminPermission.REPORT_SCHEDULE,
-    AdminPermission.SYSTEM_SETTINGS,
-  ],
-
-  dept_head: [
-    AdminPermission.USER_READ,
-    AdminPermission.ANALYTICS_VIEW_DEPT,
-    AdminPermission.REPORT_VIEW,
-    AdminPermission.REPORT_EXPORT,
-  ],
-
   doctor: [],
   nurse: [],
   receptionist: [],
@@ -64,9 +42,6 @@ export class AdminRBACManager {
     if (!role) return false;
 
     const rolePermissions = ADMIN_ROLE_PERMISSIONS[role] || [];
-
-    // Super admin has all permissions
-    if (role === 'super_admin') return true;
 
     // Check exact permission match
     if (rolePermissions.includes(permission)) return true;
@@ -95,8 +70,7 @@ export class AdminRBACManager {
 
   static canAccessAdminPanel(role: UserRole | undefined): boolean {
     if (!role) return false;
-    const adminRoles: UserRole[] = ['super_admin', 'admin', 'dept_head'];
-    return adminRoles.includes(role);
+    return role === 'admin';
   }
 
   static getRoleLevel(role: UserRole): number {

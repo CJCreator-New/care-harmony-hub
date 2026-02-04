@@ -46,7 +46,7 @@ interface QueueEntry {
 }
 
 export function QueueOptimizer() {
-  const { hospitalId } = useAuth();
+  const { hospital } = useAuth();
   const queryClient = useQueryClient();
   const [isOptimizing, setIsOptimizing] = useState(false);
 
@@ -65,7 +65,7 @@ export function QueueOptimizer() {
   };
 
   const { data: queue = [], isLoading } = useQuery({
-    queryKey: ['active-queue', hospitalId],
+    queryKey: ['active-queue', hospital?.id],
     queryFn: async () => {
       // In a real app, this would be a complex join
       // For now, we simulate the active queue fetching
@@ -81,7 +81,7 @@ export function QueueOptimizer() {
           profiles:doctor_id (full_name),
           patients:patient_id (first_name, last_name)
         `)
-        .eq('hospital_id', hospitalId)
+        .eq('hospital_id', hospital?.id)
         .in('status', ['waiting', 'prepping', 'consulting'])
         .order('created_at', { ascending: true });
 
@@ -99,7 +99,7 @@ export function QueueOptimizer() {
         optimization_score: calculateScore(item)
       })) as QueueEntry[];
     },
-    enabled: !!hospitalId
+    enabled: !!hospital?.id
   });
 
   const calculateInitialWait = (createdAt: string) => {
@@ -124,7 +124,7 @@ export function QueueOptimizer() {
       
       // In a real app, this would call a Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('optimize-queue', {
-        body: { hospitalId }
+        body: { hospitalId: hospital?.id }
       });
       
       if (error) throw error;

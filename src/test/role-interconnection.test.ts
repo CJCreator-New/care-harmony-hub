@@ -39,8 +39,6 @@ import {
 
 // All defined roles in the system
 const ALL_ROLES: UserRole[] = [
-  'super_admin',
-  'dept_head',
   'admin',
   'doctor',
   'nurse',
@@ -52,10 +50,10 @@ const ALL_ROLES: UserRole[] = [
 
 describe('Role Interconnection System', () => {
   describe('Role Definitions', () => {
-    it('should have exactly 9 roles defined', () => {
-      expect(Object.keys(ROLE_HIERARCHY)).toHaveLength(9);
-      expect(Object.keys(ROLE_PERMISSIONS)).toHaveLength(9);
-      expect(Object.keys(ROLE_INFO)).toHaveLength(9);
+    it('should have exactly 7 roles defined', () => {
+      expect(Object.keys(ROLE_HIERARCHY)).toHaveLength(7);
+      expect(Object.keys(ROLE_PERMISSIONS)).toHaveLength(7);
+      expect(Object.keys(ROLE_INFO)).toHaveLength(7);
     });
 
     it('should have all roles defined in ROLE_HIERARCHY', () => {
@@ -84,10 +82,10 @@ describe('Role Interconnection System', () => {
   });
 
   describe('Role Hierarchy', () => {
-    it('should have super_admin at the highest level', () => {
+    it('should have admin at the highest level', () => {
       const maxLevel = Math.max(...Object.values(ROLE_HIERARCHY));
-      expect(ROLE_HIERARCHY.super_admin).toBe(maxLevel);
-      expect(ROLE_HIERARCHY.super_admin).toBe(100);
+      expect(ROLE_HIERARCHY.admin).toBe(maxLevel);
+      expect(ROLE_HIERARCHY.admin).toBe(80);
     });
 
     it('should have patient at the lowest level', () => {
@@ -103,8 +101,6 @@ describe('Role Interconnection System', () => {
     });
 
     it('should have correct hierarchy order', () => {
-      expect(ROLE_HIERARCHY.super_admin).toBeGreaterThan(ROLE_HIERARCHY.dept_head);
-      expect(ROLE_HIERARCHY.dept_head).toBeGreaterThan(ROLE_HIERARCHY.admin);
       expect(ROLE_HIERARCHY.admin).toBeGreaterThan(ROLE_HIERARCHY.doctor);
       expect(ROLE_HIERARCHY.doctor).toBeGreaterThan(ROLE_HIERARCHY.nurse);
       expect(ROLE_HIERARCHY.nurse).toBeGreaterThan(ROLE_HIERARCHY.receptionist);
@@ -115,11 +111,11 @@ describe('Role Interconnection System', () => {
   });
 
   describe('Permission System', () => {
-    it('should have super_admin with most permissions', () => {
-      const superAdminPerms = ROLE_PERMISSIONS.super_admin.length;
+    it('should have admin with most permissions', () => {
+      const adminPerms = ROLE_PERMISSIONS.admin.length;
       ALL_ROLES.forEach(role => {
-        if (role !== 'super_admin') {
-          expect(superAdminPerms).toBeGreaterThanOrEqual(ROLE_PERMISSIONS[role].length);
+        if (role !== 'admin') {
+          expect(adminPerms).toBeGreaterThanOrEqual(ROLE_PERMISSIONS[role].length);
         }
       });
     });
@@ -130,12 +126,6 @@ describe('Role Interconnection System', () => {
         if (role !== 'patient') {
           expect(patientPerms).toBeLessThanOrEqual(ROLE_PERMISSIONS[role].length);
         }
-      });
-    });
-
-    it('hasPermission should return true for super_admin with any permission', () => {
-      Object.values(PermissionCategory).forEach(permission => {
-        expect(hasPermission('super_admin', permission)).toBe(true);
       });
     });
 
@@ -151,7 +141,7 @@ describe('Role Interconnection System', () => {
 
       expect(hasAnyPermission('patient', [
         PermissionCategory.STAFF_MANAGE,
-        PermissionCategory.SUPER_ADMIN_ACCESS,
+        PermissionCategory.SYSTEM_MAINTENANCE,
       ])).toBe(false);
     });
 
@@ -168,7 +158,7 @@ describe('Role Interconnection System', () => {
     });
 
     it('should give all staff roles settings:read permission', () => {
-      const staffRoles: UserRole[] = ['super_admin', 'dept_head', 'admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
+      const staffRoles: UserRole[] = ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
       staffRoles.forEach(role => {
         expect(hasPermission(role, PermissionCategory.SETTINGS_READ)).toBe(true);
       });
@@ -180,21 +170,8 @@ describe('Role Interconnection System', () => {
   });
 
   describe('Role Access Control', () => {
-    it('canAccessRole should allow super_admin to access all roles', () => {
-      ALL_ROLES.forEach(role => {
-        expect(canAccessRole('super_admin', role)).toBe(true);
-      });
-    });
-
-    it('canAccessRole should work correctly for dept_head', () => {
-      expect(canAccessRole('dept_head', 'doctor')).toBe(true);
-      expect(canAccessRole('dept_head', 'nurse')).toBe(true);
-      expect(canAccessRole('dept_head', 'super_admin')).toBe(false);
-    });
-
     it('canManageRole should prevent managing higher roles', () => {
       expect(canManageRole('admin', 'doctor')).toBe(true);
-      expect(canManageRole('admin', 'super_admin')).toBe(false);
       expect(canManageRole('doctor', 'admin')).toBe(false);
     });
 
@@ -207,7 +184,7 @@ describe('Role Interconnection System', () => {
     });
 
     it('getRoleLevel should return correct levels', () => {
-      expect(getRoleLevel('super_admin')).toBe(100);
+      expect(getRoleLevel('admin')).toBe(80);
       expect(getRoleLevel('patient')).toBe(10);
     });
   });
@@ -220,10 +197,10 @@ describe('Role Interconnection System', () => {
       });
     });
 
-    it('super_admin should be able to communicate with all other roles', () => {
-      const otherRoles = ALL_ROLES.filter(r => r !== 'super_admin');
+    it('admin should be able to communicate with all other roles', () => {
+      const otherRoles = ALL_ROLES.filter(r => r !== 'admin');
       otherRoles.forEach(role => {
-        expect(ROLE_COMMUNICATION_MATRIX.super_admin).toContain(role);
+        expect(ROLE_COMMUNICATION_MATRIX.admin).toContain(role);
       });
     });
 
@@ -278,10 +255,10 @@ describe('Role Interconnection System', () => {
       expect(TASK_DELEGATION_MATRIX.patient).toHaveLength(0);
     });
 
-    it('super_admin should be able to delegate to all staff roles', () => {
-      const staffRoles: UserRole[] = ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
+    it('admin should be able to delegate to all staff roles', () => {
+      const staffRoles: UserRole[] = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
       staffRoles.forEach(role => {
-        expect(TASK_DELEGATION_MATRIX.super_admin).toContain(role);
+        expect(TASK_DELEGATION_MATRIX.admin).toContain(role);
       });
     });
   });
@@ -325,30 +302,13 @@ describe('Role Interconnection System', () => {
   });
 
   describe('Role Transition Validation', () => {
-    it('super_admin should be able to transition to any role', () => {
-      ALL_ROLES.forEach(role => {
-        const result = isValidRoleTransition('super_admin', role);
-        expect(result.valid).toBe(true);
-      });
-    });
 
     it('admin should be able to transition to manageable roles', () => {
-      const manageableRoles: UserRole[] = ['dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
+      const manageableRoles: UserRole[] = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
       manageableRoles.forEach(role => {
         const result = isValidRoleTransition('admin', role);
         expect(result.valid).toBe(true);
       });
-    });
-
-    it('admin should not be able to transition to super_admin', () => {
-      const result = isValidRoleTransition('admin', 'super_admin');
-      expect(result.valid).toBe(false);
-    });
-
-    it('dept_head should only transition to department roles', () => {
-      expect(isValidRoleTransition('dept_head', 'doctor').valid).toBe(true);
-      expect(isValidRoleTransition('dept_head', 'nurse').valid).toBe(true);
-      expect(isValidRoleTransition('dept_head', 'receptionist').valid).toBe(false);
     });
 
     it('operational roles should not be able to transition', () => {
@@ -436,7 +396,7 @@ describe('Role Interconnection System', () => {
 
     it('getAllRoleSummaries should return summaries for all roles', () => {
       const summaries = getAllRoleSummaries();
-      expect(summaries).toHaveLength(9);
+      expect(summaries).toHaveLength(7);
       summaries.forEach(summary => {
         expect(ALL_ROLES).toContain(summary.role);
       });
@@ -451,9 +411,7 @@ describe('Role Interconnection System', () => {
       ];
 
       const result = validateRouteProtection(routeConfig);
-      expect(result.missingHigherRoles.length).toBeGreaterThan(0);
-      expect(result.missingHigherRoles[0].missingRoles).toContain('super_admin');
-      expect(result.missingHigherRoles[0].missingRoles).toContain('dept_head');
+      expect(result.missingHigherRoles.length).toBe(0);
     });
 
     it('validateRouteProtection should not flag patient-specific routes', () => {
@@ -468,7 +426,7 @@ describe('Role Interconnection System', () => {
 
     it('validateRouteProtection should calculate correct score', () => {
       const routeConfig = [
-        { path: '/dashboard', allowedRoles: ['super_admin', 'dept_head', 'admin', 'doctor'] as UserRole[] },
+        { path: '/dashboard', allowedRoles: ['admin', 'doctor'] as UserRole[] },
       ];
 
       const result = validateRouteProtection(routeConfig);
@@ -498,7 +456,7 @@ describe('Role Interconnection System', () => {
 
     it('generateJSONReport should include all roles', () => {
       const report = generateJSONReport() as any;
-      expect(report.roles).toHaveLength(9);
+      expect(report.roles).toHaveLength(7);
     });
   });
 
@@ -535,26 +493,6 @@ describe('Role Interconnection System', () => {
 });
 
 describe('Role-Specific Tests', () => {
-  describe('Super Admin Role', () => {
-    const role: UserRole = 'super_admin';
-
-    it('should have the highest hierarchy level', () => {
-      expect(ROLE_HIERARCHY[role]).toBe(100);
-    });
-
-    it('should have super_admin:access permission', () => {
-      expect(hasPermission(role, PermissionCategory.SUPER_ADMIN_ACCESS)).toBe(true);
-    });
-
-    it('should have system:maintenance permission', () => {
-      expect(hasPermission(role, PermissionCategory.SYSTEM_MAINTENANCE)).toBe(true);
-    });
-
-    it('should have audit:logs permission', () => {
-      expect(hasPermission(role, PermissionCategory.AUDIT_LOGS)).toBe(true);
-    });
-  });
-
   describe('Doctor Role', () => {
     const role: UserRole = 'doctor';
 

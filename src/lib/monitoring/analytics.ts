@@ -7,10 +7,27 @@ interface AnalyticsEvent {
 class Analytics {
   private queue: AnalyticsEvent[] = [];
   private flushInterval = 5000;
+  private flushTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      setInterval(() => this.flush(), this.flushInterval);
+      this.startFlushTimer();
+    }
+  }
+
+  private startFlushTimer(): void {
+    // Clear any existing timer
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
+
+    this.flushTimer = setInterval(() => this.flush(), this.flushInterval);
+  }
+
+  destroy(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
     }
   }
 

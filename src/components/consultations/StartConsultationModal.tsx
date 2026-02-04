@@ -192,7 +192,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
     });
 
     // Add remaining patients (lowest priority)
-    patients?.forEach((patient) => {
+    patientsList?.forEach((patient) => {
       if (!patientMap.has(patient.id)) {
         patientMap.set(patient.id, {
           ...patient,
@@ -209,7 +209,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
     // Convert to array and sort by score (descending)
     return Array.from(patientMap.values())
       .sort((a, b) => b.score - a.score);
-  }, [patientsReady, queuePatients, readyAppointments, patients]);
+  }, [patientsReady, queuePatients, readyAppointments, patientsList]);
 
   // Filter unified patients by search term
   const filteredUnifiedPatients = React.useMemo(() => {

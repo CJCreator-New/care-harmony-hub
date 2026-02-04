@@ -37,7 +37,7 @@ interface PrepPatient {
 }
 
 export function PatientPrepStation() {
-  const { hospitalId } = useAuth();
+  const { hospital } = useAuth();
   const [patients, setPatients] = useState<PrepPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -83,7 +83,7 @@ export function PatientPrepStation() {
           patient_prep_checklists (items)
         `)
         .eq('status', 'checked_in')
-        .eq('hospital_id', hospitalId);
+        .eq('hospital_id', hospital?.id);
 
       if (error) throw error;
 

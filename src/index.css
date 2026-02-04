@@ -178,6 +178,19 @@
   .animate-pulse-slow {
     animation: pulse 3s ease-in-out infinite;
   }
+
+  /* Fix Radix Collapsible visibility */
+  [data-radix-collapsible-content] {
+    overflow: visible !important;
+  }
+
+  [data-radix-collapsible-content][data-state="closed"] {
+    display: none;
+  }
+
+  [data-radix-collapsible-content][data-state="open"] {
+    display: block;
+  }
 }
 
 @layer utilities {

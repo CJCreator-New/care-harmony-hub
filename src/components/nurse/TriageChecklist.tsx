@@ -40,7 +40,7 @@ interface TriageChecklistProps {
 }
 
 export function TriageChecklist({ patientId, appointmentId, onComplete }: TriageChecklistProps) {
-  const { hospitalId } = useAuth();
+  const { hospital } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([
@@ -90,7 +90,7 @@ export function TriageChecklist({ patientId, appointmentId, onComplete }: Triage
         .upsert({
           appointment_id: appointmentId,
           patient_id: patientId,
-          hospital_id: hospitalId,
+          hospital_id: hospital?.id,
           items: items as any,
           ready_for_doctor: isFinal ? allCompleted : false,
           updated_at: new Date().toISOString()

@@ -18,6 +18,7 @@ import {
 import { AutomationScript, TestExecutionResult } from '../../../types/testing';
 import { testExecutionService, ExecutionProgress } from '../../../services/testing/testExecutionService';
 import { useTesting } from '../../../contexts/TestingContext';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface TestRunnerProps {
   script?: AutomationScript;
@@ -31,6 +32,7 @@ export default function TestRunner({ script, onExecutionComplete }: TestRunnerPr
   const [progress, setProgress] = useState<ExecutionProgress | null>(null);
   const [executionHistory, setExecutionHistory] = useState<TestExecutionResult[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const focusTrapRef = useFocusTrap(isDialogOpen);
 
   useEffect(() => {
     if (script) {
@@ -162,7 +164,7 @@ export default function TestRunner({ script, onExecutionComplete }: TestRunnerPr
                     <Terminal className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[80vh]">
+                <DialogContent className="max-w-4xl max-h-[80vh]" ref={focusTrapRef}>
                   <DialogHeader>
                     <DialogTitle>Test Execution Details</DialogTitle>
                   </DialogHeader>

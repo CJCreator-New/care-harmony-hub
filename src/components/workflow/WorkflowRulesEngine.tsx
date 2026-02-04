@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Play, Pause, Trash2, Settings, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface AutomationRule {
   id: string;
@@ -31,6 +32,7 @@ export function WorkflowRulesEngine() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const focusTrapRef = useFocusTrap(isCreateDialogOpen);
   const [newRule, setNewRule] = useState({
     rule_name: '',
     rule_type: 'care_team_assignment',
@@ -154,7 +156,7 @@ export function WorkflowRulesEngine() {
                 Create Rule
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" ref={focusTrapRef}>
               <DialogHeader>
                 <DialogTitle>Create Automation Rule</DialogTitle>
               </DialogHeader>
@@ -165,6 +167,7 @@ export function WorkflowRulesEngine() {
                     value={newRule.rule_name}
                     onChange={(e) => setNewRule({ ...newRule, rule_name: e.target.value })}
                     placeholder="e.g., Auto-assign triage to nurse"
+                    autoFocus
                   />
                 </div>
                 <div>

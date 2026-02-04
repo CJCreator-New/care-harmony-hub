@@ -34,7 +34,7 @@ interface AutomationJob {
 }
 
 export function LabAutomationPanel() {
-  const { hospitalId } = useAuth();
+  const { hospital } = useAuth();
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
   const [activeSensors, setActiveSensors] = useState({
     temperature: 4.2,

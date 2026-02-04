@@ -1,49 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ClinicalService } from '../services/clinical';
-import { config } from '../config/config';
-
-// Mock external dependencies to prevent actual connections
-vi.mock('../src/config/config', () => ({
-  config: {
-    database: {
-      host: 'localhost',
-      port: 5432,
-      database: 'test_db',
-      user: 'test_user',
-      password: 'test_pass',
-      ssl: false,
-    },
-    redis: {
-      host: 'localhost',
-      port: 6379,
-      password: undefined,
-    },
-    kafka: {
-      brokers: ['localhost:9092'],
-      clientId: 'clinical-service-test',
-      groupId: 'clinical-service-test-group',
-    },
-    encryption: {
-      key: 'test-encryption-key-32-chars-long',
-      algorithm: 'aes-256-gcm',
-    },
-  },
-}));
-
-vi.mock('../src/config/environment', () => ({
-  env: {
-    DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',
-    REDIS_URL: 'redis://localhost:6379',
-    KAFKA_BROKERS: 'localhost:9092',
-    JWT_SECRET: 'test-jwt-secret-key-for-testing-only',
-    ENCRYPTION_KEY: 'test-encryption-key-32-chars-long',
-    HOSPITAL_ID: 'test-hospital-123',
-    NODE_ENV: 'test',
-  },
-  config: {
-    LOG_LEVEL: 'info',
-  },
-}));
+import { config } from '../config/environment';
 
 describe('Clinical Service Integration', () => {
   it('should instantiate ClinicalService', () => {
@@ -79,9 +36,9 @@ describe('Clinical Service Integration', () => {
 
   it('should have proper config structure', () => {
     expect(config).toBeDefined();
-    expect(config.database).toBeDefined();
-    expect(config.redis).toBeDefined();
-    expect(config.kafka).toBeDefined();
-    expect(config.encryption).toBeDefined();
+    expect(config.DATABASE_URL).toBeDefined();
+    expect(config.REDIS_URL).toBeDefined();
+    expect(config.KAFKA_BROKERS).toBeDefined();
+    expect(config.ENCRYPTION_KEY).toBeDefined();
   });
 });

@@ -44,10 +44,8 @@ export const CROSS_ROLE_WORKFLOWS = {
     name: 'Administrative Workflow',
     description: 'Staff management and oversight',
     steps: [
-      { from: 'super_admin', to: 'admin', action: 'hospital_setup', description: 'Super admin creates hospital admin' },
-      { from: 'admin', to: 'dept_head', action: 'department_assignment', description: 'Admin assigns department head' },
-      { from: 'dept_head', to: 'doctor', action: 'staff_management', description: 'Department head manages doctors' },
-      { from: 'dept_head', to: 'nurse', action: 'staff_management', description: 'Department head manages nurses' },
+      { from: 'admin', to: 'doctor', action: 'staff_management', description: 'Admin manages doctors' },
+      { from: 'admin', to: 'nurse', action: 'staff_management', description: 'Admin manages nurses' },
       { from: 'admin', to: 'receptionist', action: 'staff_onboarding', description: 'Admin onboards receptionist' },
       { from: 'admin', to: 'pharmacist', action: 'staff_onboarding', description: 'Admin onboards pharmacist' },
       { from: 'admin', to: 'lab_technician', action: 'staff_onboarding', description: 'Admin onboards lab technician' },
@@ -71,10 +69,9 @@ export const CROSS_ROLE_WORKFLOWS = {
     name: 'Quality Assurance',
     description: 'Clinical quality and compliance monitoring',
     steps: [
-      { from: 'doctor', to: 'dept_head', action: 'case_review', description: 'Doctor requests case review' },
-      { from: 'nurse', to: 'dept_head', action: 'incident_report', description: 'Nurse reports incident' },
-      { from: 'dept_head', to: 'admin', action: 'compliance_report', description: 'Department head reports to admin' },
-      { from: 'admin', to: 'super_admin', action: 'audit_request', description: 'Admin requests audit' },
+      { from: 'doctor', to: 'admin', action: 'case_review', description: 'Doctor requests case review' },
+      { from: 'nurse', to: 'admin', action: 'incident_report', description: 'Nurse reports incident' },
+      { from: 'admin', to: 'admin', action: 'compliance_report', description: 'Admin handles compliance reports' },
     ]
   }
 } as const;
@@ -82,24 +79,20 @@ export const CROSS_ROLE_WORKFLOWS = {
 // Role communication matrix - defines which roles can communicate with each other
 // Enhanced: Added missing bidirectional communication paths for clinical coordination
 export const ROLE_COMMUNICATION_MATRIX: Record<UserRole, UserRole[]> = {
-  super_admin: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
-  dept_head: ['super_admin', 'admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
-  admin: ['super_admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
-  doctor: ['super_admin', 'admin', 'dept_head', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
-  nurse: ['super_admin', 'admin', 'dept_head', 'doctor', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+  admin: ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+  doctor: ['admin', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+  nurse: ['admin', 'doctor', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
   // Enhanced: receptionist can now communicate with pharmacist and lab_technician
-  receptionist: ['admin', 'dept_head', 'nurse', 'doctor', 'pharmacist', 'lab_technician', 'patient'],
+  receptionist: ['admin', 'nurse', 'doctor', 'pharmacist', 'lab_technician', 'patient'],
   // Enhanced: pharmacist can now communicate with receptionist and lab_technician
-  pharmacist: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'patient'],
+  pharmacist: ['admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'patient'],
   // Enhanced: lab_technician can now communicate with receptionist and pharmacist
-  lab_technician: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist'],
+  lab_technician: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist'],
   patient: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist'],
 };
 
 // Task delegation matrix - defines which roles can assign tasks to which other roles
 export const TASK_DELEGATION_MATRIX: Record<UserRole, UserRole[]> = {
-  super_admin: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
-  dept_head: ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
   admin: ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
   doctor: ['nurse', 'receptionist', 'pharmacist', 'lab_technician'],
   nurse: ['receptionist'],
@@ -203,8 +196,8 @@ function validateRoleHierarchy(): boolean {
     return false;
   }
 
-  // Verify super_admin is highest
-  if (ROLE_HIERARCHY.super_admin !== Math.max(...levels)) {
+  // Verify admin is highest
+  if (ROLE_HIERARCHY.admin !== Math.max(...levels)) {
     return false;
   }
 
@@ -271,7 +264,7 @@ function validateCommunicationPaths(): boolean {
     for (const toRole of ROLE_COMMUNICATION_MATRIX[fromRole]) {
       // Check if reverse communication exists (not required but good to know)
       const hasReverse = ROLE_COMMUNICATION_MATRIX[toRole].includes(fromRole);
-      if (!hasReverse && fromRole !== 'super_admin') {
+      if (!hasReverse) {
         console.info(`One-way communication: ${fromRole} -> ${toRole}`);
       }
     }
@@ -493,27 +486,13 @@ export function isValidRoleTransition(fromRole: UserRole, toRole: UserRole): {
   valid: boolean;
   reason?: string;
 } {
-  // Super admin can switch to any role
-  if (fromRole === 'super_admin') {
-    return { valid: true };
-  }
-
   // Admin can switch to roles they can manage
   if (fromRole === 'admin') {
-    const manageableRoles = ['dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
+    const manageableRoles = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
     if (manageableRoles.includes(toRole)) {
       return { valid: true };
     }
     return { valid: false, reason: 'Admin cannot switch to this role' };
-  }
-
-  // Department head can switch to department roles
-  if (fromRole === 'dept_head') {
-    const deptRoles = ['doctor', 'nurse'];
-    if (deptRoles.includes(toRole)) {
-      return { valid: true };
-    }
-    return { valid: false, reason: 'Department head can only switch to department roles' };
   }
 
   // Other roles cannot switch
@@ -698,7 +677,7 @@ export function validateRouteProtection(routeConfig: {
   overPermissioned: { path: string; suggestion: string }[];
   score: number;
 } {
-  const higherRoles: UserRole[] = ['super_admin', 'dept_head'];
+  const higherRoles: UserRole[] = [];
   const missingHigherRoles: { path: string; missingRoles: UserRole[] }[] = [];
   const overPermissioned: { path: string; suggestion: string }[] = [];
   

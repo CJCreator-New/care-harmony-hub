@@ -56,6 +56,19 @@ export class WebhookService {
   private retryQueue: WebhookRetry[] = [];
   private isProcessingRetries = false;
   private deliveryLogs: WebhookLog[] = [];
+  private retryProcessorInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    this.startRetryProcessor();
+  }
+
+  // Cleanup method to clear intervals
+  destroy(): void {
+    if (this.retryProcessorInterval) {
+      clearInterval(this.retryProcessorInterval);
+      this.retryProcessorInterval = null;
+    }
+  }
 
   constructor() {
     this.startRetryProcessor();
@@ -252,7 +265,12 @@ export class WebhookService {
 
   // Start retry processor
   private startRetryProcessor(): void {
-    setInterval(async () => {
+    // Clear any existing interval
+    if (this.retryProcessorInterval) {
+      clearInterval(this.retryProcessorInterval);
+    }
+
+    this.retryProcessorInterval = setInterval(async () => {
       if (this.isProcessingRetries || this.retryQueue.length === 0) return;
 
       this.isProcessingRetries = true;

@@ -22,8 +22,6 @@ import {
 } from 'lucide-react';
 
 const ROLE_CONFIG: Record<UserRole, { label: string; icon: any; color: string }> = {
-  super_admin: { label: 'Super Admin', icon: Shield, color: 'bg-red-500' },
-  dept_head: { label: 'Department Head', icon: Shield, color: 'bg-orange-500' },
   admin: { label: 'Administrator', icon: Shield, color: 'bg-purple-500' },
   doctor: { label: 'Doctor', icon: Stethoscope, color: 'bg-blue-500' },
   nurse: { label: 'Nurse', icon: Heart, color: 'bg-pink-500' },
@@ -41,7 +39,11 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ onRoleChange, currentRole }: RoleSwitcherProps) {
-  const config = ROLE_CONFIG[currentRole];
+  const config = ROLE_CONFIG[currentRole] || {
+    label: currentRole.charAt(0).toUpperCase() + currentRole.slice(1).replace('_', ' '),
+    icon: Shield,
+    color: 'bg-gray-500'
+  };
   const Icon = config.icon;
 
   const handleRoleChange = (role: RoleKey) => {

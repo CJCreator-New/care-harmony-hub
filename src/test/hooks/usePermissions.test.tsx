@@ -1,6 +1,12 @@
 import { renderHook } from '@testing-library/react';
 import { hasAnyRole } from '@/hooks/usePermissions';
 import { UserRole } from '@/types/auth';
+import { vi } from 'vitest';
+
+// Mock sonner to prevent DOM access during tests
+vi.mock('sonner', () => ({
+  toast: vi.fn(),
+}));
 
 describe('hasAnyRole', () => {
   it('returns true when user has required role', () => {

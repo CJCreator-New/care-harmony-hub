@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { secureTransmission } from '@/utils/dataProtection';
 
 interface PendingAction {
   id: string;
@@ -17,6 +18,11 @@ interface OfflineCache {
   medications: Record<string, unknown>[];
   syncStatus: 'pending' | 'synced' | 'error';
   pendingActions: PendingAction[];
+  encryptionMetadata?: {
+    patientData: Record<string, any>[];
+    vitals: Record<string, any>[];
+    medications: Record<string, any>[];
+  };
 }
 
 const OFFLINE_CACHE_KEY = 'care-harmony-offline-cache';
@@ -39,92 +45,207 @@ export const useOfflineSync = () => {
     vitals: [],
     medications: [],
     syncStatus: 'synced',
-    pendingActions: []
+    pendingActions: [],
+    encryptionMetadata: {
+      patientData: [],
+      vitals: [],
+      medications: []
+    }
   });
   const { toast } = useToast();
 
-  // OPTIMIZED: Load cached data from localStorage on mount with size validation
+  // OPTIMIZED: Load cached data from localStorage on mount with size validation and decryption
   useEffect(() => {
-    try {
-      const savedCache = localStorage.getItem(OFFLINE_CACHE_KEY);
-      if (savedCache) {
-        // Check cache size before parsing
-        if (savedCache.length > MAX_CACHE_SIZE) {
-          console.warn('Cache size exceeds limit, clearing old cache');
-          localStorage.removeItem(OFFLINE_CACHE_KEY);
-          return;
+    const loadCache = async () => {
+      try {
+        const savedCache = localStorage.getItem(OFFLINE_CACHE_KEY);
+        if (savedCache) {
+          // Check cache size before parsing
+          if (savedCache.length > MAX_CACHE_SIZE) {
+            console.warn('Cache size exceeds limit, clearing old cache');
+            localStorage.removeItem(OFFLINE_CACHE_KEY);
+            return;
+          }
+
+          const parsedCache = JSON.parse(savedCache);
+
+          // Decrypt PHI data if encryption metadata exists
+          let decryptedCache = { ...parsedCache };
+
+          if (parsedCache.encryptionMetadata) {
+            try {
+              // Decrypt patient data
+              if (parsedCache.encryptionMetadata.patientData?.length > 0) {
+                decryptedCache.patientData = await Promise.all(
+                  parsedCache.patientData.map((item: any, index: number) =>
+                    parsedCache.encryptionMetadata.patientData[index]
+                      ? secureTransmission.restoreFromTransmission(item, parsedCache.encryptionMetadata.patientData[index])
+                      : item
+                  )
+                );
+              }
+
+              // Decrypt vitals data
+              if (parsedCache.encryptionMetadata.vitals?.length > 0) {
+                decryptedCache.vitals = await Promise.all(
+                  parsedCache.vitals.map((item: any, index: number) =>
+                    parsedCache.encryptionMetadata.vitals[index]
+                      ? secureTransmission.restoreFromTransmission(item, parsedCache.encryptionMetadata.vitals[index])
+                      : item
+                  )
+                );
+              }
+
+              // Decrypt medications data
+              if (parsedCache.encryptionMetadata.medications?.length > 0) {
+                decryptedCache.medications = await Promise.all(
+                  parsedCache.medications.map((item: any, index: number) =>
+                    parsedCache.encryptionMetadata.medications[index]
+                      ? secureTransmission.restoreFromTransmission(item, parsedCache.encryptionMetadata.medications[index])
+                      : item
+                  )
+                );
+              }
+            } catch (decryptError) {
+              console.error('Failed to decrypt cached data:', decryptError);
+              // Clear corrupted encrypted cache
+              localStorage.removeItem(OFFLINE_CACHE_KEY);
+              return;
+            }
+          }
+
+          // Validate and limit pending actions to prevent memory issues
+          if (decryptedCache.pendingActions?.length > MAX_PENDING_ACTIONS) {
+            decryptedCache.pendingActions = decryptedCache.pendingActions.slice(-MAX_PENDING_ACTIONS);
+            console.warn(`Pending actions truncated to ${MAX_PENDING_ACTIONS}`);
+          }
+
+          // Limit cached data arrays to prevent unbounded growth
+          if (decryptedCache.patientData?.length > 50) {
+            decryptedCache.patientData = decryptedCache.patientData.slice(-50);
+          }
+          if (decryptedCache.vitals?.length > 100) {
+            decryptedCache.vitals = decryptedCache.vitals.slice(-100);
+          }
+          if (decryptedCache.medications?.length > 50) {
+            decryptedCache.medications = decryptedCache.medications.slice(-50);
+          }
+
+          setCache(prev => ({ ...prev, ...decryptedCache }));
         }
-        
-        const parsedCache = JSON.parse(savedCache);
-        
-        // Validate and limit pending actions to prevent memory issues
-        if (parsedCache.pendingActions?.length > MAX_PENDING_ACTIONS) {
-          parsedCache.pendingActions = parsedCache.pendingActions.slice(-MAX_PENDING_ACTIONS);
-          console.warn(`Pending actions truncated to ${MAX_PENDING_ACTIONS}`);
-        }
-        
-        // Limit cached data arrays to prevent unbounded growth
-        if (parsedCache.patientData?.length > 50) {
-          parsedCache.patientData = parsedCache.patientData.slice(-50);
-        }
-        if (parsedCache.vitals?.length > 100) {
-          parsedCache.vitals = parsedCache.vitals.slice(-100);
-        }
-        if (parsedCache.medications?.length > 50) {
-          parsedCache.medications = parsedCache.medications.slice(-50);
-        }
-        
-        setCache(prev => ({ ...prev, ...parsedCache }));
+      } catch (error) {
+        console.error('Failed to parse offline cache:', error);
+        // Clear corrupted cache
+        localStorage.removeItem(OFFLINE_CACHE_KEY);
       }
-    } catch (error) {
-      console.error('Failed to parse offline cache:', error);
-      // Clear corrupted cache
-      localStorage.removeItem(OFFLINE_CACHE_KEY);
-    }
+    };
+
+    loadCache();
   }, []);
 
-  // OPTIMIZED: Save cache to localStorage with size checking and error handling
+  // OPTIMIZED: Save cache to localStorage with size checking, error handling, and encryption
   useEffect(() => {
-    try {
-      const cacheString = JSON.stringify(cache);
-      
-      // Check if cache would exceed storage limit
-      if (cacheString.length > MAX_CACHE_SIZE) {
-        console.warn('Cache too large, trimming data');
-        // Trim the cache before saving
-        const trimmedCache = {
+    const saveCache = async () => {
+      try {
+        // Define PHI fields that need encryption
+        const phiFields = [
+          'first_name', 'last_name', 'date_of_birth', 'phone', 'email', 'address',
+          'city', 'state', 'zip', 'blood_type', 'allergies', 'chronic_conditions',
+          'current_medications', 'insurance_provider', 'insurance_policy_number',
+          'emergency_contact_name', 'emergency_contact_phone', 'notes'
+        ];
+
+        // Encrypt PHI data before saving
+        const { data: encryptedPatientData, encryptionMetadata: patientMetadata } =
+          await secureTransmission.prepareForTransmission(cache.patientData, phiFields);
+
+        const { data: encryptedVitals, encryptionMetadata: vitalsMetadata } =
+          await secureTransmission.prepareForTransmission(cache.vitals, ['value', 'notes', 'recorded_by']);
+
+        const { data: encryptedMedications, encryptionMetadata: medicationsMetadata } =
+          await secureTransmission.prepareForTransmission(cache.medications, ['name', 'dosage', 'instructions', 'prescribed_by']);
+
+        // Create encrypted cache object
+        const encryptedCache = {
           ...cache,
-          patientData: cache.patientData.slice(-25),
-          vitals: cache.vitals.slice(-50),
-          medications: cache.medications.slice(-25),
-          pendingActions: cache.pendingActions.slice(-50),
+          patientData: encryptedPatientData,
+          vitals: encryptedVitals,
+          medications: encryptedMedications,
+          encryptionMetadata: {
+            patientData: patientMetadata,
+            vitals: vitalsMetadata,
+            medications: medicationsMetadata
+          }
         };
-        localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(trimmedCache));
-      } else {
-        localStorage.setItem(OFFLINE_CACHE_KEY, cacheString);
+
+        const cacheString = JSON.stringify(encryptedCache);
+
+        // Check if cache would exceed storage limit
+        if (cacheString.length > MAX_CACHE_SIZE) {
+          console.warn('Cache too large, trimming data');
+          // Trim the cache before saving
+          const trimmedCache = {
+            ...cache,
+            patientData: cache.patientData.slice(-25),
+            vitals: cache.vitals.slice(-50),
+            medications: cache.medications.slice(-25),
+            pendingActions: cache.pendingActions.slice(-50),
+          };
+
+          // Re-encrypt trimmed data
+          const { data: trimmedPatientData, encryptionMetadata: trimmedPatientMetadata } =
+            await secureTransmission.prepareForTransmission(trimmedCache.patientData, phiFields);
+          const { data: trimmedVitals, encryptionMetadata: trimmedVitalsMetadata } =
+            await secureTransmission.prepareForTransmission(trimmedCache.vitals, ['value', 'notes', 'recorded_by']);
+          const { data: trimmedMedications, encryptionMetadata: trimmedMedicationsMetadata } =
+            await secureTransmission.prepareForTransmission(trimmedCache.medications, ['name', 'dosage', 'instructions', 'prescribed_by']);
+
+          const trimmedEncryptedCache = {
+            ...trimmedCache,
+            patientData: trimmedPatientData,
+            vitals: trimmedVitals,
+            medications: trimmedMedications,
+            encryptionMetadata: {
+              patientData: trimmedPatientMetadata,
+              vitals: trimmedVitalsMetadata,
+              medications: trimmedMedicationsMetadata
+            }
+          };
+
+          localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(trimmedEncryptedCache));
+        } else {
+          localStorage.setItem(OFFLINE_CACHE_KEY, cacheString);
+        }
+      } catch (error) {
+        // Handle quota exceeded error
+        if (error instanceof Error && error.name === 'QuotaExceededError') {
+          console.error('localStorage quota exceeded, clearing cache');
+          // Clear non-essential cached data, keep only pending actions
+          const minimalCache = {
+            ...cache,
+            patientData: [],
+            vitals: [],
+            medications: [],
+            pendingActions: cache.pendingActions.slice(-20), // Keep only most critical
+            encryptionMetadata: {
+              patientData: [],
+              vitals: [],
+              medications: []
+            }
+          };
+          localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(minimalCache));
+          toast({
+            title: "Storage limit reached",
+            description: "Offline data cleared. Pending actions preserved.",
+            variant: "destructive"
+          });
+        } else {
+          console.error('Failed to save offline cache:', error);
+        }
       }
-    } catch (error) {
-      // Handle quota exceeded error
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
-        console.error('localStorage quota exceeded, clearing cache');
-        // Clear non-essential cached data, keep only pending actions
-        const minimalCache = {
-          ...cache,
-          patientData: [],
-          vitals: [],
-          medications: [],
-          pendingActions: cache.pendingActions.slice(-20), // Keep only most critical
-        };
-        localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(minimalCache));
-        toast({
-          title: "Storage limit reached",
-          description: "Offline data cleared. Pending actions preserved.",
-          variant: "destructive"
-        });
-      } else {
-        console.error('Failed to save offline cache:', error);
-      }
-    }
+    };
+
+    saveCache();
   }, [cache, toast]);
 
   // Network status monitoring

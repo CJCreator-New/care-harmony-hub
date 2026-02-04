@@ -73,11 +73,11 @@ export function PatientJourneyTracker({
                   <div className="flex-1 pb-4">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">
-                        {ROLE_INFO[step.from].label}
+                        {ROLE_INFO[step.from]?.label || step.from}
                       </Badge>
                       <ArrowRight className="h-4 w-4 text-gray-400" />
                       <Badge variant="outline">
-                        {ROLE_INFO[step.to].label}
+                        {ROLE_INFO[step.to]?.label || step.to}
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-gray-600">

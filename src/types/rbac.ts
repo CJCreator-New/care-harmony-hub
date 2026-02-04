@@ -2,8 +2,6 @@
 // Implements 9 roles with granular permissions and clear hierarchies
 
 export type UserRole =
-  | 'super_admin'
-  | 'dept_head'
   | 'admin'
   | 'doctor'
   | 'nurse'
@@ -97,8 +95,6 @@ export enum PermissionCategory {
   PORTAL_ACCESS = 'portal:access',
 
   // Admin-only Features
-  SUPER_ADMIN_ACCESS = 'super_admin:access',
-  DEPT_HEAD_ACCESS = 'dept_head:access',
   SYSTEM_MAINTENANCE = 'system:maintenance',
   AUDIT_LOGS = 'audit:logs',
   COMPLIANCE_REPORTS = 'compliance:reports',
@@ -108,46 +104,6 @@ export type Permission = PermissionCategory | string;
 
 // Role Hierarchies and Permissions
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  super_admin: [
-    // Full system access
-    PermissionCategory.SUPER_ADMIN_ACCESS,
-    PermissionCategory.SYSTEM_MAINTENANCE,
-    PermissionCategory.AUDIT_LOGS,
-    PermissionCategory.COMPLIANCE_REPORTS,
-    // All other permissions
-    ...Object.values(PermissionCategory).filter(p =>
-      !p.includes('super_admin') && !p.includes('dept_head')
-    ),
-  ],
-
-  dept_head: [
-    // Department head permissions
-    PermissionCategory.DEPT_HEAD_ACCESS,
-    PermissionCategory.STAFF_MANAGE,
-    PermissionCategory.REPORTS_GENERATE,
-    PermissionCategory.WORKFLOW_MANAGE,
-    PermissionCategory.ACTIVITY_LOGS_READ,
-    // Core clinical permissions
-    PermissionCategory.PATIENT_READ,
-    PermissionCategory.PATIENT_WRITE,
-    PermissionCategory.APPOINTMENT_READ,
-    PermissionCategory.APPOINTMENT_WRITE,
-    PermissionCategory.CONSULTATION_READ,
-    PermissionCategory.CONSULTATION_WRITE,
-    PermissionCategory.PRESCRIPTION_READ,
-    PermissionCategory.LAB_READ,
-    PermissionCategory.PHARMACY_READ,
-    PermissionCategory.BILLING_READ,
-    PermissionCategory.QUEUE_READ,
-    PermissionCategory.QUEUE_WRITE,
-    PermissionCategory.REPORTS_READ,
-    PermissionCategory.SETTINGS_READ,
-    // ADD these missing permissions:
-    PermissionCategory.STAFF_INVITE,           // Can invite staff to department
-    PermissionCategory.AUDIT_LOGS,             // Can view audit logs for department
-    PermissionCategory.INVENTORY_READ,         // Can view inventory status
-  ],
-
   admin: [
     // Administrative permissions
     PermissionCategory.STAFF_READ,
@@ -161,6 +117,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PermissionCategory.REPORTS_GENERATE,
     PermissionCategory.WORKFLOW_READ,
     PermissionCategory.ACTIVITY_LOGS_READ,
+    PermissionCategory.SYSTEM_MAINTENANCE,
+    PermissionCategory.AUDIT_LOGS,
+    PermissionCategory.COMPLIANCE_REPORTS,
     // Full clinical access
     PermissionCategory.PATIENT_READ,
     PermissionCategory.PATIENT_WRITE,
@@ -283,8 +242,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
 // Role Hierarchy Levels (higher number = more permissions)
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
-  super_admin: 100,
-  dept_head: 90,
   admin: 80,
   doctor: 70,
   nurse: 60,
@@ -301,18 +258,6 @@ export const ROLE_INFO: Record<UserRole, {
   color: string;
   icon: string;
 }> = {
-  super_admin: {
-    label: 'Super Administrator',
-    description: 'Full system access and maintenance',
-    color: 'bg-gradient-to-r from-purple-600 to-pink-600',
-    icon: 'Shield',
-  },
-  dept_head: {
-    label: 'Department Head',
-    description: 'Department oversight and management',
-    color: 'bg-gradient-to-r from-blue-600 to-cyan-600',
-    icon: 'Crown',
-  },
   admin: {
     label: 'Administrator',
     description: 'Hospital administration and staff management',
@@ -363,9 +308,6 @@ export function hasPermission(role: UserRole | undefined, permission: Permission
 
   const rolePermissions = ROLE_PERMISSIONS[role] || [];
 
-  // Super admin has all permissions
-  if (role === 'super_admin') return true;
-
   // Check exact permission match
   if (rolePermissions.includes(permission)) return true;
 
@@ -388,14 +330,6 @@ export function hasAllPermissions(role: UserRole | undefined, permissions: Permi
 }
 
 export function canAccessRole(userRole: UserRole, targetRole: UserRole): boolean {
-  // Super admin can access everything
-  if (userRole === 'super_admin') return true;
-
-  // Dept heads can access roles below them
-  if (userRole === 'dept_head') {
-    return ROLE_HIERARCHY[targetRole] < ROLE_HIERARCHY.dept_head;
-  }
-
   // Admins can access roles below them
   if (userRole === 'admin') {
     return ROLE_HIERARCHY[targetRole] < ROLE_HIERARCHY.admin;

@@ -125,8 +125,10 @@ CREATE POLICY "Medication reviews hospital access" ON medication_therapy_reviews
     SELECT hospital_id FROM profiles WHERE id = auth.uid()
   ));
 
-CREATE POLICY "DUR criteria global access" ON dur_criteria
-  FOR ALL USING (true);
+CREATE POLICY "DUR criteria hospital access" ON dur_criteria
+  FOR ALL USING (hospital_id IN (
+    SELECT hospital_id FROM profiles WHERE user_id = auth.uid()
+  ));
 
 CREATE POLICY "DUR findings hospital access" ON dur_findings
   FOR ALL USING (hospital_id IN (

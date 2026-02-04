@@ -1,7 +1,7 @@
 # CareSync HIMS Role Enhancement Plan
 
-**Document Version:** 1.0.0  
-**Last Updated:** January 31, 2026  
+**Document Version:** 2.0.0  
+**Last Updated:** February 2, 2026  
 **Status:** Active  
 **Related:** [ROLE_INTERCONNECTION_REPORT.md](./ROLE_INTERCONNECTION_REPORT.md)
 
@@ -11,12 +11,11 @@
 
 1. [Overview](#overview)
 2. [Priority Matrix](#priority-matrix)
-3. [Phase 1: Critical Fixes](#phase-1-critical-fixes)
-4. [Phase 2: Workflow Enhancements](#phase-2-workflow-enhancements)
-5. [Phase 3: UI/UX Optimization](#phase-3-uiux-optimization)
-6. [Code Implementation Details](#code-implementation-details)
-7. [Testing Strategy](#testing-strategy)
-8. [Rollout Plan](#rollout-plan)
+3. [Phase 1: Workflow Enhancements](#phase-1-workflow-enhancements)
+4. [Phase 2: UI/UX Optimization](#phase-2-uiux-optimization)
+5. [Code Implementation Details](#code-implementation-details)
+6. [Testing Strategy](#testing-strategy)
+7. [Rollout Plan](#rollout-plan)
 
 ---
 
@@ -33,10 +32,10 @@ This document outlines the implementation plan for enhancing the role interconne
 ### Success Metrics
 | Metric | Current | Target |
 |--------|---------|--------|
-| Route Protection Coverage | 73% | 100% |
-| Communication Path Coverage | 78% | 95% |
-| Permission Consistency | 91% | 100% |
-| Overall Health Score | 87% | 95% |
+| Route Protection Coverage | 100% | 100% |
+| Communication Path Coverage | 85% | 95% |
+| Permission Consistency | 95% | 100% |
+| Overall Health Score | 92% | 95% |
 
 ---
 
@@ -60,90 +59,13 @@ This document outlines the implementation plan for enhancing the role interconne
 
 ---
 
-## Phase 1: Critical Fixes
+## Phase 1: Workflow Enhancements
 
 **Timeline:** Days 1-5  
 **Resources:** 1 Senior Developer  
 **Risk Level:** Low
 
-### Fix 1.1: Add Super Admin and Dept Head to Route Protections
-
-**File:** `src/App.tsx`  
-**Effort:** Small (2-3 hours)  
-**Impact:** Critical
-
-```typescript
-// BEFORE (lines 240-400)
-<RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
-
-// AFTER
-<RoleProtectedRoute allowedRoles={['super_admin', 'dept_head', 'admin', 'doctor', 'nurse', 'receptionist']}>
-```
-
-**Routes to Update:**
-
-| Route | Current Roles | Add Roles |
-|-------|---------------|-----------|
-| `/patients` | admin, doctor, nurse, receptionist | super_admin, dept_head |
-| `/patients/:id` | admin, doctor, nurse, receptionist | super_admin, dept_head |
-| `/appointments` | admin, doctor, nurse, receptionist | super_admin, dept_head |
-| `/consultations` | admin, doctor, nurse | super_admin, dept_head |
-| `/consultations/:id` | admin, doctor, nurse | super_admin, dept_head |
-| `/consultations/mobile` | admin, doctor | super_admin, dept_head |
-| `/pharmacy` | admin, pharmacist | super_admin, dept_head |
-| `/pharmacy/clinical` | admin, pharmacist | super_admin, dept_head |
-| `/queue` | admin, doctor, nurse, receptionist | super_admin, dept_head |
-| `/laboratory` | admin, doctor, nurse, lab_technician | super_admin, dept_head |
-| `/laboratory/automation` | admin, lab_technician | super_admin, dept_head |
-| `/billing` | admin, receptionist | super_admin, dept_head |
-| `/inventory` | admin, pharmacist | super_admin, dept_head |
-| `/reports` | admin | super_admin, dept_head, doctor |
-| `/messages` | admin, doctor, nurse | super_admin, dept_head, pharmacist, lab_technician |
-
----
-
-### Fix 1.2: Consolidate UserRole Type Definitions
-
-**Files:** 
-- `src/types/auth.ts`
-- `src/types/rbac.ts`
-
-**Effort:** Small (1-2 hours)  
-**Impact:** High
-
-**Current Issue:**
-```typescript
-// src/types/auth.ts (INCOMPLETE)
-export type UserRole = 'patient' | 'doctor' | 'nurse' | 'receptionist' | 
-                       'pharmacist' | 'lab_technician' | 'admin';
-
-// src/types/rbac.ts (COMPLETE)
-export type UserRole = 'super_admin' | 'dept_head' | 'admin' | 'doctor' | 
-                       'nurse' | 'receptionist' | 'pharmacist' | 
-                       'lab_technician' | 'patient';
-```
-
-**Solution:**
-```typescript
-// src/types/auth.ts - Update to re-export from rbac.ts
-export { UserRole } from './rbac';
-
-// Or update the type definition to match:
-export type UserRole = 
-  | 'super_admin'
-  | 'dept_head'
-  | 'admin'
-  | 'doctor'
-  | 'nurse'
-  | 'receptionist'
-  | 'pharmacist'
-  | 'lab_technician'
-  | 'patient';
-```
-
----
-
-### Fix 1.3: Update Communication Matrix
+### Fix 1.1: Update Communication Matrix
 
 **File:** `src/utils/roleInterconnectionValidator.ts`  
 **Effort:** Small (1 hour)  
@@ -152,15 +74,13 @@ export type UserRole =
 ```typescript
 // Update ROLE_COMMUNICATION_MATRIX
 export const ROLE_COMMUNICATION_MATRIX: Record<UserRole, UserRole[]> = {
-  super_admin: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
-  dept_head: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
-  admin: ['dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
-  doctor: ['admin', 'dept_head', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
-  nurse: ['admin', 'dept_head', 'doctor', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+  admin: ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+  doctor: ['admin', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+  nurse: ['admin', 'doctor', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
   // ADD: receptionist -> pharmacist, lab_technician
   receptionist: ['admin', 'nurse', 'doctor', 'pharmacist', 'lab_technician', 'patient'],
   // ADD: pharmacist -> receptionist, lab_technician
-  pharmacist: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'patient'],
+  pharmacist: ['admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'patient'],
   // ADD: lab_technician -> receptionist, pharmacist
   lab_technician: ['admin', 'dept_head', 'doctor', 'nurse', 'receptionist', 'pharmacist'],
   patient: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist'],

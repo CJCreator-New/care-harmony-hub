@@ -48,11 +48,17 @@ vi.mock('../config/environment', () => ({
 }));
 
 vi.mock('pg', () => ({
-  Pool: vi.fn().mockImplementation(() => ({
-    connect: vi.fn(),
-    query: vi.fn(),
-    end: vi.fn(),
-  })),
+  Pool: vi.fn().mockImplementation(function() {
+    return {
+      connect: vi.fn().mockResolvedValue({
+        query: vi.fn(),
+        release: vi.fn(),
+      }),
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+      end: vi.fn(),
+      on: vi.fn(),
+    };
+  }),
 }));
 
 vi.mock('redis', () => ({
@@ -62,23 +68,26 @@ vi.mock('redis', () => ({
     get: vi.fn(),
     del: vi.fn(),
     quit: vi.fn(),
+    on: vi.fn(),
   }),
 }));
 
 vi.mock('kafkajs', () => ({
-  Kafka: vi.fn().mockImplementation(() => ({
-    producer: vi.fn().mockReturnValue({
-      connect: vi.fn(),
-      send: vi.fn(),
-      disconnect: vi.fn(),
-    }),
-    consumer: vi.fn().mockReturnValue({
-      connect: vi.fn(),
-      subscribe: vi.fn(),
-      run: vi.fn(),
-      disconnect: vi.fn(),
-    }),
-  })),
+  Kafka: vi.fn().mockImplementation(function() {
+    return {
+      producer: vi.fn().mockReturnValue({
+        connect: vi.fn(),
+        send: vi.fn(),
+        disconnect: vi.fn(),
+      }),
+      consumer: vi.fn().mockReturnValue({
+        connect: vi.fn(),
+        subscribe: vi.fn(),
+        run: vi.fn(),
+        disconnect: vi.fn(),
+      }),
+    };
+  }),
 }));
 
 describe('ClinicalService', () => {

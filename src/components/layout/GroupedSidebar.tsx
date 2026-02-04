@@ -183,63 +183,77 @@ export function GroupedSidebar({ userRole, testRole, className }: GroupedSidebar
     return location.pathname === href || location.pathname.startsWith(href + '/');
   };
 
-  return (
-    <nav className={cn("space-y-2", className)}>
-      {navGroups
-        .filter(hasAccessToGroup)
-        .map((group) => {
-          const accessibleItems = group.items.filter(hasAccessToItem);
-          if (accessibleItems.length === 0) return null;
+  const accessibleGroups = navGroups
+    .filter(hasAccessToGroup)
+    .map((group) => {
+      const accessibleItems = group.items.filter(hasAccessToItem);
+      if (accessibleItems.length === 0) return null;
 
-          const isExpanded = expandedGroups[group.label];
+      const isExpanded = expandedGroups[group.label];
 
-          return (
-            <Collapsible
-              key={group.label}
-              open={isExpanded}
-              onOpenChange={() => toggleGroup(group.label)}
+      return (
+        <Collapsible
+          key={group.label}
+          open={isExpanded}
+          onOpenChange={() => toggleGroup(group.label)}
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              className="w-full justify-between h-auto p-3 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none"
             >
-              <CollapsibleTrigger asChild>
+              <div className="flex items-center gap-3">
+                <group.icon className="h-4 w-4 text-sidebar-foreground" />
+                <span className="font-medium text-sm text-sidebar-foreground">{group.label}</span>
+              </div>
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-sidebar-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-sidebar-foreground" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-1 pl-4">
+            {accessibleItems.map((item) => (
+              <Link key={item.href} to={item.href}>
                 <Button
-                  variant="ghost"
-                  className="w-full justify-between h-auto p-3 hover:bg-accent/50"
+                  className={cn(
+                    "w-full justify-start h-auto p-2 text-sm text-sidebar-foreground bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none",
+                    isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground"
+                  )}
+                  size="sm"
                 >
-                  <div className="flex items-center gap-3">
-                    <group.icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-sm">{group.label}</span>
-                  </div>
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <item.icon className="h-4 w-4 mr-3" />
+                  <span className="truncate">{item.label}</span>
+                  {item.badge && (
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {item.badge}
+                    </Badge>
                   )}
                 </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1 pl-4">
-                {accessibleItems.map((item) => (
-                  <Link key={item.href} to={item.href}>
-                    <Button
-                      variant={isActive(item.href) ? "secondary" : "ghost"}
-                      className={cn(
-                        "w-full justify-start h-auto p-2 text-sm",
-                        isActive(item.href) && "bg-accent text-accent-foreground"
-                      )}
-                      size="sm"
-                    >
-                      <item.icon className="h-4 w-4 mr-3" />
-                      <span className="truncate">{item.label}</span>
-                      {item.badge && (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </Button>
-                  </Link>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          );
-        })}
+              </Link>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+      );
+    })
+    .filter(Boolean); // Remove null entries
+
+  if (accessibleGroups.length === 0) {
+    return (
+      <div className="text-center py-8 px-4">
+        <p className="text-sm text-sidebar-foreground/60">
+          No navigation items available for your role.
+        </p>
+        <p className="text-xs text-sidebar-foreground/40 mt-2">
+          Please contact your administrator if you believe this is an error.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <nav className={cn("space-y-2", className)}>
+      {accessibleGroups}
     </nav>
   );
 }

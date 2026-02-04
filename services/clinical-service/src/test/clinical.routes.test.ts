@@ -1,60 +1,38 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+
+// Mock the ClinicalService before importing anything
+vi.mock('../services/clinical', () => ({
+  ClinicalService: vi.fn().mockImplementation(function() {
+    return {
+      initialize: vi.fn(),
+      disconnect: vi.fn(),
+      createConsultation: vi.fn(),
+      getConsultation: vi.fn(),
+      updateConsultation: vi.fn(),
+      listConsultations: vi.fn(),
+      createMedicalRecord: vi.fn(),
+      getMedicalRecord: vi.fn(),
+      listMedicalRecords: vi.fn(),
+      createWorkflow: vi.fn(),
+      updateWorkflowStep: vi.fn(),
+      getWorkflowByConsultation: vi.fn(),
+      getClinicalGuidelines: vi.fn(),
+      getMedicationRecommendations: vi.fn(),
+      validateClinicalData: vi.fn(),
+      encryptData: vi.fn(),
+      decryptData: vi.fn(),
+      setCache: vi.fn(),
+      getCache: vi.fn(),
+      deleteCache: vi.fn(),
+      publishEvent: vi.fn(),
+    };
+  }),
+}));
+
 import { buildApp } from '../app';
 import { ClinicalService } from '../services/clinical';
 
-// Mock environment to prevent validation errors
-vi.mock('../config/environment', () => ({
-  env: {
-    DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',
-    REDIS_URL: 'redis://localhost:6379',
-    KAFKA_BROKERS: 'localhost:9092',
-    JWT_SECRET: 'test-jwt-secret-key-for-testing-only',
-    ENCRYPTION_KEY: 'test-encryption-key-32-chars-long',
-    HOSPITAL_ID: 'test-hospital-123',
-    NODE_ENV: 'test',
-  },
-  config: {
-    LOG_LEVEL: 'info',
-  },
-}));
-
-// Mock the ClinicalService
-vi.mock('../services/clinical', () => ({
-  ClinicalService: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(),
-    disconnect: vi.fn(),
-    createConsultation: vi.fn(),
-    getConsultation: vi.fn(),
-    updateConsultation: vi.fn(),
-    listConsultations: vi.fn(),
-    createMedicalRecord: vi.fn(),
-    getMedicalRecord: vi.fn(),
-    listMedicalRecords: vi.fn(),
-    createWorkflow: vi.fn(),
-    updateWorkflowStep: vi.fn(),
-    getWorkflowByConsultation: vi.fn(),
-    getClinicalGuidelines: vi.fn(),
-    getMedicationRecommendations: vi.fn(),
-    validateClinicalData: vi.fn(),
-    encryptData: vi.fn(),
-    decryptData: vi.fn(),
-    setCache: vi.fn(),
-    getCache: vi.fn(),
-    deleteCache: vi.fn(),
-    publishEvent: vi.fn(),
-  })),
-}));
-
-// Mock the build function
-vi.mock('../app', () => ({
-  buildApp: vi.fn().mockResolvedValue({
-    inject: vi.fn().mockResolvedValue({
-      statusCode: 200,
-      body: JSON.stringify({ success: true, data: {} }),
-    }),
-    close: vi.fn(),
-  }),
-}));
+// Don't mock buildApp - let it use the real app with mocked ClinicalService
 
 describe('Clinical Routes', () => {
   let app: any;

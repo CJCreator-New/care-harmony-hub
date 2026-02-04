@@ -100,8 +100,8 @@ CREATE POLICY "Users can manage their own devices" ON user_devices
 CREATE POLICY "Users can view their own sessions" ON user_sessions
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "System can manage sessions" ON user_sessions
-  FOR ALL USING (true);
+CREATE POLICY "Users can manage their own sessions" ON user_sessions
+  FOR ALL USING (auth.uid() = user_id);
 
 -- RLS Policies for security_events
 CREATE POLICY "Users can view their own security events" ON security_events
