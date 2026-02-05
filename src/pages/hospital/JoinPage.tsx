@@ -27,16 +27,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
-
-const roleLabels: Record<UserRole, string> = {
-  admin: 'Administrator',
-  doctor: 'Doctor',
-  nurse: 'Nurse',
-  receptionist: 'Receptionist',
-  pharmacist: 'Pharmacist',
-  lab_technician: 'Lab Technician',
-  patient: 'Patient',
-};
+import { getRoleLabel } from '@/types/rbac';
 
 const joinSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -221,11 +212,11 @@ export default function JoinPage() {
           <p className="text-muted-foreground text-lg mb-8">
             You've been invited to join as a{' '}
             <span className="font-semibold text-foreground">
-              {roleLabels[invitation.role]}
+              {getRoleLabel(invitation.role)}
             </span>
           </p>
           <Badge variant="outline" className="text-lg px-4 py-2">
-            {roleLabels[invitation.role]}
+            {getRoleLabel(invitation.role)}
           </Badge>
         </div>
       </div>
@@ -237,7 +228,7 @@ export default function JoinPage() {
             <h1 className="text-2xl font-bold mb-2">
               Join {invitation.hospital.name}
             </h1>
-            <Badge variant="outline">{roleLabels[invitation.role]}</Badge>
+            <Badge variant="outline">{getRoleLabel(invitation.role)}</Badge>
           </div>
 
           <div className="space-y-6">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
+import { getRoleLabel } from '@/types/rbac';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,16 +31,6 @@ interface DeactivateStaffDialogProps {
   staff: StaffMember | null;
   onSuccess: () => void;
 }
-
-const roleLabels: Record<UserRole, string> = {
-  admin: 'Administrator',
-  doctor: 'Doctor',
-  nurse: 'Nurse',
-  receptionist: 'Receptionist',
-  pharmacist: 'Pharmacist',
-  lab_technician: 'Lab Technician',
-  patient: 'Patient',
-};
 
 export function DeactivateStaffDialog({
   open,
@@ -118,7 +109,7 @@ export function DeactivateStaffDialog({
                   <div className="flex gap-1 mt-2">
                     {staff.roles.map((role) => (
                       <Badge key={role} variant="secondary">
-                        {roleLabels[role]}
+                        {getRoleLabel(role)}
                       </Badge>
                     ))}
                   </div>

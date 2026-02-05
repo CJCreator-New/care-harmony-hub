@@ -43,6 +43,7 @@ import { EditStaffModal } from '@/components/staff/EditStaffModal';
 import { DeactivateStaffDialog } from '@/components/staff/DeactivateStaffDialog';
 import { UserRole } from '@/types/auth';
 import { format, formatDistanceToNow } from 'date-fns';
+import { getRoleLabel } from '@/types/rbac';
 
 interface StaffMember {
   id: string;
@@ -55,16 +56,6 @@ interface StaffMember {
   roles: UserRole[];
   created_at: string;
 }
-
-const roleLabels: Record<UserRole, string> = {
-  admin: 'Administrator',
-  doctor: 'Doctor',
-  nurse: 'Nurse',
-  receptionist: 'Receptionist',
-  pharmacist: 'Pharmacist',
-  lab_technician: 'Lab Technician',
-  patient: 'Patient',
-};
 
 const roleColors: Record<UserRole, string> = {
   admin: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
@@ -347,7 +338,7 @@ export default function StaffManagementPage() {
                               variant="outline"
                               className={roleColors[role]}
                             >
-                              {roleLabels[role]}
+                              {getRoleLabel(role)}
                             </Badge>
                           ))}
                         </div>
@@ -421,7 +412,7 @@ export default function StaffManagementPage() {
                         variant="outline"
                         className={roleColors[invitation.role]}
                       >
-                        {roleLabels[invitation.role]}
+                        {getRoleLabel(invitation.role)}
                       </Badge>
                     </TableCell>
                     <TableCell>

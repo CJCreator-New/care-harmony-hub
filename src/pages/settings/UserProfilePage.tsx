@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Shield, ShieldCheck, ShieldX, User, Mail, Phone, MapPin, Building } from 'lucide-react';
 import { toast } from 'sonner';
+import { getRoleLabel } from '@/types/rbac';
 
 export function UserProfilePage() {
   const { profile, hospital, primaryRole } = useAuth();
@@ -27,19 +28,6 @@ export function UserProfilePage() {
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
-
-  const getRoleLabel = (role: string) => {
-    const roleLabels: Record<string, string> = {
-      admin: 'Administrator',
-      doctor: 'Doctor',
-      nurse: 'Nurse',
-      receptionist: 'Receptionist',
-      pharmacist: 'Pharmacist',
-      lab_technician: 'Lab Technician',
-      patient: 'Patient',
-    };
-    return roleLabels[role] || role;
   };
 
   const getRoleColor = (role: string) => {

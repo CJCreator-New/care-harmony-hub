@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { getRoleLabel } from '@/types/rbac';
 
 const roleColors: Record<string, string> = {
   doctor: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
@@ -28,14 +29,6 @@ const roleColors: Record<string, string> = {
   receptionist: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
   pharmacist: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
   lab_technician: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
-};
-
-const roleLabels: Record<string, string> = {
-  doctor: 'Doctor',
-  nurse: 'Nurse',
-  receptionist: 'Receptionist',
-  pharmacist: 'Pharmacist',
-  lab_technician: 'Lab Technician',
 };
 
 const skeletonRowKeys = ['row-1', 'row-2', 'row-3'];
@@ -194,7 +187,7 @@ export default function StaffPerformancePage() {
                       <TableCell className="font-medium">{staff.staffName}</TableCell>
                       <TableCell>
                         <Badge className={roleColors[staff.role] || 'bg-muted'}>
-                          {roleLabels[staff.role] || staff.role}
+                          {getRoleLabel(staff.role)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">

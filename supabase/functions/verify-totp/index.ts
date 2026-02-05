@@ -12,6 +12,56 @@ interface VerifyRequest {
   userId?: string;
 }
 
+const fromBase64 = (value: string): Uint8Array => {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const getDecryptionKey = async () => {
+  const keyBase64 = Deno.env.get("TWO_FACTOR_ENCRYPTION_KEY");
+  if (!keyBase64) {
+    throw new Error("Encryption key not configured");
+  }
+  const keyBytes = Uint8Array.from(atob(keyBase64), (c) => c.charCodeAt(0));
+  if (keyBytes.length !== 32) {
+    throw new Error("Encryption key must be 32 bytes (base64-encoded)");
+  }
+  return await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    "AES-GCM",
+    false,
+    ["decrypt"]
+  );
+};
+
+const decryptSecret = async (payload: string) => {
+  if (!payload.startsWith("v1:")) {
+    return payload;
+  }
+
+  const [, encoded] = payload.split("v1:");
+  const [ivPart, cipherPart] = encoded.split(".");
+  if (!ivPart || !cipherPart) {
+    throw new Error("Invalid encrypted secret format");
+  }
+
+  const key = await getDecryptionKey();
+  const iv = fromBase64(ivPart);
+  const cipherBytes = fromBase64(cipherPart);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    cipherBytes
+  );
+
+  return new TextDecoder().decode(plaintext);
+};
+
 // TOTP implementation
 function base32Decode(encoded: string): ArrayBuffer {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -137,8 +187,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
+    const secret = await decryptSecret(secretData.secret);
+
     // Verify the TOTP code
-    const isValid = await verifyTOTP(secretData.secret, code);
+    const isValid = await verifyTOTP(secret, code);
     
     console.log(`TOTP verification for user ${userId}: ${isValid ? 'success' : 'failed'}`);
     

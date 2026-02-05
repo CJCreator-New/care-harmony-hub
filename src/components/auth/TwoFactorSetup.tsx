@@ -26,7 +26,7 @@ export function TwoFactorSetup() {
       if (error) throw error;
       
       setSecret(data.secret);
-      setQrCode(data.qrCode);
+      setQrCode(data.qrCode || data.qrCodeUri || '');
       setBackupCodes(data.backupCodes);
       toast.success('2FA secret generated');
     } catch (error) {
@@ -51,22 +51,14 @@ export function TwoFactorSetup() {
       if (error) throw error;
 
       if (data.valid) {
-        // Save 2FA settings to user profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user?.id) {
-          toast.error('User not authenticated');
-          return;
+        const { data: storeResult, error: storeError } = await supabase.functions.invoke('store-2fa-secret', {
+          body: { secret, backupCodes }
+        });
+
+        if (storeError) throw storeError;
+        if (!storeResult?.success) {
+          throw new Error(storeResult?.error || 'Failed to enable 2FA');
         }
-
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ 
-            two_factor_enabled: true,
-            two_factor_secret: secret 
-          })
-          .eq('id', user.id);
-
-        if (updateError) throw updateError;
 
         setIsEnabled(true);
         toast.success('2FA enabled successfully');
@@ -89,13 +81,20 @@ export function TwoFactorSetup() {
         return;
       }
 
+      const { error: secretError } = await supabase
+        .from('two_factor_secrets')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (secretError) throw secretError;
+
       const { error } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           two_factor_enabled: false,
-          two_factor_secret: null 
+          two_factor_secret: null
         })
-        .eq('id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 

@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 interface BackupCodeVerifyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  userId: string;
   onVerified: () => void;
   onBack: () => void;
 }
@@ -18,7 +17,6 @@ interface BackupCodeVerifyModalProps {
 export function BackupCodeVerifyModal({
   open,
   onOpenChange,
-  userId,
   onVerified,
   onBack,
 }: BackupCodeVerifyModalProps) {
@@ -33,39 +31,20 @@ export function BackupCodeVerifyModal({
 
     setIsVerifying(true);
     try {
-      // Get user's backup codes
-      const { data, error } = await supabase
-        .from('two_factor_secrets')
-        .select('backup_codes')
-        .eq('user_id', userId)
-        .single();
-
-      if (error || !data) {
-        throw new Error('Failed to fetch backup codes');
-      }
-
-      const backupCodes = data.backup_codes as string[];
       const normalizedCode = code.toUpperCase().replace(/\s/g, '');
-      const codeIndex = backupCodes.indexOf(normalizedCode);
+      const { data, error } = await supabase.functions.invoke('verify-backup-code', {
+        body: { code: normalizedCode },
+      });
 
-      if (codeIndex === -1) {
-        toast.error('Invalid backup code');
+      if (error || !data?.success) {
+        toast.error(data?.error || 'Invalid backup code');
         return;
       }
 
-      // Remove used backup code
-      const newCodes = backupCodes.filter((_, i) => i !== codeIndex);
-      const { error: updateError } = await supabase
-        .from('two_factor_secrets')
-        .update({ backup_codes: newCodes })
-        .eq('user_id', userId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
       toast.success('Backup code verified successfully');
-      toast.info(`You have ${newCodes.length} backup codes remaining`);
+      if (typeof data.remaining === 'number') {
+        toast.info(`You have ${data.remaining} backup codes remaining`);
+      }
       onVerified();
     } catch (error) {
       console.error('Error verifying backup code:', error);

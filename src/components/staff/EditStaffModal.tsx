@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
+import { getRoleLabel } from '@/types/rbac';
 import {
   Dialog,
   DialogContent,
@@ -37,12 +38,12 @@ interface EditStaffModalProps {
 }
 
 const availableRoles: { value: UserRole; label: string; description: string }[] = [
-  { value: 'admin', label: 'Administrator', description: 'Full system access' },
-  { value: 'doctor', label: 'Doctor', description: 'Consultations, prescriptions, lab orders' },
-  { value: 'nurse', label: 'Nurse', description: 'Vitals, patient prep, doctor assistance' },
-  { value: 'receptionist', label: 'Receptionist', description: 'Check-in, appointments, billing' },
-  { value: 'pharmacist', label: 'Pharmacist', description: 'Dispensing, inventory management' },
-  { value: 'lab_technician', label: 'Lab Technician', description: 'Lab tests, results entry' },
+  { value: 'admin', label: getRoleLabel('admin'), description: 'Full system access' },
+  { value: 'doctor', label: getRoleLabel('doctor'), description: 'Consultations, prescriptions, lab orders' },
+  { value: 'nurse', label: getRoleLabel('nurse'), description: 'Vitals, patient prep, doctor assistance' },
+  { value: 'receptionist', label: getRoleLabel('receptionist'), description: 'Check-in, appointments, billing' },
+  { value: 'pharmacist', label: getRoleLabel('pharmacist'), description: 'Dispensing, inventory management' },
+  { value: 'lab_technician', label: getRoleLabel('lab_technician'), description: 'Lab tests, results entry' },
 ];
 
 const roleColors: Record<UserRole, string> = {

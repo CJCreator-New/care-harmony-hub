@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
@@ -7,7 +7,7 @@ import { NotificationsSystem } from '@/components/common/NotificationsSystem';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { GroupedSidebar } from './GroupedSidebar';
 import { Breadcrumb } from '@/components/navigation/Breadcrumb';
-import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
+import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,8 +47,10 @@ import {
   Clock,
   Mic,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
-import { hasPermission, Permission } from '@/lib/permissions';
+import { getRoleLabel } from '@/types/rbac';
+import { clearDevTestRole, getDevTestRole, setDevTestRole } from '@/utils/devRoleSwitch';
 
 const roleColors: Record<UserRole, string> = {
   admin: 'admin',
@@ -60,34 +62,18 @@ const roleColors: Record<UserRole, string> = {
   patient: 'patient',
 };
 
-const roleLabels: Record<UserRole, string> = {
-  admin: 'Administrator',
-  doctor: 'Doctor',
-  nurse: 'Nurse',
-  receptionist: 'Receptionist',
-  pharmacist: 'Pharmacist',
-  lab_technician: 'Lab Technician',
-  patient: 'Patient',
-};
-
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  testRole?: 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient' | null;
 }
 
-export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { profile, hospital, primaryRole, logout, isAuthenticated } = useAuth();
+  const { profile, hospital, primaryRole, roles, user, logout, isAuthenticated } = useAuth();
   const { logActivity } = useActivityLog();
-  const location = useLocation();
   const navigate = useNavigate();
 
-  // Get testRole from localStorage only in development
-  const persistedTestRole = import.meta.env.DEV ? (testRole || (() => {
-    const stored = localStorage.getItem('testRole');
-    return stored ? stored as 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient' : null;
-  })()) : null;
+  const persistedTestRole = getDevTestRole(roles);
 
   // HIPAA-compliant session timeout - 30 min inactivity auto-logout
   useSessionTimeout({
@@ -115,9 +101,50 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
     navigate('/hospital');
   };
 
-  const handleRoleChange = (role: UserRole) => {
-    localStorage.setItem('testRole', role);
-    window.location.reload(); // Reload to apply the new role
+  const handleDevRoleSwitch = async (role: UserRole) => {
+    if (!roles.includes(role)) {
+      return { error: new Error('Role not assigned to user') };
+    }
+
+    try {
+      setDevTestRole(role);
+      if (user) {
+        await supabase.rpc('log_security_event', {
+          p_user_id: user.id,
+          p_event_type: 'role_switch',
+          p_user_agent: navigator.userAgent,
+          p_details: { from: activeRole, to: role, dev_override: true, source: 'dev_role_switcher' },
+          p_severity: 'info'
+        });
+      }
+      window.location.reload();
+      return { error: null };
+    } catch (error) {
+      console.error('Error switching dev role:', error);
+      return { error: error as Error };
+    }
+  };
+
+  const handleDevRoleReset = async () => {
+    const fromRole = activeRole;
+    const toRole = primaryRole;
+
+    clearDevTestRole();
+    if (user) {
+      try {
+        await supabase.rpc('log_security_event', {
+          p_user_id: user.id,
+          p_event_type: 'role_switch',
+          p_user_agent: navigator.userAgent,
+          p_details: { from: fromRole, to: toRole, dev_override: true, action: 'reset', source: 'dev_role_switcher' },
+          p_severity: 'info'
+        });
+      } catch (error) {
+        console.error('Error logging dev role reset:', error);
+      }
+    }
+
+    window.location.reload();
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -170,10 +197,10 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4 px-3">
-            <GroupedSidebar
-              userRole={primaryRole}
-              testRole={persistedTestRole}
-            />
+              <GroupedSidebar
+                userRole={primaryRole}
+                testRole={persistedTestRole}
+              />
           </nav>
 
           {/* User card */}
@@ -272,7 +299,7 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
                       <p className="text-xs text-muted-foreground">{profile?.email}</p>
                       {primaryRole && (
                         <Badge variant={roleColors[primaryRole] as any} className="w-fit mt-1">
-                          {roleLabels[primaryRole]}
+                          {getRoleLabel(primaryRole)}
                         </Badge>
                       )}
                     </div>
@@ -309,10 +336,16 @@ export function DashboardLayout({ children, testRole }: DashboardLayoutProps) {
 
       {/* Role Switcher for Development */}
       {import.meta.env.DEV && (
-        <RoleSwitcher
-          onRoleChange={handleRoleChange}
-          currentRole={activeRole || 'admin'}
-        />
+        <div className="fixed bottom-4 right-4 z-50">
+          <RoleSwitcher
+            variant="dev"
+            roles={roles}
+            currentRole={activeRole}
+            onSwitchRole={handleDevRoleSwitch}
+            onReset={handleDevRoleReset}
+            align="end"
+          />
+        </div>
       )}
     </div>
   );

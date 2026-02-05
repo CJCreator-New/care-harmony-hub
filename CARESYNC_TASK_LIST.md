@@ -28,21 +28,21 @@ This section tracks the findings from the Role Switching + Account Setup assessm
 |----|----------|-------|--------|-------------------|
 | RS-1 | Critical | Add missing `switchRole` to AuthContext and wire RoleSwitcher | Planned | `src/contexts/AuthContext.tsx`, `src/components/auth/RoleSwitcher.tsx` |
 | RS-2 | High | Fix role transition validation to allow assigned roles | Planned | `src/utils/roleInterconnectionValidator.ts`, callers |
-| RS-3 | High | Harden dev RoleSwitcher test role usage and validation | Planned | `src/components/dev/RoleSwitcher.tsx`, `src/pages/Dashboard.tsx` |
+| RS-3 | High | Harden dev RoleSwitcher test role usage and validation | **Completed** | `src/components/dev/RoleSwitcher.tsx`, `src/pages/Dashboard.tsx` |
 | RS-4 | Medium | Persist and honor preferred primary role | Planned | `src/contexts/AuthContext.tsx`, storage |
-| RS-5 | Medium | Replace placeholder role-switching tests | Planned | `src/test/role-switching.test.tsx` |
+| RS-5 | Medium | Replace placeholder role-switching tests | **Completed** | `src/test/role-switching.test.tsx` |
 | AS-1 | Critical | Prevent admin self-assignment during signup | In Progress | `src/pages/hospital/SignupPage.tsx`, server validation |
 | AS-2 | High | Implement real role request/approval or secure auto-assign | In Progress | `src/pages/hospital/AccountSetupPage.tsx`, DB schema |
 | AS-3 | High | Make invitation join flow transactional + rollback on failure | In Progress | `src/pages/hospital/JoinPage.tsx`, edge function |
 | AS-4 | Medium | Mitigate invitation token enumeration | In Progress | RLS + edge function rate limiting |
 | AS-5 | Low | Verify/fix post-signup route | Planned | `src/pages/hospital/SignupPage.tsx`, router |
-| PR-1 | Medium | Consolidate RoleSwitcher UX and add error boundary | Planned | Components + error boundary |
-| PR-2 | Low | Standardize role labels across app | Planned | Types/constants |
+| PR-1 | Medium | Consolidate RoleSwitcher UX and add error boundary | **Completed** | Components + error boundary |
+| PR-2 | Low | Standardize role labels across app | **Completed** | Types/constants |
 | SEC-1 | High | Enable leaked password protection (Supabase Auth setting) | Planned | Supabase dashboard |
-| SEC-2 | Critical | Fix profiles table exposure (RLS) | Planned | `supabase/migrations/*` |
-| SEC-3 | Critical | Encrypt 2FA secrets at rest | Planned | DB + edge functions |
-| SEC-4 | High | Audit overly-permissive RLS policies | Planned | `supabase/migrations/*` |
-| TEST-1 | Medium | Add account setup flow tests | Planned | `src/test/*`, e2e |
+| SEC-2 | Critical | Fix profiles table exposure (RLS) | In Progress | `supabase/migrations/*` |
+| SEC-3 | Critical | Encrypt 2FA secrets at rest | In Progress | DB + edge functions |
+| SEC-4 | High | Audit overly-permissive RLS policies | **In Progress** | `supabase/migrations/*` |
+| TEST-1 | Medium | Add account setup flow tests | **Completed** | `src/test/*`, e2e |
 
 ### Execution Order
 1. RS-1, RS-2, RS-4 (core role switching safety and persistence)

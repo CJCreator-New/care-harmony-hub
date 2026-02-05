@@ -84,30 +84,19 @@ export const useTwoFactorAuth = () => {
         return false;
       }
 
-      // Save 2FA secret to database
-      const { error: secretError } = await supabase
-        .from('two_factor_secrets')
-        .upsert({
-          user_id: user.id,
+      const { data, error: storeError } = await supabase.functions.invoke('store-2fa-secret', {
+        body: {
           secret: setupData.secret,
-          backup_codes: setupData.backupCodes,
-          verified_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        });
+          backupCodes: setupData.backupCodes,
+        },
+      });
 
-      if (secretError) {
-        throw secretError;
+      if (storeError) {
+        throw storeError;
       }
 
-      // Update profile to indicate 2FA is enabled
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ two_factor_enabled: true })
-        .eq('user_id', user.id);
-
-      if (profileError) {
-        throw profileError;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to enable 2FA');
       }
 
       toast.success('Two-factor authentication enabled successfully');
@@ -169,29 +158,13 @@ export const useTwoFactorAuth = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('two_factor_secrets')
-        .select('backup_codes')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await supabase.functions.invoke('verify-backup-code', {
+        body: { code },
+      });
 
-      if (error || !data) {
+      if (error || !data?.success) {
         return false;
       }
-
-      const backupCodes = data.backup_codes as string[];
-      const codeIndex = backupCodes.indexOf(code.toUpperCase());
-      
-      if (codeIndex === -1) {
-        return false;
-      }
-
-      // Remove used backup code
-      const newCodes = backupCodes.filter((_, i) => i !== codeIndex);
-      await supabase
-        .from('two_factor_secrets')
-        .update({ backup_codes: newCodes })
-        .eq('user_id', user.id);
 
       return true;
     } catch (error) {

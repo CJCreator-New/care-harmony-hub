@@ -295,7 +295,6 @@ export default function LoginPage() {
             onOpenChange={(open) => {
               if (!open) handleCancelTwoFactor();
             }}
-            userId={pendingUserId}
             onVerified={handleTwoFactorVerified}
             onBack={() => {
               setShowBackupCodeModal(false);

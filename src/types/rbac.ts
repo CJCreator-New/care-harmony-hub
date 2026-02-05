@@ -302,6 +302,17 @@ export const ROLE_INFO: Record<UserRole, {
   },
 };
 
+export function getRoleLabel(role?: string | null): string {
+  if (!role) return 'Unknown role';
+  if (isValidRole(role)) {
+    return ROLE_INFO[role].label;
+  }
+  return role
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 // Permission Checking Functions
 export function hasPermission(role: UserRole | undefined, permission: Permission): boolean {
   if (!role) return false;

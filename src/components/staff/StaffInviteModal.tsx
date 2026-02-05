@@ -30,6 +30,7 @@ import { useStaffInvitations } from '@/hooks/useStaffInvitations';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { useToast } from '@/hooks/use-toast';
 import { UserRole } from '@/types/auth';
+import { getRoleLabel } from '@/types/rbac';
 import { Loader2, Mail, UserPlus, Copy, Check, ExternalLink } from 'lucide-react';
 
 const inviteSchema = z.object({
@@ -227,11 +228,11 @@ export function StaffInviteModal({ open, onOpenChange, onSuccess }: StaffInviteM
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="doctor">Doctor</SelectItem>
-                          <SelectItem value="nurse">Nurse</SelectItem>
-                          <SelectItem value="receptionist">Receptionist</SelectItem>
-                          <SelectItem value="pharmacist">Pharmacist</SelectItem>
-                          <SelectItem value="lab_technician">Lab Technician</SelectItem>
+                          <SelectItem value="doctor">{getRoleLabel('doctor')}</SelectItem>
+                          <SelectItem value="nurse">{getRoleLabel('nurse')}</SelectItem>
+                          <SelectItem value="receptionist">{getRoleLabel('receptionist')}</SelectItem>
+                          <SelectItem value="pharmacist">{getRoleLabel('pharmacist')}</SelectItem>
+                          <SelectItem value="lab_technician">{getRoleLabel('lab_technician')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

@@ -121,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPreferredRole(null);
       try {
         window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
+        window.localStorage.removeItem('testRole');
       } catch {
         // Ignore storage errors
       }

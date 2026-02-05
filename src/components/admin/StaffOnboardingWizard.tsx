@@ -25,43 +25,44 @@ import {
   UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getRoleLabel } from '@/types/rbac';
 
 type Role = 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician';
 
 const roleDetails: Record<Role, { icon: typeof Users; label: string; description: string; permissions: string[] }> = {
   admin: {
     icon: UserCog,
-    label: 'Administrator',
+    label: getRoleLabel('admin'),
     description: 'Full system access and management',
     permissions: ['Manage staff', 'System settings', 'View all reports', 'Full data access'],
   },
   doctor: {
     icon: Stethoscope,
-    label: 'Doctor',
+    label: getRoleLabel('doctor'),
     description: 'Clinical care and patient management',
     permissions: ['View patients', 'Consultations', 'Prescriptions', 'Lab orders'],
   },
   nurse: {
     icon: Users,
-    label: 'Nurse',
+    label: getRoleLabel('nurse'),
     description: 'Patient care and clinical support',
     permissions: ['View patients', 'Record vitals', 'Triage', 'Assist consultations'],
   },
   receptionist: {
     icon: ClipboardList,
-    label: 'Receptionist',
+    label: getRoleLabel('receptionist'),
     description: 'Front desk operations',
     permissions: ['Patient registration', 'Appointments', 'Check-in', 'Billing'],
   },
   pharmacist: {
     icon: Pill,
-    label: 'Pharmacist',
+    label: getRoleLabel('pharmacist'),
     description: 'Medication dispensing and management',
     permissions: ['View prescriptions', 'Dispense medications', 'Inventory', 'Drug interactions'],
   },
   lab_technician: {
     icon: TestTube2,
-    label: 'Lab Technician',
+    label: getRoleLabel('lab_technician'),
     description: 'Laboratory operations',
     permissions: ['Process lab orders', 'Enter results', 'Sample collection', 'QC'],
   },

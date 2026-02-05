@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
 import { cn } from '@/lib/utils';
+import { getRoleLabel } from '@/types/rbac';
 
 interface PendingStaff {
   id: string;
@@ -57,12 +58,12 @@ interface PendingStaff {
 }
 
 const roleOptions: { role: UserRole; label: string; description: string; icon: React.ReactNode }[] = [
-  { role: 'admin', label: 'Administrator', description: 'Full system access and management', icon: <UserCog className="h-5 w-5" /> },
-  { role: 'doctor', label: 'Doctor', description: 'Patient consultations and medical records', icon: <Stethoscope className="h-5 w-5" /> },
-  { role: 'nurse', label: 'Nurse', description: 'Patient care and vitals management', icon: <UserCog className="h-5 w-5" /> },
-  { role: 'receptionist', label: 'Receptionist', description: 'Appointments and patient check-in', icon: <ClipboardList className="h-5 w-5" /> },
-  { role: 'pharmacist', label: 'Pharmacist', description: 'Medication dispensing and management', icon: <Pill className="h-5 w-5" /> },
-  { role: 'lab_technician', label: 'Lab Technician', description: 'Laboratory tests and results', icon: <TestTube2 className="h-5 w-5" /> },
+  { role: 'admin', label: getRoleLabel('admin'), description: 'Full system access and management', icon: <UserCog className="h-5 w-5" /> },
+  { role: 'doctor', label: getRoleLabel('doctor'), description: 'Patient consultations and medical records', icon: <Stethoscope className="h-5 w-5" /> },
+  { role: 'nurse', label: getRoleLabel('nurse'), description: 'Patient care and vitals management', icon: <UserCog className="h-5 w-5" /> },
+  { role: 'receptionist', label: getRoleLabel('receptionist'), description: 'Appointments and patient check-in', icon: <ClipboardList className="h-5 w-5" /> },
+  { role: 'pharmacist', label: getRoleLabel('pharmacist'), description: 'Medication dispensing and management', icon: <Pill className="h-5 w-5" /> },
+  { role: 'lab_technician', label: getRoleLabel('lab_technician'), description: 'Laboratory tests and results', icon: <TestTube2 className="h-5 w-5" /> },
 ];
 
 export default function AdminRoleSetupPage() {
@@ -197,11 +198,6 @@ export default function AdminRoleSetupPage() {
   const getRoleIcon = (role: UserRole) => {
     const option = roleOptions.find(r => r.role === role);
     return option?.icon || <Users className="h-5 w-5" />;
-  };
-
-  const getRoleLabel = (role: UserRole) => {
-    const option = roleOptions.find(r => r.role === role);
-    return option?.label || role;
   };
 
   if (authLoading) {

@@ -24,6 +24,7 @@ import {
   InteractiveButton,
   AnimatedInput,
 } from "@/components/ui/micro-interactions"
+import { getRoleLabel, ROLE_INFO } from "@/types/rbac"
 
 interface User {
   id: string
@@ -55,14 +56,7 @@ const roleColors: Record<string, string> = {
   patient: "bg-patient/10 text-patient border-patient/20",
 }
 
-const roleLabels: Record<string, string> = {
-  admin: "Admin",
-  doctor: "Doctor",
-  nurse: "Nurse",
-  pharmacist: "Pharmacist",
-  receptionist: "Receptionist",
-  patient: "Patient",
-}
+const roleOptions = Object.keys(ROLE_INFO)
 
 function RoleBadge({ role }: { role: string }) {
   return (
@@ -70,7 +64,7 @@ function RoleBadge({ role }: { role: string }) {
       variant="outline"
       className={cn("font-medium", roleColors[role] || roleColors.patient)}
     >
-      {roleLabels[role] || role}
+      {getRoleLabel(role)}
     </Badge>
   )
 }
@@ -259,7 +253,7 @@ export function UserManagementTable({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Filter className="w-4 h-4" />
-                {roleFilter ? roleLabels[roleFilter] : "All Roles"}
+                {roleFilter ? getRoleLabel(roleFilter) : "All Roles"}
                 <ChevronDown className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -267,9 +261,9 @@ export function UserManagementTable({
               <DropdownMenuItem onClick={() => setRoleFilter(null)}>
                 All Roles
               </DropdownMenuItem>
-              {Object.entries(roleLabels).map(([role, label]) => (
+              {roleOptions.map((role) => (
                 <DropdownMenuItem key={role} onClick={() => setRoleFilter(role)}>
-                  {label}
+                  {getRoleLabel(role)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
