@@ -9,43 +9,20 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserRole } from '@/types/auth';
 import { 
   Building2, 
   User, 
-  Shield, 
   CheckCircle2, 
   ArrowRight, 
   ArrowLeft,
-  Stethoscope,
-  UserCog,
-  ClipboardList,
-  FlaskConical,
-  Pill,
   Users
 } from 'lucide-react';
 
 type SetupStep = 'profile' | 'hospital' | 'role' | 'complete';
 
-interface RoleOption {
-  role: UserRole;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}
-
-const roleOptions: RoleOption[] = [
-  { role: 'admin', label: 'Administrator', description: 'Full system access and management', icon: <Shield className="h-6 w-6" /> },
-  { role: 'doctor', label: 'Doctor', description: 'Patient consultations and medical records', icon: <Stethoscope className="h-6 w-6" /> },
-  { role: 'nurse', label: 'Nurse', description: 'Patient care and vitals management', icon: <UserCog className="h-6 w-6" /> },
-  { role: 'receptionist', label: 'Receptionist', description: 'Appointments and patient check-in', icon: <ClipboardList className="h-6 w-6" /> },
-  { role: 'lab_technician', label: 'Lab Technician', description: 'Laboratory tests and results', icon: <FlaskConical className="h-6 w-6" /> },
-  { role: 'pharmacist', label: 'Pharmacist', description: 'Prescriptions and medication dispensing', icon: <Pill className="h-6 w-6" /> },
-];
-
 export default function AccountSetupPage() {
   const navigate = useNavigate();
-  const { user, profile, hospital, roles, isLoading } = useAuth();
+  const { user, profile, hospital, roles, isLoading, createHospitalAndProfile, logout } = useAuth();
   const { toast } = useToast();
 
   const [currentStep, setCurrentStep] = useState<SetupStep>('profile');
@@ -65,9 +42,6 @@ export default function AccountSetupPage() {
   const [hospitalPhone, setHospitalPhone] = useState('');
   const [hospitalEmail, setHospitalEmail] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
-
-  // Role selection state
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
   // Determine starting step based on what's missing
   useEffect(() => {
@@ -106,9 +80,6 @@ export default function AccountSetupPage() {
       setHospitalPhone(hospital.phone || '');
       setHospitalEmail(hospital.email || '');
       setLicenseNumber(hospital.license_number || '');
-    }
-    if (roles.length > 0) {
-      setSelectedRole(roles[0]);
     }
   }, [user, profile, hospital, roles]);
 
@@ -179,11 +150,7 @@ export default function AccountSetupPage() {
 
     setIsSubmitting(true);
     try {
-      const newHospitalId = crypto.randomUUID();
-
-      // Create hospital
-      const { error: hospitalError } = await supabase.from('hospitals').insert({
-        id: newHospitalId,
+      const { error } = await createHospitalAndProfile({
         name: hospitalName.trim(),
         address: hospitalAddress.trim() || null,
         city: hospitalCity.trim() || null,
@@ -194,18 +161,10 @@ export default function AccountSetupPage() {
         license_number: licenseNumber.trim() || null,
       });
 
-      if (hospitalError) throw hospitalError;
-
-      // Update profile with hospital_id
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ hospital_id: newHospitalId })
-        .eq('user_id', user.id);
-
-      if (profileError) throw profileError;
+      if (error) throw error;
 
       toast({ title: 'Hospital created', description: 'Your hospital has been registered.' });
-      setCurrentStep('role');
+      navigate('/hospital/role-setup');
     } catch (error) {
       console.error('Hospital error:', error);
       toast({ title: 'Error', description: 'Failed to create hospital. Please try again.', variant: 'destructive' });
@@ -214,45 +173,9 @@ export default function AccountSetupPage() {
     }
   };
 
-  const handleRoleSubmit = async () => {
-    if (!user || !selectedRole) {
-      toast({ title: 'Error', description: 'Please select a role', variant: 'destructive' });
-      return;
-    }
-
-    // Do not perform a client-side insert into `user_roles` here.
-    // Instead record the user's selection locally and show confirmation
-    // so an admin or server-side process can grant the role.
-    setIsSubmitting(true);
-    try {
-      // Verify hospital exists on the profile so we can record the intent
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('hospital_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userProfile?.hospital_id) {
-        throw new Error('Hospital not found. Please go back and create a hospital first.');
-      }
-
-      // Inform the user that role assignment requires admin approval
-      toast({
-        title: 'Role request submitted',
-        description: 'Your role selection has been noted and will be approved by an administrator.',
-      });
-      setCurrentStep('complete');
-
-      // Navigate to dashboard after a short delay
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1500);
-    } catch (error: any) {
-      console.error('Role error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to save role selection. Please try again.', variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/hospital/login');
   };
 
   if (isLoading) {
@@ -451,42 +374,17 @@ export default function AccountSetupPage() {
                   <Users className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>Select Your Role</CardTitle>
-                  <CardDescription>Choose your primary role in the hospital</CardDescription>
+                  <CardTitle>Role Assignment Required</CardTitle>
+                  <CardDescription>Roles are assigned by hospital administrators</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {roleOptions.map((option) => (
-                  <button
-                    key={option.role}
-                    onClick={() => setSelectedRole(option.role)}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
-                      selectedRole === option.role
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-lg ${selectedRole === option.role ? 'bg-primary/20' : 'bg-muted'}`}>
-                        {option.icon}
-                      </div>
-                      <span className="font-medium">{option.label}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{option.description}</p>
-                  </button>
-                ))}
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                If you were invited, please use the invitation link sent to your email. Otherwise, contact your hospital administrator to request access.
               </div>
-              <div className="flex justify-between pt-4">
-                <Button variant="outline" onClick={() => setCurrentStep('hospital')}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-                <Button onClick={handleRoleSubmit} disabled={isSubmitting || !selectedRole}>
-                  {isSubmitting ? 'Setting up...' : 'Complete Setup'}
-                  <CheckCircle2 className="ml-2 h-4 w-4" />
-                </Button>
+              <div className="flex justify-end pt-4">
+                <Button onClick={handleSignOut}>Sign out</Button>
               </div>
             </CardContent>
           </Card>

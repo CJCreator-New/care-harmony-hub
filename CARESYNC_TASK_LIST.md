@@ -31,10 +31,10 @@ This section tracks the findings from the Role Switching + Account Setup assessm
 | RS-3 | High | Harden dev RoleSwitcher test role usage and validation | Planned | `src/components/dev/RoleSwitcher.tsx`, `src/pages/Dashboard.tsx` |
 | RS-4 | Medium | Persist and honor preferred primary role | Planned | `src/contexts/AuthContext.tsx`, storage |
 | RS-5 | Medium | Replace placeholder role-switching tests | Planned | `src/test/role-switching.test.tsx` |
-| AS-1 | Critical | Prevent admin self-assignment during signup | Planned | `src/pages/hospital/SignupPage.tsx`, server validation |
-| AS-2 | High | Implement real role request/approval or secure auto-assign | Planned | `src/pages/hospital/AccountSetupPage.tsx`, DB schema |
+| AS-1 | Critical | Prevent admin self-assignment during signup | In Progress | `src/pages/hospital/SignupPage.tsx`, server validation |
+| AS-2 | High | Implement real role request/approval or secure auto-assign | In Progress | `src/pages/hospital/AccountSetupPage.tsx`, DB schema |
 | AS-3 | High | Make invitation join flow transactional + rollback on failure | In Progress | `src/pages/hospital/JoinPage.tsx`, edge function |
-| AS-4 | Medium | Mitigate invitation token enumeration | Planned | RLS + edge function rate limiting |
+| AS-4 | Medium | Mitigate invitation token enumeration | In Progress | RLS + edge function rate limiting |
 | AS-5 | Low | Verify/fix post-signup route | Planned | `src/pages/hospital/SignupPage.tsx`, router |
 | PR-1 | Medium | Consolidate RoleSwitcher UX and add error boundary | Planned | Components + error boundary |
 | PR-2 | Low | Standardize role labels across app | Planned | Types/constants |

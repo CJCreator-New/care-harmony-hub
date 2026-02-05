@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { UserRole } from '@/types/auth';
 
 interface FormErrors {
   [key: string]: string;
@@ -104,9 +103,6 @@ export default function SignupPage() {
   }, [adminEmail]);
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Role selection
-  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
-
   const { signup, createHospitalAndProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -172,7 +168,7 @@ export default function SignupPage() {
 
     try {
       // First, create the user account
-      const { error: signupError, userId } = await signup(adminEmail, password, firstName, lastName);
+      const { error: signupError } = await signup(adminEmail, password, firstName, lastName);
 
       if (signupError) {
         toast({
@@ -185,20 +181,16 @@ export default function SignupPage() {
       }
 
       // Then create the hospital and assign role
-      const { error: hospitalError } = await createHospitalAndProfile(
-        {
-          name: hospitalName,
-          address,
-          city,
-          state,
-          zip,
-          phone,
-          email: hospitalEmail,
-          license_number: licenseNumber,
-        },
-        selectedRole,
-        userId
-      );
+      const { error: hospitalError } = await createHospitalAndProfile({
+        name: hospitalName,
+        address,
+        city,
+        state,
+        zip,
+        phone,
+        email: hospitalEmail,
+        license_number: licenseNumber,
+      });
 
       if (hospitalError) {
         toast({

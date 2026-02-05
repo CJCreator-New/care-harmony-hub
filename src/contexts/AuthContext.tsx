@@ -51,9 +51,7 @@ interface AuthContextType {
   ) => Promise<{ error: Error | null; userId?: string }>;
   logout: () => Promise<void>;
   createHospitalAndProfile: (
-    hospitalData: Partial<Hospital>,
-    role: UserRole,
-    userIdOverride?: string
+    hospitalData: Partial<Hospital>
   ) => Promise<{ error: Error | null }>;
   switchRole: (targetRole: UserRole) => Promise<{ error: Error | null }>;
   // Biometric authentication methods
@@ -349,47 +347,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createHospitalAndProfile = useCallback(
-    async (hospitalData: Partial<Hospital>, role: UserRole, userIdOverride?: string) => {
-      const effectiveUserId = userIdOverride ?? user?.id ?? session?.user?.id;
+    async (hospitalData: Partial<Hospital>) => {
+      const effectiveUserId = user?.id ?? session?.user?.id;
       if (!effectiveUserId) return { error: new Error('Not authenticated') };
 
       try {
-        // Create hospital (avoid RETURNING so RLS doesn't block reading the row before membership)
-        const newHospitalId = crypto.randomUUID();
-        const { error: hospitalError } = await supabase
-          .from('hospitals')
-          .insert({
-            id: newHospitalId,
+        const { data, error } = await supabase.functions.invoke('create-hospital-admin', {
+          body: {
             name: hospitalData.name || 'My Hospital',
-            address: hospitalData.address,
-            city: hospitalData.city,
-            state: hospitalData.state,
-            zip: hospitalData.zip,
-            phone: hospitalData.phone,
-            email: hospitalData.email,
-            license_number: hospitalData.license_number,
-          });
-
-        if (hospitalError) throw hospitalError;
-
-        // Update profile with hospital_id
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ hospital_id: newHospitalId })
-          .eq('user_id', effectiveUserId);
-
-        if (profileError) throw profileError;
-
-        // Create user role
-        const { error: roleError } = await supabase.from('user_roles').insert({
-          user_id: effectiveUserId,
-          role: role,
-          hospital_id: newHospitalId,
+            address: hospitalData.address || null,
+            city: hospitalData.city || null,
+            state: hospitalData.state || null,
+            zip: hospitalData.zip || null,
+            phone: hospitalData.phone || null,
+            email: hospitalData.email || null,
+            license_number: hospitalData.license_number || null,
+          },
         });
 
-        if (roleError) throw roleError;
+        if (error) throw error;
+        if (data?.error) {
+          throw new Error(data.error);
+        }
 
-        // Refresh user data
         await fetchUserData(effectiveUserId);
 
         return { error: null };
