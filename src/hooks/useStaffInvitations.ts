@@ -152,19 +152,17 @@ export function useStaffInvitations() {
 
   const getInvitationByToken = useCallback(async (token: string) => {
     try {
-      const { data, error: fetchError } = await supabase
-        .from('staff_invitations')
-        .select(`
-          *,
-          hospital:hospitals(name)
-        `)
-        .eq('token', token)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('validate-invitation-token', {
+        body: { token }
+      });
 
-      if (fetchError) throw fetchError;
-      return { data, error: null };
+      if (error) throw error;
+
+      if (!data.valid) {
+        return { data: null, error: data.error || 'Invalid invitation' };
+      }
+
+      return { data: data.invitation, error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid or expired invitation';
       return { data: null, error: message };

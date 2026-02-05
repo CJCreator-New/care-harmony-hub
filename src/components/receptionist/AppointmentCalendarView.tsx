@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Users, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useAppointments } from '@/hooks/useAppointments';
+import { devLog } from '@/utils/sanitize';
 
 interface Appointment {
   id: string;
@@ -40,18 +41,30 @@ export function AppointmentCalendarView({ onNewAppointment, onAppointmentClick }
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
 
   const handleReschedule = () => {
+    if (!selectedAppointment) {
+      devLog('No appointment selected for reschedule');
+      return;
+    }
     // TODO: Implement reschedule functionality
-    console.log('Reschedule appointment:', selectedAppointment?.id);
+    devLog('Reschedule appointment:', selectedAppointment.id);
   };
 
   const handleCancelAppointment = () => {
+    if (!selectedAppointment) {
+      devLog('No appointment selected for cancellation');
+      return;
+    }
     // TODO: Implement cancel functionality
-    console.log('Cancel appointment:', selectedAppointment?.id);
+    devLog('Cancel appointment:', selectedAppointment.id);
   };
 
   const handleEditAppointment = () => {
+    if (!selectedAppointment) {
+      devLog('No appointment selected for editing');
+      return;
+    }
     // TODO: Implement edit functionality
-    console.log('Edit appointment:', selectedAppointment?.id);
+    devLog('Edit appointment:', selectedAppointment.id);
   };
 
   const { data: appointments = [] } = useAppointments();

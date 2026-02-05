@@ -1,15 +1,38 @@
 import DOMPurify from 'dompurify';
 
 /**
+ * Development-only logging utility
+ * Prevents console output in production
+ */
+export function devLog(message: string, ...args: any[]): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(message, ...args);
+  }
+}
+
+/**
+ * Development-only error logging utility
+ * Always logs errors but sanitizes in production
+ */
+export function devError(message: string, error?: any): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(message, error);
+  } else {
+    // In production, log sanitized error without stack traces
+    console.error(sanitizeLogMessage(message));
+  }
+}
+
+/**
  * Sanitize user input for safe display
  * Uses DOMPurify for XSS prevention
  * Note: For database queries, use parameterized queries (Supabase handles this)
  */
 export function sanitizeInput(input: string): string {
   if (!input) return '';
-  
+
   // Remove HTML tags and sanitize for XSS prevention
-  return DOMPurify.sanitize(input, { 
+  return DOMPurify.sanitize(input, {
     ALLOWED_TAGS: [],
     ALLOWED_ATTR: []
   }).trim().substring(0, 1000);
@@ -20,7 +43,7 @@ export function sanitizeInput(input: string): string {
  */
 export function sanitizeArray(input: string): string[] {
   if (!input) return [];
-  
+
   return input
     .split(',')
     .map(item => sanitizeInput(item))
@@ -34,7 +57,7 @@ export function sanitizeArray(input: string): string[] {
 export function sanitizeLogMessage(message: string | unknown): string {
   // Ensure message is a string
   const msg = typeof message === 'string' ? message : String(message || '');
-  
+
   // Remove potential PHI from log messages
   return msg
     .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]') // SSN

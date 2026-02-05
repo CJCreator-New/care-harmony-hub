@@ -3,7 +3,7 @@ import { clinicalApiClient } from '@/services/clinicalApiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect, useCallback, useRef } from 'react';
-import { sanitizeForLog } from '@/utils/sanitize';
+import { sanitizeForLog, devLog, devError } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
@@ -97,11 +97,11 @@ export function useConsultations() {
     queryKey: ['consultations', hospital?.id],
     queryFn: async () => {
       if (!hospital?.id) {
-        console.log('No hospital ID available');
+        devLog('No hospital ID available');
         return [];
       }
 
-      console.log('Fetching consultations for hospital:', hospital.id);
+      devLog('Fetching consultations for hospital:', hospital.id);
 
       return withConsultationRateLimit(async () => {
         try {
@@ -113,10 +113,10 @@ export function useConsultations() {
           // Transform the data to match the expected format
           const transformedData = transformConsultationsFromService(result.data);
 
-          console.log('Consultations fetched:', transformedData.length);
+          devLog('Consultations fetched:', transformedData.length);
           return transformedData;
         } catch (error) {
-          console.error('Error fetching consultations from clinical service:', sanitizeForLog(String(error)));
+          devError('Error fetching consultations from clinical service:', error);
           throw error;
         }
       });

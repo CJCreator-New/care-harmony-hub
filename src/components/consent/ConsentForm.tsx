@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ConsentFormProps {
   patientId: string;
@@ -10,6 +11,7 @@ interface ConsentFormProps {
 }
 
 export function ConsentForm({ patientId, onComplete }: ConsentFormProps) {
+  const { hospital } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [consents, setConsents] = useState({
     treatment: false,
@@ -28,6 +30,7 @@ export function ConsentForm({ patientId, onComplete }: ConsentFormProps) {
         telemedicine_consent: consents.telemedicine,
         data_sharing_consent: consents.dataSharing,
         consent_date: new Date().toISOString(),
+        hospital_id: hospital?.id,
       });
       
       if (error) throw error;
