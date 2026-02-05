@@ -169,9 +169,9 @@ function TimelineItem({
                       isLeft ? "justify-end" : "justify-start"
                     )}
                   >
-                    {event.attachments.map((attachment, i) => (
+                    {event.attachments.map((attachment) => (
                       <Button
-                        key={i}
+                        key={attachment.name}
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs gap-1"

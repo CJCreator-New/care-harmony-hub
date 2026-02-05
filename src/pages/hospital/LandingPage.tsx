@@ -449,7 +449,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 pointer-events-none">
           {Array.from({ length: 20 }).map((_, i) => (
             <motion.div
-              key={i}
+              key={`particle-${i}`}
               className="absolute w-2 h-2 rounded-full bg-sidebar-primary/20"
               style={{
                 left: `${Math.random() * 100}%`,

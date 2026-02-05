@@ -142,8 +142,8 @@ export const AIClinicalAssistant = ({ patientId }: { patientId: string }) => {
                     <div>
                       <h5 className="text-sm font-medium mb-1">Supporting Factors</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {suggestion.supportingFactors.map((evidence, idx) => (
-                          <li key={`evidence-${suggestion.icd10Code}-${idx}`} className="flex items-center">
+                        {suggestion.supportingFactors.map((evidence) => (
+                          <li key={`evidence-${suggestion.icd10Code}-${evidence}`} className="flex items-center">
                             <CheckCircle className="w-3 h-3 mr-2 text-green-500" />
                             {evidence}
                           </li>
@@ -154,8 +154,8 @@ export const AIClinicalAssistant = ({ patientId }: { patientId: string }) => {
                     <div>
                       <h5 className="text-sm font-medium mb-1">Recommended Tests</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {suggestion.supportingFactors.map((test, idx) => (
-                          <li key={`test-${suggestion.icd10Code}-${idx}`} className="flex items-center">
+                        {suggestion.supportingFactors.map((test) => (
+                          <li key={`test-${suggestion.icd10Code}-${test}`} className="flex items-center">
                             <AlertTriangle className="w-3 h-3 mr-2 text-blue-500" />
                             {test}
                           </li>

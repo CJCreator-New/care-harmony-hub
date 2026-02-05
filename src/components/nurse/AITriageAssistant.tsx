@@ -55,8 +55,8 @@ export const AITriageAssistant = ({ patientId, symptoms, vitals }: any) => {
             
             <div className="space-y-1">
               <p className="text-sm font-medium">Recommended Actions:</p>
-              {result.recommendedActions.map((action: string, i: number) => (
-                <div key={i} className="flex items-start gap-2 text-sm">
+              {result.recommendedActions.map((action: string) => (
+                <div key={action} className="flex items-start gap-2 text-sm">
                   <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <span>{action}</span>
                 </div>

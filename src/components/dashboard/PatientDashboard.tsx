@@ -35,6 +35,8 @@ const statusColors: Record<string, string> = {
   dispensed: 'bg-success/10 text-success border-success/20',
 };
 
+const skeletonKeys = ['skeleton-1', 'skeleton-2', 'skeleton-3'];
+
 export function PatientDashboard() {
   const { profile } = useAuth();
   const { profile: patientProfile, loading: profileLoading } = usePatientProfile();
@@ -170,8 +172,8 @@ export function PatientDashboard() {
           <CardContent>
             {appointmentsLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-16 w-full" />
                 ))}
               </div>
             ) : upcomingAppointments.length === 0 ? (
@@ -235,8 +237,8 @@ export function PatientDashboard() {
           <CardContent>
             {prescriptionsLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-16 w-full" />
                 ))}
               </div>
             ) : activePrescriptions.length === 0 ? (
@@ -295,8 +297,8 @@ export function PatientDashboard() {
           <CardContent>
             {labLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-24 w-full" />
                 ))}
               </div>
             ) : recentLabResults.length === 0 ? (

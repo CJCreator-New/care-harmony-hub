@@ -83,7 +83,11 @@ export function WearableIntegration({ patientId, patientName }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={deviceStatus === 'connected' ? 'outline' : 'secondary'} className="gap-1">
+            <Badge
+              variant={deviceStatus === 'connected' ? 'outline' : 'secondary'}
+              className="gap-1"
+              aria-live="polite"
+            >
               {deviceStatus === 'connected' ? (
                 <Link2 className="h-3 w-3 text-green-500" />
               ) : (
@@ -140,7 +144,7 @@ export function WearableIntegration({ patientId, patientName }: Props) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {metrics.map((metric, index) => (
                 <motion.div
-                  key={index}
+                  key={`${metric.type}-${metric.timestamp}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}

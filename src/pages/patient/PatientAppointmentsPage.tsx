@@ -31,6 +31,7 @@ export default function PatientAppointmentsPage() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const { data: appointments = [], isLoading } = usePatientAppointments();
   const { data: requests = [], isLoading: requestsLoading } = usePatientAppointmentRequests();
+  const skeletonKeys = ['apt-1', 'apt-2', 'apt-3'];
   
   const today = startOfDay(new Date());
   const upcomingAppointments = appointments.filter(
@@ -115,8 +116,8 @@ export default function PatientAppointmentsPage() {
           <TabsContent value="upcoming" className="mt-4">
             {isLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-24 w-full" />
                 ))}
               </div>
             ) : upcomingAppointments.length === 0 ? (
@@ -141,8 +142,8 @@ export default function PatientAppointmentsPage() {
           <TabsContent value="requests" className="mt-4">
             {requestsLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-24 w-full" />
                 ))}
               </div>
             ) : requests.length === 0 ? (
@@ -201,8 +202,8 @@ export default function PatientAppointmentsPage() {
           <TabsContent value="past" className="mt-4">
             {isLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-24 w-full" />
                 ))}
               </div>
             ) : pastAppointments.length === 0 ? (

@@ -56,8 +56,8 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
             <h4 className="text-sm font-medium mb-2">Final Diagnosis</h4>
             {data.final_diagnosis?.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {data.final_diagnosis.map((dx: string, i: number) => (
-                  <Badge key={i} variant="default">
+                {data.final_diagnosis.map((dx: string) => (
+                  <Badge key={dx} variant="default">
                     {dx}
                   </Badge>
                 ))}
@@ -77,8 +77,8 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
             </h4>
             {data.prescriptions?.length > 0 ? (
               <ul className="text-sm text-muted-foreground space-y-1">
-                {data.prescriptions.map((rx: any, i: number) => (
-                  <li key={i}>
+                {data.prescriptions.map((rx: any) => (
+                  <li key={`${rx.medication}-${rx.dosage}-${rx.frequency}`}>
                     {rx.medication} - {rx.dosage}, {rx.frequency}
                   </li>
                 ))}
@@ -98,8 +98,8 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
             </h4>
             {data.lab_orders?.length > 0 ? (
               <ul className="text-sm text-muted-foreground space-y-1">
-                {data.lab_orders.map((order: any, i: number) => (
-                  <li key={i}>
+                {data.lab_orders.map((order: any) => (
+                  <li key={`${order.test}-${order.priority}`}>
                     {order.test} ({order.priority})
                   </li>
                 ))}

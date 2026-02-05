@@ -24,15 +24,17 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
   selectedCodes = [],
   className,
 }) => {
-  const [suggestions, setSuggestions] = useState<CPTSuggestion[]>([]);
+  const [analysis, setAnalysis] = useState<ClinicalCodeMapping | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [billingIssues, setBillingIssues] = useState<string[]>([]);
 
-  const { suggestCPTForProcedures } = useClinicalCodingService();
+  const clinicalCodingService = useClinicalCodingService();
 
   const analyzeText = useCallback(async () => {
     if (!clinicalText.trim()) {
-      setSuggestions([]);
+      setAnalysis(null);
+      setBillingIssues([]);
       return;
     }
 
@@ -40,83 +42,22 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
     setError(null);
 
     try {
-      // Extract procedures from clinical text (simple extraction)
-      const procedures = extractProceduresFromText(clinicalText);
-      const cptSuggestions = suggestCPTForProcedures(procedures);
-
-      // If no procedures found, try suggesting based on the full text
-      if (cptSuggestions.length === 0) {
-        const fallbackSuggestions = suggestCPTForProcedures([clinicalText]);
-        setSuggestions(fallbackSuggestions);
-      } else {
-        setSuggestions(cptSuggestions);
-      }
+      const result = await clinicalCodingService.analyzeClinicalText(clinicalText);
+      setAnalysis(result);
+      const validation = clinicalCodingService.validateBillingAccuracy(result.cptCodes);
+      setBillingIssues(validation.issues);
     } catch (err) {
       console.error('Error analyzing clinical text for CPT codes:', err);
       setError('Failed to analyze clinical text for CPT codes');
-      setSuggestions([]);
+      setAnalysis(null);
     } finally {
       setLoading(false);
     }
-  }, [clinicalText, suggestCPTForProcedures]);
+  }, [clinicalText, clinicalCodingService]);
 
   useEffect(() => {
     analyzeText();
   }, [analyzeText]);
-
-  const extractProceduresFromText = (text: string): string[] => {
-    const procedureKeywords = [
-      'incision', 'drainage', 'debridement', 'biopsy', 'surgery', 'procedure',
-      'injection', 'vaccination', 'therapy', 'counseling', 'evaluation',
-      'examination', 'assessment', 'consultation', 'follow-up', 'visit',
-      'x-ray', 'radiologic', 'laboratory', 'test', 'screening', 'monitoring',
-      'anesthesia', 'critical care', 'psychotherapy', 'counseling'
-    ];
-
-    const words = text.toLowerCase().split(/\s+/);
-    const procedures: string[] = [];
-
-    // Look for procedure-related phrases
-    const textLower = text.toLowerCase();
-
-    // Check for specific procedure patterns
-    if (textLower.includes('incision and drainage') || textLower.includes('i&d')) {
-      procedures.push('incision and drainage');
-    }
-    if (textLower.includes('debridement')) {
-      procedures.push('debridement');
-    }
-    if (textLower.includes('biopsy')) {
-      procedures.push('biopsy');
-    }
-    if (textLower.includes('injection') || textLower.includes('shot')) {
-      procedures.push('injection');
-    }
-    if (textLower.includes('x-ray') || textLower.includes('radiologic examination')) {
-      procedures.push('x-ray');
-    }
-    if (textLower.includes('blood test') || textLower.includes('lab test')) {
-      procedures.push('laboratory test');
-    }
-    if (textLower.includes('office visit') || textLower.includes('evaluation')) {
-      procedures.push('office visit');
-    }
-    if (textLower.includes('psychotherapy') || textLower.includes('counseling')) {
-      procedures.push('psychotherapy');
-    }
-    if (textLower.includes('critical care')) {
-      procedures.push('critical care');
-    }
-
-    // Add any matched keywords
-    procedureKeywords.forEach(keyword => {
-      if (textLower.includes(keyword) && !procedures.includes(keyword)) {
-        procedures.push(keyword);
-      }
-    });
-
-    return Array.from(new Set(procedures));
-  };
 
   const handleCodeSelect = (code: CPTSuggestion) => {
     onCodeSelected?.(code);
@@ -189,6 +130,8 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
     );
   }
 
+  const suggestions = analysis?.cptCodes || [];
+
   return (
     <Card className={cn('w-full', className)}>
       <CardHeader>
@@ -205,11 +148,16 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {billingIssues.length > 0 && (
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
+            <strong>Billing validation:</strong> {billingIssues.join(' ')}
+          </div>
+        )}
         {suggestions.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No CPT code suggestions found for the provided clinical text.</p>
-            <p className="text-sm mt-2">Try including procedure names or service descriptions.</p>
+            <p className="text-sm mt-2">Try including procedure names or diagnoses.</p>
           </div>
         ) : (
           <>
@@ -274,7 +222,6 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // Remove from selected codes
                             const newSelected = selectedCodes.filter(c => c.code !== code.code);
                             onCodesConfirmed?.(newSelected);
                           }}
@@ -295,6 +242,12 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
                   </Button>
                 </div>
               </>
+            )}
+
+            {analysis?.reasoning && (
+              <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                <strong>AI Reasoning:</strong> {analysis.reasoning}
+              </div>
             )}
           </>
         )}

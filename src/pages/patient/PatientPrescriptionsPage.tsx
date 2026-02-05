@@ -27,6 +27,7 @@ export default function PatientPrescriptionsPage() {
   const { data: prescriptions = [], isLoading } = usePatientPrescriptions();
   const { data: refillRequests = [] } = usePatientRefillRequests();
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const skeletonKeys = ['rx-1', 'rx-2', 'rx-3'];
 
   const hasPendingRefill = (prescriptionId: string) => {
     return refillRequests.some(
@@ -77,8 +78,8 @@ export default function PatientPrescriptionsPage() {
 
         {isLoading ? (
           <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 w-full" />
+            {skeletonKeys.map((key) => (
+              <Skeleton key={key} className="h-32 w-full" />
             ))}
           </div>
         ) : prescriptions.length === 0 ? (

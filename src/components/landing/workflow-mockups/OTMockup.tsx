@@ -53,9 +53,9 @@ export function OTMockup() {
 
       {/* Schedule List */}
       <div className="flex-1 space-y-2 overflow-hidden">
-        {schedule.map((item, index) => (
+        {schedule.map((item) => (
           <Card 
-            key={index} 
+            key={`${item.time}-${item.procedure}`} 
             className={`p-2 border-l-2 ${statusStyles[item.status as keyof typeof statusStyles]}`}
           >
             <div className="flex items-center justify-between mb-1">

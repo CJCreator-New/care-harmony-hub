@@ -232,8 +232,8 @@ export function DataProtectionDemo() {
                         <div>
                           <Label className="text-sm font-medium text-destructive">Issues Found:</Label>
                           <ul className="list-disc list-inside mt-2 space-y-1">
-                            {complianceCheck.issues.map((issue: string, index: number) => (
-                              <li key={index} className="text-sm text-destructive">{issue}</li>
+                            {complianceCheck.issues.map((issue: string) => (
+                              <li key={issue} className="text-sm text-destructive">{issue}</li>
                             ))}
                           </ul>
                         </div>

@@ -57,6 +57,7 @@ const typeLabels: Record<Notification['type'], string> = {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
+  const skeletonKeys = ['notif-1', 'notif-2', 'notif-3', 'notif-4', 'notif-5'];
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'urgent'>('all');
   const {
@@ -198,8 +199,8 @@ export default function NotificationsPage() {
           <CardContent>
             {isLoading ? (
               <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex gap-4 p-4 rounded-lg border border-border">
+                {skeletonKeys.map((key) => (
+                  <div key={key} className="flex gap-4 p-4 rounded-lg border border-border">
                     <Skeleton className="w-12 h-12 rounded-full" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-1/3" />

@@ -3,23 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
-} from 'recharts';
-import { 
   Users, 
   Clock, 
   Star, 
@@ -28,6 +11,7 @@ import {
   Download
 } from 'lucide-react';
 import { useState } from 'react';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 // Mock Data
 const volumeData = [
@@ -57,6 +41,7 @@ const outcomeTrend = [
 
 export function PeerBenchmarkingDashboard() {
   const [period, setPeriod] = useState('weekly');
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
   return (
     <div className="space-y-6">
@@ -162,20 +147,24 @@ export function PeerBenchmarkingDashboard() {
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={volumeData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Legend />
-                  <Bar dataKey="you" name="Your volume" fill="#3b82f6" radius={[4, 4, 0, 0]} aria-label="Your patient volume" />
-                  <Bar dataKey="deptAvg" name="Dept Average" fill="#94a3b8" radius={[4, 4, 0, 0]} aria-label="Department average volume" />
-                </BarChart>
-              </ResponsiveContainer>
+              {rechartsLoading || !Recharts ? (
+                <ChartSkeleton />
+              ) : (
+                <Recharts.ResponsiveContainer width="100%" height="100%">
+                  <Recharts.BarChart data={volumeData}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <Recharts.XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <Recharts.YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                    <Recharts.Tooltip 
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Recharts.Legend />
+                    <Recharts.Bar dataKey="you" name="Your volume" fill="#3b82f6" radius={[4, 4, 0, 0]} aria-label="Your patient volume" />
+                    <Recharts.Bar dataKey="deptAvg" name="Dept Average" fill="#94a3b8" radius={[4, 4, 0, 0]} aria-label="Department average volume" />
+                  </Recharts.BarChart>
+                </Recharts.ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -188,17 +177,21 @@ export function PeerBenchmarkingDashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full flex items-center justify-center">
-               <ResponsiveContainer width="100%" height="100%">
-                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={satisfactionData}>
-                   <PolarGrid />
-                   <PolarAngleAxis dataKey="subject" fontSize={12} />
-                   <PolarRadiusAxis angle={30} domain={[0, 5]} />
-                   <Radar name="You" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
-                   <Radar name="Dept Avg" dataKey="B" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.2} />
-                   <Legend />
-                   <Tooltip />
-                 </RadarChart>
-               </ResponsiveContainer>
+               {rechartsLoading || !Recharts ? (
+                 <ChartSkeleton />
+               ) : (
+                 <Recharts.ResponsiveContainer width="100%" height="100%">
+                   <Recharts.RadarChart cx="50%" cy="50%" outerRadius="80%" data={satisfactionData}>
+                     <Recharts.PolarGrid />
+                     <Recharts.PolarAngleAxis dataKey="subject" fontSize={12} />
+                     <Recharts.PolarRadiusAxis angle={30} domain={[0, 5]} />
+                     <Recharts.Radar name="You" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+                     <Recharts.Radar name="Dept Avg" dataKey="B" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.2} />
+                     <Recharts.Legend />
+                     <Recharts.Tooltip />
+                   </Recharts.RadarChart>
+                 </Recharts.ResponsiveContainer>
+               )}
             </div>
           </CardContent>
         </Card>
@@ -211,17 +204,21 @@ export function PeerBenchmarkingDashboard() {
         </CardHeader>
         <CardContent>
            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={outcomeTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                   <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
-                   <YAxis domain={[80, 100]} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
-                   <Tooltip />
-                   <Legend />
-                   <Line type="monotone" dataKey="rate" name="Success Rate" stroke="#10b981" strokeWidth={2} activeDot={{ r: 8 }} />
-                   <Line type="monotone" dataKey="dept" name="Dept Average" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" />
-                </LineChart>
-              </ResponsiveContainer>
+              {rechartsLoading || !Recharts ? (
+                <ChartSkeleton />
+              ) : (
+                <Recharts.ResponsiveContainer width="100%" height="100%">
+                  <Recharts.LineChart data={outcomeTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                     <Recharts.CartesianGrid strokeDasharray="3 3" vertical={false} />
+                     <Recharts.XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
+                     <Recharts.YAxis domain={[80, 100]} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
+                     <Recharts.Tooltip />
+                     <Recharts.Legend />
+                     <Recharts.Line type="monotone" dataKey="rate" name="Success Rate" stroke="#10b981" strokeWidth={2} activeDot={{ r: 8 }} />
+                     <Recharts.Line type="monotone" dataKey="dept" name="Dept Average" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" />
+                  </Recharts.LineChart>
+                </Recharts.ResponsiveContainer>
+              )}
            </div>
         </CardContent>
       </Card>

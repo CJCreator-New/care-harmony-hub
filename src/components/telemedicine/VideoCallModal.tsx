@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Video, 
   VideoOff, 
@@ -19,10 +20,13 @@ import {
   Circle,
   Square,
   FileText,
+  Play,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TelemedicineChat } from './TelemedicineChat';
 import { SessionNotes } from './SessionNotes';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VideoCallModalProps {
   open: boolean;
@@ -42,6 +46,7 @@ export function VideoCallModal({
   patient,
   appointmentId 
 }: VideoCallModalProps) {
+  const { profile, hospital } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -52,6 +57,14 @@ export function VideoCallModal({
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [hasTelemedicineConsent, setHasTelemedicineConsent] = useState(false);
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [isSavingConsent, setIsSavingConsent] = useState(false);
+  const [recordingUploadState, setRecordingUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [recordingPath, setRecordingPath] = useState<string | null>(null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [showPlayback, setShowPlayback] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -65,6 +78,101 @@ export function VideoCallModal({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const fetchTelemedicineConsent = async () => {
+    if (!patient?.id || !hospital?.id) return false;
+
+    const { data, error } = await supabase
+      .from('patient_consents')
+      .select('telemedicine_consent, consent_date')
+      .eq('patient_id', patient.id)
+      .eq('hospital_id', hospital.id)
+      .order('consent_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to fetch telemedicine consent:', error);
+      return false;
+    }
+
+    return Boolean(data?.telemedicine_consent);
+  };
+
+  const logRecordingEvent = async (actionType: string, details: Record<string, unknown>) => {
+    if (!profile?.user_id || !hospital?.id) return;
+    await supabase.from('activity_logs').insert({
+      user_id: profile.user_id,
+      hospital_id: hospital.id,
+      action_type: actionType,
+      entity_type: 'telemedicine_recording',
+      entity_id: appointmentId || null,
+      details,
+    });
+  };
+
+  const getTelemedicineSession = async () => {
+    if (!appointmentId) return null;
+    const { data, error } = await supabase
+      .from('telemedicine_sessions')
+      .select('id, recording_url')
+      .eq('appointment_id', appointmentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to fetch telemedicine session:', error);
+      return null;
+    }
+
+    return data;
+  };
+
+  const createPlaybackUrl = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from('telemedicine-recordings')
+      .createSignedUrl(path, 60 * 60);
+
+    if (error) {
+      console.error('Failed to create signed URL:', error);
+      return null;
+    }
+
+    return data?.signedUrl || null;
+  };
+
+  const saveConsent = async () => {
+    if (!patient?.id || !hospital?.id || !profile?.id) return false;
+
+    setIsSavingConsent(true);
+    try {
+      const { error } = await supabase.from('patient_consents').insert({
+        patient_id: patient.id,
+        hospital_id: hospital.id,
+        telemedicine_consent: true,
+        consented_by: profile.id,
+        consent_date: new Date().toISOString(),
+        notes: 'Telemedicine recording consent obtained in-session.',
+      });
+
+      if (error) throw error;
+
+      setHasTelemedicineConsent(true);
+      await logRecordingEvent('telemedicine_consent_obtained', {
+        patient_id: patient.id,
+        appointment_id: appointmentId,
+      });
+      toast.success('Consent saved');
+      return true;
+    } catch (error) {
+      console.error('Failed to save consent:', error);
+      toast.error('Failed to save consent');
+      return false;
+    } finally {
+      setIsSavingConsent(false);
+    }
   };
 
   // Start local video stream
@@ -89,9 +197,63 @@ export function VideoCallModal({
     }
   };
 
+  const handleRecordingStop = async () => {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    setRecordedChunks([]);
+
+    if (!patient?.id) {
+      toast.error('Missing patient context for recording upload');
+      return;
+    }
+
+    setRecordingUploadState('uploading');
+
+    try {
+      const session = await getTelemedicineSession();
+      const sessionId = session?.id || appointmentId || patient.id;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const storagePath = `telemedicine/${sessionId}/recording-${timestamp}.webm`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('telemedicine-recordings')
+        .upload(storagePath, blob, { contentType: 'video/webm', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      if (session?.id) {
+        await supabase
+          .from('telemedicine_sessions')
+          .update({ recording_url: storagePath })
+          .eq('id', session.id);
+      }
+
+      const signedUrl = await createPlaybackUrl(storagePath);
+      setPlaybackUrl(signedUrl);
+      setRecordingPath(storagePath);
+      setRecordingUploadState('success');
+
+      await logRecordingEvent('telemedicine_recording_saved', {
+        patient_id: patient.id,
+        appointment_id: appointmentId,
+        recording_path: storagePath,
+      });
+
+      toast.success('Recording uploaded');
+    } catch (error) {
+      console.error('Error uploading recording:', error);
+      setRecordingUploadState('error');
+      toast.error('Failed to upload recording');
+    }
+  };
+
   // Start recording
   const startRecording = () => {
     if (!localStreamRef.current) return;
+
+    if (!hasTelemedicineConsent) {
+      setConsentDialogOpen(true);
+      return;
+    }
     
     try {
       const recorder = new MediaRecorder(localStreamRef.current, {
@@ -105,23 +267,16 @@ export function VideoCallModal({
       };
       
       recorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `telemedicine-call-${new Date().toISOString().slice(0, 19)}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        setRecordedChunks([]);
-        toast.success('Recording saved');
+        void handleRecordingStop();
       };
       
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
+      void logRecordingEvent('telemedicine_recording_started', {
+        patient_id: patient?.id,
+        appointment_id: appointmentId,
+      });
       toast.success('Recording started');
     } catch (error) {
       console.error('Error starting recording:', error);
@@ -317,6 +472,24 @@ export function VideoCallModal({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !patient?.id) return;
+
+    const hydrateRecordingState = async () => {
+      const consent = await fetchTelemedicineConsent();
+      setHasTelemedicineConsent(consent);
+
+      const session = await getTelemedicineSession();
+      if (session?.recording_url) {
+        setRecordingPath(session.recording_url);
+        const signedUrl = await createPlaybackUrl(session.recording_url);
+        setPlaybackUrl(signedUrl);
+      }
+    };
+
+    void hydrateRecordingState();
+  }, [open, patient?.id, appointmentId]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isFullscreen ? 'max-w-full h-full' : 'max-w-4xl'} p-0`}>
@@ -339,6 +512,11 @@ export function VideoCallModal({
                 <Badge variant="outline" className="text-green-600 border-green-600">
                   <span className="w-2 h-2 bg-green-600 rounded-full mr-2 animate-pulse" />
                   {formatDuration(callDuration)}
+                </Badge>
+              )}
+              {recordingUploadState === 'uploading' && (
+                <Badge variant="outline" className="text-blue-600 border-blue-600">
+                  Uploading recording...
                 </Badge>
               )}
               <Button
@@ -474,12 +652,26 @@ export function VideoCallModal({
               >
                 {isRecording ? <Square className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
               </Button>
+
+              {recordingPath && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={() => setShowPlayback(true)}
+                  title="Play recording"
+                  aria-label="Play recording"
+                >
+                  <Play className="h-5 w-5" />
+                </Button>
+              )}
               
               <Button
                 variant="destructive"
                 size="icon"
                 className="h-14 w-14 rounded-full"
                 onClick={handleEndCall}
+                aria-label="End call"
               >
                 <PhoneOff className="h-6 w-6" />
               </Button>
@@ -512,6 +704,70 @@ export function VideoCallModal({
             </div>
           )}
         </div>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={consentDialogOpen} onOpenChange={setConsentDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Recording Consent Required</DialogTitle>
+          <DialogDescription>
+            Confirm that telemedicine recording consent has been obtained from the patient before starting recording.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="telemedicine-consent"
+              checked={consentConfirmed}
+              onCheckedChange={(checked) => setConsentConfirmed(Boolean(checked))}
+            />
+            <label htmlFor="telemedicine-consent" className="text-sm text-muted-foreground">
+              I confirm the patient has provided consent for telemedicine recording.
+            </label>
+          </div>
+          <div className="rounded-lg border p-3 text-xs text-muted-foreground">
+            Consent records are stored in patient consents and logged for audit purposes.
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setConsentDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!consentConfirmed) {
+                toast.error('Please confirm consent before proceeding.');
+                return;
+              }
+              const saved = await saveConsent();
+              if (saved) {
+                setConsentDialogOpen(false);
+                setConsentConfirmed(false);
+                startRecording();
+              }
+            }}
+            disabled={!consentConfirmed || isSavingConsent}
+            data-primary-action="true"
+          >
+            {isSavingConsent ? 'Saving...' : 'Confirm & Record'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={showPlayback} onOpenChange={setShowPlayback}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Recording Playback</DialogTitle>
+          <DialogDescription>Secure playback of the recorded session.</DialogDescription>
+        </DialogHeader>
+        {playbackUrl ? (
+          <video controls className="w-full rounded-lg border">
+            <source src={playbackUrl} type="video/webm" />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <div className="text-sm text-muted-foreground">Recording not available yet.</div>
+        )}
       </DialogContent>
     </Dialog>
   );

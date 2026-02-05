@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import {
+  resolveIndianScheme,
+  validateClaimForScheme,
+  ClaimSubmissionResult,
+  ClaimStatusResult,
+} from '@/services/insuranceIntegration';
 
 interface InsuranceClaim {
   id: string;
@@ -39,6 +45,49 @@ export const useInsuranceClaims = () => {
   const { profile } = useAuth();
   const hospitalId = profile?.hospital_id;
   const queryClient = useQueryClient();
+  const functions = (supabase as any).functions;
+
+  const submitClaimToProvider = async (claim: InsuranceClaim): Promise<ClaimSubmissionResult | null> => {
+    if (!functions?.invoke) return null;
+
+    try {
+      const response = await functions.invoke('insurance-integration', {
+        body: {
+          action: 'submit_claim',
+          data: {
+            patient_id: claim.patient_id,
+            policy_number: claim.policy_number,
+            provider_name: claim.insurance_provider,
+            service_codes: claim.procedure_codes ?? [],
+            total_amount: claim.claim_amount,
+            service_date: claim.submitted_at ?? new Date().toISOString(),
+            diagnosis_codes: claim.diagnosis_codes ?? [],
+          },
+        },
+      });
+      return response?.data ?? null;
+    } catch (error) {
+      console.error('Failed to submit claim to provider', error);
+      return null;
+    }
+  };
+
+  const checkProviderClaimStatus = async (claimId: string): Promise<ClaimStatusResult | null> => {
+    if (!functions?.invoke) return null;
+
+    try {
+      const response = await functions.invoke('insurance-integration', {
+        body: {
+          action: 'check_claim_status',
+          data: { claim_id: claimId },
+        },
+      });
+      return response?.data ?? null;
+    } catch (error) {
+      console.error('Failed to check claim status', error);
+      return null;
+    }
+  };
 
   const { data: claims, isLoading } = useQuery({
     queryKey: ['insurance-claims', hospitalId],
@@ -73,7 +122,10 @@ export const useInsuranceClaims = () => {
       notes?: string;
     }) => {
       if (!hospitalId) throw new Error('No hospital ID');
-      
+
+      const scheme = resolveIndianScheme(claim.insurance_provider);
+      const validation = validateClaimForScheme(scheme, claim.claim_amount);
+
       // Generate claim number
       const { data: claimNumber } = await supabase
         .rpc('generate_claim_number', { p_hospital_id: hospitalId });
@@ -84,6 +136,13 @@ export const useInsuranceClaims = () => {
           ...claim,
           hospital_id: hospitalId,
           claim_number: claimNumber || `CLM-${Date.now()}`,
+          claim_amount: validation.adjustedAmount,
+          notes: [
+            claim.notes,
+            ...(validation.warnings.length ? [`Validation: ${validation.warnings.join(' ')}`] : []),
+          ]
+            .filter(Boolean)
+            .join(' | ') || null,
         })
         .select()
         .single();
@@ -123,6 +182,14 @@ export const useInsuranceClaims = () => {
 
   const submitClaim = useMutation({
     mutationFn: async (claimId: string) => {
+      const { data: existingClaim, error: claimError } = await supabase
+        .from('insurance_claims')
+        .select('*')
+        .eq('id', claimId)
+        .single();
+
+      if (claimError) throw claimError;
+
       const { data, error } = await supabase
         .from('insurance_claims')
         .update({
@@ -135,11 +202,96 @@ export const useInsuranceClaims = () => {
         .single();
 
       if (error) throw error;
+
+      const providerResponse = await submitClaimToProvider(existingClaim as InsuranceClaim);
+      if (providerResponse?.confirmation_number) {
+        await supabase
+          .from('insurance_claims')
+          .update({
+            notes: `Provider confirmation: ${providerResponse.confirmation_number}`,
+          })
+          .eq('id', claimId);
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
       toast.success('Claim submitted');
+    },
+  });
+
+  const refreshClaimStatus = useMutation({
+    mutationFn: async (claimId: string) => {
+      const statusUpdate = await checkProviderClaimStatus(claimId);
+      if (!statusUpdate) return null;
+
+      const { data, error } = await supabase
+        .from('insurance_claims')
+        .update({
+          status: statusUpdate.status,
+          reviewed_at: statusUpdate.processed_date ?? new Date().toISOString(),
+          approved_amount: statusUpdate.approved_amount ?? null,
+          patient_responsibility: statusUpdate.patient_responsibility ?? null,
+          paid_at: statusUpdate.payment_date ?? null,
+          denial_reason: statusUpdate.denial_reason ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', claimId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
+      toast.success('Claim status updated');
+    },
+  });
+
+  const markClaimDenied = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { data, error } = await supabase
+        .from('insurance_claims')
+        .update({
+          status: 'denied',
+          denial_reason: reason,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
+      toast.success('Claim marked as denied');
+    },
+  });
+
+  const appealClaim = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
+      const { data, error } = await supabase
+        .from('insurance_claims')
+        .update({
+          status: 'appeal_requested',
+          notes: notes ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
+      toast.success('Claim appeal submitted');
     },
   });
 
@@ -165,5 +317,8 @@ export const useInsuranceClaims = () => {
     createClaim,
     updateClaim,
     submitClaim,
+    refreshClaimStatus,
+    markClaimDenied,
+    appealClaim,
   };
 };

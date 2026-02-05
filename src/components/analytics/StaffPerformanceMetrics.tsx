@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, Users, Clock, CheckCircle2, AlertTriangle, Award } from 'lucide-react';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 interface MetricData {
   name: string;
@@ -21,6 +21,7 @@ interface PeerComparison {
 }
 
 export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | 'admin' }) {
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
   // Mock performance data - in a real app, this would come from an edge function/analytics service
   const personalMetrics: MetricData[] = useMemo(() => [
     { name: 'Patient Throughput', value: role === 'doctor' ? 18 : 24, peerAverage: 15, unit: 'daily', trend: 'up' },
@@ -100,28 +101,32 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
             <CardDescription>Multi-dimensional performance vs top 10% benchmark</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="metric" />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                <Radar
-                  name="You"
-                  dataKey="personal"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.6}
-                />
-                <Radar
-                  name="Top 10%"
-                  dataKey="top10"
-                  stroke="hsl(var(--muted-foreground))"
-                  fill="hsl(var(--muted-foreground))"
-                  fillOpacity={0.1}
-                />
-                <Legend />
-              </RadarChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height="100%">
+                <Recharts.RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                  <Recharts.PolarGrid />
+                  <Recharts.PolarAngleAxis dataKey="metric" />
+                  <Recharts.PolarRadiusAxis angle={30} domain={[0, 100]} />
+                  <Recharts.Radar
+                    name="You"
+                    dataKey="personal"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary))"
+                    fillOpacity={0.6}
+                  />
+                  <Recharts.Radar
+                    name="Top 10%"
+                    dataKey="top10"
+                    stroke="hsl(var(--muted-foreground))"
+                    fill="hsl(var(--muted-foreground))"
+                    fillOpacity={0.1}
+                  />
+                  <Recharts.Legend />
+                </Recharts.RadarChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -131,32 +136,36 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
             <CardDescription>Daily throughput vs average</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={productivityTrend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip 
-                  cursor={{fill: 'transparent'}}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                 />
-                <Bar 
-                  dataKey="personal" 
-                  name="Personal" 
-                  fill="hsl(var(--primary))" 
-                  radius={[4, 4, 0, 0]} 
-                  barSize={30}
-                />
-                <Bar 
-                  dataKey="avg" 
-                  name="Peer Average" 
-                  fill="hsl(var(--muted))" 
-                  radius={[4, 4, 0, 0]} 
-                  barSize={30}
-                />
-                <Legend />
-              </BarChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height="100%">
+                <Recharts.BarChart data={productivityTrend}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <Recharts.XAxis dataKey="day" axisLine={false} tickLine={false} />
+                  <Recharts.YAxis axisLine={false} tickLine={false} />
+                  <Recharts.Tooltip 
+                    cursor={{fill: 'transparent'}}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Recharts.Bar 
+                    dataKey="personal" 
+                    name="Personal" 
+                    fill="hsl(var(--primary))" 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={30}
+                  />
+                  <Recharts.Bar 
+                    dataKey="avg" 
+                    name="Peer Average" 
+                    fill="hsl(var(--muted))" 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={30}
+                  />
+                  <Recharts.Legend />
+                </Recharts.BarChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

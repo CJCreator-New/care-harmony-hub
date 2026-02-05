@@ -215,7 +215,7 @@ export function UserManagement() {
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
                         {canUpdateUsers && (
-                          <Button variant="ghost" size="sm" title="Edit">
+                          <Button variant="ghost" size="sm" title="Edit" aria-label="Edit user">
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}

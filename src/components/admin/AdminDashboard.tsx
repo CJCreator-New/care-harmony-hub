@@ -1,5 +1,5 @@
 // Admin Dashboard Component
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminRBACManager } from '@/utils/adminRBACManager';
 import { SystemConfiguration } from './SystemConfiguration';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 import { AlertCircle, Users, TrendingUp, Activity } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -34,9 +34,25 @@ export function AdminDashboard() {
   }
 
   // Check specific permissions
-  const canManageUsers = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_CREATE);
-  const canViewAnalytics = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.ANALYTICS_VIEW_ALL);
-  const canAccessSettings = AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.SYSTEM_SETTINGS);
+  const permissions = useMemo(() => ({
+    canManageUsers: AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_CREATE),
+    canViewAnalytics: AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.ANALYTICS_VIEW_ALL),
+    canAccessSettings: AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.SYSTEM_SETTINGS),
+  }), [primaryRole]);
+
+  const { canManageUsers, canViewAnalytics, canAccessSettings } = permissions;
+
+  const systemPerformanceData = useMemo(
+    () => [
+      { time: '00:00', load: 45, errors: 2 },
+      { time: '04:00', load: 52, errors: 3 },
+      { time: '08:00', load: 78, errors: 5 },
+      { time: '12:00', load: 85, errors: 4 },
+      { time: '16:00', load: 72, errors: 3 },
+      { time: '20:00', load: 60, errors: 2 },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-6 p-6">
@@ -155,8 +171,8 @@ export function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((user, idx) => (
-                        <tr key={`user-${idx}`} className="border-b hover:bg-gray-50">
+                      {users.map((user) => (
+                        <tr key={user.id || user.email} className="border-b hover:bg-gray-50">
                           <td className="py-2">{user.email}</td>
                           <td className="py-2 capitalize">{user.role}</td>
                           <td className="py-2">
@@ -189,24 +205,9 @@ export function AdminDashboard() {
                 <CardDescription>Real-time system metrics</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={[
-                    { time: '00:00', load: 45, errors: 2 },
-                    { time: '04:00', load: 52, errors: 3 },
-                    { time: '08:00', load: 78, errors: 5 },
-                    { time: '12:00', load: 85, errors: 4 },
-                    { time: '16:00', load: 72, errors: 3 },
-                    { time: '20:00', load: 60, errors: 2 },
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="load" stroke="#3b82f6" />
-                    <Line type="monotone" dataKey="errors" stroke="#ef4444" />
-                  </LineChart>
-                </ResponsiveContainer>
+                {activeTab === 'analytics' && (
+                  <SystemPerformanceChart data={systemPerformanceData} />
+                )}
               </CardContent>
             </Card>
 
@@ -258,5 +259,29 @@ function MetricCard({ title, value, icon, trend }: { title: string; value: strin
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SystemPerformanceChart({ data }: { data: Array<{ time: string; load: number; errors: number }> }) {
+  const { components: Recharts, loading } = useRecharts();
+
+  if (loading || !Recharts) {
+    return <ChartSkeleton />;
+  }
+
+  const { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = Recharts;
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="time" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Line type="monotone" dataKey="load" stroke="#3b82f6" />
+        <Line type="monotone" dataKey="errors" stroke="#ef4444" />
+      </LineChart>
+    </ResponsiveContainer>
   );
 }

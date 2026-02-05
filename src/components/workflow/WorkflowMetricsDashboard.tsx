@@ -100,8 +100,8 @@ export function WorkflowMetricsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {bottlenecks.map((bottleneck, index) => (
-                <Alert key={index} variant={bottleneck.severity === 'critical' ? 'destructive' : 'default'}>
+              {bottlenecks.map((bottleneck) => (
+                <Alert key={`${bottleneck.stage_name}-${bottleneck.severity}`} variant={bottleneck.severity === 'critical' ? 'destructive' : 'default'}>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle className="flex items-center gap-2">
                     {bottleneck.stage_name}

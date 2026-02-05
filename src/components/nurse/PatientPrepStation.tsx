@@ -153,7 +153,9 @@ export function PatientPrepStation() {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-muted/50" />)}
+          {["prep-1", "prep-2", "prep-3"].map((key) => (
+            <Card key={key} className="h-48 animate-pulse bg-muted/50" />
+          ))}
         </div>
       ) : patients.length === 0 ? (
         <Card className="border-dashed flex flex-col items-center justify-center p-12 text-center">

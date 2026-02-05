@@ -315,9 +315,9 @@ export const PatientQueryParser: React.FC<PatientQueryParserProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-2">
-                    {parsedQuery.entities.map((entity, index) => (
+                    {parsedQuery.entities.map((entity) => (
                       <div
-                        key={index}
+                        key={`${entity.type}-${entity.value}`}
                         className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                       >
                         <div className="flex items-center gap-3">
@@ -348,9 +348,9 @@ export const PatientQueryParser: React.FC<PatientQueryParserProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {parsedQuery.suggestedActions.map((action, index) => (
+                    {parsedQuery.suggestedActions.map((action) => (
                       <div
-                        key={index}
+                        key={action.type}
                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -400,9 +400,9 @@ export const PatientQueryParser: React.FC<PatientQueryParserProps> = ({
                 <CardContent>
                   <ScrollArea className="h-32">
                     <div className="space-y-2">
-                      {patientQueryService.getSuggestedResponses(parsedQuery).map((response, index) => (
+                      {patientQueryService.getSuggestedResponses(parsedQuery).map((response) => (
                         <div
-                          key={index}
+                          key={response}
                           className="p-3 bg-muted/50 rounded-lg text-sm"
                         >
                           {response}

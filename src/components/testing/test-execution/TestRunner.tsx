@@ -160,7 +160,7 @@ export default function TestRunner({ script, onExecutionComplete }: TestRunnerPr
 
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" aria-label="Open terminal">
                     <Terminal className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>

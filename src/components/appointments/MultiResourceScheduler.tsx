@@ -286,13 +286,13 @@ export const MultiResourceScheduler: React.FC<MultiResourceSchedulerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {availableSlots.map((slot, index) => {
+              {availableSlots.map((slot) => {
                 const startTime = new Date(slot.start_time);
                 const available = isSlotAvailable(slot);
                 
                 return (
                   <Button
-                    key={index}
+                    key={`${slot.start_time}-${slot.end_time}`}
                     variant={selectedSlot === slot ? 'default' : 'outline'}
                     className={`h-auto p-3 flex flex-col items-center ${getSlotStatusColor(slot)}`}
                     onClick={() => available && setSelectedSlot(slot)}

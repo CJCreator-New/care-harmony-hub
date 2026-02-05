@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Calendar, Activity } from 'lucide-react';
 import { LabTrend, LabResult, LOINCCode } from '@/types/laboratory';
 import { format, subDays, subMonths } from 'date-fns';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 interface LabTrendVisualizationProps {
   patientId: string;
@@ -23,6 +23,7 @@ export const LabTrendVisualization: React.FC<LabTrendVisualizationProps> = ({
   results,
   onPeriodChange
 }) => {
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
   const [selectedPeriod, setSelectedPeriod] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
   const [trendData, setTrendData] = useState<any[]>([]);
   const [trendAnalysis, setTrendAnalysis] = useState<LabTrend | null>(null);
@@ -307,47 +308,51 @@ export const LabTrendVisualization: React.FC<LabTrendVisualizationProps> = ({
 
         {/* Chart */}
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                domain={['dataMin - 10%', 'dataMax + 10%']}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              
-              {/* Reference Range Lines */}
-              {referenceRanges && (
-                <>
-                  <ReferenceLine 
-                    y={referenceRanges.low} 
-                    stroke="#10b981" 
-                    strokeDasharray="5 5"
-                    label={{ value: "Low Normal", position: "insideTopRight" }}
-                  />
-                  <ReferenceLine 
-                    y={referenceRanges.high} 
-                    stroke="#10b981" 
-                    strokeDasharray="5 5"
-                    label={{ value: "High Normal", position: "insideBottomRight" }}
-                  />
-                </>
-              )}
-              
-              <Line 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#2563eb" 
-                strokeWidth={2}
-                dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {rechartsLoading || !Recharts ? (
+            <ChartSkeleton />
+          ) : (
+            <Recharts.ResponsiveContainer width="100%" height="100%">
+              <Recharts.LineChart data={trendData}>
+                <Recharts.CartesianGrid strokeDasharray="3 3" />
+                <Recharts.XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                />
+                <Recharts.YAxis 
+                  tick={{ fontSize: 12 }}
+                  domain={['dataMin - 10%', 'dataMax + 10%']}
+                />
+                <Recharts.Tooltip content={<CustomTooltip />} />
+                
+                {/* Reference Range Lines */}
+                {referenceRanges && (
+                  <>
+                    <Recharts.ReferenceLine 
+                      y={referenceRanges.low} 
+                      stroke="#10b981" 
+                      strokeDasharray="5 5"
+                      label={{ value: "Low Normal", position: "insideTopRight" }}
+                    />
+                    <Recharts.ReferenceLine 
+                      y={referenceRanges.high} 
+                      stroke="#10b981" 
+                      strokeDasharray="5 5"
+                      label={{ value: "High Normal", position: "insideBottomRight" }}
+                    />
+                  </>
+                )}
+                
+                <Recharts.Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#2563eb" 
+                  strokeWidth={2}
+                  dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2 }}
+                />
+              </Recharts.LineChart>
+            </Recharts.ResponsiveContainer>
+          )}
         </div>
 
         {/* Latest Values Summary */}

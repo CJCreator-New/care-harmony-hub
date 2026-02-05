@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useAdminStats, useStaffOverview, useDepartmentPerformance, useWeeklyAppointmentTrend } from '@/hooks/useAdminStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 import { 
   Users, 
   Calendar, 
@@ -21,7 +23,6 @@ import {
   UserCog,
   ShieldCheck,
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const ROLE_ICONS: Record<string, React.ElementType> = {
   doctor: Stethoscope,
@@ -46,13 +47,14 @@ export function AdminAnalytics() {
   const { data: staffOverview } = useStaffOverview();
   const { data: deptPerformance } = useDepartmentPerformance();
   const { data: weeklyTrend } = useWeeklyAppointmentTrend();
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i}>
+            <Card key={`stats-skeleton-${i}`}>
               <CardContent className="p-6">
                 <Skeleton className="h-8 w-24 mb-2" />
                 <Skeleton className="h-6 w-16" />
@@ -64,7 +66,7 @@ export function AdminAnalytics() {
     );
   }
 
-  const mainStats = [
+  const mainStats = useMemo(() => ([
     {
       title: 'Total Patients',
       value: stats?.totalPatients || 0,
@@ -93,9 +95,9 @@ export function AdminAnalytics() {
       color: 'bg-warning/10 text-warning',
       subtitle: `$${((stats?.pendingAmount || 0) / 1000).toFixed(1)}K pending`,
     },
-  ];
+  ]), [stats]);
 
-  const operationalStats = [
+  const operationalStats = useMemo(() => ([
     {
       title: 'Queue Waiting',
       value: stats?.queueWaiting || 0,
@@ -128,7 +130,9 @@ export function AdminAnalytics() {
       icon: Bed,
       color: 'bg-info/10',
     },
-  ];
+  ]), [stats]);
+
+  const weeklyTrendData = useMemo(() => weeklyTrend || [], [weeklyTrend]);
 
   return (
     <div className="space-y-6">
@@ -197,17 +201,8 @@ export function AdminAnalytics() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {weeklyTrend && weeklyTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weeklyTrend}>
-                  <XAxis dataKey="day" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="scheduled" name="Scheduled" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="completed" name="Completed" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            {weeklyTrendData.length > 0 ? (
+              <WeeklyTrendChart data={weeklyTrendData} isLoading={rechartsLoading} Recharts={Recharts} />
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
                 No appointment data this week
@@ -290,5 +285,34 @@ export function AdminAnalytics() {
         </Card>
       )}
     </div>
+  );
+}
+
+function WeeklyTrendChart({
+  data,
+  isLoading,
+  Recharts,
+}: {
+  data: Array<Record<string, any>>;
+  isLoading: boolean;
+  Recharts: typeof import('recharts') | null;
+}) {
+  if (isLoading || !Recharts) {
+    return <ChartSkeleton />;
+  }
+
+  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } = Recharts;
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data}>
+        <XAxis dataKey="day" fontSize={12} />
+        <YAxis fontSize={12} />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey="scheduled" name="Scheduled" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="completed" name="Completed" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

@@ -171,7 +171,10 @@ export const MedicationReconciliationCard: React.FC<MedicationReconciliationCard
             {/* Home Medications List */}
             <div className="space-y-2">
               {reconciliation.home_medications?.map((med, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div
+                  key={`${med.name}-${med.dosage}-${med.frequency ?? "unknown"}`}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
                   <div className="flex-1">
                     <div className="font-medium">{med.name} {med.dosage}</div>
                     <div className="text-sm text-muted-foreground">
@@ -194,6 +197,7 @@ export const MedicationReconciliationCard: React.FC<MedicationReconciliationCard
                       variant="ghost"
                       size="sm"
                       onClick={() => removeHomeMedication(index)}
+                      aria-label="Remove home medication"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -210,8 +214,11 @@ export const MedicationReconciliationCard: React.FC<MedicationReconciliationCard
 
           <TabsContent value="discontinued" className="space-y-4">
             <div className="space-y-2">
-              {reconciliation.discontinued_medications?.map((med, index) => (
-                <div key={index} className="p-3 border rounded-lg bg-red-50">
+              {reconciliation.discontinued_medications?.map((med) => (
+                <div
+                  key={`${med.name}-${med.dosage}-${med.discontinued_date}`}
+                  className="p-3 border rounded-lg bg-red-50"
+                >
                   <div className="font-medium">{med.name} {med.dosage}</div>
                   <div className="text-sm text-muted-foreground">
                     Discontinued: {med.discontinued_date} • Reason: {med.reason_discontinued}
@@ -231,8 +238,11 @@ export const MedicationReconciliationCard: React.FC<MedicationReconciliationCard
 
           <TabsContent value="new" className="space-y-4">
             <div className="space-y-2">
-              {reconciliation.new_medications?.map((med, index) => (
-                <div key={index} className="p-3 border rounded-lg bg-green-50">
+              {reconciliation.new_medications?.map((med) => (
+                <div
+                  key={`${med.name}-${med.dosage}-${med.start_date}`}
+                  className="p-3 border rounded-lg bg-green-50"
+                >
                   <div className="font-medium">{med.name} {med.dosage}</div>
                   <div className="text-sm text-muted-foreground">
                     {med.frequency} • Start: {med.start_date}

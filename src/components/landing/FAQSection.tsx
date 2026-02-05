@@ -122,10 +122,10 @@ export function FAQSection() {
                 {category.category}
               </h3>
               <Accordion type="single" collapsible className="space-y-2">
-                {category.questions.map((item, index) => (
+                {category.questions.map((item) => (
                   <AccordionItem
-                    key={index}
-                    value={`${categoryIndex}-${index}`}
+                    key={item.q}
+                    value={`${category.category}-${item.q}`}
                     className="bg-card border border-border rounded-lg px-4 data-[state=open]:border-primary/50 transition-colors"
                   >
                     <AccordionTrigger className="hover:no-underline text-left [&[data-state=open]>svg]:rotate-180">

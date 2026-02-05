@@ -1,18 +1,8 @@
 import { useMemo } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  ReferenceLine
-} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Activity, Thermometer, Droplets, HeartPulse } from 'lucide-react';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 interface VitalsData {
   date: string;
@@ -28,6 +18,7 @@ interface Props {
 }
 
 export function VitalsTrendChart({ data }: Props) {
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
   // Mock data if none provided
   const chartData = useMemo(() => {
     if (data && data.length > 0) return data;
@@ -59,51 +50,55 @@ export function VitalsTrendChart({ data }: Props) {
       </CardHeader>
       <CardContent>
         <div className="h-[250px] w-full mt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="date" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                tick={{ fill: '#888' }} 
-              />
-              <YAxis 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                tick={{ fill: '#888' }}
-              />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px' }}
-                cursor={{ stroke: '#e0e0e0', strokeWidth: 1 }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '15px' }} />
-              
-              <Line 
-                type="monotone" 
-                dataKey="bp_systolic" 
-                name="Systolic" 
-                stroke="#ef4444" 
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#ef4444' }}
-                activeDot={{ r: 5 }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="pulse" 
-                name="Pulse" 
-                stroke="#0ea5e9" 
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#0ea5e9' }}
-                activeDot={{ r: 5 }}
-              />
-              
-              {/* Reference line for normal systolic */}
-              <ReferenceLine y={120} stroke="#ef4444" strokeDasharray="3 3" opacity={0.3} />
-            </LineChart>
-          </ResponsiveContainer>
+          {rechartsLoading || !Recharts ? (
+            <ChartSkeleton />
+          ) : (
+            <Recharts.ResponsiveContainer width="100%" height="100%">
+              <Recharts.LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <Recharts.CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <Recharts.XAxis 
+                  dataKey="date" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false}
+                  tick={{ fill: '#888' }} 
+                />
+                <Recharts.YAxis 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false}
+                  tick={{ fill: '#888' }}
+                />
+                <Recharts.Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px' }}
+                  cursor={{ stroke: '#e0e0e0', strokeWidth: 1 }}
+                />
+                <Recharts.Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '15px' }} />
+                
+                <Recharts.Line 
+                  type="monotone" 
+                  dataKey="bp_systolic" 
+                  name="Systolic" 
+                  stroke="#ef4444" 
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#ef4444' }}
+                  activeDot={{ r: 5 }}
+                />
+                <Recharts.Line 
+                  type="monotone" 
+                  dataKey="pulse" 
+                  name="Pulse" 
+                  stroke="#0ea5e9" 
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#0ea5e9' }}
+                  activeDot={{ r: 5 }}
+                />
+                
+                {/* Reference line for normal systolic */}
+                <Recharts.ReferenceLine y={120} stroke="#ef4444" strokeDasharray="3 3" opacity={0.3} />
+              </Recharts.LineChart>
+            </Recharts.ResponsiveContainer>
+          )}
         </div>
         
         {/* Quick Stats Footer */}

@@ -39,6 +39,7 @@ interface PatientBillingAccessProps {
 }
 
 export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
+  const skeletonKeys = ['billing-1', 'billing-2', 'billing-3', 'billing-4'];
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -238,8 +239,8 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
+          {skeletonKeys.map((key) => (
+            <Card key={key}>
               <CardContent className="p-6">
                 <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
                 <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -377,7 +378,14 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {billingDataToUse.invoices.map((invoice: any) => (
+                  {billingDataToUse.invoices.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No invoices available.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    billingDataToUse.invoices.map((invoice: any) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">{invoice.id}</TableCell>
                       <TableCell>{format(new Date(invoice.date), 'MMM dd, yyyy')}</TableCell>
@@ -495,7 +503,8 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -526,7 +535,14 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(billingDataToUse as any).paymentHistory?.map((payment: any) => (
+                  {(billingDataToUse as any).paymentHistory?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No payment history yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (billingDataToUse as any).paymentHistory?.map((payment: any) => (
                     <TableRow key={payment.id}>
                       <TableCell className="font-medium">{payment.id}</TableCell>
                       <TableCell>{format(new Date(payment.date), 'MMM dd, yyyy')}</TableCell>
@@ -544,7 +560,8 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -575,7 +592,14 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(billingDataToUse as any).insuranceClaims?.map((claim: any) => (
+                  {(billingDataToUse as any).insuranceClaims?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No insurance claims found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (billingDataToUse as any).insuranceClaims?.map((claim: any) => (
                     <TableRow key={claim.id}>
                       <TableCell className="font-medium">{claim.id}</TableCell>
                       <TableCell>{format(new Date(claim.date), 'MMM dd, yyyy')}</TableCell>
@@ -593,7 +617,8 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -759,12 +784,20 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedInvoice.items.map((item: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                    {selectedInvoice.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="py-6 text-center text-muted-foreground">
+                          No line items available.
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      selectedInvoice.items.map((item: any) => (
+                        <TableRow key={item.description}>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>

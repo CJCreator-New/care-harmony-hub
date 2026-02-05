@@ -302,8 +302,8 @@ For urgent questions, contact our on-call service at (555) 123-4567.`;
                   <>
                     <h4>Medications</h4>
                     <ul>
-                      {summaryContent.medications_prescribed.map((med, index) => (
-                        <li key={index}>
+                      {summaryContent.medications_prescribed.map((med) => (
+                        <li key={`${med.medication_name}-${med.dosage}-${med.frequency}`}>
                           <strong>{med.medication_name}</strong> - {med.dosage}, {med.frequency}
                           <br />
                           <em>{med.instructions}</em>
@@ -402,7 +402,7 @@ For urgent questions, contact our on-call service at (555) 123-4567.`;
               Deliver
             </Button>
             
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" aria-label="Download summary">
               <Download className="h-4 w-4" />
             </Button>
           </div>

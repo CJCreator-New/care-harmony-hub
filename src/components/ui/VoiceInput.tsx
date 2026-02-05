@@ -411,6 +411,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             disabled={disabled || !transcript}
             variant="outline"
             size="sm"
+            aria-label="Clear transcript"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -502,8 +503,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
               Medical Term Corrections:
             </label>
             <div className="max-h-[100px] overflow-y-auto p-2 border rounded-md bg-blue-50/50">
-              {corrections.map((correction, index) => (
-                <div key={index} className="text-xs text-blue-700 py-1">
+              {corrections.map((correction) => (
+                <div key={correction} className="text-xs text-blue-700 py-1">
                   {correction}
                 </div>
               ))}
@@ -516,8 +517,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
           <div className="space-y-2">
             <label className="text-sm font-medium">Detected Medical Terms:</label>
             <div className="flex flex-wrap gap-1">
-              {medicalTerms.map((term, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
+              {medicalTerms.map((term) => (
+                <Badge key={term} variant="secondary" className="text-xs">
                   {term}
                 </Badge>
               ))}

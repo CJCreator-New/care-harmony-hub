@@ -392,15 +392,16 @@ export function TreatmentPlanStep({
               type="button" 
               onClick={addPrescription}
               variant={newPrescriptionSafety?.requiresVerification ? 'destructive' : 'default'}
+              aria-label="Add prescription"
             >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
           {prescriptions.length > 0 && (
             <div className="space-y-2">
-              {prescriptions.map((rx: Prescription, index: number) => (
+              {prescriptions.map((rx: Prescription) => (
                 <div
-                  key={index}
+                  key={`${rx.medication}-${rx.dosage}-${rx.frequency}-${rx.duration}`}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
                 >
                   <div>
@@ -505,8 +506,8 @@ export function TreatmentPlanStep({
                       <p className="text-sm text-muted-foreground mb-3">{prediction.recommendation}</p>
                       {prediction.medications && prediction.medications.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-3">
-                          {prediction.medications.map((med: string, idx: number) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
+                          {prediction.medications.map((med: string) => (
+                            <Badge key={med} variant="outline" className="text-xs">
                               {med.replace('_', ' ')}
                             </Badge>
                           ))}
@@ -591,7 +592,7 @@ export function TreatmentPlanStep({
               <option value="urgent">Urgent</option>
               <option value="stat">STAT</option>
             </select>
-            <Button type="button" onClick={addLabOrder}>
+            <Button type="button" onClick={addLabOrder} aria-label="Add lab order">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -599,7 +600,7 @@ export function TreatmentPlanStep({
             <div className="space-y-2">
               {labOrders.map((order: LabOrder, index: number) => (
                 <div
-                  key={index}
+                  key={order.labOrderId ?? `${order.test}-${order.priority}-${order.notes ?? ''}`}
                   className={`flex items-center justify-between p-3 rounded-md ${
                     order.isSubmitted ? 'bg-success/10 border border-success/20' : 'bg-muted/50'
                   }`}
@@ -677,7 +678,7 @@ export function TreatmentPlanStep({
                 setNewReferral({ ...newReferral, reason: e.target.value })
               }
             />
-            <Button type="button" onClick={addReferral}>
+            <Button type="button" onClick={addReferral} aria-label="Add referral">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -685,7 +686,7 @@ export function TreatmentPlanStep({
             <div className="space-y-2">
               {referrals.map((referral: Referral, index: number) => (
                 <div
-                  key={index}
+                  key={`${referral.specialty}-${referral.reason}-${referral.urgency}`}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
                 >
                   <div>

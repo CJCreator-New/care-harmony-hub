@@ -129,8 +129,8 @@ export const TriageAssessmentModal: React.FC<TriageAssessmentModalProps> = ({
                 <div className="mt-3 p-3 bg-muted rounded-lg">
                   <p className="text-sm font-medium">Level {selectedESI.level} Criteria:</p>
                   <ul className="text-sm text-muted-foreground mt-1">
-                    {selectedESI.criteria.map((criterion, index) => (
-                      <li key={index}>• {criterion}</li>
+                    {selectedESI.criteria.map((criterion) => (
+                      <li key={criterion}>• {criterion}</li>
                     ))}
                   </ul>
                 </div>

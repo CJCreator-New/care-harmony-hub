@@ -229,9 +229,9 @@ function DrugInteractionAlert({
 
   return (
     <div className="space-y-2">
-      {interactions.map((interaction, index) => (
+      {interactions.map((interaction) => (
         <div
-          key={index}
+          key={`${interaction.drug}-${interaction.severity}`}
           className={cn(
             "p-3 rounded-lg border text-sm",
             severityColors[interaction.severity]
@@ -296,6 +296,7 @@ function PrescriptionItemCard({
               size="sm"
               onClick={onRemove}
               className="text-destructive hover:text-destructive"
+              aria-label="Remove medication"
             >
               <Trash2 className="w-4 h-4" />
             </Button>

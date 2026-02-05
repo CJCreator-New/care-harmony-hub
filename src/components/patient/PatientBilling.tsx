@@ -34,6 +34,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const summarySkeletonKeys = ["summary-1", "summary-2", "summary-3", "summary-4"];
 
   const {
     billingData,
@@ -187,8 +188,8 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
+          {summarySkeletonKeys.map((key) => (
+            <Card key={key}>
               <CardContent className="p-6">
                 <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
                 <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -308,56 +309,63 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {billingDataToUse.invoices.map((invoice: any) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.id}</TableCell>
-                      <TableCell>{format(new Date(invoice.date), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>{format(new Date(invoice.dueDate), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>${invoice.amount.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          <span className="flex items-center">
-                            {getStatusIcon(invoice.status)}
-                            <span className="ml-1 capitalize">{invoice.status}</span>
-                          </span>
-                        </Badge>
+                  {billingDataToUse.invoices.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No invoices available.
                       </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedInvoice(invoice)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadInvoice(invoice)}
-                          >
-                            <Download className="w-4 h-4 mr-1" />
-                            Download
-                          </Button>
-                          {invoice.status !== 'paid' && (
-                            <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  onClick={() => setSelectedInvoice(invoice)}
-                                >
-                                  <CreditCard className="w-4 h-4 mr-1" />
-                                  Pay
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Make Payment</DialogTitle>
-                                  <DialogDescription>
-                                    Pay invoice {selectedInvoice?.id} - ${selectedInvoice?.amount.toFixed(2)}
-                                  </DialogDescription>
-                                </DialogHeader>
+                    </TableRow>
+                  ) : (
+                    billingDataToUse.invoices.map((invoice: any) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">{invoice.id}</TableCell>
+                        <TableCell>{format(new Date(invoice.date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>{format(new Date(invoice.dueDate), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>${invoice.amount.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(invoice.status)}>
+                            <span className="flex items-center">
+                              {getStatusIcon(invoice.status)}
+                              <span className="ml-1 capitalize">{invoice.status}</span>
+                            </span>
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedInvoice(invoice)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => downloadInvoice(invoice)}
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Download
+                            </Button>
+                            {invoice.status !== 'paid' && (
+                              <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setSelectedInvoice(invoice)}
+                                  >
+                                    <CreditCard className="w-4 h-4 mr-1" />
+                                    Pay
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Make Payment</DialogTitle>
+                                    <DialogDescription>
+                                      Pay invoice {selectedInvoice?.id} - ${selectedInvoice?.amount.toFixed(2)}
+                                    </DialogDescription>
+                                  </DialogHeader>
                                 <div className="space-y-4">
                                   <div className="p-4 bg-gray-50 rounded-lg">
                                     <h4 className="font-medium mb-2">Invoice Details</h4>
@@ -395,13 +403,14 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                                     </Button>
                                   </div>
                                 </div>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                                </DialogContent>
+                              </Dialog>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -432,25 +441,33 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(billingDataToUse as any).paymentHistory?.map((payment: any) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">{payment.id}</TableCell>
-                      <TableCell>{format(new Date(payment.date), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>${payment.amount.toFixed(2)}</TableCell>
-                      <TableCell>{payment.method}</TableCell>
-                      <TableCell>
-                        <Badge className={payment.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                          {payment.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm">
-                          <Download className="w-4 h-4 mr-1" />
-                          Receipt
-                        </Button>
+                  {(billingDataToUse as any).paymentHistory?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No payment history yet.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    (billingDataToUse as any).paymentHistory?.map((payment: any) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.id}</TableCell>
+                        <TableCell>{format(new Date(payment.date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>${payment.amount.toFixed(2)}</TableCell>
+                        <TableCell>{payment.method}</TableCell>
+                        <TableCell>
+                          <Badge className={payment.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                            {payment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm">
+                            <Download className="w-4 h-4 mr-1" />
+                            Receipt
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -481,25 +498,33 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(billingDataToUse as any).insuranceClaims?.map((claim: any) => (
-                    <TableRow key={claim.id}>
-                      <TableCell className="font-medium">{claim.id}</TableCell>
-                      <TableCell>{format(new Date(claim.date), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>${claim.amount.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge className={claim.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                          {claim.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>${claim.approvedAmount?.toFixed(2) || '0.00'}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-1" />
-                          Details
-                        </Button>
+                  {(billingDataToUse as any).insuranceClaims?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No insurance claims found.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    (billingDataToUse as any).insuranceClaims?.map((claim: any) => (
+                      <TableRow key={claim.id}>
+                        <TableCell className="font-medium">{claim.id}</TableCell>
+                        <TableCell>{format(new Date(claim.date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>${claim.amount.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge className={claim.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                            {claim.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>${claim.approvedAmount?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-1" />
+                            Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -548,12 +573,20 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedInvoice.items.map((item: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                    {selectedInvoice.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="py-6 text-center text-muted-foreground">
+                          No line items available.
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      selectedInvoice.items.map((item: any) => (
+                        <TableRow key={item.id ?? `${item.description}-${item.amount}`}>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>

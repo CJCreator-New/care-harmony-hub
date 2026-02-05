@@ -157,7 +157,7 @@ export function Testimonial() {
                 >
                   {current.quote.split(" ").map((word, i) => (
                     <motion.span
-                      key={i}
+                      key={`${current.author}-${word}-${i}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
@@ -200,7 +200,7 @@ export function Testimonial() {
                       {/* Star Rating */}
                       <div className="flex">
                         {[...Array(current.rating || 5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 fill-warning text-warning" />
+                          <Star key={`${current.author}-star-${i}`} className="w-3 h-3 fill-warning text-warning" />
                         ))}
                       </div>
                     </div>
@@ -243,7 +243,7 @@ export function Testimonial() {
             className="flex whitespace-nowrap text-sm text-muted-foreground"
           >
             {[...Array(10)].map((_, i) => (
-              <span key={i} className="mx-4">
+              <span key={`ticker-${i}`} className="mx-4">
                 {testimonials.map((t) => t.company).join(" • ")} •
               </span>
             ))}

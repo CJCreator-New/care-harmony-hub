@@ -16,6 +16,7 @@ const statusColors: Record<string, string> = {
 
 export default function PatientLabResultsPage() {
   const { data: labResults = [], isLoading } = usePatientLabResults();
+  const skeletonKeys = ['lab-1', 'lab-2', 'lab-3'];
 
   const pendingResults = labResults.filter((l) => l.status !== 'completed');
   const completedResults = labResults.filter((l) => l.status === 'completed');
@@ -90,8 +91,8 @@ export default function PatientLabResultsPage() {
           <TabsContent value="all" className="mt-4">
             {isLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-32 w-full" />
+                {skeletonKeys.map((key) => (
+                  <Skeleton key={key} className="h-32 w-full" />
                 ))}
               </div>
             ) : labResults.length === 0 ? (

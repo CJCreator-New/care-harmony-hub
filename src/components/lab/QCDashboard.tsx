@@ -3,18 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ReferenceLine,
-  ResponsiveContainer 
-} from 'recharts';
 import { AlertCircle, CheckCircle, FileText, Settings, AlertTriangle } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 // Mock Data Generation for Levey-Jennings Chart
 const generateQCData = (mean: number, sd: number, points: number) => {
@@ -49,6 +40,7 @@ const TESTS = [
 ];
 
 export function QCDashboard() {
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
   const [selectedTest, setSelectedTest] = useState(TESTS[0].id);
   const currentTest = TESTS.find(t => t.id === selectedTest) || TESTS[0];
   
@@ -77,7 +69,9 @@ export function QCDashboard() {
                ))}
              </SelectContent>
            </Select>
-           <Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" aria-label="Open QC settings">
+            <Settings className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -97,49 +91,53 @@ export function QCDashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis domain={['auto', 'auto']} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                    labelStyle={{ fontWeight: 'bold' }}
-                    formatter={(value: number) => [value, 'Control Value']}
-                  />
-                  
-                  {/* Mean Line */}
-                  <ReferenceLine y={currentTest.mean} stroke="#2563eb" strokeWidth={2} label="Mean" />
-                  
-                  {/* +2 SD */}
-                  <ReferenceLine y={currentTest.mean + (2 * currentTest.sd)} stroke="#10b981" strokeDasharray="5 5" label="+2SD" />
-                  <ReferenceLine y={currentTest.mean - (2 * currentTest.sd)} stroke="#10b981" strokeDasharray="5 5" label="-2SD" />
-                  
-                  {/* +3 SD */}
-                  <ReferenceLine y={currentTest.mean + (3 * currentTest.sd)} stroke="#ef4444" strokeDasharray="3 3" label="+3SD" />
-                  <ReferenceLine y={currentTest.mean - (3 * currentTest.sd)} stroke="#ef4444" strokeDasharray="3 3" label="-3SD" />
+              {rechartsLoading || !Recharts ? (
+                <ChartSkeleton />
+              ) : (
+                <Recharts.ResponsiveContainer width="100%" height="100%">
+                  <Recharts.LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <Recharts.XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <Recharts.YAxis domain={['auto', 'auto']} />
+                    <Recharts.Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                      labelStyle={{ fontWeight: 'bold' }}
+                      formatter={(value: number) => [value, 'Control Value']}
+                    />
+                    
+                    {/* Mean Line */}
+                    <Recharts.ReferenceLine y={currentTest.mean} stroke="#2563eb" strokeWidth={2} label="Mean" />
+                    
+                    {/* +2 SD */}
+                    <Recharts.ReferenceLine y={currentTest.mean + (2 * currentTest.sd)} stroke="#10b981" strokeDasharray="5 5" label="+2SD" />
+                    <Recharts.ReferenceLine y={currentTest.mean - (2 * currentTest.sd)} stroke="#10b981" strokeDasharray="5 5" label="-2SD" />
+                    
+                    {/* +3 SD */}
+                    <Recharts.ReferenceLine y={currentTest.mean + (3 * currentTest.sd)} stroke="#ef4444" strokeDasharray="3 3" label="+3SD" />
+                    <Recharts.ReferenceLine y={currentTest.mean - (3 * currentTest.sd)} stroke="#ef4444" strokeDasharray="3 3" label="-3SD" />
 
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#0f172a" 
-                    strokeWidth={2}
-                    dot={(props) => {
-                       const { cx, cy, payload } = props;
-                       const isViolation = Math.abs(payload.value - payload.mean) > (3 * payload.sd);
-                       return (
-                         <circle 
-                           cx={cx} 
-                           cy={cy} 
-                           r={isViolation ? 6 : 4} 
-                           fill={isViolation ? "#ef4444" : "#0f172a"} 
-                           stroke="none"
-                         />
-                       );
-                    }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                    <Recharts.Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="#0f172a" 
+                      strokeWidth={2}
+                      dot={(props) => {
+                         const { cx, cy, payload } = props;
+                         const isViolation = Math.abs(payload.value - payload.mean) > (3 * payload.sd);
+                         return (
+                           <circle 
+                             cx={cx} 
+                             cy={cy} 
+                             r={isViolation ? 6 : 4} 
+                             fill={isViolation ? "#ef4444" : "#0f172a"} 
+                             stroke="none"
+                           />
+                         );
+                      }}
+                    />
+                  </Recharts.LineChart>
+                </Recharts.ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { sanitizeLogMessage } from '@/utils/sanitize';
+import { captureError } from '@/lib/monitoring/sentry';
 
 interface Props {
   children: ReactNode;
@@ -25,7 +26,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', sanitizeLogMessage(error.message));
-    
+
+    // Send error to Sentry with component stack and location context
+    captureError(error, {
+      componentStack: errorInfo.componentStack,
+      url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+    });
+
     // Log error for debugging in development
     if (import.meta.env.DEV) {
       console.group('Error Boundary Details');

@@ -73,8 +73,8 @@ export function IntegrationDashboard() {
 
       {/* Integration Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {integrations.map((integration, index) => (
-          <Card key={index}>
+        {integrations.map((integration) => (
+          <Card key={integration.name}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{integration.name}</CardTitle>
               {getStatusIcon(integration.status)}
@@ -188,8 +188,8 @@ export function IntegrationDashboard() {
               { action: 'Insurance Claim Submitted', time: '15 minutes ago', status: 'success' },
               { action: 'Lab Result Import', time: '1 hour ago', status: 'failed' },
               { action: 'Pharmacy Sync', time: '2 hours ago', status: 'success' },
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+            ].map((activity) => (
+              <div key={`${activity.action}-${activity.time}`} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   {getStatusIcon(activity.status === 'success' ? 'connected' : 'error')}
                   <div>

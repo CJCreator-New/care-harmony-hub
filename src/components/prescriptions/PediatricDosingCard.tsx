@@ -338,8 +338,8 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
                 <AlertDescription>
                   <strong>Warnings:</strong>
                   <ul className="mt-1 space-y-1">
-                    {calculation.warnings.map((warning, index) => (
-                      <li key={index}>• {warning}</li>
+                    {calculation.warnings.map((warning) => (
+                      <li key={warning}>• {warning}</li>
                     ))}
                   </ul>
                 </AlertDescription>
@@ -351,8 +351,8 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
               <div className="space-y-2">
                 <h4 className="font-medium text-sm">Adjustments Applied:</h4>
                 <ul className="space-y-1">
-                  {calculation.adjustments_applied.map((adjustment, index) => (
-                    <li key={index} className="text-sm text-orange-700 flex items-center gap-2">
+                  {calculation.adjustments_applied.map((adjustment) => (
+                    <li key={adjustment} className="text-sm text-orange-700 flex items-center gap-2">
                       <div className="w-2 h-2 bg-orange-500 rounded-full" />
                       {adjustment}
                     </li>
@@ -368,8 +368,8 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Special Considerations:</h4>
             <ul className="space-y-1">
-              {selectedProtocol.special_considerations.map((consideration, index) => (
-                <li key={index} className="text-sm text-purple-700 flex items-start gap-2">
+              {selectedProtocol.special_considerations.map((consideration) => (
+                <li key={consideration} className="text-sm text-purple-700 flex items-start gap-2">
                   <div className="w-2 h-2 bg-purple-500 rounded-full mt-1.5 flex-shrink-0" />
                   {consideration}
                 </li>

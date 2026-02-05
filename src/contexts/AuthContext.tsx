@@ -7,6 +7,7 @@ import { deviceManager } from '@/utils/deviceManager';
 import { passwordPolicyManager } from '@/utils/passwordPolicy';
 import { biometricAuthManager } from '@/utils/biometricAuth';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
 
 interface Profile {
   id: string;
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setHospital(null);
       setRoles([]);
+      clearSentryUser();
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -355,6 +357,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const primaryRole = roles.length > 0 ? roles[0] : null;
+
+  useEffect(() => {
+    if (user) {
+      setSentryUser({
+        id: user.id,
+        email: user.email || profile?.email || undefined,
+        role: primaryRole || undefined,
+        hospitalId: profile?.hospital_id || hospital?.id || undefined,
+      });
+    } else {
+      clearSentryUser();
+    }
+  }, [user, profile?.email, profile?.hospital_id, hospital?.id, primaryRole]);
 
   // Biometric authentication methods
   const isBiometricAvailable = useCallback(() => {

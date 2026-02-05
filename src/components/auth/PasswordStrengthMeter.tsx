@@ -58,9 +58,9 @@ export function PasswordStrengthMeter({ password, className }: PasswordStrengthM
 
       {/* Requirements list */}
       <ul className="space-y-1">
-        {requirements.map((req, index) => (
+        {requirements.map((req) => (
           <li
-            key={index}
+            key={req.label}
             className={cn(
               'flex items-center gap-2 text-xs transition-colors',
               req.met ? 'text-green-600' : 'text-muted-foreground'

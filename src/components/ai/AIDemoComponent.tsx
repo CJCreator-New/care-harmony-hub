@@ -139,8 +139,8 @@ export default function AIDemoComponent() {
           <AlertTitle>Compliance Issues</AlertTitle>
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {complianceStatus.issues.map((issue, index) => (
-                <li key={index}>{issue}</li>
+              {complianceStatus.issues.map((issue) => (
+                <li key={issue}>{issue}</li>
               ))}
             </ul>
           </AlertDescription>
@@ -343,8 +343,8 @@ export default function AIDemoComponent() {
                 <AlertTitle>Warnings</AlertTitle>
                 <AlertDescription>
                   <ul className="list-disc list-inside">
-                    {lastResponse.warnings.map((warning: string, index) => (
-                      <li key={index}>{warning}</li>
+                    {lastResponse.warnings.map((warning: string) => (
+                      <li key={warning}>{warning}</li>
                     ))}
                   </ul>
                 </AlertDescription>

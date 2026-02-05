@@ -40,6 +40,7 @@ import { cn } from '@/lib/utils';
 
 export default function PatientMessagesPage() {
   const { user } = useAuth();
+  const skeletonKeys = ['msg-1', 'msg-2', 'msg-3'];
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [isNewMessageDialogOpen, setIsNewMessageDialogOpen] = useState(false);
@@ -155,8 +156,8 @@ export default function PatientMessagesPage() {
               <ScrollArea className="h-[calc(100vh-340px)]">
                 {messagesLoading ? (
                   <div className="space-y-2 p-4">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
+                    {skeletonKeys.map((key) => (
+                      <Skeleton key={key} className="h-16 w-full" />
                     ))}
                   </div>
                 ) : conversationsList.length === 0 ? (
@@ -228,8 +229,8 @@ export default function PatientMessagesPage() {
                   <ScrollArea className="flex-1 p-4">
                     {conversationLoading ? (
                       <div className="space-y-4">
-                        {[1, 2, 3].map((i) => (
-                          <Skeleton key={i} className="h-16 w-3/4" />
+                        {skeletonKeys.map((key) => (
+                          <Skeleton key={key} className="h-16 w-3/4" />
                         ))}
                       </div>
                     ) : (

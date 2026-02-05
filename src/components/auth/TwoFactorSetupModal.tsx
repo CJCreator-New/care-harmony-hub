@@ -188,8 +188,8 @@ export const TwoFactorSetupModal: React.FC<TwoFactorSetupModalProps> = ({
             <div className="p-4 bg-muted rounded-lg">
               <p className="text-sm font-medium mb-2 text-center">Your Backup Codes</p>
               <div className="grid grid-cols-2 gap-2">
-                {setupData.backupCodes.map((code, index) => (
-                  <code key={index} className="px-2 py-1 bg-background rounded text-center text-sm font-mono">
+                {setupData.backupCodes.map((code) => (
+                  <code key={code} className="px-2 py-1 bg-background rounded text-center text-sm font-mono">
                     {code}
                   </code>
                 ))}

@@ -54,7 +54,7 @@ export function PatientJourneyTracker({
                 (index === 0 || completedSteps?.includes(workflow.steps[index - 1].action));
 
               return (
-                <div key={index} className="relative flex items-start gap-4">
+                <div key={step.action} className="relative flex items-start gap-4">
                   {/* Step indicator */}
                   <div className={cn(
                     "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2",

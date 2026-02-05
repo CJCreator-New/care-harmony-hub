@@ -1,56 +1,68 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { 
-  Users, Calendar, DollarSign, Activity, 
-  TrendingUp, TrendingDown, Clock, Bed 
+  Users, Calendar, DollarSign, 
+  TrendingUp, Bed 
 } from 'lucide-react';
-import { useState } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line 
-} from 'recharts';
+import { useMemo, useState, useEffect } from 'react';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
+import { DateRange } from 'react-day-picker';
+import { format, parseISO, subDays } from 'date-fns';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export function BusinessIntelligenceDashboard() {
-  const [period, setPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
-  const { kpis, financialMetrics, operationalMetrics, clinicalMetrics, isLoading } = useAnalytics(period);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const initialEnd = searchParams.get('end') ? parseISO(searchParams.get('end')!) : new Date();
+  const initialStart = searchParams.get('start') ? parseISO(searchParams.get('start')!) : subDays(initialEnd, 29);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: initialStart, to: initialEnd });
+  const { kpis, financialMetrics, operationalMetrics, clinicalMetrics, isLoading } = useAnalytics({
+    start: dateRange.from || initialStart,
+    end: dateRange.to || initialEnd,
+  });
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
+
+  useEffect(() => {
+    if (dateRange.from && dateRange.to) {
+      const next = new URLSearchParams(searchParams);
+      next.set('start', format(dateRange.from, 'yyyy-MM-dd'));
+      next.set('end', format(dateRange.to, 'yyyy-MM-dd'));
+      setSearchParams(next, { replace: true });
+    }
+  }, [dateRange, searchParams, setSearchParams]);
 
   if (isLoading) {
     return <div className="p-4">Loading analytics...</div>;
   }
 
-  const revenueData = financialMetrics?.revenue_by_service ? 
-    Object.entries(financialMetrics.revenue_by_service).map(([service, revenue]) => ({
-      service,
-      revenue: revenue as number
-    })) : [];
+  const revenueData = useMemo(() => (
+    financialMetrics?.revenue_by_service
+      ? Object.entries(financialMetrics.revenue_by_service).map(([service, revenue]) => ({
+          service,
+          revenue: revenue as number,
+        }))
+      : []
+  ), [financialMetrics?.revenue_by_service]);
 
-  const diagnosisData = clinicalMetrics?.diagnosis_distribution ?
-    Object.entries(clinicalMetrics.diagnosis_distribution).map(([diagnosis, count]) => ({
-      diagnosis,
-      count: count as number
-    })) : [];
+  const diagnosisData = useMemo(() => (
+    clinicalMetrics?.diagnosis_distribution
+      ? Object.entries(clinicalMetrics.diagnosis_distribution).map(([diagnosis, count]) => ({
+          diagnosis,
+          count: count as number,
+        }))
+      : []
+  ), [clinicalMetrics?.diagnosis_distribution]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold">Business Intelligence</h2>
-        <Select value={period} onValueChange={(value: any) => setPeriod(value)}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d">7 Days</SelectItem>
-            <SelectItem value="30d">30 Days</SelectItem>
-            <SelectItem value="90d">90 Days</SelectItem>
-            <SelectItem value="1y">1 Year</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
       {/* KPI Cards */}
@@ -118,15 +130,33 @@ export function BusinessIntelligenceDashboard() {
             <CardTitle>Revenue by Service</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="service" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
-                <Bar dataKey="revenue" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.BarChart data={revenueData}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" />
+                  <Recharts.XAxis dataKey="service" />
+                  <Recharts.YAxis />
+                  <Recharts.Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+                  <Recharts.Bar
+                    dataKey="revenue"
+                    fill="#8884d8"
+                    onClick={(data) => {
+                      const service = data?.payload?.service;
+                      if (!service) return;
+                      const params = new URLSearchParams({
+                        metric: 'revenue',
+                        service,
+                        start: format(dateRange.from || initialStart, 'yyyy-MM-dd'),
+                        end: format(dateRange.to || initialEnd, 'yyyy-MM-dd'),
+                      });
+                      navigate(`/reports?${params.toString()}`);
+                    }}
+                  />
+                </Recharts.BarChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -135,25 +165,40 @@ export function BusinessIntelligenceDashboard() {
             <CardTitle>Diagnosis Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={diagnosisData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ diagnosis, percent }) => `${diagnosis} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {diagnosisData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.PieChart>
+                  <Recharts.Pie
+                    data={diagnosisData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ diagnosis, percent }) => `${diagnosis} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                    onClick={(data) => {
+                      const diagnosis = data?.payload?.diagnosis;
+                      if (!diagnosis) return;
+                      const params = new URLSearchParams({
+                        metric: 'diagnosis',
+                        diagnosis,
+                        start: format(dateRange.from || initialStart, 'yyyy-MM-dd'),
+                        end: format(dateRange.to || initialEnd, 'yyyy-MM-dd'),
+                      });
+                      navigate(`/reports?${params.toString()}`);
+                    }}
+                  >
+                    {diagnosisData.map((entry, index) => (
+                      <Recharts.Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Recharts.Pie>
+                  <Recharts.Tooltip />
+                </Recharts.PieChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

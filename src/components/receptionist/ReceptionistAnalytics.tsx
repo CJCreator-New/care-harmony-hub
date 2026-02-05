@@ -4,20 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
-import {
   TrendingUp,
   TrendingDown,
   Clock,
@@ -31,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useReceptionistStats } from '@/hooks/useReceptionistStats';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 interface ReceptionistAnalyticsProps {
   compact?: boolean;
@@ -39,6 +26,7 @@ interface ReceptionistAnalyticsProps {
 export function ReceptionistAnalytics({ compact = false }: ReceptionistAnalyticsProps) {
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('today');
   const { data: stats, isLoading } = useReceptionistStats();
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
   // Mock data for demonstration - in real implementation, this would come from analytics hooks
   const performanceData = [
@@ -220,15 +208,19 @@ export function ReceptionistAnalytics({ compact = false }: ReceptionistAnalytics
                 <CardTitle>Weekly Performance</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={performanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="checkIns" fill="#8884d8" name="Check-ins" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {rechartsLoading || !Recharts ? (
+                  <ChartSkeleton />
+                ) : (
+                  <Recharts.ResponsiveContainer width="100%" height={300}>
+                    <Recharts.BarChart data={performanceData}>
+                      <Recharts.CartesianGrid strokeDasharray="3 3" />
+                      <Recharts.XAxis dataKey="day" />
+                      <Recharts.YAxis />
+                      <Recharts.Tooltip />
+                      <Recharts.Bar dataKey="checkIns" fill="#8884d8" name="Check-ins" />
+                    </Recharts.BarChart>
+                  </Recharts.ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -239,16 +231,20 @@ export function ReceptionistAnalytics({ compact = false }: ReceptionistAnalytics
                 <CardTitle>Queue Efficiency Throughout Day</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={queueEfficiencyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="avgWait" stroke="#8884d8" name="Avg Wait Time (min)" />
-                    <Line type="monotone" dataKey="patients" stroke="#82ca9d" name="Patients in Queue" />
-                  </LineChart>
-                </ResponsiveContainer>
+                {rechartsLoading || !Recharts ? (
+                  <ChartSkeleton />
+                ) : (
+                  <Recharts.ResponsiveContainer width="100%" height={300}>
+                    <Recharts.LineChart data={queueEfficiencyData}>
+                      <Recharts.CartesianGrid strokeDasharray="3 3" />
+                      <Recharts.XAxis dataKey="time" />
+                      <Recharts.YAxis />
+                      <Recharts.Tooltip />
+                      <Recharts.Line type="monotone" dataKey="avgWait" stroke="#8884d8" name="Avg Wait Time (min)" />
+                      <Recharts.Line type="monotone" dataKey="patients" stroke="#82ca9d" name="Patients in Queue" />
+                    </Recharts.LineChart>
+                  </Recharts.ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -321,25 +317,29 @@ export function ReceptionistAnalytics({ compact = false }: ReceptionistAnalytics
                   <CardTitle>Appointment Types Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={appointmentTypeData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {appointmentTypeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {rechartsLoading || !Recharts ? (
+                    <ChartSkeleton />
+                  ) : (
+                    <Recharts.ResponsiveContainer width="100%" height={300}>
+                      <Recharts.PieChart>
+                        <Recharts.Pie
+                          data={appointmentTypeData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {appointmentTypeData.map((entry, index) => (
+                            <Recharts.Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Recharts.Pie>
+                        <Recharts.Tooltip />
+                      </Recharts.PieChart>
+                    </Recharts.ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
 

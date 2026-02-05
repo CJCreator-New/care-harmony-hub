@@ -109,8 +109,8 @@ export function PrescriptionDispensingModal({
           <div>
             <h3 className="font-medium mb-3">Medications to Dispense</h3>
             <div className="space-y-3">
-              {prescription.items.map((item, index) => (
-                <div key={index} className="border rounded-lg p-3">
+              {prescription.items.map((item) => (
+                <div key={`${item.medication_name}-${item.dosage}`} className="border rounded-lg p-3">
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-primary">{item.medication_name}</h4>
                     <Badge variant="outline">Qty: {item.quantity}</Badge>
@@ -164,6 +164,7 @@ export function PrescriptionDispensingModal({
               placeholder="Enter batch number..."
               value={batchNumber}
               onChange={(e) => setBatchNumber(e.target.value)}
+              data-autofocus="true"
             />
           </div>
 

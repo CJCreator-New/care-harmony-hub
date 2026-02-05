@@ -145,8 +145,8 @@ export function PatientSidebar({ patient }: PatientSidebarProps) {
           </h4>
           {patient.allergies && patient.allergies.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {patient.allergies.map((allergy, index) => (
-                <Badge key={index} variant="destructive" className="text-xs">
+              {patient.allergies.map((allergy) => (
+                <Badge key={allergy} variant="destructive" className="text-xs">
                   {allergy}
                 </Badge>
               ))}
@@ -165,8 +165,8 @@ export function PatientSidebar({ patient }: PatientSidebarProps) {
           </h4>
           {patient.chronic_conditions && patient.chronic_conditions.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {patient.chronic_conditions.map((condition, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
+              {patient.chronic_conditions.map((condition) => (
+                <Badge key={condition} variant="secondary" className="text-xs">
                   {condition}
                 </Badge>
               ))}
@@ -186,8 +186,8 @@ export function PatientSidebar({ patient }: PatientSidebarProps) {
           </h4>
           {patient.current_medications && patient.current_medications.length > 0 ? (
             <ul className="text-sm text-muted-foreground space-y-1">
-              {patient.current_medications.map((med: any, index: number) => (
-                <li key={index}>
+              {patient.current_medications.map((med: any) => (
+                <li key={med?.id ?? med?.name ?? String(med)}>
                   {typeof med === "string" ? med : med.name || "Unknown"}
                 </li>
               ))}

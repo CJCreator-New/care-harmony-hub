@@ -181,8 +181,8 @@ export const ResponseGenerator: React.FC<ResponseGeneratorProps> = ({
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Extracted Entities:</p>
                 <div className="flex flex-wrap gap-1">
-                  {patientQuery.entities.map((entity, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
+                  {patientQuery.entities.map((entity) => (
+                    <Badge key={`${entity.type}-${entity.value}`} variant="outline" className="text-xs">
                       {entity.type}: {entity.value}
                     </Badge>
                   ))}
@@ -302,8 +302,8 @@ export const ResponseGenerator: React.FC<ResponseGeneratorProps> = ({
                   <div>
                     <h4 className="font-medium mb-2">Suggested Follow-up Questions:</h4>
                     <ul className="space-y-1">
-                      {generatedResponse.followUpQuestions.map((question, index) => (
-                        <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
+                      {generatedResponse.followUpQuestions.map((question) => (
+                        <li key={question} className="text-sm text-muted-foreground flex items-center gap-2">
                           <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full flex-shrink-0" />
                           {question}
                         </li>

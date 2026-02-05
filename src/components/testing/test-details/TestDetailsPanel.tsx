@@ -229,7 +229,7 @@ export default function TestDetailsPanel({ testCase, isOpen, onClose }: TestDeta
               </CardHeader>
               <CardContent className="space-y-3">
                 {editedTestCase.steps.map((step, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                  <div key={`${step}-${index}`} className="flex items-center gap-2">
                     <span className="text-sm font-medium text-muted-foreground min-w-[24px]">
                       {index + 1}.
                     </span>
@@ -295,7 +295,7 @@ export default function TestDetailsPanel({ testCase, isOpen, onClose }: TestDeta
                       placeholder="Add a note..."
                       onKeyPress={(e) => e.key === 'Enter' && addNote()}
                     />
-                    <Button onClick={addNote} size="sm">
+                    <Button onClick={addNote} size="sm" aria-label="Add note">
                       <MessageSquare className="h-4 w-4" />
                     </Button>
                   </div>
@@ -372,7 +372,7 @@ export default function TestDetailsPanel({ testCase, isOpen, onClose }: TestDeta
                           <Paperclip className="h-4 w-4" />
                           <span className="text-sm">{attachment.name}</span>
                         </div>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" aria-label="Delete note">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

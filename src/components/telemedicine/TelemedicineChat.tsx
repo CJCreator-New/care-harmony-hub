@@ -77,7 +77,7 @@ export function TelemedicineChat({ patientName }: TelemedicineChatProps) {
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             />
-            <Button size="icon" onClick={handleSend}>
+            <Button size="icon" onClick={handleSend} aria-label="Send message">
               <Send className="h-4 w-4" />
             </Button>
           </div>

@@ -21,6 +21,8 @@ export interface ClinicalCodingService {
   suggestCodesForSymptoms: (symptoms: string[]) => ICD10Suggestion[];
   suggestCodesForDiagnosis: (diagnosis: string) => ICD10Suggestion[];
   suggestCPTForProcedures: (procedures: string[]) => CPTSuggestion[];
+  suggestCPTForICD10: (icd10Codes: ICD10Suggestion[]) => CPTSuggestion[];
+  validateBillingAccuracy: (cptCodes: CPTSuggestion[]) => { valid: boolean; issues: string[] };
   validateCodeCombination: (codes: string[]) => { valid: boolean; conflicts: string[] };
 }
 
@@ -37,7 +39,10 @@ class ClinicalCodingServiceImpl implements ClinicalCodingService {
     const allSuggestions = this.icd10Service.suggestCodes(text, 50);
 
     // Get CPT suggestions based on procedures and clinical context
-    const cptSuggestions = this.suggestCPTForProcedures(clinicalContext.procedures);
+    const cptSuggestions = this.mergeCPTSuggestions(
+      this.suggestCPTForProcedures(clinicalContext.procedures),
+      this.suggestCPTForICD10(allSuggestions)
+    );
 
     // Apply clinical reasoning and prioritization
     const { primaryCode, secondaryCodes, confidence, reasoning } = this.applyClinicalReasoning(
@@ -247,6 +252,72 @@ class ClinicalCodingServiceImpl implements ClinicalCodingService {
 
     const procedureText = procedures.join(' ');
     return cptService.suggestCodes(procedureText, 8);
+  }
+
+  suggestCPTForICD10(icd10Codes: ICD10Suggestion[]): CPTSuggestion[] {
+    if (icd10Codes.length === 0) return [];
+
+    const mappingRules: Array<{
+      icdPrefix: string;
+      cptCodes: string[];
+      confidence: number;
+      reasoning: string;
+    }> = [
+      { icdPrefix: 'E11', cptCodes: ['99213', '83036'], confidence: 0.82, reasoning: 'Type 2 diabetes follow-up and HbA1c monitoring' },
+      { icdPrefix: 'I10', cptCodes: ['99213', '93000'], confidence: 0.78, reasoning: 'Hypertension visit with cardiac assessment' },
+      { icdPrefix: 'J45', cptCodes: ['99213', '94010'], confidence: 0.8, reasoning: 'Asthma management with spirometry' },
+      { icdPrefix: 'J18', cptCodes: ['99213', '71045'], confidence: 0.76, reasoning: 'Pneumonia evaluation with chest imaging' },
+      { icdPrefix: 'N39', cptCodes: ['99213', '87086'], confidence: 0.74, reasoning: 'UTI visit with urine culture' },
+      { icdPrefix: 'M54', cptCodes: ['99213', '72100'], confidence: 0.7, reasoning: 'Back pain evaluation with imaging' },
+    ];
+
+    const suggestions: CPTSuggestion[] = [];
+    icd10Codes.forEach((code) => {
+      const rule = mappingRules.find((r) => code.code.startsWith(r.icdPrefix));
+      if (!rule) return;
+      rule.cptCodes.forEach((cptCode) => {
+        const cpt = cptService.getCode(cptCode);
+        if (cpt) {
+          suggestions.push({
+            ...cpt,
+            confidence: Math.min(cpt.confidence * rule.confidence, 1.0),
+            notes: rule.reasoning,
+          });
+        }
+      });
+    });
+
+    return suggestions;
+  }
+
+  validateBillingAccuracy(cptCodes: CPTSuggestion[]): { valid: boolean; issues: string[] } {
+    const issues: string[] = [];
+    const seen = new Set<string>();
+
+    cptCodes.forEach((code) => {
+      if (!cptService.isValidCode(code.code)) {
+        issues.push(`CPT code ${code.code} is not recognized in the local catalog.`);
+      }
+      if (seen.has(code.code)) {
+        issues.push(`Duplicate CPT code detected: ${code.code}`);
+      }
+      seen.add(code.code);
+    });
+
+    return { valid: issues.length === 0, issues };
+  }
+
+  private mergeCPTSuggestions(primary: CPTSuggestion[], secondary: CPTSuggestion[]): CPTSuggestion[] {
+    const merged = new Map<string, CPTSuggestion>();
+
+    [...primary, ...secondary].forEach((suggestion) => {
+      const existing = merged.get(suggestion.code);
+      if (!existing || suggestion.confidence > existing.confidence) {
+        merged.set(suggestion.code, suggestion);
+      }
+    });
+
+    return Array.from(merged.values()).sort((a, b) => b.confidence - a.confidence);
   }
 
   validateCodeCombination(codes: string[]): { valid: boolean; conflicts: string[] } {

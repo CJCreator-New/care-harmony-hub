@@ -80,7 +80,7 @@ export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
             <div className="space-y-2">
               {provisionalDiagnosis.map((diagnosis: ICD10Code, index: number) => (
                 <div
-                  key={index}
+                  key={diagnosis.code}
                   className="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-md"
                 >
                   <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
             <div className="space-y-2">
               {finalDiagnosis.map((diagnosis: ICD10Code, index: number) => (
                 <div
-                  key={index}
+                  key={diagnosis.code}
                   className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-md"
                 >
                   <div className="flex items-center gap-2">

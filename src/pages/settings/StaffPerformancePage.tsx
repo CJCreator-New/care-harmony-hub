@@ -38,6 +38,8 @@ const roleLabels: Record<string, string> = {
   lab_technician: 'Lab Technician',
 };
 
+const skeletonRowKeys = ['row-1', 'row-2', 'row-3'];
+
 export default function StaffPerformancePage() {
   const { data: performance, isLoading } = useStaffPerformance();
 
@@ -168,8 +170,8 @@ export default function StaffPerformancePage() {
           <CardContent>
             {isLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <Skeleton key={i} className="h-12 w-full" />
+                {skeletonRowKeys.map((key) => (
+                  <Skeleton key={key} className="h-12 w-full" />
                 ))}
               </div>
             ) : performance && performance.length > 0 ? (

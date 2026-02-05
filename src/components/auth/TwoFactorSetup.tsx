@@ -203,8 +203,8 @@ export function TwoFactorSetup() {
                   Save these codes in a safe place. You can use them to access your account if you lose your device.
                 </p>
                 <div className="bg-background p-3 rounded font-mono text-sm space-y-1">
-                  {backupCodes.map((code, i) => (
-                    <div key={i}>{code}</div>
+                  {backupCodes.map((code) => (
+                    <div key={code}>{code}</div>
                   ))}
                 </div>
                 <Button

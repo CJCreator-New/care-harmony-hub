@@ -48,8 +48,8 @@ export function RefillRequestModal({ open, onOpenChange, prescription }: RefillR
           <div className="space-y-2">
             <Label>Medications</Label>
             <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
-              {prescription.items?.map((item, index) => (
-                <div key={index} className="text-sm">
+              {prescription.items?.map((item) => (
+                <div key={`${item.medication_name}-${item.dosage}`} className="text-sm">
                   <span className="font-medium">{item.medication_name}</span>
                   <span className="text-muted-foreground"> - {item.dosage}</span>
                 </div>
@@ -65,6 +65,7 @@ export function RefillRequestModal({ open, onOpenChange, prescription }: RefillR
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
+              data-autofocus="true"
             />
           </div>
 

@@ -155,6 +155,7 @@ const AnimatedInput = React.forwardRef<HTMLInputElement, AnimatedInputProps>(
             initial={shouldReduceMotion ? {} : { opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-sm text-destructive"
+            aria-live="polite"
           >
             {error}
           </motion.p>
@@ -238,6 +239,8 @@ function Toast({ title, description, variant = "default", onClose, className }: 
         variants[variant],
         className
       )}
+      role="status"
+      aria-live="polite"
       initial={shouldReduceMotion ? {} : { opacity: 0, x: 100 }}
       animate={{ opacity: 1, x: 0 }}
       exit={shouldReduceMotion ? {} : { opacity: 0, x: 100 }}

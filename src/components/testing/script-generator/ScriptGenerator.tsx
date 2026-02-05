@@ -371,6 +371,7 @@ export default function ScriptGenerator({ testCase, trigger, open, onOpenChange 
                       size="sm"
                       onClick={copyToClipboard}
                       disabled={!generatedScript}
+                      aria-label="Copy script to clipboard"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -379,6 +380,7 @@ export default function ScriptGenerator({ testCase, trigger, open, onOpenChange 
                       size="sm"
                       onClick={downloadScript}
                       disabled={!generatedScript}
+                      aria-label="Download script"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -388,6 +390,7 @@ export default function ScriptGenerator({ testCase, trigger, open, onOpenChange 
                         size="sm"
                         onClick={saveToLibrary}
                         disabled={!generatedScript}
+                        aria-label="Save script to library"
                       >
                         <FileText className="h-4 w-4" />
                       </Button>

@@ -560,7 +560,7 @@ export default function TreatmentPlanOptimizationEngine() {
 
                 <TabsContent value="alternatives" className="space-y-4">
                   {selectedOptimization.alternatives.map((alt, idx) => (
-                    <Card key={idx}>
+                    <Card key={alt?.id ?? alt?.name ?? alt?.title ?? JSON.stringify(alt) ?? `alt-${idx}`}>
                       <CardHeader>
                         <CardTitle className="text-base">Alternative Plan {idx + 1}</CardTitle>
                       </CardHeader>

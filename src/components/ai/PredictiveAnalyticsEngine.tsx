@@ -397,8 +397,8 @@ export default function PredictiveAnalyticsEngine() {
 
               <TabsContent value="factors" className="space-y-4">
                 <div className="space-y-3">
-                  {readmissionRisk.factors.map((factor, idx) => (
-                    <Card key={idx}>
+                  {readmissionRisk.factors.map((factor) => (
+                    <Card key={factor.name}>
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between">
                           <div>
@@ -420,8 +420,8 @@ export default function PredictiveAnalyticsEngine() {
 
               <TabsContent value="interventions" className="space-y-4">
                 <div className="space-y-3">
-                  {readmissionRisk.interventions.map((intervention, idx) => (
-                    <Card key={idx}>
+                  {readmissionRisk.interventions.map((intervention) => (
+                    <Card key={`${intervention.type}-${intervention.priority}`}>
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">

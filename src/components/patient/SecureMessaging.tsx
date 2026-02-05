@@ -416,12 +416,14 @@ export const SecureMessaging: React.FC<SecureMessagingProps> = ({
                   <Button
                     size="icon"
                     variant="outline"
+                    aria-label="Attach file"
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
                   <Button
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim() || (isComposing && !newSubject.trim())}
+                    aria-label="Send message"
                   >
                     <Send className="h-4 w-4" />
                   </Button>

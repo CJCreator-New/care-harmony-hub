@@ -132,7 +132,7 @@ export function HeroDashboardMockup() {
                   { text: 'Prescription sent', time: '12m ago' },
                 ].map((activity, i) => (
                   <motion.div
-                    key={i}
+                    key={`${activity.text}-${activity.time}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.9 + i * 0.1 }}

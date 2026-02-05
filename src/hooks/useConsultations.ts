@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect, useCallback, useRef } from 'react';
 import { sanitizeForLog } from '@/utils/sanitize';
+import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 import { transformConsultationFromService, transformConsultationsFromService } from '@/utils/consultationTransformers';
@@ -81,6 +82,14 @@ export const CONSULTATION_STEPS = [
   { step: 5, status: 'completed' as ConsultationStatus, label: 'Handoff', description: 'Notify pharmacy/lab' },
 ];
 
+const withConsultationRateLimit = async <T,>(fn: () => Promise<T>) =>
+  executeWithRateLimitBackoff(fn, {
+    key: 'consultations',
+    onRetry: (attempt, delayMs) => {
+      toast.info(`Rate limited. Retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt}/4).`);
+    },
+  });
+
 export function useConsultations() {
   const { hospital } = useAuth();
 
@@ -94,21 +103,23 @@ export function useConsultations() {
 
       console.log('Fetching consultations for hospital:', hospital.id);
 
-      try {
-        const result = await clinicalApiClient.getConsultations({
-          limit: 100,
-          offset: 0,
-        });
+      return withConsultationRateLimit(async () => {
+        try {
+          const result = await clinicalApiClient.getConsultations({
+            limit: 100,
+            offset: 0,
+          });
 
-        // Transform the data to match the expected format
-        const transformedData = transformConsultationsFromService(result.data);
+          // Transform the data to match the expected format
+          const transformedData = transformConsultationsFromService(result.data);
 
-        console.log('Consultations fetched:', transformedData.length);
-        return transformedData;
-      } catch (error) {
-        console.error('Error fetching consultations from clinical service:', sanitizeForLog(String(error)));
-        throw error;
-      }
+          console.log('Consultations fetched:', transformedData.length);
+          return transformedData;
+        } catch (error) {
+          console.error('Error fetching consultations from clinical service:', sanitizeForLog(String(error)));
+          throw error;
+        }
+      });
     },
     enabled: !!hospital?.id,
   });
@@ -120,15 +131,17 @@ export function useConsultation(consultationId: string | undefined) {
     queryFn: async () => {
       if (!consultationId) return null;
 
-      try {
-        const consultation = await clinicalApiClient.getConsultation(consultationId);
+      return withConsultationRateLimit(async () => {
+        try {
+          const consultation = await clinicalApiClient.getConsultation(consultationId);
 
-        // Transform to match expected format
-        return transformConsultationFromService(consultation);
-      } catch (error) {
-        console.error('Error fetching consultation from clinical service:', sanitizeForLog(String(error)));
-        throw error;
-      }
+          // Transform to match expected format
+          return transformConsultationFromService(consultation);
+        } catch (error) {
+          console.error('Error fetching consultation from clinical service:', sanitizeForLog(String(error)));
+          throw error;
+        }
+      });
     },
     enabled: !!consultationId,
   });
@@ -142,28 +155,30 @@ export function useCreateConsultation() {
     mutationFn: async (data: ConsultationInsert) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
 
-      try {
-        // Check for existing consultation for this patient (any status)
-        // Note: This logic needs to be implemented in the clinical service
-        // For now, we'll create a new consultation
-        const consultationData = {
-          patient_id: data.patient_id,
-          provider_id: profile.id,
-          appointment_id: data.appointment_id,
-          hospital_id: hospital.id,
-          consultation_type: 'initial' as const,
-          status: 'scheduled' as const,
-          chief_complaint: '', // Will be filled in the workflow
-        };
+      return withConsultationRateLimit(async () => {
+        try {
+          // Check for existing consultation for this patient (any status)
+          // Note: This logic needs to be implemented in the clinical service
+          // For now, we'll create a new consultation
+          const consultationData = {
+            patient_id: data.patient_id,
+            provider_id: profile.id,
+            appointment_id: data.appointment_id,
+            hospital_id: hospital.id,
+            consultation_type: 'initial' as const,
+            status: 'scheduled' as const,
+            chief_complaint: '', // Will be filled in the workflow
+          };
 
-        const consultation = await clinicalApiClient.createConsultation(consultationData);
+          const consultation = await clinicalApiClient.createConsultation(consultationData);
 
-        // Transform to match expected format
-        return transformConsultationFromService(consultation);
-      } catch (error) {
-        console.error('Error creating consultation via clinical service:', sanitizeForLog(String(error)));
-        throw error;
-      }
+          // Transform to match expected format
+          return transformConsultationFromService(consultation);
+        } catch (error) {
+          console.error('Error creating consultation via clinical service:', sanitizeForLog(String(error)));
+          throw error;
+        }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
@@ -183,20 +198,54 @@ export function useGetOrCreateConsultation() {
     mutationFn: async (patientId: string) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
 
-      // First, try to find existing consultation
-      const { data: existingConsultation } = await supabase
-        .from('consultations')
-        .select(`
-          ${CONSULTATION_COLUMNS.detail},
-          patient:patients(${PATIENT_COLUMNS.detail}),
-          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-        `)
-        .eq('patient_id', patientId)
-        .neq('status', 'completed')
-        .maybeSingle();
+      return withConsultationRateLimit(async () => {
+        // First, try to find existing consultation
+        const { data: existingConsultation } = await supabase
+          .from('consultations')
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
+          .eq('patient_id', patientId)
+          .neq('status', 'completed')
+          .maybeSingle();
 
-      if (existingConsultation) {
-        // Update queue entry to in_service if not already
+        if (existingConsultation) {
+          // Update queue entry to in_service if not already
+          await supabase
+            .from('queue_entries')
+            .update({ 
+              status: 'in_service', 
+              service_start_time: new Date().toISOString() 
+            })
+            .eq('patient_id', patientId)
+            .in('status', ['waiting', 'called']);
+
+          return existingConsultation as Consultation;
+        }
+
+        // Create new consultation if none exists
+        const { data: consultation, error } = await supabase
+          .from('consultations')
+          .insert({
+            patient_id: patientId,
+            hospital_id: hospital.id,
+            doctor_id: profile.id,
+            status: 'patient_overview' as ConsultationStatus,
+            current_step: 1,
+            started_at: new Date().toISOString(),
+          })
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
+          .single();
+
+        if (error) throw error;
+
+        // Update queue entry to in_service
         await supabase
           .from('queue_entries')
           .update({ 
@@ -206,40 +255,8 @@ export function useGetOrCreateConsultation() {
           .eq('patient_id', patientId)
           .in('status', ['waiting', 'called']);
 
-        return existingConsultation as Consultation;
-      }
-
-      // Create new consultation if none exists
-      const { data: consultation, error } = await supabase
-        .from('consultations')
-        .insert({
-          patient_id: patientId,
-          hospital_id: hospital.id,
-          doctor_id: profile.id,
-          status: 'patient_overview' as ConsultationStatus,
-          current_step: 1,
-          started_at: new Date().toISOString(),
-        })
-        .select(`
-          ${CONSULTATION_COLUMNS.detail},
-          patient:patients(${PATIENT_COLUMNS.detail}),
-          doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-        `)
-        .single();
-
-      if (error) throw error;
-
-      // Update queue entry to in_service
-      await supabase
-        .from('queue_entries')
-        .update({ 
-          status: 'in_service', 
-          service_start_time: new Date().toISOString() 
-        })
-        .eq('patient_id', patientId)
-        .in('status', ['waiting', 'called']);
-
-      return consultation as Consultation;
+        return consultation as Consultation;
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
@@ -256,17 +273,18 @@ export function useUpdateConsultation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('consultations')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+    mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) =>
+      withConsultationRateLimit(async () => {
+        const { data, error } = await supabase
+          .from('consultations')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data as Consultation;
-    },
+        if (error) throw error;
+        return data as Consultation;
+      }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['consultation', data.id] });
@@ -376,19 +394,21 @@ export function usePatientsReadyForConsultation() {
     queryFn: async () => {
       if (!hospital?.id) return [];
 
-      const { data, error } = await supabase
-        .from('patient_prep_checklists')
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
-          queue_entry:queue_entries!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
-        `)
-        .eq('hospital_id', hospital.id)
-        .eq('ready_for_doctor', true)
-        .in('queue_entry.status', ['waiting', 'called']);
+      return withConsultationRateLimit(async () => {
+        const { data, error } = await supabase
+          .from('patient_prep_checklists')
+          .select(`
+            *,
+            patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
+            queue_entry:queue_entries!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
+          `)
+          .eq('hospital_id', hospital.id)
+          .eq('ready_for_doctor', true)
+          .in('queue_entry.status', ['waiting', 'called']);
 
-      if (error) throw error;
-      return data || [];
+        if (error) throw error;
+        return data || [];
+      });
     },
     enabled: !!hospital?.id,
     refetchInterval: 30000, // Refetch every 30 seconds

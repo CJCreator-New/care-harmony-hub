@@ -384,8 +384,8 @@ export const RecurringAppointmentModal: React.FC<RecurringAppointmentModalProps>
             <div>
               <Label>Preview - Next {previewDates.length} Appointments</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {previewDates.map((date, index) => (
-                  <Badge key={index} variant="outline">
+                {previewDates.map((date) => (
+                  <Badge key={date.toISOString()} variant="outline">
                     {format(date, 'MMM d, yyyy')}
                   </Badge>
                 ))}

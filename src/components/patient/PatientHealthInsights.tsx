@@ -63,8 +63,8 @@ export function PatientHealthInsights() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {insights.map((insight, idx) => (
-          <Card key={idx} className={`border-l-4 ${
+        {insights.map((insight) => (
+          <Card key={insight.title} className={`border-l-4 ${
             insight.severity === 'success' ? 'border-l-green-500' : 
             insight.severity === 'warning' ? 'border-l-amber-500' : 'border-l-blue-500'
           }`}>

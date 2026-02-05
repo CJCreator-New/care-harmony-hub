@@ -351,42 +351,50 @@ export function SampleTracking({ className }: SampleTrackingProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSamples.map((sample) => (
-                    <TableRow key={sample.id}>
-                      <TableCell className="font-medium">{sample.sample_id}</TableCell>
-                      <TableCell>
-                        {sample.patient ? `${sample.patient.first_name} ${sample.patient.last_name}` : 'Unknown'}
-                      </TableCell>
-                      <TableCell>{sample.test_type}</TableCell>
-                      <TableCell>{getStatusBadge(sample.status)}</TableCell>
-                      <TableCell>{getPriorityBadge(sample.priority)}</TableCell>
-                      <TableCell>{format(new Date(sample.collected_at), 'MMM dd, HH:mm')}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {sample.location}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedSample(sample);
-                            setUpdateData({
-                              status: sample.status,
-                              technician_id: sample.technician_id || '',
-                              notes: '',
-                              rejection_reason: '',
-                            });
-                            setIsUpdateDialogOpen(true);
-                          }}
-                        >
-                          Update
-                        </Button>
+                  {filteredSamples.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                        No samples match your filters.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredSamples.map((sample) => (
+                      <TableRow key={sample.id}>
+                        <TableCell className="font-medium">{sample.sample_id}</TableCell>
+                        <TableCell>
+                          {sample.patient ? `${sample.patient.first_name} ${sample.patient.last_name}` : 'Unknown'}
+                        </TableCell>
+                        <TableCell>{sample.test_type}</TableCell>
+                        <TableCell>{getStatusBadge(sample.status)}</TableCell>
+                        <TableCell>{getPriorityBadge(sample.priority)}</TableCell>
+                        <TableCell>{format(new Date(sample.collected_at), 'MMM dd, HH:mm')}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {sample.location}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSample(sample);
+                              setUpdateData({
+                                status: sample.status,
+                                technician_id: sample.technician_id || '',
+                                notes: '',
+                                rejection_reason: '',
+                              });
+                              setIsUpdateDialogOpen(true);
+                            }}
+                          >
+                            Update
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -412,38 +420,46 @@ export function SampleTracking({ className }: SampleTrackingProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {urgentSamples.map((sample) => {
-                    const timeSince = Math.floor((new Date().getTime() - new Date(sample.collected_at).getTime()) / (1000 * 60));
-                    return (
-                      <TableRow key={sample.id}>
-                        <TableCell className="font-medium">{sample.sample_id}</TableCell>
-                        <TableCell>
-                          {sample.patient ? `${sample.patient.first_name} ${sample.patient.last_name}` : 'Unknown'}
-                        </TableCell>
-                        <TableCell>{sample.test_type}</TableCell>
-                        <TableCell>{getStatusBadge(sample.status)}</TableCell>
-                        <TableCell>{timeSince} minutes</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedSample(sample);
-                              setUpdateData({
-                                status: 'processing',
-                                technician_id: profile?.id || '',
-                                notes: 'Urgent processing initiated',
-                                rejection_reason: '',
-                              });
-                              setIsUpdateDialogOpen(true);
-                            }}
-                          >
-                            Process Now
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {urgentSamples.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No urgent samples right now.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    urgentSamples.map((sample) => {
+                      const timeSince = Math.floor((new Date().getTime() - new Date(sample.collected_at).getTime()) / (1000 * 60));
+                      return (
+                        <TableRow key={sample.id}>
+                          <TableCell className="font-medium">{sample.sample_id}</TableCell>
+                          <TableCell>
+                            {sample.patient ? `${sample.patient.first_name} ${sample.patient.last_name}` : 'Unknown'}
+                          </TableCell>
+                          <TableCell>{sample.test_type}</TableCell>
+                          <TableCell>{getStatusBadge(sample.status)}</TableCell>
+                          <TableCell>{timeSince} minutes</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSample(sample);
+                                setUpdateData({
+                                  status: 'processing',
+                                  technician_id: profile?.id || '',
+                                  notes: 'Urgent processing initiated',
+                                  rejection_reason: '',
+                                });
+                                setIsUpdateDialogOpen(true);
+                              }}
+                            >
+                              Process Now
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -469,38 +485,46 @@ export function SampleTracking({ className }: SampleTrackingProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {overdueSamples.map((sample) => {
-                    const hoursOverdue = Math.floor((new Date().getTime() - new Date(sample.collected_at).getTime()) / (1000 * 60 * 60));
-                    return (
-                      <TableRow key={sample.id}>
-                        <TableCell className="font-medium">{sample.sample_id}</TableCell>
-                        <TableCell>
-                          {sample.patient ? `${sample.patient.first_name} ${sample.patient.last_name}` : 'Unknown'}
-                        </TableCell>
-                        <TableCell>{sample.test_type}</TableCell>
-                        <TableCell>{getStatusBadge(sample.status)}</TableCell>
-                        <TableCell className="text-red-600">{hoursOverdue} hours</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedSample(sample);
-                              setUpdateData({
-                                status: 'processing',
-                                technician_id: profile?.id || '',
-                                notes: 'Processing overdue sample',
-                                rejection_reason: '',
-                              });
-                              setIsUpdateDialogOpen(true);
-                            }}
-                          >
-                            Process
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {overdueSamples.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                        No overdue samples.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    overdueSamples.map((sample) => {
+                      const hoursOverdue = Math.floor((new Date().getTime() - new Date(sample.collected_at).getTime()) / (1000 * 60 * 60));
+                      return (
+                        <TableRow key={sample.id}>
+                          <TableCell className="font-medium">{sample.sample_id}</TableCell>
+                          <TableCell>
+                            {sample.patient ? `${sample.patient.first_name} ${sample.patient.last_name}` : 'Unknown'}
+                          </TableCell>
+                          <TableCell>{sample.test_type}</TableCell>
+                          <TableCell>{getStatusBadge(sample.status)}</TableCell>
+                          <TableCell className="text-red-600">{hoursOverdue} hours</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSample(sample);
+                                setUpdateData({
+                                  status: 'processing',
+                                  technician_id: profile?.id || '',
+                                  notes: 'Processing overdue sample',
+                                  rejection_reason: '',
+                                });
+                                setIsUpdateDialogOpen(true);
+                              }}
+                            >
+                              Process
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

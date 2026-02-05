@@ -75,6 +75,8 @@ const vitalConfigs: Record<VitalType, { label: string; unit: string; icon: React
   },
 }
 
+const sparklineKeys = Array.from({ length: 12 }, (_, index) => `spark-${index + 1}`)
+
 function getVitalStatus(
   value: number,
   normalRange: { min: number; max: number }
@@ -200,9 +202,9 @@ function VitalInputCard({
 
       {/* Trend sparkline placeholder */}
       <div className="mt-3 h-8 flex items-end gap-1">
-        {[...Array(12)].map((_, i) => (
+        {sparklineKeys.map((key) => (
           <div
-            key={i}
+            key={key}
             className={cn(
               "flex-1 rounded-t",
               status === "normal" && "bg-success/20",

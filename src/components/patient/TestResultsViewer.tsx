@@ -253,8 +253,11 @@ function ResultCard({
             >
               <h5 className="font-medium text-sm mb-3">Your Trend Over Time</h5>
               <div className="h-32 flex items-end gap-2">
-                {result.trend.map((point, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center">
+                {result.trend.map((point) => (
+                  <div
+                    key={`${point.date.toISOString()}-${point.value}`}
+                    className="flex-1 flex flex-col items-center"
+                  >
                     <div
                       className={cn(
                         "w-full rounded-t transition-all",

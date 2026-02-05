@@ -44,8 +44,11 @@ export function DrugInteractionAlert({
           </div>
 
           <div className="space-y-3">
-            {interactions.map((interaction, index) => (
-              <div key={index} className="border rounded-lg p-3 bg-background">
+            {interactions.map((interaction) => (
+              <div
+                key={`${interaction.drug1}-${interaction.drug2}-${interaction.severity}`}
+                className="border rounded-lg p-3 bg-background"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Badge variant={getSeverityColor(interaction.severity)}>

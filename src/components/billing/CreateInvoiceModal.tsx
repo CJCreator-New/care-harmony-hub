@@ -22,6 +22,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useCreateInvoice } from "@/hooks/useBilling";
 
 interface InvoiceItem {
+  id: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -34,18 +35,24 @@ interface CreateInvoiceModalProps {
 }
 
 export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalProps) {
+  const createInvoiceItem = (): InvoiceItem => ({
+    id: globalThis.crypto?.randomUUID?.() ?? `item-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    description: "",
+    quantity: 1,
+    unit_price: 0,
+    item_type: "service",
+  });
+
   const [patientId, setPatientId] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { description: "", quantity: 1, unit_price: 0, item_type: "service" },
-  ]);
+  const [items, setItems] = useState<InvoiceItem[]>([createInvoiceItem()]);
 
   const { data: patientsData } = usePatients();
   const patientsList = patientsData?.patients || [];
   const createInvoice = useCreateInvoice();
 
   const addItem = () => {
-    setItems([...items, { description: "", quantity: 1, unit_price: 0, item_type: "service" }]);
+    setItems([...items, createInvoiceItem()]);
   };
 
   const removeItem = (index: number) => {
@@ -82,7 +89,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
         onSuccess: () => {
           setPatientId("");
           setNotes("");
-          setItems([{ description: "", quantity: 1, unit_price: 0, item_type: "service" }]);
+          setItems([createInvoiceItem()]);
           onOpenChange(false);
         },
       }
@@ -123,7 +130,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
             </div>
 
             {items.map((item, index) => (
-              <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
+              <div key={item.id} className="flex gap-2 items-start p-3 border rounded-lg">
                 <div className="flex-1 space-y-2">
                   <Input
                     placeholder="Description"

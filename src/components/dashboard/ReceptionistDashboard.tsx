@@ -357,7 +357,12 @@ export function ReceptionistDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           {apt.patient?.phone && (
-                            <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              aria-label="Call patient"
+                            >
                               <Phone className="h-4 w-4" />
                             </Button>
                           )}

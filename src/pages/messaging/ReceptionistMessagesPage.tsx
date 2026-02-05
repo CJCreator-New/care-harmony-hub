@@ -245,6 +245,7 @@ export default function ReceptionistMessagesPage() {
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim() || sendMessage.isPending}
                       className="self-end"
+                      aria-label="Send message"
                     >
                       <Send className="h-4 w-4" />
                     </Button>

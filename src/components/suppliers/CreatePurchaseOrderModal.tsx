@@ -114,7 +114,7 @@ export function CreatePurchaseOrderModal({ open, onOpenChange }: CreatePurchaseO
             <div className="space-y-2">
               <Label>Supplier *</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger>
+                <SelectTrigger data-autofocus="true">
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
                 <SelectContent>
@@ -148,7 +148,10 @@ export function CreatePurchaseOrderModal({ open, onOpenChange }: CreatePurchaseO
 
             <div className="space-y-3">
               {items.map((item, index) => (
-                <div key={index} className="flex gap-3 items-start p-3 rounded-lg bg-muted/50">
+                <div
+                  key={`${item.medication_id ?? item.item_name}-${item.quantity}-${item.unit_price}`}
+                  className="flex gap-3 items-start p-3 rounded-lg bg-muted/50"
+                >
                   <div className="flex-1 grid grid-cols-4 gap-3">
                     <div className="col-span-2">
                       <Label className="text-xs">Medication</Label>
@@ -206,6 +209,7 @@ export function CreatePurchaseOrderModal({ open, onOpenChange }: CreatePurchaseO
                     size="icon"
                     onClick={() => removeItem(index)}
                     disabled={items.length === 1}
+                    aria-label="Remove item"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -227,7 +231,7 @@ export function CreatePurchaseOrderModal({ open, onOpenChange }: CreatePurchaseO
 
           {/* Total and Submit */}
           <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-lg font-semibold">
+            <div className="text-lg font-semibold" aria-live="polite">
               Total: ${totalAmount.toFixed(2)}
             </div>
             <div className="flex gap-2">

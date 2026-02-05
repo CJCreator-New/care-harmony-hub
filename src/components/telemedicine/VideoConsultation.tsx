@@ -190,6 +190,7 @@ export function VideoConsultation({
                         variant="destructive"
                         onClick={handleEndSession}
                         className="rounded-full w-12 h-12 p-0"
+                        aria-label="End session"
                       >
                         <PhoneOff className="h-5 w-5" />
                       </Button>
@@ -198,6 +199,7 @@ export function VideoConsultation({
                         size="sm"
                         variant="outline"
                         className="rounded-full w-12 h-12 p-0"
+                        aria-label="Open settings"
                       >
                         <Settings className="h-5 w-5" />
                       </Button>

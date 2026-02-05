@@ -4,23 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  Area,
-  AreaChart
-} from 'recharts';
-import {
   Download,
   TrendingUp,
   TrendingDown,
@@ -32,12 +15,14 @@ import {
 } from 'lucide-react';
 import { useTesting } from '../../../contexts/TestingContext';
 import { TestCategoryType } from '../../../types/testing';
+import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 export default function ReportsDashboard() {
   const { state } = useTesting();
   const { categories, executionResults } = state;
+  const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
   // Calculate overall metrics
   const totalTests = categories.reduce((sum, cat) => sum + cat.testCases.length, 0);
@@ -224,25 +209,29 @@ export default function ReportsDashboard() {
             <CardTitle>Test Status Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.PieChart>
+                  <Recharts.Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Recharts.Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Recharts.Pie>
+                  <Recharts.Tooltip />
+                </Recharts.PieChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -252,19 +241,23 @@ export default function ReportsDashboard() {
             <CardTitle>Progress by Category</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="passed" stackId="a" fill="#00C49F" name="Passed" />
-                <Bar dataKey="failed" stackId="a" fill="#FF8042" name="Failed" />
-                <Bar dataKey="blocked" stackId="a" fill="#FFBB28" name="Blocked" />
-                <Bar dataKey="completed" stackId="b" fill="#8884D8" name="In Progress" />
-              </BarChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.BarChart data={categoryData}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" />
+                  <Recharts.XAxis dataKey="name" />
+                  <Recharts.YAxis />
+                  <Recharts.Tooltip />
+                  <Recharts.Legend />
+                  <Recharts.Bar dataKey="passed" stackId="a" fill="#00C49F" name="Passed" />
+                  <Recharts.Bar dataKey="failed" stackId="a" fill="#FF8042" name="Failed" />
+                  <Recharts.Bar dataKey="blocked" stackId="a" fill="#FFBB28" name="Blocked" />
+                  <Recharts.Bar dataKey="completed" stackId="b" fill="#8884D8" name="In Progress" />
+                </Recharts.BarChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -274,31 +267,35 @@ export default function ReportsDashboard() {
             <CardTitle>Execution Trend (Last 30 Days)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={executionTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="executions"
-                  stackId="1"
-                  stroke="#8884d8"
-                  fill="#8884d8"
-                  name="Total Executions"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="passed"
-                  stackId="2"
-                  stroke="#00C49F"
-                  fill="#00C49F"
-                  name="Passed"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.AreaChart data={executionTrendData}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" />
+                  <Recharts.XAxis dataKey="date" />
+                  <Recharts.YAxis />
+                  <Recharts.Tooltip />
+                  <Recharts.Legend />
+                  <Recharts.Area
+                    type="monotone"
+                    dataKey="executions"
+                    stackId="1"
+                    stroke="#8884d8"
+                    fill="#8884d8"
+                    name="Total Executions"
+                  />
+                  <Recharts.Area
+                    type="monotone"
+                    dataKey="passed"
+                    stackId="2"
+                    stroke="#00C49F"
+                    fill="#00C49F"
+                    name="Passed"
+                  />
+                </Recharts.AreaChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -308,36 +305,40 @@ export default function ReportsDashboard() {
             <CardTitle>Testing Velocity</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={velocityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="completed"
-                  stroke="#8884d8"
-                  strokeWidth={2}
-                  name="Completed"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="passed"
-                  stroke="#00C49F"
-                  strokeWidth={2}
-                  name="Passed"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="failed"
-                  stroke="#FF8042"
-                  strokeWidth={2}
-                  name="Failed"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {rechartsLoading || !Recharts ? (
+              <ChartSkeleton />
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.LineChart data={velocityData}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" />
+                  <Recharts.XAxis dataKey="week" />
+                  <Recharts.YAxis />
+                  <Recharts.Tooltip />
+                  <Recharts.Legend />
+                  <Recharts.Line
+                    type="monotone"
+                    dataKey="completed"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    name="Completed"
+                  />
+                  <Recharts.Line
+                    type="monotone"
+                    dataKey="passed"
+                    stroke="#00C49F"
+                    strokeWidth={2}
+                    name="Passed"
+                  />
+                  <Recharts.Line
+                    type="monotone"
+                    dataKey="failed"
+                    stroke="#FF8042"
+                    strokeWidth={2}
+                    name="Failed"
+                  />
+                </Recharts.LineChart>
+              </Recharts.ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

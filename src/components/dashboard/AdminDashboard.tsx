@@ -26,18 +26,17 @@ import {
   Activity,
   Zap,
 } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 export function AdminDashboardComponent() {
   const { profile, hospital, roles } = useAuth();
-  const needsRepair = !hospital || !roles.includes('admin');
-
-  const getGreeting = () => {
+  const needsRepair = useMemo(() => !hospital || !roles.includes('admin'), [hospital, roles]);
+  const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
-  };
+  }, []);
 
   return (
     <>
@@ -46,7 +45,7 @@ export function AdminDashboardComponent() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, {profile?.first_name || 'Admin'}!
+              {greeting}, {profile?.first_name || 'Admin'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Hospital overview and management dashboard.

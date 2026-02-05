@@ -507,7 +507,7 @@ export const useAnalyticsDashboard = (hospitalId: string) => {
 };
 
 // Main useAnalytics hook for BusinessIntelligenceDashboard
-export const useAnalytics = (period: '7d' | '30d' | '90d' | '1y') => {
+export const useAnalytics = (range: { start: Date; end: Date }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [kpis, setKpis] = useState<any>(null);
   const [financialMetrics, setFinancialMetrics] = useState<any>(null);
@@ -569,7 +569,7 @@ export const useAnalytics = (period: '7d' | '30d' | '90d' | '1y') => {
     };
 
     fetchAnalytics();
-  }, [period]);
+  }, [range.start, range.end]);
 
   return {
     kpis,

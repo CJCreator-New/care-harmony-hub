@@ -271,8 +271,8 @@ export const DoseAdjustmentCalculator: React.FC<DoseAdjustmentCalculatorProps> =
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Adjustments Applied:</h4>
             <ul className="space-y-1">
-              {calculation.adjustments_applied.map((adjustment, index) => (
-                <li key={index} className="text-sm text-green-700 flex items-center gap-2">
+              {calculation.adjustments_applied.map((adjustment) => (
+                <li key={adjustment} className="text-sm text-green-700 flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
                   {adjustment}
                 </li>
@@ -288,8 +288,8 @@ export const DoseAdjustmentCalculator: React.FC<DoseAdjustmentCalculatorProps> =
             <AlertDescription>
               <strong>Warnings:</strong>
               <ul className="mt-1 space-y-1">
-                {calculation.warnings.map((warning, index) => (
-                  <li key={index}>• {warning}</li>
+                {calculation.warnings.map((warning) => (
+                  <li key={warning}>• {warning}</li>
                 ))}
               </ul>
             </AlertDescription>
@@ -301,8 +301,8 @@ export const DoseAdjustmentCalculator: React.FC<DoseAdjustmentCalculatorProps> =
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Monitoring Requirements:</h4>
             <div className="flex flex-wrap gap-2">
-              {adjustments.flatMap(adj => adj.monitoring_requirements).map((req, index) => (
-                <span key={index} className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+              {adjustments.flatMap(adj => adj.monitoring_requirements).map((req) => (
+                <span key={req} className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
                   {req}
                 </span>
               ))}

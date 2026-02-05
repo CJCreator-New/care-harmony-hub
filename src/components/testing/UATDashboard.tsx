@@ -89,8 +89,8 @@ export const UATDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {result.steps.map((step, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    {result.steps.map((step) => (
+                      <div key={`${step.name}-${step.duration}`} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <span className="text-sm">{step.name}</span>
                         <div className="flex items-center gap-2">
                           {step.passed ? (

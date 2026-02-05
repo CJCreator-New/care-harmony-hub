@@ -297,7 +297,10 @@ export const TherapeuticDuplicationAlert: React.FC<TherapeuticDuplicationAlertPr
         </Alert>
 
         {duplications.map((duplication, index) => (
-          <div key={index} className="border rounded-lg p-4 space-y-3">
+          <div
+            key={`${duplication.existing_medication}-${duplication.new_medication}-${duplication.type}`}
+            className="border rounded-lg p-4 space-y-3"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {getTypeIcon(duplication.type)}

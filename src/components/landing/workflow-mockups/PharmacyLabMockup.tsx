@@ -37,8 +37,8 @@ export function PharmacyLabMockup() {
           <Badge variant="secondary" className="text-[8px]">3 Pending</Badge>
         </div>
         
-        {prescriptions.map((rx, index) => (
-          <Card key={index} className="p-2">
+        {prescriptions.map((rx) => (
+          <Card key={rx.patient} className="p-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-medium text-foreground">{rx.patient}</span>
               {rx.priority === 'urgent' && (
@@ -64,8 +64,8 @@ export function PharmacyLabMockup() {
       <Card className="p-2 bg-muted/30">
         <p className="text-[10px] font-medium text-foreground mb-2">Recent Lab Results</p>
         <div className="space-y-1.5">
-          {labResults.map((lab, index) => (
-            <div key={index} className="flex items-center justify-between">
+          {labResults.map((lab) => (
+            <div key={`${lab.patient}-${lab.test}`} className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 {lab.status === 'completed' ? (
                   <CheckCircle2 className={`w-3 h-3 ${lab.critical ? 'text-destructive' : 'text-success'}`} />

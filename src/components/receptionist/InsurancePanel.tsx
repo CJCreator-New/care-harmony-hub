@@ -213,9 +213,9 @@ function EligibilityCard({
               animate={{ opacity: 1, height: "auto" }}
               className="mt-3 space-y-2"
             >
-              {eligibility.coverage.benefits.map((benefit, index) => (
+              {eligibility.coverage.benefits.map((benefit) => (
                 <div
-                  key={index}
+                  key={benefit.category}
                   className="flex items-center justify-between p-2 bg-background rounded"
                 >
                   <div className="flex items-center gap-2">

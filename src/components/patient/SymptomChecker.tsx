@@ -196,7 +196,7 @@ export function SymptomChecker() {
                     onChange={(e) => setCustomSymptom(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleCustomSymptomAdd()}
                   />
-                  <Button onClick={handleCustomSymptomAdd} size="sm">
+                  <Button onClick={handleCustomSymptomAdd} size="sm" aria-label="Add symptom">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -326,8 +326,11 @@ export function SymptomChecker() {
               <div>
                 <h4 className="font-semibold mb-3">Possible Conditions</h4>
                 <div className="space-y-3">
-                  {lastAnalysis.possible_conditions.slice(0, 3).map((condition, index) => (
-                    <div key={index} className="p-4 border rounded-lg">
+                  {lastAnalysis.possible_conditions.slice(0, 3).map((condition) => (
+                    <div
+                      key={condition.condition}
+                      className="p-4 border rounded-lg"
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <h5 className="font-medium">{condition.condition}</h5>
                         <Badge variant="outline">
@@ -348,8 +351,8 @@ export function SymptomChecker() {
               <div>
                 <h4 className="font-semibold mb-3">Recommendations</h4>
                 <ul className="space-y-2">
-                  {lastAnalysis.recommendations.map((rec, index) => (
-                    <li key={index} className="flex items-start gap-2">
+                  {lastAnalysis.recommendations.map((rec) => (
+                    <li key={rec} className="flex items-start gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
                       <span className="text-sm">{rec}</span>
                     </li>
@@ -417,8 +420,8 @@ export function SymptomChecker() {
                 <div>
                   <h4 className="font-semibold mb-2">Symptoms Reported</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedAnalysis.symptoms.map((symptom, index) => (
-                      <Badge key={index} variant="outline">
+                    {selectedAnalysis.symptoms.map((symptom) => (
+                      <Badge key={symptom.name} variant="outline">
                         {symptom.name} ({symptom.severity})
                       </Badge>
                     ))}
@@ -428,8 +431,8 @@ export function SymptomChecker() {
                 <div>
                   <h4 className="font-semibold mb-2">Possible Conditions</h4>
                   <div className="space-y-2">
-                    {selectedAnalysis.possible_conditions.map((condition, index) => (
-                      <div key={index} className="p-3 border rounded">
+                    {selectedAnalysis.possible_conditions.map((condition) => (
+                      <div key={condition.condition} className="p-3 border rounded">
                         <div className="flex justify-between">
                           <span className="font-medium">{condition.condition}</span>
                           <span className="text-sm text-muted-foreground">
@@ -445,8 +448,8 @@ export function SymptomChecker() {
                 <div>
                   <h4 className="font-semibold mb-2">Recommendations</h4>
                   <ul className="space-y-1">
-                    {selectedAnalysis.recommendations.map((rec, index) => (
-                      <li key={index} className="text-sm">• {rec}</li>
+                    {selectedAnalysis.recommendations.map((rec) => (
+                      <li key={rec} className="text-sm">• {rec}</li>
                     ))}
                   </ul>
                 </div>

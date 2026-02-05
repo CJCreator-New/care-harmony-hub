@@ -1,19 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
-interface EligibilityResult {
-  eligible: boolean;
-  coverage: number;
-  copay: number;
-  deductible: number;
-  deductibleMet: number;
-  message: string;
-}
+import { buildEligibilityResponse, EligibilityResponse } from '@/services/insuranceIntegration';
 
 export function useInsuranceEligibility(patientId: string) {
   return useQuery({
     queryKey: ['insurance-eligibility', patientId],
-    queryFn: async (): Promise<EligibilityResult> => {
+    queryFn: async (): Promise<EligibilityResponse> => {
       const { data: patient, error } = await supabase
         .from('patients')
         .select('insurance_provider, insurance_policy_number, insurance_status')
@@ -22,26 +14,58 @@ export function useInsuranceEligibility(patientId: string) {
 
       if (error) throw error;
 
+      const baseEligibility = buildEligibilityResponse(
+        patient.insurance_provider,
+        patient.insurance_status === 'active',
+      );
+
       if (!patient.insurance_provider || patient.insurance_status !== 'active') {
+        return baseEligibility;
+      }
+
+      if (!patient.insurance_policy_number) {
         return {
-          eligible: false,
-          coverage: 0,
-          copay: 0,
-          deductible: 0,
-          deductibleMet: 0,
-          message: 'No active insurance coverage',
+          ...baseEligibility,
+          message: `${patient.insurance_provider} - Missing policy number`,
         };
       }
 
-      // Simulated eligibility check (in production, integrate with insurance API)
-      return {
-        eligible: true,
-        coverage: 80,
-        copay: 25,
-        deductible: 1000,
-        deductibleMet: 450,
-        message: `${patient.insurance_provider} - Active coverage`,
-      };
+      // Attempt eligibility verification via Supabase Edge Function (if available)
+      const functions = (supabase as any).functions;
+      if (functions?.invoke) {
+        try {
+          const response = await functions.invoke('insurance-integration', {
+            body: {
+              action: 'verify_eligibility',
+              data: {
+                patient_id: patientId,
+                policy_number: patient.insurance_policy_number,
+                provider_name: patient.insurance_provider,
+              },
+            },
+          });
+
+          if (response?.data) {
+            return {
+              ...baseEligibility,
+              eligible: !!response.data.eligible,
+              coverage: response.data.coverage_percentage ?? baseEligibility.coverage,
+              copay: response.data.copay_amount ?? baseEligibility.copay,
+              deductible: response.data.deductible_remaining ?? baseEligibility.deductible,
+              deductibleMet: response.data.deductible_met ?? baseEligibility.deductibleMet,
+              message: `${patient.insurance_provider} - Eligibility verified`,
+            };
+          }
+        } catch (err) {
+          // Fall back to local rules if verification fails
+          return {
+            ...baseEligibility,
+            message: `${patient.insurance_provider} - Eligibility pending verification`,
+          };
+        }
+      }
+
+      return baseEligibility;
     },
     enabled: !!patientId,
   });

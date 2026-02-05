@@ -40,6 +40,12 @@ const STANDARD_COUNSELING_POINTS: CounselingPoint[] = [
   { id: 'missed_dose', label: 'Missed Dose Protocol', description: 'What to do if a dose is missed' },
 ];
 
+const COUNSELING_HISTORY = [
+  { id: 'session-1', date: 'Oct 21, 2023' },
+  { id: 'session-2', date: 'Oct 22, 2023' },
+  { id: 'session-3', date: 'Oct 23, 2023' },
+];
+
 export function PatientCounseling({ patientId, patientName, prescriptionId, medicationName }: Props) {
   const [selectedPoints, setSelectedPoints] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
@@ -101,10 +107,10 @@ export function PatientCounseling({ patientId, patientName, prescriptionId, medi
         {showHistory ? (
            <ScrollArea className="h-[400px] pr-4">
              <div className="space-y-4">
-               {[1, 2, 3].map((i) => (
-                 <div key={i} className="border rounded-lg p-3 space-y-2">
+               {COUNSELING_HISTORY.map((session) => (
+                 <div key={session.id} className="border rounded-lg p-3 space-y-2">
                    <div className="flex justify-between items-center bg-secondary/20 -mx-3 -mt-3 p-3 rounded-t-lg mb-2">
-                     <span className="font-medium text-sm">Oct {20 + i}, 2023</span>
+                     <span className="font-medium text-sm">{session.date}</span>
                      <Badge variant="outline" className="bg-background">Amoxicillin 500mg</Badge>
                    </div>
                    <div className="space-y-1">

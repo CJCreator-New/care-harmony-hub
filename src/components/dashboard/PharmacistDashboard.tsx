@@ -190,8 +190,8 @@ export function PharmacistDashboard() {
                           </div>
                           {rx.items && rx.items.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {rx.items.slice(0, 3).map((item: any, idx: number) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
+                              {rx.items.slice(0, 3).map((item: any) => (
+                                <Badge key={item.id ?? item.medication_name} variant="outline" className="text-xs">
                                   {item.medication_name}
                                 </Badge>
                               ))}

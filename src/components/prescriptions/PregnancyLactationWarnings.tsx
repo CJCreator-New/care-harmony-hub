@@ -309,8 +309,8 @@ export const PregnancyLactationWarnings: React.FC<PregnancyLactationWarningsProp
             
             {showAlternatives && (
               <div className="grid grid-cols-1 gap-2">
-                {safetyData.alternative_drugs.map((drug, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
+                {safetyData.alternative_drugs.map((drug) => (
+                  <div key={drug} className="flex items-center justify-between p-2 border rounded-lg">
                     <span className="font-medium">{drug}</span>
                     <Button
                       size="sm"

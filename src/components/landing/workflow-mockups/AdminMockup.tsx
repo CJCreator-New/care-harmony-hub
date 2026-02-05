@@ -55,7 +55,7 @@ export function AdminMockup() {
         <div className="flex items-end justify-between h-12 gap-1">
           {[40, 65, 55, 80, 72, 90, 85].map((height, i) => (
             <div 
-              key={i} 
+              key={`bar-${height}-${i}`} 
               className="flex-1 bg-primary/20 rounded-t"
               style={{ height: `${height}%` }}
             >
@@ -68,7 +68,7 @@ export function AdminMockup() {
         </div>
         <div className="flex justify-between mt-1">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-            <span key={i} className="text-[7px] text-muted-foreground flex-1 text-center">{day}</span>
+            <span key={`${day}-${i}`} className="text-[7px] text-muted-foreground flex-1 text-center">{day}</span>
           ))}
         </div>
       </Card>
@@ -77,8 +77,8 @@ export function AdminMockup() {
       <Card className="flex-1 p-2 bg-muted/30">
         <p className="text-[9px] font-medium text-foreground mb-2">Recent Activity</p>
         <div className="space-y-1.5">
-          {recentActivity.map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
+          {recentActivity.map((item) => (
+            <div key={`${item.action}-${item.time}`} className="flex items-center justify-between">
               <div>
                 <p className="text-[9px] text-foreground">{item.action}</p>
                 <p className="text-[8px] text-muted-foreground">{item.user}</p>

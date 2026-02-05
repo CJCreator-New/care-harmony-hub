@@ -97,8 +97,8 @@ export function PredictiveAnalyticsPanel({ patientId }: PredictiveAnalyticsPanel
             <div>
               <h4 className="font-medium mb-2">Key Factors:</h4>
               <ul className="text-sm space-y-1">
-                {predictiveInsights.outcomePrediction.factors.map((factor, index) => (
-                  <li key={index} className="flex items-center gap-2">
+                {predictiveInsights.outcomePrediction.factors.map((factor) => (
+                  <li key={factor} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
                     {factor}
                   </li>
@@ -109,8 +109,8 @@ export function PredictiveAnalyticsPanel({ patientId }: PredictiveAnalyticsPanel
             <div>
               <h4 className="font-medium mb-2">Recommendations:</h4>
               <ul className="text-sm space-y-1">
-                {predictiveInsights.outcomePrediction.recommendations.map((rec, index) => (
-                  <li key={index} className="flex items-center gap-2">
+                {predictiveInsights.outcomePrediction.recommendations.map((rec) => (
+                  <li key={rec} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
                     {rec}
                   </li>
@@ -176,8 +176,8 @@ export function PredictiveAnalyticsPanel({ patientId }: PredictiveAnalyticsPanel
             <div>
               <h4 className="font-medium mb-2">Risk Factors:</h4>
               <ul className="text-sm space-y-1">
-                {predictiveInsights.readmissionRisk.riskFactors.map((factor, index) => (
-                  <li key={index} className="flex items-center gap-2">
+                {predictiveInsights.readmissionRisk.riskFactors.map((factor) => (
+                  <li key={factor} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
                     {factor}
                   </li>
@@ -188,8 +188,8 @@ export function PredictiveAnalyticsPanel({ patientId }: PredictiveAnalyticsPanel
             <div>
               <h4 className="font-medium mb-2">Prevention Strategies:</h4>
               <ul className="text-sm space-y-1">
-                {predictiveInsights.readmissionRisk.preventionStrategies.map((strategy, index) => (
-                  <li key={index} className="flex items-center gap-2">
+                {predictiveInsights.readmissionRisk.preventionStrategies.map((strategy) => (
+                  <li key={strategy} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
                     {strategy}
                   </li>
@@ -229,8 +229,8 @@ export function PredictiveAnalyticsPanel({ patientId }: PredictiveAnalyticsPanel
             <div>
               <h4 className="font-medium mb-2">Contributing Factors:</h4>
               <ul className="text-sm space-y-1">
-                {predictiveInsights.lengthOfStay.factors.map((factor, index) => (
-                  <li key={index} className="flex items-center gap-2">
+                {predictiveInsights.lengthOfStay.factors.map((factor) => (
+                  <li key={factor} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
                     {factor}
                   </li>
@@ -241,8 +241,8 @@ export function PredictiveAnalyticsPanel({ patientId }: PredictiveAnalyticsPanel
             <div>
               <h4 className="font-medium mb-2">Optimization Recommendations:</h4>
               <ul className="text-sm space-y-1">
-                {predictiveInsights.lengthOfStay.optimizationRecommendations.map((rec, index) => (
-                  <li key={index} className="flex items-center gap-2">
+                {predictiveInsights.lengthOfStay.optimizationRecommendations.map((rec) => (
+                  <li key={rec} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
                     {rec}
                   </li>

@@ -40,7 +40,7 @@ export function usePatientsReadyForDoctor() {
 
       const today = new Date().toISOString().split('T')[0];
 
-      // Get checklists where ready_for_doctor is true
+      // Get checklists where ready_for_doctor is true (join queue entries to avoid N+1)
       const { data: checklists, error } = await supabase
         .from('patient_prep_checklists')
         .select(`
@@ -58,6 +58,14 @@ export function usePatientsReadyForDoctor() {
             date_of_birth,
             gender,
             allergies
+          ),
+          queue_entry:patient_queue!patient_prep_checklists_queue_entry_id_fkey(
+            id,
+            queue_number,
+            priority,
+            check_in_time,
+            department,
+            status
           )
         `)
         .eq('hospital_id', hospital.id)
@@ -66,27 +74,7 @@ export function usePatientsReadyForDoctor() {
         .order('completed_at', { ascending: true });
 
       if (error) throw error;
-
-      // Also get queue information for these patients
-      const patientIds = checklists?.map(c => c.patient_id) || [];
-      
-      if (patientIds.length === 0) return [];
-
-      const { data: queueEntries } = await supabase
-        .from('patient_queue')
-        .select('id, patient_id, queue_number, priority, check_in_time, department, status')
-        .eq('hospital_id', hospital.id)
-        .in('patient_id', patientIds)
-        .in('status', ['waiting', 'called'])
-        .gte('created_at', `${today}T00:00:00`);
-
-      // Merge queue data with checklists
-      const queueMap = new Map(queueEntries?.map(q => [q.patient_id, q]) || []);
-
-      return checklists?.map(checklist => ({
-        ...checklist,
-        queue_entry: queueMap.get(checklist.patient_id) || null,
-      })) as PatientReadyForDoctor[];
+      return (checklists || []) as PatientReadyForDoctor[];
     },
     enabled: !!hospital?.id,
     refetchInterval: 15000, // Refresh every 15 seconds

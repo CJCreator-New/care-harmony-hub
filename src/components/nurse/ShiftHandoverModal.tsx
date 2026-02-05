@@ -178,8 +178,11 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                             Critical Patients
                           </p>
                           <div className="space-y-2">
-                            {(handover.critical_patients as CriticalPatient[]).map((cp, i) => (
-                              <div key={i} className="p-2 bg-destructive/10 rounded text-sm">
+                            {(handover.critical_patients as CriticalPatient[]).map((cp) => (
+                              <div
+                                key={`${cp.patient_name}-${cp.notes}`}
+                                className="p-2 bg-destructive/10 rounded text-sm"
+                              >
                                 <p className="font-medium">{cp.patient_name}</p>
                                 <p className="text-muted-foreground">{cp.notes}</p>
                               </div>
@@ -192,8 +195,8 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                         <div>
                           <p className="text-sm font-medium mb-2">Pending Tasks</p>
                           <div className="space-y-1">
-                            {(handover.pending_tasks as PendingTask[]).map((task, i) => (
-                              <div key={i} className="flex items-center gap-2">
+                            {(handover.pending_tasks as PendingTask[]).map((task) => (
+                              <div key={`${task.task}-${task.priority}`} className="flex items-center gap-2">
                                 <Badge variant={getPriorityColor(task.priority)} className="text-xs">
                                   {task.priority}
                                 </Badge>
@@ -266,8 +269,11 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                 Critical Patients
               </Label>
 
-              {criticalPatients.map((cp, index) => (
-                <Card key={index} className="bg-destructive/5 border-destructive/20">
+              {criticalPatients.map((cp) => (
+                <Card
+                  key={`${cp.patient_name}-${cp.notes}`}
+                  className="bg-destructive/5 border-destructive/20"
+                >
                   <CardContent className="p-3 flex items-start justify-between">
                     <div>
                       <p className="font-medium">{cp.patient_name}</p>
@@ -305,8 +311,11 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
             <div className="space-y-3">
               <Label>Pending Tasks</Label>
 
-              {pendingTasks.map((task, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 border rounded-lg">
+              {pendingTasks.map((task) => (
+                <div
+                  key={`${task.task}-${task.priority}`}
+                  className="flex items-center gap-2 p-2 border rounded-lg"
+                >
                   <Badge variant={getPriorityColor(task.priority)}>{task.priority}</Badge>
                   <span className="flex-1 text-sm">{task.task}</span>
                   <Button variant="ghost" size="icon" onClick={() => handleRemoveTask(index)}>
@@ -333,7 +342,12 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                     <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="icon" onClick={handleAddTask}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleAddTask}
+                  aria-label="Add task"
+                >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>

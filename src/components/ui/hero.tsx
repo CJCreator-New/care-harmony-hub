@@ -165,9 +165,9 @@ const Hero = React.forwardRef<HTMLDivElement, HeroProps>(
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
-                {actions.map((action, index) => (
+                {actions.map((action) => (
                   <Button
-                    key={index}
+                    key={`${action.href}-${action.label}`}
                     variant={action.variant || "default"}
                     size={action.size || "xl"}
                     asChild

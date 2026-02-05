@@ -78,6 +78,8 @@ const documentTypes = [
 const DocumentsPage: React.FC = () => {
   const { documents, documentsByType, isLoading, deleteDocument } = useDocuments();
   const { getDocumentUrl, deleteDocument: deleteDocumentWithStorage } = useDocumentUpload();
+  const allSkeletonKeys = ['doc-1', 'doc-2', 'doc-3', 'doc-4', 'doc-5', 'doc-6'];
+  const typeSkeletonKeys = ['doc-type-1', 'doc-type-2', 'doc-type-3'];
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
@@ -250,8 +252,8 @@ const DocumentsPage: React.FC = () => {
           <TabsContent value="all" className="space-y-4">
             {isLoading ? (
               <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i}>
+                {allSkeletonKeys.map((key) => (
+                  <Card key={key}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <Skeleton className="h-12 w-12 rounded" />
@@ -300,8 +302,8 @@ const DocumentsPage: React.FC = () => {
             <TabsContent key={type} value={type} className="space-y-4">
               {isLoading ? (
                 <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Card key={i}>
+                  {typeSkeletonKeys.map((key) => (
+                    <Card key={key}>
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
                           <Skeleton className="h-12 w-12 rounded" />

@@ -116,6 +116,7 @@ export function MultilingualSupport() {
               size="icon"
               onClick={toggleListening}
               className={isListening ? "animate-pulse" : ""}
+              aria-label={isListening ? "Stop listening" : "Start listening"}
             >
               <Mic className="h-4 w-4" />
             </Button>
@@ -127,7 +128,12 @@ export function MultilingualSupport() {
           {translation && (
             <div className="bg-muted p-4 rounded-lg relative group">
               <p className="text-lg font-medium">{translation}</p>
-              <Button size="icon" variant="ghost" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="Play translation"
+              >
                 <Volume2 className="h-4 w-4" />
               </Button>
             </div>

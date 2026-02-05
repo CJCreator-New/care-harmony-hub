@@ -17,7 +17,7 @@ export function exportToCSV({ stats, dailyData, period, hospitalName }: ExportDa
   
   let csv = `Hospital Report - ${hospitalName}\n`;
   csv += `Generated: ${format(new Date(), 'PPP')}\n`;
-  csv += `Period: Last ${period} Days\n\n`;
+  csv += `Period: ${period}\n\n`;
 
   // Summary section
   if (stats) {
@@ -94,7 +94,7 @@ export function exportToPDF({ stats, dailyData, period, hospitalName }: ExportDa
       <div class="meta">
         <strong>${hospitalName}</strong><br>
         Generated: ${format(new Date(), 'PPP')}<br>
-        Period: Last ${period} Days
+        Period: ${period}
       </div>
 
       ${stats ? `
@@ -182,7 +182,7 @@ export async function sendReportByEmail({
   
   let reportContent = `Hospital Report - ${hospitalName}\n`;
   reportContent += `Generated: ${format(new Date(), 'PPP')}\n`;
-  reportContent += `Period: Last ${period} Days\n\n`;
+  reportContent += `Period: ${period}\n\n`;
 
   // Summary section
   if (stats) {

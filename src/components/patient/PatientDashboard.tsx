@@ -147,7 +147,7 @@ function AppointmentCard({
                 </div>
               </div>
             </div>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" aria-label="View more">
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>

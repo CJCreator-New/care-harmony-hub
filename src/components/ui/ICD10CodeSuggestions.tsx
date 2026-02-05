@@ -183,8 +183,8 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                   <p className="text-sm text-muted-foreground">{analysis.primaryCode.description}</p>
                   {analysis.primaryCode.matchedKeywords.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {analysis.primaryCode.matchedKeywords.map((keyword, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                      {analysis.primaryCode.matchedKeywords.map((keyword) => (
+                        <Badge key={keyword} variant="secondary" className="text-xs">
                           {keyword}
                         </Badge>
                       ))}
@@ -229,8 +229,8 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                         <p className="text-sm text-muted-foreground">{code.description}</p>
                         {code.matchedKeywords.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {code.matchedKeywords.slice(0, 3).map((keyword, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
+                            {code.matchedKeywords.slice(0, 3).map((keyword) => (
+                              <Badge key={keyword} variant="secondary" className="text-xs">
                                 {keyword}
                               </Badge>
                             ))}

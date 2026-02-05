@@ -68,14 +68,14 @@ export function PhysicalExamStep({ data, onUpdate }: PhysicalExamStepProps) {
               onChange={(e) => setNewSymptom(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && addSymptom()}
             />
-            <Button type="button" size="icon" onClick={addSymptom}>
+            <Button type="button" size="icon" onClick={addSymptom} aria-label="Add symptom">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
           {symptoms.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {symptoms.map((symptom: string, index: number) => (
-                <Badge key={index} variant="secondary" className="gap-1">
+                <Badge key={`${symptom}-${index}`} variant="secondary" className="gap-1">
                   {symptom}
                   <button
                     type="button"

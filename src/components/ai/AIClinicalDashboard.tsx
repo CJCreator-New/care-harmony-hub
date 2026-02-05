@@ -161,8 +161,8 @@ export function AIClinicalDashboard({ patientId }: AIClinicalDashboardProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {noShowPredictions?.map((prediction, index) => (
-                  <div key={index} className="space-y-2">
+                {noShowPredictions?.map((prediction) => (
+                  <div key={`${prediction.patient_id ?? 'patient'}-${prediction.no_show_probability}`} className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Risk Score</span>
                       <Badge variant={prediction.no_show_probability > 0.7 ? 'destructive' : 'warning'}>
@@ -187,8 +187,8 @@ export function AIClinicalDashboard({ patientId }: AIClinicalDashboardProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {staffingOptimization?.map((dept, index) => (
-                    <div key={index} className="space-y-2">
+                  {staffingOptimization?.map((dept) => (
+                    <div key={dept.department} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="font-medium">{dept.department}</span>
                         <Badge variant={dept.optimization_score > 0.8 ? 'default' : 'secondary'}>
@@ -287,8 +287,8 @@ export function AIClinicalDashboard({ patientId }: AIClinicalDashboardProps) {
                 <p className="text-muted-foreground">No care gaps identified</p>
               ) : (
                 <div className="space-y-3">
-                  {careGaps?.slice(0, 3).map((gap, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                  {careGaps?.slice(0, 3).map((gap) => (
+                    <div key={gap.id ?? gap.description} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{gap.description}</p>
                         <p className="text-sm text-muted-foreground">{gap.recommended_action}</p>
