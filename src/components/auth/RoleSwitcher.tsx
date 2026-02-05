@@ -15,7 +15,7 @@ export function RoleSwitcher() {
     if (!primaryRole) return;
 
     // Validate transition before switching
-    const validation = isValidRoleTransition(primaryRole, targetRole as any);
+    const validation = isValidRoleTransition(primaryRole, targetRole as any, roles);
 
     if (!validation.valid) {
       toast.error(`Cannot switch to ${targetRole}: ${validation.reason}`);
@@ -24,7 +24,8 @@ export function RoleSwitcher() {
 
     setSwitching(true);
     try {
-      await switchRole(targetRole as any);
+      const { error } = await switchRole(targetRole as any);
+      if (error) throw error;
       toast.success(`Switched to ${ROLE_INFO[targetRole as keyof typeof ROLE_INFO]?.label}`);
     } catch (error) {
       toast.error('Failed to switch role');
@@ -34,18 +35,20 @@ export function RoleSwitcher() {
   };
 
   // Filter to only show valid transition targets
-  const availableRoles = roles.filter(role => {
-    if (role === primaryRole) return false;
-    const validation = isValidRoleTransition(primaryRole!, role);
-    return validation.valid;
-  });
+  const availableRoles = primaryRole
+    ? roles.filter(role => {
+        if (role === primaryRole) return false;
+        const validation = isValidRoleTransition(primaryRole, role, roles);
+        return validation.valid;
+      })
+    : [];
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={switching}>
+        <Button variant="outline" disabled={switching || !primaryRole}>
           <Users className="h-4 w-4 mr-2" />
-          {ROLE_INFO[primaryRole!]?.label || 'Select Role'}
+          {ROLE_INFO[primaryRole as keyof typeof ROLE_INFO]?.label || 'Select Role'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>

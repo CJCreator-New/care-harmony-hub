@@ -306,17 +306,15 @@ describe('Role Interconnection System', () => {
     it('admin should be able to transition to manageable roles', () => {
       const manageableRoles: UserRole[] = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
       manageableRoles.forEach(role => {
-        const result = isValidRoleTransition('admin', role);
+        const result = isValidRoleTransition('admin', role, ['admin', ...manageableRoles]);
         expect(result.valid).toBe(true);
       });
     });
 
-    it('operational roles should not be able to transition', () => {
-      const operationalRoles: UserRole[] = ['receptionist', 'pharmacist', 'lab_technician', 'patient'];
-      operationalRoles.forEach(role => {
-        const result = isValidRoleTransition(role, 'doctor');
-        expect(result.valid).toBe(false);
-      });
+    it('should block transitions to unassigned roles', () => {
+      const result = isValidRoleTransition('receptionist', 'doctor', ['receptionist']);
+      expect(result.valid).toBe(false);
+      expect(result.reason).toBe('Role not assigned to user');
     });
   });
 

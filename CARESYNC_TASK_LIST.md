@@ -18,6 +18,41 @@
 
 ---
 
+## Role Switching & Account Setup Remediation Plan (Feb 5, 2026)
+
+This section tracks the findings from the Role Switching + Account Setup assessment separately from the original roadmap.
+
+### RS/AS Priority Matrix
+
+| ID | Priority | Issue | Status | Target Files/Area |
+|----|----------|-------|--------|-------------------|
+| RS-1 | Critical | Add missing `switchRole` to AuthContext and wire RoleSwitcher | Planned | `src/contexts/AuthContext.tsx`, `src/components/auth/RoleSwitcher.tsx` |
+| RS-2 | High | Fix role transition validation to allow assigned roles | Planned | `src/utils/roleInterconnectionValidator.ts`, callers |
+| RS-3 | High | Harden dev RoleSwitcher test role usage and validation | Planned | `src/components/dev/RoleSwitcher.tsx`, `src/pages/Dashboard.tsx` |
+| RS-4 | Medium | Persist and honor preferred primary role | Planned | `src/contexts/AuthContext.tsx`, storage |
+| RS-5 | Medium | Replace placeholder role-switching tests | Planned | `src/test/role-switching.test.tsx` |
+| AS-1 | Critical | Prevent admin self-assignment during signup | Planned | `src/pages/hospital/SignupPage.tsx`, server validation |
+| AS-2 | High | Implement real role request/approval or secure auto-assign | Planned | `src/pages/hospital/AccountSetupPage.tsx`, DB schema |
+| AS-3 | High | Make invitation join flow transactional + rollback on failure | In Progress | `src/pages/hospital/JoinPage.tsx`, edge function |
+| AS-4 | Medium | Mitigate invitation token enumeration | Planned | RLS + edge function rate limiting |
+| AS-5 | Low | Verify/fix post-signup route | Planned | `src/pages/hospital/SignupPage.tsx`, router |
+| PR-1 | Medium | Consolidate RoleSwitcher UX and add error boundary | Planned | Components + error boundary |
+| PR-2 | Low | Standardize role labels across app | Planned | Types/constants |
+| SEC-1 | High | Enable leaked password protection (Supabase Auth setting) | Planned | Supabase dashboard |
+| SEC-2 | Critical | Fix profiles table exposure (RLS) | Planned | `supabase/migrations/*` |
+| SEC-3 | Critical | Encrypt 2FA secrets at rest | Planned | DB + edge functions |
+| SEC-4 | High | Audit overly-permissive RLS policies | Planned | `supabase/migrations/*` |
+| TEST-1 | Medium | Add account setup flow tests | Planned | `src/test/*`, e2e |
+
+### Execution Order
+1. RS-1, RS-2, RS-4 (core role switching safety and persistence)
+2. AS-1, AS-2, AS-3 (account setup security + workflow correctness)
+3. SEC-1 to SEC-4 (security hardening and DB/RLS updates)
+4. RS-3, PR-1, PR-2 (UX/dev tooling consistency)
+5. RS-5, TEST-1 (test coverage)
+
+---
+
 ## 🔴 Critical Priority Tasks (Week 1)
 
 ### Security & Compliance Fixes

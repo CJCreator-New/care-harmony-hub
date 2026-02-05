@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
@@ -55,6 +55,7 @@ interface AuthContextType {
     role: UserRole,
     userIdOverride?: string
   ) => Promise<{ error: Error | null }>;
+  switchRole: (targetRole: UserRole) => Promise<{ error: Error | null }>;
   // Biometric authentication methods
   isBiometricAvailable: () => boolean;
   registerBiometric: (userName: string, userDisplayName: string) => Promise<boolean>;
@@ -69,12 +70,35 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export { AuthContext };
 
+const ROLE_PRIORITY: UserRole[] = [
+  'admin',
+  'doctor',
+  'nurse',
+  'receptionist',
+  'pharmacist',
+  'lab_technician',
+  'patient',
+];
+
+const PREFERRED_ROLE_STORAGE_KEY = 'preferredRole';
+
+const getStoredPreferredRole = (): UserRole | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = window.localStorage.getItem(PREFERRED_ROLE_STORAGE_KEY);
+    return stored ? (stored as UserRole) : null;
+  } catch {
+    return null;
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
+  const [preferredRole, setPreferredRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const logout = useCallback(async () => {
@@ -96,6 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setHospital(null);
       setRoles([]);
+      setPreferredRole(null);
+      try {
+        window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
+      } catch {
+        // Ignore storage errors
+      }
       clearSentryUser();
     } catch (error) {
       console.error('Error during logout:', error);
@@ -189,6 +219,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, [fetchUserData]);
+
+  useEffect(() => {
+    if (roles.length === 0) {
+      setPreferredRole(null);
+      return;
+    }
+
+    const stored = getStoredPreferredRole();
+    if (stored && roles.includes(stored)) {
+      setPreferredRole(stored);
+      return;
+    }
+
+    setPreferredRole(null);
+  }, [roles]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -356,7 +401,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user, session, fetchUserData]
   );
 
-  const primaryRole = roles.length > 0 ? roles[0] : null;
+  const primaryRole = useMemo(() => {
+    if (preferredRole && roles.includes(preferredRole)) {
+      return preferredRole;
+    }
+    if (roles.length === 0) return null;
+    for (const role of ROLE_PRIORITY) {
+      if (roles.includes(role)) return role;
+    }
+    return roles[0] ?? null;
+  }, [preferredRole, roles]);
+
+  const switchRole = useCallback(async (targetRole: UserRole) => {
+    if (!roles.includes(targetRole)) {
+      return { error: new Error('Role not assigned to user') };
+    }
+
+    try {
+      if (user) {
+        await supabase.rpc('log_security_event', {
+          p_user_id: user.id,
+          p_event_type: 'role_switch',
+          p_user_agent: navigator.userAgent,
+          p_details: { from: primaryRole, to: targetRole },
+          p_severity: 'info'
+        });
+      }
+
+      setPreferredRole(targetRole);
+      try {
+        window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, targetRole);
+      } catch {
+        // Ignore storage errors
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error switching role:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+      return { error: error as Error };
+    }
+  }, [primaryRole, roles, user]);
 
   useEffect(() => {
     if (user) {
@@ -418,6 +502,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         createHospitalAndProfile,
+        switchRole,
         isBiometricAvailable,
         registerBiometric,
         authenticateWithBiometric,

@@ -78,7 +78,7 @@ export default function JoinPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getInvitationByToken, acceptInvitation } = useStaffInvitations();
+  const { getInvitationByToken } = useStaffInvitations();
 
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [isLoadingInvitation, setIsLoadingInvitation] = useState(true);
@@ -128,46 +128,43 @@ export default function JoinPage() {
     setIsSubmitting(true);
 
     try {
-      // Create the user account
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: invitation.email,
-        password: data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
-          },
+      const { data: result, error: invokeError } = await supabase.functions.invoke('accept-invitation-signup', {
+        body: {
+          token,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
         },
       });
 
-      if (signUpError) throw signUpError;
-      if (!authData.user) throw new Error('Failed to create account');
+      if (invokeError) throw invokeError;
+      if (!result?.success) throw new Error(result?.error || 'Failed to complete invitation');
 
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: authData.user.id,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          email: invitation.email,
-          hospital_id: invitation.hospital_id,
+      if (result.session?.access_token && result.session?.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
         });
 
-      if (profileError) throw profileError;
+        if (sessionError) {
+          throw sessionError;
+        }
+      }
 
-      // Accept the invitation (creates role)
-      const acceptResult = await acceptInvitation(token, authData.user.id);
-      
-      if (acceptResult.error) throw new Error(acceptResult.error);
+      const requiresLogin = Boolean(result.requires_login);
 
       toast({
-        title: 'Welcome aboard!',
-        description: `You've successfully joined ${invitation.hospital.name}`,
+        title: requiresLogin ? 'Account created' : 'Welcome aboard!',
+        description: requiresLogin
+          ? 'Your account is ready. Please sign in to continue.'
+          : `You've successfully joined ${invitation.hospital.name}`,
       });
 
-      navigate('/dashboard');
+      if (requiresLogin) {
+        navigate('/hospital/login');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Join error:', error);
       toast({

@@ -482,21 +482,27 @@ export function generateInterconnectionReport(): string {
 /**
  * Checks if a role transition is valid (for role switching)
  */
-export function isValidRoleTransition(fromRole: UserRole, toRole: UserRole): {
+export function isValidRoleTransition(
+  fromRole: UserRole,
+  toRole: UserRole,
+  userRoles: UserRole[]
+): {
   valid: boolean;
   reason?: string;
 } {
-  // Admin can switch to roles they can manage
-  if (fromRole === 'admin') {
-    const manageableRoles = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
-    if (manageableRoles.includes(toRole)) {
-      return { valid: true };
-    }
-    return { valid: false, reason: 'Admin cannot switch to this role' };
+  if (!userRoles.includes(fromRole)) {
+    return { valid: false, reason: 'Current role not assigned to user' };
   }
 
-  // Other roles cannot switch
-  return { valid: false, reason: 'Insufficient permissions for role switching' };
+  if (!userRoles.includes(toRole)) {
+    return { valid: false, reason: 'Role not assigned to user' };
+  }
+
+  if (fromRole === toRole) {
+    return { valid: false, reason: 'Already using this role' };
+  }
+
+  return { valid: true };
 }
 
 /**
