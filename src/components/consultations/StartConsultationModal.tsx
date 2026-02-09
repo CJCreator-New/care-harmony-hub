@@ -138,7 +138,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
       if (entry.patient) {
         const priority = entry.queue_entry?.priority === 'emergency' ? 100 :
                         entry.queue_entry?.priority === 'urgent' ? 90 : 80;
-        const waitTime = entry.queue_entry ? differenceInMinutes(new Date(), new Date(entry.queue_entry.created_at)) : 0;
+        const waitTime = entry.queue_entry ? differenceInMinutes(new Date(), new Date(entry.queue_entry.check_in_time)) : 0;
         const score = priority + Math.min(waitTime / 10, 10); // Cap wait time bonus at 10 points
 
         patientMap.set(entry.patient.id, {
@@ -170,7 +170,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           waitTime,
           score,
           prepComplete: false,
-          allergies: entry.patient.allergies || []
+          allergies: []
         });
       }
     });
@@ -188,7 +188,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           waitTime,
           score,
           prepComplete: false,
-          allergies: apt.patient.allergies || []
+          allergies: []
         });
       }
     });

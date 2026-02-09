@@ -25,6 +25,7 @@ import {
   usePatientPrescriptions,
   usePatientLabResults,
 } from '@/hooks/usePatientPortal';
+import { PrescriptionItem } from '@/hooks/usePrescriptions';
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 
 const statusColors: Record<string, string> = {
@@ -262,7 +263,7 @@ export function PatientDashboard() {
                       </Badge>
                     </div>
                     <div className="space-y-1">
-                      {rx.items.slice(0, 2).map((item) => (
+                      {rx.items.slice(0, 2).map((item: PrescriptionItem) => (
                         <p key={item.id} className="text-sm">
                           <span className="font-medium">{item.medication_name}</span>
                           <span className="text-muted-foreground"> - {item.dosage}, {item.frequency}</span>

@@ -140,7 +140,7 @@ export interface MARAdministration {
   witness_id?: string;
   
   // Status
-  status: 'scheduled' | 'given' | 'refused' | 'held' | 'missed';
+  status: 'scheduled' | 'given' | 'refused' | 'held' | 'not_given';
   reason_not_given?: string;
   
   // Effectiveness (PRN)

@@ -54,7 +54,7 @@ const decryptSecret = async (payload: string) => {
   const iv = fromBase64(ivPart);
   const cipherBytes = fromBase64(cipherPart);
   const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv.buffer },
+    { name: "AES-GCM", iv: new Uint8Array(iv) },
     key,
     cipherBytes
   );

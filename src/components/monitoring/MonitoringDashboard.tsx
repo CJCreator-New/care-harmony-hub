@@ -109,16 +109,28 @@ export default function MonitoringDashboard() {
 
       return {
         total: errors?.length || 0,
-        critical: errors?.filter(e => e.details?.severity === 'critical').length || 0,
-        warning: errors?.filter(e => e.details?.severity === 'warning').length || 0,
-        info: errors?.filter(e => e.details?.severity === 'info').length || 0,
-        recentErrors: errors?.map(e => ({
-          id: e.id,
-          message: e.details?.message || 'Unknown error',
-          level: e.details?.severity || 'info',
-          timestamp: e.created_at,
-          userId: e.user_id,
-        })) || [],
+        critical: errors?.filter(e => {
+          const details = e.details as any;
+          return details?.severity === 'critical';
+        }).length || 0,
+        warning: errors?.filter(e => {
+          const details = e.details as any;
+          return details?.severity === 'warning';
+        }).length || 0,
+        info: errors?.filter(e => {
+          const details = e.details as any;
+          return details?.severity === 'info';
+        }).length || 0,
+        recentErrors: errors?.map(e => {
+          const details = e.details as any;
+          return {
+            id: e.id,
+            message: details?.message || 'Unknown error',
+            level: details?.severity || 'info',
+            timestamp: e.created_at,
+            userId: e.user_id,
+          };
+        }) || [],
       };
     },
     enabled: !!hospital?.id,

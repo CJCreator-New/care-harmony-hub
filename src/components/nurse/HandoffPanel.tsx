@@ -109,7 +109,7 @@ export function HandoffPanel({ patient, queueEntry, prepData, onHandoffComplete 
         priority: 'high',
         category: 'clinical',
         action_url: '/consultations',
-        data: {
+        metadata: {
           patient_id: patient.id,
           queue_entry_id: queueEntry.id,
           handoff_data: handoffData,

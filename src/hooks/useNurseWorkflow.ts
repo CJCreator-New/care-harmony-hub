@@ -708,3 +708,37 @@ export const useMedicationAdministrations = (patientId?: string) => {
     refetch: loadAdministrations
   };
 };
+
+// Unified Nurse Workflow Hook
+export function useNurseWorkflow() {
+  const markReadyForDoctor = async (queueId: string, data: {
+    chief_complaint?: string;
+    allergies?: string;
+    current_medications?: string;
+    triage_notes?: string;
+  }) => {
+    try {
+      // Update the patient prep checklist to mark as ready for doctor
+      const { error } = await supabase
+        .from('patient_prep_checklist')
+        .update({
+          ready_for_doctor: true,
+          chief_complaint_recorded: !!data.chief_complaint,
+          allergies_verified: !!data.allergies,
+          medications_reviewed: !!data.current_medications,
+          notes: data.triage_notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('queue_entry_id', queueId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error marking patient ready for doctor:', err);
+      throw err;
+    }
+  };
+
+  return {
+    markReadyForDoctor
+  };
+}

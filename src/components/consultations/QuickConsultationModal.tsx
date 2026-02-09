@@ -60,9 +60,9 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       // Update consultation with minimal data
       await updateConsultation.mutateAsync({
         id: consultation.id,
-        diagnosis: [diagnosis],
-        cpt_codes: cptCodes,
-        prescriptions,
+        diagnosis_codes: diagnosis ? [diagnosis] : [],
+        procedure_codes: cptCodes,
+        medications_prescribed: prescriptions,
         lab_orders: labOrders,
         clinical_notes: notes,
         status: 'completed',
@@ -106,7 +106,9 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
             .select()
             .single();
 
-          await notifyLabOrderCreated(consultation.patient_id, patientName, order.test, labOrder.id, order.priority || 'routine');
+          if (labOrder) {
+            await notifyLabOrderCreated(consultation.patient_id, patientName, order.test, labOrder.id, order.priority || 'routine');
+          }
         }
       }
 

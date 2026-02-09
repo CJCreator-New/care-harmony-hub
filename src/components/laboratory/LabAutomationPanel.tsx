@@ -58,7 +58,7 @@ export function LabAutomationPanel() {
         if (job.status === 'flagged') return job;
         
         const newProgress = job.progress + Math.random() * 5;
-        let newStatus = job.status;
+        let newStatus: AutomationJob['status'] = job.status;
         
         if (newProgress >= 100) {
           newStatus = 'completed';
@@ -72,7 +72,7 @@ export function LabAutomationPanel() {
         return {
           ...job,
           progress: Math.min(newProgress, 100),
-          status: newStatus as any
+          status: newStatus
         };
       }));
 

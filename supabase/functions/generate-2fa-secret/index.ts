@@ -1,7 +1,14 @@
 // Supabase Edge Function: generate-2fa-secret
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { TOTP, URI } from 'https://deno.land/x/otpauth@9.0.2/mod.ts';
 import { getIdentifier } from '../_shared/rateLimit.ts';
+
+// Native TOTP URI generation
+function generateTOTPURI(issuer: string, label: string, secret: string): string {
+  const encodedIssuer = encodeURIComponent(issuer);
+  const encodedLabel = encodeURIComponent(label);
+  const params = `secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
+  return `otpauth://totp/${encodedIssuer}:${encodedLabel}?${params}`;
+}
 
 // Rate limit store for 2FA secret generation
 const rateLimitStore: Record<string, { count: number; resetTime: number }> = {};
@@ -73,23 +80,9 @@ serve(async (req) => {
       .replace(/\//g, '_')
       .replace(/=/g, '');
 
-    // Create TOTP instance
-    const totp = new TOTP({
-      issuer: issuer,
-      label: email,
-      secret: secretBase32,
-      digits: 6,
-      period: 30,
-    });
-
-    // Generate QR code URI
-    const uri = new URI({
-      protocol: 'otpauth',
-      type: 'totp',
-      issuer: issuer,
-      label: email,
-      secret: secretBase32,
-    });
+    // Create TOTP instance (not needed for URI generation, but keeping for compatibility)
+    // Generate QR code URI using native function
+    const uri = generateTOTPURI(issuer, email, secretBase32);
 
     // Generate backup codes (8 codes, each 8 characters)
     const backupCodes = Array.from({ length: 8 }, () =>

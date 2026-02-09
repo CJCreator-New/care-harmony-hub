@@ -51,8 +51,13 @@ export function SampleTracking({ className }: SampleTrackingProps) {
     notes: '',
   });
 
-  const [updateData, setUpdateData] = useState({
-    status: 'received' as const,
+  const [updateData, setUpdateData] = useState<{
+    status: 'collected' | 'received' | 'processing' | 'completed' | 'rejected';
+    technician_id: string;
+    notes: string;
+    rejection_reason: string;
+  }>({
+    status: 'received',
     technician_id: '',
     notes: '',
     rejection_reason: '',
