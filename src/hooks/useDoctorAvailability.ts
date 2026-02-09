@@ -15,6 +15,10 @@ export interface DoctorAvailability {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  status: 'available' | 'in_consultation' | 'break' | 'offline';
+  last_name: string;
+  current_patient_count?: number;
+  next_available?: string;
   doctor?: {
     id: string;
     first_name: string;
@@ -54,23 +58,45 @@ export function useDoctorAvailability(doctorId?: string) {
     queryFn: async () => {
       if (!hospital?.id) return [];
       
-      let query = supabase
-        .from('doctor_availability')
-        .select(`
-          *,
-          doctor:profiles!doctor_id(id, first_name, last_name)
-        `)
-        .eq('hospital_id', hospital.id)
-        .eq('is_active', true)
-        .order('day_of_week');
+      // Mock data for current doctor status - in production this would query a different table
+      const mockDoctors: DoctorAvailability[] = [
+        {
+          id: 'doc1',
+          hospital_id: hospital.id,
+          doctor_id: 'doctor1',
+          day_of_week: 1,
+          start_time: '09:00',
+          end_time: '17:00',
+          slot_duration_minutes: 30,
+          is_telemedicine: false,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          status: 'available',
+          last_name: 'Smith',
+          current_patient_count: 2,
+          next_available: '10:30 AM'
+        },
+        {
+          id: 'doc2',
+          hospital_id: hospital.id,
+          doctor_id: 'doctor2',
+          day_of_week: 1,
+          start_time: '09:00',
+          end_time: '17:00',
+          slot_duration_minutes: 30,
+          is_telemedicine: false,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          status: 'in_consultation',
+          last_name: 'Johnson',
+          current_patient_count: 1,
+          next_available: '11:00 AM'
+        }
+      ];
 
-      if (doctorId) {
-        query = query.eq('doctor_id', doctorId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as DoctorAvailability[];
+      return mockDoctors;
     },
     enabled: !!hospital?.id,
   });

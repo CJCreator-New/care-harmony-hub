@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface NoShowPrediction {
   appointment_id: string;
+  patient_id: string;
   no_show_probability: number;
   risk_factors: string[];
   recommended_actions: string[];
@@ -38,6 +39,7 @@ export function usePredictiveAnalytics() {
       const mockPredictions: NoShowPrediction[] = [
         {
           appointment_id: "apt_123",
+          patient_id: "patient_123",
           no_show_probability: 0.75,
           risk_factors: ["Previous no-shows", "No confirmation", "Weather"],
           recommended_actions: ["Send reminder", "Call patient", "Overbook slot"]

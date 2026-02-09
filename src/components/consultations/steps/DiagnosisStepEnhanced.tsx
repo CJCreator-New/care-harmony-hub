@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle, X, Star, FileText, Stethoscope, DollarSign, Brain, ThumbsUp, ThumbsDown } from "lucide-react";
+import { AlertCircle, CheckCircle, X, Star, FileText, Stethoscope, DollarSign, Brain, ThumbsUp, ThumbsDown, Pill, Target } from "lucide-react";
 import { ICD10Autocomplete } from "../ICD10Autocomplete";
 import { CPTCodeMapper } from "../CPTCodeMapper";
 import { StructuredDiagnosis, DIAGNOSIS_TYPES, ICD10Code } from "@/types/icd10";

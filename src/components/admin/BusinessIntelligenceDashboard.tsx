@@ -62,7 +62,7 @@ export function BusinessIntelligenceDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold">Business Intelligence</h2>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <DateRangePicker value={dateRange} onChange={(range) => range && setDateRange(range)} />
       </div>
 
       {/* KPI Cards */}

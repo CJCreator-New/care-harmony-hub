@@ -13,6 +13,7 @@ export interface CareTeamAssignment {
 }
 
 export interface CareGap {
+  id: string;
   patient_id: string;
   gap_type: 'preventive_care' | 'follow_up' | 'medication_adherence' | 'screening';
   description: string;

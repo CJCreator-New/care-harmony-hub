@@ -184,7 +184,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                   <Checkbox
                     id="notify-pharmacy"
                     checked={notifyPharmacy}
-                    onCheckedChange={setNotifyPharmacy}
+                    onCheckedChange={(checked) => setNotifyPharmacy(checked === true)}
                   />
                   <label htmlFor="notify-pharmacy" className="text-sm">
                     Send to Pharmacy
@@ -209,7 +209,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                   <Checkbox
                     id="notify-lab"
                     checked={notifyLab}
-                    onCheckedChange={setNotifyLab}
+                    onCheckedChange={(checked) => setNotifyLab(checked === true)}
                   />
                   <label htmlFor="notify-lab" className="text-sm">
                     Send to Lab

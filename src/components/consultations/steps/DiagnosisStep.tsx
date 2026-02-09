@@ -87,7 +87,7 @@ export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
                     <Badge variant="outline" className="font-mono text-xs">
                       {diagnosis.code}
                     </Badge>
-                    <span className="text-sm">{diagnosis.description}</span>
+                    <span className="text-sm">{diagnosis.short_description}</span>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -144,7 +144,7 @@ export function DiagnosisStep({ data, onUpdate }: DiagnosisStepProps) {
                     <Badge variant="outline" className="font-mono text-xs">
                       {diagnosis.code}
                     </Badge>
-                    <span className="text-sm font-medium">{diagnosis.description}</span>
+                    <span className="text-sm font-medium">{diagnosis.short_description}</span>
                   </div>
                   <Button
                     type="button"

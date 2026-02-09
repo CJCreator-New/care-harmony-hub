@@ -57,7 +57,7 @@ export const ReviewOfSystemsStep: React.FC<ReviewOfSystemsStepProps> = ({ value,
             <div key={system.key} className="flex items-start space-x-3 p-3 border rounded-lg">
               <Checkbox
                 id={system.key}
-                checked={value[system.key as keyof ReviewOfSystems] || false}
+                checked={Boolean(value[system.key as keyof ReviewOfSystems])}
                 onCheckedChange={(checked) => handleSystemChange(system.key, Boolean(checked))}
                 className="mt-1"
               />

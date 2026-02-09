@@ -91,11 +91,11 @@ export default function TreatmentRecommendationsEngine() {
     }
 
     try {
-      const result = await generateTreatmentRecommendations({
+      const result = await generateTreatmentRecommendations(
         patientData,
         diagnoses,
-        context: 'evidence-based treatment planning'
-      });
+        'evidence-based treatment planning'
+      );
 
       if (result.success && result.recommendations) {
         setRecommendations(result.recommendations);
