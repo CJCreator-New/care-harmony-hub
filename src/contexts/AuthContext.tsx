@@ -78,6 +78,95 @@ const ROLE_PRIORITY: UserRole[] = [
   'patient',
 ];
 
+const E2E_MOCK_AUTH_STORAGE_KEY = 'e2e-mock-auth-user';
+const E2E_MOCK_PASSWORD = 'TestPass123!';
+
+type E2EMockUserConfig = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  hospitalId: string;
+};
+
+const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = {
+  'admin@testgeneral.com': {
+    id: 'e2e-admin-001',
+    firstName: 'Admin',
+    lastName: 'User',
+    role: 'admin',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'doctor@testgeneral.com': {
+    id: 'e2e-doctor-001',
+    firstName: 'Doctor',
+    lastName: 'User',
+    role: 'doctor',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'nurse@testgeneral.com': {
+    id: 'e2e-nurse-001',
+    firstName: 'Nurse',
+    lastName: 'User',
+    role: 'nurse',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'reception@testgeneral.com': {
+    id: 'e2e-reception-001',
+    firstName: 'Reception',
+    lastName: 'User',
+    role: 'receptionist',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'receptionist@testgeneral.com': {
+    id: 'e2e-reception-001',
+    firstName: 'Reception',
+    lastName: 'User',
+    role: 'receptionist',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'pharmacy@testgeneral.com': {
+    id: 'e2e-pharmacy-001',
+    firstName: 'Pharmacy',
+    lastName: 'User',
+    role: 'pharmacist',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'pharmacist@testgeneral.com': {
+    id: 'e2e-pharmacy-001',
+    firstName: 'Pharmacy',
+    lastName: 'User',
+    role: 'pharmacist',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'lab@testgeneral.com': {
+    id: 'e2e-lab-001',
+    firstName: 'Lab',
+    lastName: 'User',
+    role: 'lab_technician',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'labtech@testgeneral.com': {
+    id: 'e2e-lab-001',
+    firstName: 'Lab',
+    lastName: 'User',
+    role: 'lab_technician',
+    hospitalId: 'e2e-hospital-001',
+  },
+  'patient@testgeneral.com': {
+    id: 'e2e-patient-001',
+    firstName: 'Patient',
+    lastName: 'User',
+    role: 'patient',
+    hospitalId: 'e2e-hospital-001',
+  },
+};
+
+const getE2EMockUser = (email: string): E2EMockUserConfig | null => {
+  const normalizedEmail = email.trim().toLowerCase();
+  return E2E_MOCK_USERS[normalizedEmail] ?? null;
+};
+
 const PREFERRED_ROLE_STORAGE_KEY = 'preferredRole';
 
 const getStoredPreferredRole = (): UserRole | null => {
@@ -98,8 +187,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [preferredRole, setPreferredRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isE2EMockAuthEnabled =
+    typeof window !== 'undefined' && import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
+
+  const applyE2EMockAuthState = useCallback((email: string, mockUser: E2EMockUserConfig) => {
+    const nowIso = new Date().toISOString();
+    const mockSupabaseUser = {
+      id: mockUser.id,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email,
+      email_confirmed_at: nowIso,
+      phone: '',
+      confirmation_sent_at: nowIso,
+      app_metadata: { provider: 'email', providers: ['email'] },
+      user_metadata: { first_name: mockUser.firstName, last_name: mockUser.lastName },
+      identities: [],
+      created_at: nowIso,
+      updated_at: nowIso,
+      is_anonymous: false,
+    } as User;
+    const mockSession = {
+      access_token: `e2e-access-${mockUser.id}`,
+      refresh_token: `e2e-refresh-${mockUser.id}`,
+      expires_in: 60 * 60,
+      expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+      token_type: 'bearer',
+      user: mockSupabaseUser,
+    } as Session;
+
+    setUser(mockSupabaseUser);
+    setSession(mockSession);
+    setProfile({
+      id: `profile-${mockUser.id}`,
+      user_id: mockUser.id,
+      hospital_id: mockUser.hospitalId,
+      first_name: mockUser.firstName,
+      last_name: mockUser.lastName,
+      email,
+      phone: null,
+      avatar_url: null,
+      two_factor_enabled: false,
+    });
+    setHospital({
+      id: mockUser.hospitalId,
+      name: 'Test General Hospital',
+      address: '123 Test Street',
+      city: 'Test City',
+      state: 'TS',
+      zip: '12345',
+      phone: '(555) 123-4567',
+      email: 'admin@testgeneral.com',
+      license_number: 'LIC-E2E-001',
+    });
+    setRoles([mockUser.role]);
+    setPreferredRole(mockUser.role);
+
+    try {
+      window.localStorage.setItem(E2E_MOCK_AUTH_STORAGE_KEY, email.trim().toLowerCase());
+      window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, mockUser.role);
+    } catch {
+      // Ignore storage errors in mock mode
+    }
+  }, []);
 
   const logout = useCallback(async () => {
+    if (isE2EMockAuthEnabled) {
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setHospital(null);
+      setRoles([]);
+      setPreferredRole(null);
+      try {
+        window.localStorage.removeItem(E2E_MOCK_AUTH_STORAGE_KEY);
+        window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
+        window.localStorage.removeItem('testRole');
+      } catch {
+        // Ignore storage errors
+      }
+      clearSentryUser();
+      return;
+    }
+
     try {
       if (user) {
         // Log logout event
@@ -129,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error during logout:', error);
     }
-  }, [user]);
+  }, [isE2EMockAuthEnabled, user]);
 
   // Initialize session timeout
   useSessionTimeout({ logout, isAuthenticated: !!session });
@@ -177,6 +347,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+
+    if (isE2EMockAuthEnabled) {
+      try {
+        const storedEmail = window.localStorage.getItem(E2E_MOCK_AUTH_STORAGE_KEY);
+        if (storedEmail) {
+          const storedMockUser = getE2EMockUser(storedEmail);
+          if (storedMockUser) {
+            applyE2EMockAuthState(storedEmail, storedMockUser);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+
+      return () => {
+        isMounted = false;
+      };
+    }
     
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -217,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserData]);
+  }, [applyE2EMockAuthState, fetchUserData, isE2EMockAuthEnabled]);
 
   useEffect(() => {
     if (roles.length === 0) {
@@ -235,6 +425,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [roles]);
 
   const login = useCallback(async (email: string, password: string) => {
+    if (isE2EMockAuthEnabled) {
+      const mockUser = getE2EMockUser(email);
+      if (!mockUser || password !== E2E_MOCK_PASSWORD) {
+        return { error: new Error('Invalid login credentials') };
+      }
+      applyE2EMockAuthState(email, mockUser);
+      return { error: null };
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -274,9 +473,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       return { error: error as Error };
     }
-  }, []);
+  }, [applyE2EMockAuthState, isE2EMockAuthEnabled]);
 
   const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+    if (isE2EMockAuthEnabled) {
+      if (!email || !password) {
+        return { error: new Error('Email and password are required') };
+      }
+
+      const mockUserId = `e2e-signup-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+      const role: UserRole = 'admin';
+      const mockSupabaseUser = {
+        id: mockUserId,
+        aud: 'authenticated',
+        role: 'authenticated',
+        email,
+        email_confirmed_at: nowIso,
+        phone: '',
+        confirmation_sent_at: nowIso,
+        app_metadata: { provider: 'email', providers: ['email'] },
+        user_metadata: { first_name: firstName, last_name: lastName },
+        identities: [],
+        created_at: nowIso,
+        updated_at: nowIso,
+        is_anonymous: false,
+      } as User;
+      const mockSession = {
+        access_token: `e2e-access-${mockUserId}`,
+        refresh_token: `e2e-refresh-${mockUserId}`,
+        expires_in: 60 * 60,
+        expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+        token_type: 'bearer',
+        user: mockSupabaseUser,
+      } as Session;
+
+      setUser(mockSupabaseUser);
+      setSession(mockSession);
+      setProfile({
+        id: `profile-${mockUserId}`,
+        user_id: mockUserId,
+        hospital_id: 'e2e-hospital-001',
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone: null,
+        avatar_url: null,
+        two_factor_enabled: false,
+      });
+      setHospital({
+        id: 'e2e-hospital-001',
+        name: 'Test General Hospital',
+        address: '123 Test Street',
+        city: 'Test City',
+        state: 'TS',
+        zip: '12345',
+        phone: '(555) 123-4567',
+        email: 'admin@testgeneral.com',
+        license_number: 'LIC-E2E-001',
+      });
+      setRoles([role]);
+      setPreferredRole(role);
+      return { error: null, userId: mockUserId };
+    }
+
     try {
       // Validate password against policy
       const passwordValidation = await passwordPolicyManager.validatePassword(password);
@@ -345,10 +605,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       return { error: error as Error };
     }
-  }, []);
+  }, [isE2EMockAuthEnabled]);
 
   const createHospitalAndProfile = useCallback(
     async (hospitalData: Partial<Hospital>) => {
+      if (isE2EMockAuthEnabled) {
+        setHospital({
+          id: hospital?.id || 'e2e-hospital-001',
+          name: hospitalData.name || hospital?.name || 'My Hospital',
+          address: hospitalData.address || hospital?.address || null,
+          city: hospitalData.city || hospital?.city || null,
+          state: hospitalData.state || hospital?.state || null,
+          zip: hospitalData.zip || hospital?.zip || null,
+          phone: hospitalData.phone || hospital?.phone || null,
+          email: hospitalData.email || hospital?.email || null,
+          license_number: hospitalData.license_number || hospital?.license_number || null,
+        });
+        return { error: null };
+      }
+
       const effectiveUserId = user?.id ?? session?.user?.id;
       if (!effectiveUserId) return { error: new Error('Not authenticated') };
 
@@ -379,7 +654,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: error as Error };
       }
     },
-    [user, session, fetchUserData]
+    [fetchUserData, hospital, isE2EMockAuthEnabled, session, user]
   );
 
   const primaryRole = useMemo(() => {

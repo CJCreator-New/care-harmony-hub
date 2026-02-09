@@ -491,7 +491,8 @@ export function VideoCallModal({
   }, [open, patient?.id, appointmentId]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isFullscreen ? 'max-w-full h-full' : 'max-w-4xl'} p-0`}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -770,5 +771,6 @@ export function VideoCallModal({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }

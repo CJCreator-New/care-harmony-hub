@@ -147,7 +147,7 @@ const navGroups: NavGroup[] = [
 ];
 
 interface GroupedSidebarProps {
-  userRole: UserRole;
+  userRole: UserRole | null;
   testRole?: UserRole | null;
   className?: string;
 }
@@ -171,12 +171,12 @@ export function GroupedSidebar({ userRole, testRole, className }: GroupedSidebar
   };
 
   const hasAccessToGroup = (group: NavGroup) => {
-    return group.roles.includes(activeRole);
+    return activeRole ? group.roles.includes(activeRole) : false;
   };
 
   const hasAccessToItem = (item: NavItem) => {
-    return item.roles.includes(activeRole) &&
-           (!item.permission || hasPermission(activeRole, item.permission));
+    return activeRole ? (item.roles.includes(activeRole) &&
+           (!item.permission || hasPermission(activeRole, item.permission))) : false;
   };
 
   const isActive = (href: string) => {

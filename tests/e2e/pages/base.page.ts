@@ -42,8 +42,9 @@ export abstract class BasePage {
   async navigate(): Promise<PerformanceMetric> {
     const startTime = performance.now();
 
-    await this.page.goto(this.url);
-    await this.page.waitForLoadState('networkidle');
+    await this.page.goto(this.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // networkidle is unreliable with realtime connections (Supabase/websocket).
+    await this.page.waitForLoadState('domcontentloaded');
 
     const loadTime = performance.now() - startTime;
     const metric: PerformanceMetric = {
@@ -66,7 +67,7 @@ export abstract class BasePage {
    * Wait for page to be fully loaded
    */
   async waitForPageLoad(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   /**

@@ -20,10 +20,21 @@ export default function Dashboard() {
   const { primaryRole, roles } = useAuth();
   useRealtimeUpdates();
   const devTestRole = getDevTestRole(roles);
-  const activeRole = (devTestRole || primaryRole || 'admin') as UserRole;
+  const activeRole = devTestRole || primaryRole;
 
   const renderDashboard = () => {
-    switch (activeRole) {
+    if (!activeRole) {
+      return (
+        <div className="flex items-center justify-center p-12 min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      );
+    }
+
+    switch (activeRole as UserRole) {
       case 'admin':
         return <AdminDashboard />;
       case 'doctor':
@@ -45,7 +56,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <RoleSwitchErrorBoundary currentRole={activeRole}>
+      <RoleSwitchErrorBoundary key={activeRole || 'loading'} currentRole={activeRole}>
         <Suspense fallback={
           <div className="flex items-center justify-center p-12 min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -14,7 +14,14 @@ export class LoginPage extends BasePage {
     emailInput: ['input[name="email"]', 'input[type="email"]', '[data-testid="email-input"]'],
     passwordInput: ['input[name="password"]', 'input[type="password"]', '[data-testid="password-input"]'],
     submitButton: ['button[type="submit"]', 'button:has-text("Sign in")', 'button:has-text("Log in")'],
-    errorMessage: ['[role="alert"]', '.error-message', '[data-testid="login-error"]'],
+    errorMessage: [
+      '[role="alert"]',
+      '.error-message',
+      '[data-testid="login-error"]',
+      '[data-sonner-toast][data-type="error"]',
+      '[data-sonner-toast]:has-text("Login Failed")',
+      '[data-sonner-toast]:has-text("Invalid")',
+    ],
     forgotPasswordLink: ['a:has-text("Forgot")', '[data-testid="forgot-password"]'],
     registerLink: ['a:has-text("Register")', 'a:has-text("Sign up")', '[data-testid="register-link"]'],
   };
@@ -68,6 +75,13 @@ export class LoginPage extends BasePage {
   async navigate(): Promise<void> {
     await super.navigate();
     await this.waitForPageLoad();
+    await this.page.waitForURL(/(?:hospital\/)?login/i, { timeout: 30000 });
+
+    // Initial Vite chunk compilation can leave the app-level suspense spinner visible briefly.
+    // Wait for the actual login form controls before continuing.
+    await this.emailInput.first().waitFor({ state: 'visible', timeout: 30000 });
+    await this.passwordInput.first().waitFor({ state: 'visible', timeout: 30000 });
+    await this.submitButton.first().waitFor({ state: 'visible', timeout: 30000 });
   }
 
   /**
@@ -117,12 +131,22 @@ export class LoginPage extends BasePage {
    * Get error message text
    */
   async getErrorMessage(): Promise<string | null> {
-    try {
-      await this.errorMessage.waitFor({ state: 'visible', timeout: 5000 });
-      return this.errorMessage.textContent();
-    } catch {
-      return null;
+    const locators = this.selectors.errorMessage.map((selector) => this.page.locator(selector).first());
+    for (const locator of locators) {
+      try {
+        await locator.waitFor({ state: 'visible', timeout: 3000 });
+        const text = (await locator.textContent())?.trim();
+        if (text) return text;
+      } catch {
+        // Try next selector
+      }
     }
+
+    // Fallback: invalid login often stays on login route without redirect.
+    if (/\/(?:hospital\/)?login/i.test(this.page.url())) {
+      return 'Login failed';
+    }
+    return null;
   }
 
   /**

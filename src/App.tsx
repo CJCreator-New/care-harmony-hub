@@ -135,6 +135,13 @@ function AppRoutes() {
       <Routes>
       {/* Redirect root to hospital landing */}
       <Route path="/" element={<Navigate to="/hospital" replace />} />
+      <Route path="/login" element={<Navigate to="/hospital/login" replace />} />
+      <Route path="/auth/login" element={<Navigate to="/hospital/login" replace />} />
+      <Route path="/signup" element={<Navigate to="/hospital/signup" replace />} />
+      <Route path="/register" element={<Navigate to="/hospital/signup" replace />} />
+      <Route path="/forgot-password" element={<Navigate to="/hospital/forgot-password" replace />} />
+      <Route path="/patient/login" element={<Navigate to="/patient-login" replace />} />
+      <Route path="/patient/register" element={<Navigate to="/patient-register" replace />} />
       
       {/* Public Routes */}
       <Route
@@ -232,6 +239,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/admin/dashboard" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/doctor/dashboard" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/nurse" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/patient/dashboard" element={<Navigate to="/patient/portal" replace />} />
       
       {/* Placeholder routes for navigation */}
       <Route
@@ -290,6 +301,7 @@ function AppRoutes() {
           </RoleProtectedRoute>
         }
       />
+      <Route path="/pharmacy/prescriptions" element={<Navigate to="/pharmacy" replace />} />
       <Route
         path="/pharmacy/clinical"
         element={
@@ -313,14 +325,17 @@ function AppRoutes() {
             <LaboratoryPage />
           </RoleProtectedRoute>
         }
-      />      <Route
+      />
+      <Route path="/lab/orders" element={<Navigate to="/laboratory" replace />} />
+      <Route
         path="/laboratory/automation"
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'lab_technician']}>
             <LabAutomationPage />
           </RoleProtectedRoute>
         }
-      />      <Route
+      />
+      <Route
         path="/billing"
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'receptionist']}>
@@ -336,6 +351,7 @@ function AppRoutes() {
           </RoleProtectedRoute>
         }
       />
+      <Route path="/pharmacy/inventory" element={<Navigate to="/inventory" replace />} />
       <Route
         path="/reports"
         element={
@@ -433,6 +449,9 @@ function AppRoutes() {
           </RoleProtectedRoute>
         }
       />
+      <Route path="/staff" element={<Navigate to="/settings/staff" replace />} />
+      <Route path="/settings/staff-management" element={<Navigate to="/settings/staff" replace />} />
+      <Route path="/admin/settings" element={<Navigate to="/settings" replace />} />
       <Route
         path="/settings/performance"
         element={

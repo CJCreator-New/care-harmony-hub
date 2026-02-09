@@ -49,23 +49,6 @@ export function AdminAnalytics() {
   const { data: weeklyTrend } = useWeeklyAppointmentTrend();
   const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={`stats-skeleton-${i}`}>
-              <CardContent className="p-6">
-                <Skeleton className="h-8 w-24 mb-2" />
-                <Skeleton className="h-6 w-16" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   const mainStats = useMemo(() => ([
     {
       title: 'Total Patients',
@@ -133,6 +116,23 @@ export function AdminAnalytics() {
   ]), [stats]);
 
   const weeklyTrendData = useMemo(() => weeklyTrend || [], [weeklyTrend]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={`stats-skeleton-${i}`}>
+              <CardContent className="p-6">
+                <Skeleton className="h-8 w-24 mb-2" />
+                <Skeleton className="h-6 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

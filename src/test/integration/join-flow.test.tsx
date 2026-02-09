@@ -70,7 +70,7 @@ describe('Join Flow', () => {
     const user = userEvent.setup();
     render(<JoinPage />);
 
-    expect(await screen.findByText(/Join CareSync General/i)).toBeInTheDocument();
+    expect((await screen.findAllByText('Join CareSync General')).length).toBeGreaterThan(0);
 
     await user.type(screen.getByLabelText('First Name'), 'Alex');
     await user.type(screen.getByLabelText('Last Name'), 'Rivers');
@@ -115,7 +115,7 @@ describe('Join Flow', () => {
     const user = userEvent.setup();
     render(<JoinPage />);
 
-    await screen.findByText(/Join CareSync General/i);
+    await screen.findAllByText('Join CareSync General');
 
     await user.type(screen.getByLabelText('First Name'), 'Alex');
     await user.type(screen.getByLabelText('Last Name'), 'Rivers');
@@ -138,6 +138,6 @@ describe('Join Flow', () => {
     render(<JoinPage />);
 
     expect(await screen.findByText('Invalid Invitation')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Go to Home/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Go to Home/i })).toBeInTheDocument();
   });
 });

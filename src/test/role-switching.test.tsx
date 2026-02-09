@@ -54,8 +54,8 @@ describe('Role Switching Tests', () => {
 
     await user.click(screen.getByRole('button'));
 
-    expect(screen.getByRole('menuitem', { name: 'Doctor' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Nurse' })).toBeInTheDocument();
+    expect(screen.getByText('Doctor')).toBeInTheDocument();
+    expect(screen.getByText('Nurse')).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Administrator' })).not.toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe('Role Switching Tests', () => {
     );
 
     await user.click(screen.getByRole('button'));
-    await user.click(screen.getByRole('menuitem', { name: 'Doctor' }));
+    await user.click(screen.getByText('Doctor'));
 
     expect(onSwitchRole).toHaveBeenCalledWith('doctor');
   });

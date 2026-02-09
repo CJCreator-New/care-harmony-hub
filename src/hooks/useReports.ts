@@ -270,7 +270,7 @@ export function useYearOverYearMetrics(range?: { start: Date; end: Date }) {
       const previousStart = subYears(currentStart, 1);
       const previousEnd = subYears(currentEnd, 1);
 
-      const [currentInvoices, previousInvoices, currentAppointments, previousAppointments, currentQuality, previousQuality] =
+      const [currentInvoices, previousInvoices, currentAppointments, previousAppointments, currentQualityData, previousQualityData] =
         await Promise.all([
           supabase
             .from('invoices')
@@ -316,8 +316,8 @@ export function useYearOverYearMetrics(range?: { start: Date; end: Date }) {
       if (previousInvoices.error) throw previousInvoices.error;
       if (currentAppointments.error) throw currentAppointments.error;
       if (previousAppointments.error) throw previousAppointments.error;
-      if (currentQuality.error) throw currentQuality.error;
-      if (previousQuality.error) throw previousQuality.error;
+      if (currentQualityData.error) throw currentQualityData.error;
+      if (previousQualityData.error) throw previousQualityData.error;
 
       const sumRevenue = (data: { paid_amount: number }[] | null) =>
         data?.reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0) || 0;
@@ -332,8 +332,8 @@ export function useYearOverYearMetrics(range?: { start: Date; end: Date }) {
       const previousRevenue = sumRevenue(previousInvoices.data);
       const currentPatients = currentAppointments.count || 0;
       const previousPatients = previousAppointments.count || 0;
-      const currentQuality = complianceRate(currentQuality.data);
-      const previousQuality = complianceRate(previousQuality.data);
+      const currentQuality = complianceRate(currentQualityData.data);
+      const previousQuality = complianceRate(previousQualityData.data);
 
       const change = (current: number, previous: number) =>
         previous === 0 ? (current === 0 ? 0 : 100) : ((current - previous) / previous) * 100;

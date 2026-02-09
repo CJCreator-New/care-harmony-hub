@@ -27,7 +27,9 @@ export class DashboardPage extends BasePage {
   }
 
   get userMenu(): Locator {
-    return this.page.locator('[data-testid="user-menu"], button:has([data-testid="avatar"])');
+    return this.page.locator(
+      '[data-testid="user-menu"], button:has([data-testid="avatar"]), header button:has(svg):has-text("Logout"), header button:has-text("Logout")'
+    );
   }
 
   get notificationBell(): Locator {
@@ -67,9 +69,18 @@ export class DashboardPage extends BasePage {
    * Logout via user menu
    */
   async logout(): Promise<void> {
-    await this.openUserMenu();
-    await this.page.getByRole('menuitem', { name: /logout|sign out/i }).click();
-    await this.page.waitForURL(/login/i);
+    const headerLogoutButton = this.page
+      .locator('header button:has-text("Logout"), button[aria-label*="Logout"]')
+      .first();
+
+    if (await headerLogoutButton.isVisible().catch(() => false)) {
+      await headerLogoutButton.click();
+    } else {
+      await this.openUserMenu();
+      await this.page.getByRole('menuitem', { name: /logout|sign out/i }).click();
+    }
+
+    await this.page.waitForURL(/(?:login|hospital)/i);
   }
 
   /**
@@ -84,7 +95,32 @@ export class DashboardPage extends BasePage {
    * Get count of stats cards
    */
   async getStatsCardCount(): Promise<number> {
-    return this.statsCards.count();
+    const selectorCount = await this.statsCards.count();
+    if (selectorCount > 0) {
+      return selectorCount;
+    }
+
+    // Fallback for current dashboard implementations that don't expose stat-card testids/classes.
+    const knownStatLabels = [
+      /total patients/i,
+      /today'?s appointments/i,
+      /active staff/i,
+      /monthly revenue/i,
+      /today'?s patients/i,
+      /ready for consult/i,
+      /consultations/i,
+      /pending labs/i,
+    ];
+
+    let visibleLabelCount = 0;
+    for (const label of knownStatLabels) {
+      const labelLocator = this.page.getByText(label).first();
+      if (await labelLocator.isVisible().catch(() => false)) {
+        visibleLabelCount += 1;
+      }
+    }
+
+    return visibleLabelCount;
   }
 
   /**
@@ -135,8 +171,14 @@ export class DashboardPage extends BasePage {
    */
   async isDashboardLoaded(): Promise<boolean> {
     try {
-      await this.welcomeMessage.waitFor({ state: 'visible', timeout: 10000 });
-      await this.navigation.waitForVisible();
+      await this.page.waitForURL(/\/(dashboard|patients|appointments|queue|settings|reports)/i, {
+        timeout: 30000,
+      });
+      await this.page.locator('main h1').first().waitFor({ state: 'visible', timeout: 30000 });
+      const roleSwitchFailed = this.page.getByText(/role switch failed/i).first();
+      if (await roleSwitchFailed.isVisible().catch(() => false)) {
+        return false;
+      }
       return true;
     } catch {
       return false;

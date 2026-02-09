@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isCI = !!process.env.CI;
 const testEnv = process.env.TEST_ENV || 'local';
+const runId = process.env.TEST_RUN_ID || `test-${Date.now()}`;
 const AUTH_DIR = path.join(__dirname, 'tests/e2e/.auth');
 
 // Environment-specific base URLs
@@ -37,13 +38,13 @@ export default defineConfig({
   expect: { timeout: 10 * 1000 },
   
   // Output
-  outputDir: 'test-results',
+  outputDir: `test-results/run-${runId}`,
   
   // Reporting
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ['json', { outputFile: `test-results/results-${runId}.json` }],
+    ['junit', { outputFile: `test-results/junit-${runId}.xml` }],
   ],
 
   use: {
@@ -58,7 +59,7 @@ export default defineConfig({
     
     // Headers
     extraHTTPHeaders: {
-      'X-Test-Run-ID': process.env.TEST_RUN_ID || `test-${Date.now()}`,
+      'X-Test-Run-ID': runId,
     },
     
     // Locale
@@ -142,6 +143,9 @@ export default defineConfig({
     timeout: 120 * 1000,
     stdout: 'ignore',
     stderr: 'pipe',
+    env: {
+      VITE_E2E_MOCK_AUTH: 'true',
+    },
   },
 
   // Metadata

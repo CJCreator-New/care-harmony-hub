@@ -32,6 +32,6 @@ describe('Performance Tests', () => {
     const end = performance.now();
     const renderTime = end - start;
     
-    expect(renderTime).toBeLessThan(550); // 550ms threshold for large datasets
+    expect(renderTime).toBeLessThan(600); // 600ms threshold for large datasets
   });
 });

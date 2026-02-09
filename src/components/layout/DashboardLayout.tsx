@@ -198,7 +198,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4 px-3">
               <GroupedSidebar
-                userRole={primaryRole}
+                userRole={activeRole}
                 testRole={persistedTestRole}
               />
           </nav>
@@ -256,6 +256,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Role Switcher - Production */}
+              {roles.length > 1 && (
+                <RoleSwitcher variant="default" />
+              )}
+
               {/* Theme Toggle */}
               <ThemeToggle />
 

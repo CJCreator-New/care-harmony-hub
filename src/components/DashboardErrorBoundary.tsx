@@ -55,6 +55,18 @@ export class DashboardErrorBoundary extends Component<Props, State> {
     });
   }
 
+  // Reset error state when the role changes so switching roles clears stale errors
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.roleName !== this.props.roleName && this.state.hasError) {
+      this.setState({
+        hasError: false,
+        error: undefined,
+        errorInfo: undefined,
+        retryCount: 0,
+      });
+    }
+  }
+
   handleRetry = () => {
     const { retryCount } = this.state;
     if (retryCount < this.maxRetries) {
@@ -157,9 +169,9 @@ export const RoleSwitchErrorBoundary: React.FC<{ children: ReactNode; currentRol
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
-            <CardTitle>Role Switch Failed</CardTitle>
+            <CardTitle>Dashboard Loading Error</CardTitle>
             <CardDescription>
-              Unable to switch to {currentRole} role. Please try again or contact support.
+              Unable to load the {currentRole} dashboard. This may be due to a temporary network issue.
             </CardDescription>
           </CardHeader>
           <CardContent>

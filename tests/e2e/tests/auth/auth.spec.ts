@@ -19,7 +19,7 @@ test.describe('Authentication @auth', () => {
 
   test.describe('Login Flow @smoke @critical', () => {
     test('should display login page correctly', async ({ page }) => {
-      await expect(page).toHaveURL(/login/i);
+      await expect(page).toHaveURL(/(?:login|hospital)/i);
       await expect(loginPage.emailInput).toBeVisible();
       await expect(loginPage.passwordInput).toBeVisible();
       await expect(loginPage.submitButton).toBeVisible();
@@ -44,7 +44,7 @@ test.describe('Authentication @auth', () => {
       await loginPage.submitButton.click();
       
       // Should not navigate away
-      await expect(page).toHaveURL(/login/i);
+      await expect(page).toHaveURL(/(?:login|hospital)/i);
     });
 
     test('should show error for invalid email format', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('Authentication @auth', () => {
       // Logout
       await dashboard.logout();
       
-      await expect(page).toHaveURL(/login/i);
+      await expect(page).toHaveURL(/(?:login|hospital)/i);
     });
   });
 

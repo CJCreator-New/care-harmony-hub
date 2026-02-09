@@ -36,7 +36,6 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 describe('Signup Flow', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     vi.clearAllMocks();
     mockSignup.mockResolvedValue({ error: null });
     mockCreateHospitalAndProfile.mockResolvedValue({ error: null });
@@ -50,12 +49,10 @@ describe('Signup Flow', () => {
   });
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
   });
 
   it('completes signup and navigates to role setup', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup();
     render(<SignupPage />);
 
     await user.type(screen.getByLabelText('Hospital Name *'), 'CareSync General');
@@ -67,8 +64,6 @@ describe('Signup Flow', () => {
     await user.type(screen.getByLabelText('Hospital Email *'), 'info@caresync.com');
     await user.type(screen.getByLabelText('License Number *'), 'LIC-12345');
 
-    vi.advanceTimersByTime(600);
-
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(screen.getByText('Administrator Account')).toBeInTheDocument();
@@ -76,8 +71,6 @@ describe('Signup Flow', () => {
     await user.type(screen.getByLabelText('First Name *'), 'Ava');
     await user.type(screen.getByLabelText('Last Name *'), 'Stone');
     await user.type(screen.getByLabelText('Admin Email *'), 'admin@caresync.com');
-
-    vi.advanceTimersByTime(600);
 
     await user.type(screen.getByLabelText('Password *'), 'StrongP@ss1');
     await user.type(screen.getByLabelText('Confirm Password *'), 'StrongP@ss1');
