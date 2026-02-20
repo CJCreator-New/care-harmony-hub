@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -66,14 +66,23 @@ const hashBackupCode = async (code: string, salt: Uint8Array) => {
 };
 
 serve(async (req) => {
+  const reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: reqCorsHeaders });
+  }
+
+  if (!isOriginAllowed(req)) {
+    return new Response(
+      JSON.stringify({ error: "Origin not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+    );
   }
 
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 405, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 
@@ -81,7 +90,7 @@ serve(async (req) => {
   if (!validation.success) {
     return new Response(
       JSON.stringify({ error: "Validation failed", details: validation.error }),
-      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 
@@ -100,7 +109,7 @@ serve(async (req) => {
     if (authError || !authData?.user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 401, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -136,7 +145,7 @@ serve(async (req) => {
       console.error("2FA secret upsert error:", upsertError);
       return new Response(
         JSON.stringify({ error: "Failed to store 2FA secret" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -149,20 +158,20 @@ serve(async (req) => {
       console.error("Profile update error:", profileError);
       return new Response(
         JSON.stringify({ error: "Failed to enable 2FA" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
     return new Response(
       JSON.stringify({ success: true }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("store-2fa-secret error:", error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 });

@@ -471,6 +471,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: null };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+        return { error: new Error('Network error: unable to reach authentication server. Check your network or SUPABASE URL.') };
+      }
       return { error: error as Error };
     }
   }, [applyE2EMockAuthState, isE2EMockAuthEnabled]);

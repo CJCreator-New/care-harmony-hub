@@ -189,29 +189,32 @@ export default function ResetPasswordPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
+                        <FormLabel htmlFor="reset-password">New Password</FormLabel>
+                        <div className="relative">
+                          <FormControl>
                             <Input
+                              id="reset-password"
                               type={showPassword ? 'text' : 'password'}
                               placeholder="Enter new password"
+                              className="pr-12"
                               {...field}
                             />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-0 top-0 h-full px-3"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -244,9 +247,10 @@ export default function ResetPasswordPage() {
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
+                        <FormLabel htmlFor="reset-confirm-password">Confirm New Password</FormLabel>
                         <FormControl>
                           <Input
+                            id="reset-confirm-password"
                             type="password"
                             placeholder="Confirm new password"
                             {...field}

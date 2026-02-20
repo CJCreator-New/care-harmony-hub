@@ -48,7 +48,7 @@ describe('Keyboard Navigation', () => {
     const handleClose = vi.fn();
 
     render(
-      <div role="dialog" onKeyDown={(e) => e.key === 'Escape' && handleClose()}>
+      <div role="dialog" tabIndex={-1} onKeyDown={(e) => e.key === 'Escape' && handleClose()}>
         <button onClick={handleClose}>Close</button>
       </div>
     );

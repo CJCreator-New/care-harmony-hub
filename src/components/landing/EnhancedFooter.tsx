@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Activity, Linkedin, Twitter, Youtube, ExternalLink } from 'lucide-react';
+import { SafeLink } from '@/components/ui/safe-link';
 
 const footerLinks = {
   product: {
@@ -77,14 +78,14 @@ export function EnhancedFooter() {
             {/* Social Links */}
             <div className="flex items-center gap-3">
               {socialLinks.map((social) => (
-                <a
+                <SafeLink
                   key={social.label}
                   href={social.href}
                   aria-label={social.label}
                   className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-accent hover:bg-sidebar-primary transition-colors"
                 >
                   <social.icon className="w-4 h-4" />
-                </a>
+                </SafeLink>
               ))}
             </div>
           </div>
@@ -98,13 +99,13 @@ export function EnhancedFooter() {
               <ul className="space-y-2">
                 {column.links.map((link) => (
                   <li key={link.label}>
-                    <a
+                    <SafeLink
                       href={link.href}
                       className="text-sm text-sidebar-foreground/70 hover:text-sidebar-primary-foreground transition-colors flex items-center gap-1"
                     >
                       {link.label}
                       {'external' in link && link.external && <ExternalLink className="w-3 h-3" />}
-                    </a>
+                    </SafeLink>
                   </li>
                 ))}
               </ul>
@@ -119,25 +120,25 @@ export function EnhancedFooter() {
               © {new Date().getFullYear()} AROCORD Healthcare Solutions. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
-              <a 
+              <SafeLink
                 href="#" 
                 className="text-xs text-sidebar-foreground/60 hover:text-sidebar-primary-foreground transition-colors flex items-center gap-1"
               >
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 System Status
-              </a>
-              <a 
+              </SafeLink>
+              <SafeLink
                 href="#contact" 
                 className="text-xs text-sidebar-foreground/60 hover:text-sidebar-primary-foreground transition-colors"
               >
                 Contact
-              </a>
-              <a 
+              </SafeLink>
+              <SafeLink
                 href="#" 
                 className="text-xs text-sidebar-foreground/60 hover:text-sidebar-primary-foreground transition-colors"
               >
                 Changelog
-              </a>
+              </SafeLink>
             </div>
           </div>
         </div>

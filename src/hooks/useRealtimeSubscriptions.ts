@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { invalidateCache } from '@/utils/cacheInvalidation';
+import { devLog } from '@/utils/sanitize';
 
 interface SubscriptionConfig {
   table: string;
@@ -113,9 +114,7 @@ export function useRealtimeSubscriptions({
           // Handle system events (connect, disconnect, etc.)
           if (payload.type === 'connected') {
             reconnectAttemptsRef.current = 0;
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(`Real-time channel connected: ${channelName}`);
-            }
+            devLog(`Real-time channel connected: ${channelName}`);
           }
         });
 
@@ -158,9 +157,7 @@ export function useRealtimeSubscriptions({
             reconnectAttemptsRef.current++;
             
             setTimeout(() => {
-              if (process.env.NODE_ENV !== 'production') {
-                console.log(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-              }
+              devLog(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
               setupChannel();
             }, delay);
           }

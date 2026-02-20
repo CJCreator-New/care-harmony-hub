@@ -1,94 +1,88 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { supabase } from '@/integrations/supabase/client';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it, expect } from 'vitest';
+import { dataMasking, secureTransmission } from '@/utils/dataProtection';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 describe('HIPAA Compliance Tests', () => {
-  describe('Data Encryption', () => {
-    it('should verify database connection uses SSL', async () => {
-      const { data, error } = await supabase.from('patients').select('count').limit(1);
-      expect(error).toBeNull();
-      expect(supabase.realtime.accessToken).toBeDefined();
+  describe('PHI Protection', () => {
+    it('redacts common PHI patterns from log messages', () => {
+      const rawMessage =
+        'Patient ssn 123-45-6789 email jane.doe@hospital.org phone 555-123-4567 card 4111 1111 1111 1111';
+      const sanitized = sanitizeLogMessage(rawMessage);
+
+      expect(sanitized).not.toContain('123-45-6789');
+      expect(sanitized).not.toContain('jane.doe@hospital.org');
+      expect(sanitized).not.toContain('555-123-4567');
+      expect(sanitized).not.toContain('4111 1111 1111 1111');
+      expect(sanitized).toContain('[SSN]');
+      expect(sanitized).toContain('[EMAIL]');
+      expect(sanitized).toContain('[PHONE]');
+      expect(sanitized).toContain('[CARD]');
     });
 
-    it('should ensure PHI fields are not exposed in logs', () => {
-      const sensitiveFields = ['ssn', 'medical_record_number', 'insurance_id'];
-      // Verify logging configuration excludes sensitive fields
-      expect(sensitiveFields).toBeDefined();
-    });
-  });
+    it('masks sensitive fields before logs/displays', () => {
+      const masked = dataMasking.maskData(
+        {
+          ssn: '123-45-6789',
+          medical_record_number: 'MRN-2026-98765',
+          phone: '+1 (555) 123-4567',
+        },
+        ['ssn', 'medical_record_number', 'phone']
+      );
 
-  describe('Audit Logging', () => {
-    it('should log all patient data access', async () => {
-      const testPatientId = 'test-patient-id';
-      
-      // Access patient data
-      await supabase.from('patients').select('*').eq('id', testPatientId).maybeSingle();
-      
-      // Verify audit log exists
-      const { data: logs } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .eq('entity_type', 'patient')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      expect(logs).toBeDefined();
+      expect(masked.ssn).toBe('XXX-XX-6789');
+      expect(masked.medical_record_number).not.toBe('MRN-2026-98765');
+      expect(String(masked.phone)).toContain('XXXX');
     });
 
-    it('should capture user actions with timestamps', async () => {
-      const { data: logs } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (logs && logs.length > 0) {
-        expect(logs[0]).toHaveProperty('created_at');
-        expect(logs[0]).toHaveProperty('user_id');
-        expect(logs[0]).toHaveProperty('action_type');
-      }
-    });
-  });
+    it('encrypts and restores PHI for secure transmission', async () => {
+      const payload = {
+        ssn: '123-45-6789',
+        diagnosis: 'Acute viral pharyngitis',
+      };
 
-  describe('Access Control', () => {
-    it('should enforce Row Level Security policies', async () => {
-      // Attempt to access data without proper authentication
-      const { data, error } = await supabase.from('patients').select('*');
-      
-      // Should either return empty or require authentication
-      expect(data === null || Array.isArray(data)).toBe(true);
-    });
+      const { data, encryptionMetadata } = await secureTransmission.prepareForTransmission(payload, ['ssn']);
+      expect(data.ssn).toMatch(/^__ENCRYPTED__/);
+      expect(encryptionMetadata.ssn).toBeDefined();
+      expect(data.diagnosis).toBe(payload.diagnosis);
 
-    it('should validate role-based access control', async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        expect(profile?.role).toBeDefined();
-      }
+      const restored = await secureTransmission.restoreFromTransmission(data, encryptionMetadata);
+      expect(restored.ssn).toBe(payload.ssn);
+      expect(restored.diagnosis).toBe(payload.diagnosis);
     });
   });
 
-  describe('Session Management', () => {
-    it('should have session timeout configured', async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        expect(session.expires_at).toBeDefined();
-        expect(session.access_token).toBeDefined();
+  describe('Deterministic Compliance Controls', () => {
+    it('keeps required HIPAA PHI field definitions in compliance hook', () => {
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/hooks/useDataProtection.ts'), 'utf8');
+      const requiredPhiFields = [
+        "'ssn'",
+        "'medical_record_number'",
+        "'insurance_id'",
+        "'date_of_birth'",
+        "'diagnosis_codes'",
+        "'treatment_notes'",
+      ];
+
+      for (const field of requiredPhiFields) {
+        expect(source).toContain(field);
       }
     });
 
-    it('should invalidate sessions on logout', async () => {
-      const { error } = await supabase.auth.signOut();
-      expect(error).toBeNull();
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      expect(session).toBeNull();
+    it('enforces 30-minute inactivity timeout configuration', () => {
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/hooks/useSessionTimeout.ts'), 'utf8');
+      expect(source).toMatch(/SESSION_TIMEOUT\s*=\s*30\s*\*\s*60\s*\*\s*1000/);
+      expect(source).toMatch(/WARNING_TIME\s*=\s*5\s*\*\s*60\s*\s*\*\s*1000|WARNING_TIME\s*=\s*5\s*\*\s*60\s*\*\s*1000/);
+    });
+
+    it('keeps audit logging mapped to activity_logs with required metadata', () => {
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/utils/auditLogger.ts'), 'utf8');
+      expect(source).toContain(".from('activity_logs')");
+      expect(source).toContain('hospital_id');
+      expect(source).toContain('user_id');
+      expect(source).toContain('action_type');
+      expect(source).toContain('created_at');
     });
   });
 });

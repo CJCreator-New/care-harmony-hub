@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertTriangle, Clock, User, Globe, Search } from 'lucide-react';
 import { format } from 'date-fns';
+import { toIlikePattern } from '@/utils/sanitize';
 
 interface ErrorLog {
   id: string;
@@ -47,7 +48,10 @@ export function ErrorTrackingDashboard() {
 
       // Apply search filter
       if (searchTerm) {
-        query = query.ilike('details->>message', `%${searchTerm}%`);
+        const safePattern = toIlikePattern(searchTerm);
+        if (safePattern) {
+          query = query.ilike('details->>message', safePattern);
+        }
       }
 
       // Apply time range filter

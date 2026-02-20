@@ -30,7 +30,8 @@ import {
   HeartPulse,
   History
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { SafeLink } from '@/components/ui/safe-link';
+import { sanitizeUrl } from '@/utils/sanitize';
 
 const featureItems = [
   {
@@ -137,7 +138,7 @@ export function NavigationHeader() {
                       transition={{ delay: index * 0.05 }}
                     >
                       <NavigationMenuLink asChild>
-                        <a
+                        <SafeLink
                           href={item.href}
                           className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors group"
                         >
@@ -154,7 +155,7 @@ export function NavigationHeader() {
                               {item.description}
                             </p>
                           </div>
-                        </a>
+                        </SafeLink>
                       </NavigationMenuLink>
                     </motion.li>
                   ))}
@@ -283,7 +284,7 @@ export function NavigationHeader() {
                 {featureItems.map((item, index) => (
                   <motion.a
                     key={item.title}
-                    href={item.href}
+                    href={sanitizeUrl(item.href) || '#'}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors"
                     initial={{ opacity: 0, x: -20 }}
@@ -298,27 +299,27 @@ export function NavigationHeader() {
 
               <div className="h-px bg-border" />
 
-              <a
+              <SafeLink
                 href="#pricing"
                 onClick={() => setMobileOpen(false)}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Pricing
-              </a>
-              <a
+              </SafeLink>
+              <SafeLink
                 href="#security"
                 onClick={() => setMobileOpen(false)}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Security
-              </a>
-              <a
+              </SafeLink>
+              <SafeLink
                 href="#faq"
                 onClick={() => setMobileOpen(false)}
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Resources
-              </a>
+              </SafeLink>
 
               <div className="h-px bg-border" />
 

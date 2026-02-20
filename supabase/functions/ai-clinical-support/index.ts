@@ -5,7 +5,7 @@ import { validateAIClinicalRequest } from "../_shared/validation.ts";
 import { authorize } from "../_shared/authorize.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 

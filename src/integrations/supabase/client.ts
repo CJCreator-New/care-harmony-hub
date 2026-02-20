@@ -5,6 +5,26 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Provide a guarded fetch wrapper to give clearer errors for network failures
+const safeFetch = async (input: RequestInfo, init?: RequestInit): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutMs = 10000; // 10s timeout for auth/network requests
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    // Merge provided signal if present
+    const signal = init && (init as any).signal ? (init as any).signal : controller.signal;
+    const res = await fetch(input, { ...(init || {}), signal } as RequestInit);
+    return res;
+  } catch (err: any) {
+    // Normalize message so callers (GoTrue) can detect network issues
+    const message = err && err.message ? err.message : String(err);
+    console.error('[supabase][fetch] network error:', message);
+    throw new Error(`NetworkError: ${message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -13,5 +33,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  // Override fetch so network errors are clearer and have a timeout
+  fetch: safeFetch,
 });

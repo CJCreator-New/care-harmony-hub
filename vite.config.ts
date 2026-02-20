@@ -122,9 +122,6 @@ export default defineConfig(({ mode }) => ({
           // Utilities
           utils: ['clsx', 'tailwind-merge', 'class-variance-authority'],
           
-          // PDF generation
-          pdf: ['jspdf', 'html2canvas'],
-          
           // Calendar (commented out - not installed)
           // calendar: ['react-big-calendar'],
         },

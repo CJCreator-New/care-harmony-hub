@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { devLog } from '@/utils/sanitize';
 
 export function useRealtimeUpdates() {
   const { hospital } = useAuth();
@@ -11,7 +12,7 @@ export function useRealtimeUpdates() {
   useEffect(() => {
     if (!hospital?.id) return;
 
-    console.log('Initializing real-time subscriptions for hospital:', hospital.id);
+    devLog('Initializing real-time subscriptions for hospital:', hospital.id);
 
     // 1. Patient Queue Channel
     const queueChannel = supabase
@@ -25,7 +26,7 @@ export function useRealtimeUpdates() {
           filter: `hospital_id=eq.${hospital.id}`
         },
         (payload) => {
-          console.log('Queue change detected:', payload.eventType);
+          devLog('Queue change detected:', payload.eventType);
           queryClient.invalidateQueries({ queryKey: ['queue'] });
           queryClient.invalidateQueries({ queryKey: ['patient-stats'] });
           
@@ -48,7 +49,7 @@ export function useRealtimeUpdates() {
           filter: `hospital_id=eq.${hospital.id}`
         },
         (payload) => {
-          console.log('Lab order change detected:', payload.eventType);
+          devLog('Lab order change detected:', payload.eventType);
           queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
           
           if (payload.eventType === 'UPDATE') {
@@ -73,7 +74,7 @@ export function useRealtimeUpdates() {
           filter: `hospital_id=eq.${hospital.id}`
         },
         (payload) => {
-          console.log('Prescription change detected:', payload.eventType);
+          devLog('Prescription change detected:', payload.eventType);
           queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
           queryClient.invalidateQueries({ queryKey: ['prescription-queue'] });
         }
@@ -103,7 +104,7 @@ export function useRealtimeUpdates() {
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscriptions');
+      devLog('Cleaning up real-time subscriptions');
       supabase.removeChannel(queueChannel);
       supabase.removeChannel(labChannel);
       supabase.removeChannel(prescriptionChannel);

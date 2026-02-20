@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { TOTP } from 'https://deno.land/x/otpauth@9.0.2/mod.ts';
 import { rateLimit, getIdentifier } from '../_shared/rateLimit.ts';
+import { getCorsHeaders, isOriginAllowed } from '../_shared/cors.ts';
 
 // Rate limit store for 2FA verification
 const rateLimitStore: Record<string, { count: number; resetTime: number }> = {};
@@ -31,14 +32,19 @@ function checkRateLimit(req: Request): { allowed: boolean; remaining: number; re
 }
 
 serve(async (req) => {
+  const reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
+      headers: reqCorsHeaders,
     });
+  }
+
+  if (!isOriginAllowed(req)) {
+    return new Response(
+      JSON.stringify({ error: 'Origin not allowed' }),
+      { status: 403, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
+    );
   }
 
   try {
@@ -51,7 +57,8 @@ serve(async (req) => {
           status: 429, 
           headers: { 
             'Content-Type': 'application/json',
-            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000))
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+            ...reqCorsHeaders
           } 
         }
       );
@@ -62,7 +69,7 @@ serve(async (req) => {
     if (!secret || !code) {
       return new Response(
         JSON.stringify({ error: 'Secret and code are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
       );
     }
 
@@ -81,7 +88,7 @@ serve(async (req) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...reqCorsHeaders,
           'X-RateLimit-Remaining': String(rateLimitResult.remaining),
         },
       }
@@ -89,7 +96,7 @@ serve(async (req) => {
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
     );
   }
 });

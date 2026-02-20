@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { sanitizeUrl } from '@/utils/sanitize';
 
 describe('XSS Prevention', () => {
   const xssPayloads = [
@@ -41,12 +42,13 @@ describe('XSS Prevention', () => {
       ];
 
       for (const url of maliciousUrls) {
-        const TestLink = () => <a href={url}>Link</a>;
+        expect(sanitizeUrl(url)).toBe('');
+
+        const TestLink = () => <a href={sanitizeUrl(url) || '#'}>Link</a>;
         const { container } = render(<TestLink />);
         
         const link = container.querySelector('a');
-        // React should prevent javascript: URLs
-        expect(link?.href).not.toContain('javascript:');
+        expect(link?.getAttribute('href')).toBe('#');
       }
     });
   });

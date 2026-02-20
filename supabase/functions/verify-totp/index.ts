@@ -1,11 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 
 interface VerifyRequest {
   code: string;
@@ -127,8 +122,17 @@ async function verifyTOTP(secret: string, code: string): Promise<boolean> {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: reqCorsHeaders });
+  }
+
+  if (!isOriginAllowed(req)) {
+    return new Response(
+      JSON.stringify({ error: "Origin not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+    );
   }
 
   try {
@@ -146,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!code || !/^\d{6}$/.test(code)) {
       return new Response(
         JSON.stringify({ error: "Invalid code format. Please provide a 6-digit code." }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
     
@@ -161,14 +165,14 @@ const handler = async (req: Request): Promise<Response> => {
       if (error || !user) {
         return new Response(
           JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: 401, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
         );
       }
       userId = user.id;
     } else {
       return new Response(
         JSON.stringify({ error: "User ID or authorization required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
     
@@ -183,7 +187,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Error fetching 2FA secret:", secretError);
       return new Response(
         JSON.stringify({ error: "2FA not configured for this user" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 404, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
     
@@ -199,7 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
         valid: isValid,
         message: isValid ? "Code verified successfully" : "Invalid code"
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
     
   } catch (error: unknown) {
@@ -207,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("Error in verify-totp function:", error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 };

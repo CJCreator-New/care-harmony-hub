@@ -1,6 +1,6 @@
 // Phase 8: Cross-Role Integration Hooks
 import { useState, useEffect } from 'react';
-import { sanitizeLogMessage } from '@/utils/sanitize';
+import { devLog, sanitizeLogMessage } from '@/utils/sanitize';
 import { 
   TaskAssignment, 
   PatientStatusBoard, 
@@ -71,7 +71,7 @@ export const useTaskAssignments = (hospitalId: string, userId: string) => {
   const createTask = async (taskData: CreateTaskForm) => {
     try {
       // Implementation would create task in Supabase
-      console.log('Creating task:', taskData);
+      devLog('Creating task:', taskData);
       await fetchTasks();
       return { success: true };
     } catch (error) {
@@ -83,7 +83,7 @@ export const useTaskAssignments = (hospitalId: string, userId: string) => {
   const updateTaskStatus = async (taskId: string, status: string) => {
     try {
       // Implementation would update task status in Supabase
-      console.log('Updating task status:', taskId, status);
+      devLog('Updating task status:', taskId, status);
       await fetchTasks();
       return { success: true };
     } catch (error) {
@@ -186,7 +186,7 @@ export const useStatusBoard = (hospitalId: string) => {
   const updatePatientStatus = async (patientId: string, statusData: UpdatePatientStatusForm) => {
     try {
       // Implementation would update patient status in Supabase
-      console.log('Updating patient status:', patientId, statusData);
+      devLog('Updating patient status:', patientId, statusData);
       await fetchStatusBoard();
       return { success: true };
     } catch (error) {
@@ -254,7 +254,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
   const sendMessage = async (messageData: SendMessageForm) => {
     try {
       // Implementation would send message via Supabase
-      console.log('Sending message:', messageData);
+      devLog('Sending message:', messageData);
       await fetchMessages();
       return { success: true };
     } catch (error) {
@@ -266,7 +266,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
   const markAsRead = async (messageId: string) => {
     try {
       // Implementation would mark message as read in Supabase
-      console.log('Marking as read:', messageId);
+      devLog('Marking as read:', messageId);
       await fetchMessages();
       return { success: true };
     } catch (error) {
@@ -278,7 +278,7 @@ export const useInterRoleMessages = (hospitalId: string, userId: string) => {
   const acknowledgeMessage = async (messageId: string) => {
     try {
       // Implementation would acknowledge message in Supabase
-      console.log('Acknowledging message:', messageId);
+      devLog('Acknowledging message:', messageId);
       await fetchMessages();
       return { success: true };
     } catch (error) {
@@ -339,7 +339,7 @@ export const useWorkflowMetrics = (hospitalId: string) => {
   const recordMetric = async (metricData: Omit<WorkflowMetric, 'id' | 'created_at'>) => {
     try {
       // Implementation would record metric in Supabase
-      console.log('Recording metric:', metricData);
+      devLog('Recording metric:', metricData);
       await fetchMetrics();
       return { success: true };
     } catch (error) {
@@ -366,7 +366,7 @@ export const useRealTimeUpdates = (hospitalId: string, userId: string) => {
 
   useEffect(() => {
     // Implementation would set up Supabase real-time subscriptions
-    console.log('Setting up real-time subscriptions for:', hospitalId, userId);
+    devLog('Setting up real-time subscriptions for:', hospitalId, userId);
     
     // Mock real-time updates
     const interval = setInterval(() => {

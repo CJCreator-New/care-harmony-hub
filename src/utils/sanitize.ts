@@ -39,6 +39,38 @@ export function sanitizeInput(input: string): string {
 }
 
 /**
+ * Sanitize search input used in database filters.
+ * Removes wildcard/operator characters commonly abused in dynamic queries.
+ */
+export function sanitizeSearchQuery(query: string | null | undefined): string {
+  if (!query) return '';
+
+  return String(query)
+    .replace(/--/g, '')
+    .replace(/\/\*/g, '')
+    .replace(/\*\//g, '')
+    .replace(/[;'"\\%_]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 100);
+}
+
+/**
+ * Build a safe ILIKE pattern from user input.
+ */
+export function toIlikePattern(query: string | null | undefined): string {
+  const sanitized = sanitizeSearchQuery(query);
+  return sanitized ? `%${sanitized}%` : '';
+}
+
+/**
+ * Sanitize values interpolated into PostgREST filter strings (e.g. `.or()`).
+ */
+export function sanitizePostgrestFilterValue(value: string | null | undefined): string {
+  return sanitizeSearchQuery(value).replace(/[(),.]/g, '').trim();
+}
+
+/**
  * Sanitize array input (comma-separated values)
  */
 export function sanitizeArray(input: string): string[] {
@@ -65,6 +97,32 @@ export function sanitizeLogMessage(message: string | unknown): string {
     .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL]') // Email
     .replace(/\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b/g, '[PHONE]') // Phone
     .substring(0, 5000); // Limit log message length
+}
+
+/**
+ * Validate and sanitize URL values before injecting into href/src attributes.
+ */
+export function sanitizeUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const sanitized = String(url).trim();
+  if (!sanitized) return '';
+
+  // Allow common in-app navigation targets.
+  if (sanitized.startsWith('#') || sanitized.startsWith('/')) {
+    return sanitized;
+  }
+
+  // Block scriptable or data protocols.
+  if (/^(javascript|data|vbscript):/i.test(sanitized)) {
+    return '';
+  }
+
+  // Allow explicit network/contact protocols.
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(sanitized)) {
+    return sanitized;
+  }
+
+  return '';
 }
 
 export const sanitizeForLog = sanitizeLogMessage;

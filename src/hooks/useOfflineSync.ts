@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { secureTransmission } from '@/utils/dataProtection';
+import { devLog } from '@/utils/sanitize';
 
 interface PendingAction {
   id: string;
@@ -286,15 +287,15 @@ export const useOfflineSync = () => {
       switch (action.type) {
         case 'create':
           // await supabase.from(action.table).insert(action.data);
-          console.log(`Creating ${action.table}:`, action.data);
+          devLog(`Creating ${action.table}:`, action.data);
           break;
         case 'update':
           // await supabase.from(action.table).update(action.data).eq('id', action.data.id);
-          console.log(`Updating ${action.table}:`, action.data);
+          devLog(`Updating ${action.table}:`, action.data);
           break;
         case 'delete':
           // await supabase.from(action.table).delete().eq('id', action.data.id);
-          console.log(`Deleting ${action.table}:`, action.data);
+          devLog(`Deleting ${action.table}:`, action.data);
           break;
       }
 

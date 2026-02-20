@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
 import { useDebouncedValue } from './useDebouncedValue';
+import { toIlikePattern } from '@/utils/sanitize';
 
 interface PaginatedQueryOptions {
   table: string;
@@ -45,7 +46,10 @@ export function usePaginatedQuery({
 
       // Apply search filter
       if (debouncedSearch && searchColumn) {
-        query = query.ilike(searchColumn, `%${debouncedSearch}%`);
+        const safePattern = toIlikePattern(debouncedSearch);
+        if (safePattern) {
+          query = query.ilike(searchColumn, safePattern);
+        }
       }
 
       const { data, error, count } = await query;

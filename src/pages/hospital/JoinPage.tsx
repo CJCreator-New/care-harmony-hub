@@ -280,29 +280,32 @@ export default function JoinPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <div className="relative">
+                      <FormLabel htmlFor="join-password">Password</FormLabel>
+                      <div className="relative">
+                        <FormControl>
                           <Input
+                            id="join-password"
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Create a password"
+                            className="pr-12"
                             {...field}
                           />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </FormControl>
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -335,9 +338,10 @@ export default function JoinPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
+                      <FormLabel htmlFor="join-confirm-password">Confirm Password</FormLabel>
                       <FormControl>
                         <Input
+                          id="join-confirm-password"
                           type="password"
                           placeholder="Confirm your password"
                           {...field}

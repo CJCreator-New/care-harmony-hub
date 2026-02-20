@@ -1,12 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { rateLimit, getIdentifier } from "../_shared/rateLimit.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 
 interface ValidateTokenRequest {
   token: string;
@@ -16,20 +11,46 @@ const INVITATION_RATE_LIMIT = { windowMs: 5 * 60 * 1000, maxRequests: 10 };
 const TOKEN_UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const maskEmail = (email: string): string => {
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) return "";
+  return `${localPart.slice(0, 1)}***@${domain}`;
+};
+
+const invalidInvitationResponse = (headers: Record<string, string>) =>
+  new Response(JSON.stringify({ valid: false }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      ...headers,
+    },
+  });
+
 serve(async (req) => {
+  const reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: reqCorsHeaders });
+  }
+
+  if (!isOriginAllowed(req)) {
+    return new Response(
+      JSON.stringify({ error: "Origin not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+    );
   }
 
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 405, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 
   try {
-    const rateResult = rateLimit(getIdentifier(req), INVITATION_RATE_LIMIT);
+    const rateLimitIdentifier = `${getIdentifier(req)}:${req.headers.get("user-agent") ?? "unknown"}`;
+    const rateResult = rateLimit(rateLimitIdentifier, INVITATION_RATE_LIMIT);
     if (!rateResult.allowed) {
       return new Response(
         JSON.stringify({ error: "Too many attempts. Please try again later." }),
@@ -38,7 +59,7 @@ serve(async (req) => {
           headers: {
             "Content-Type": "application/json",
             "Retry-After": String(Math.ceil((rateResult.resetTime - Date.now()) / 1000)),
-            ...corsHeaders,
+            ...reqCorsHeaders,
           },
         }
       );
@@ -52,10 +73,7 @@ serve(async (req) => {
     const { token }: ValidateTokenRequest = await req.json();
 
     if (!token) {
-      return new Response(
-        JSON.stringify({ error: "Token is required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return invalidInvitationResponse(reqCorsHeaders);
     }
 
     // Validate token format (UUID expected)
@@ -69,10 +87,7 @@ serve(async (req) => {
         p_severity: "warning",
       }).catch(() => {});
 
-      return new Response(
-        JSON.stringify({ error: "Invalid token format" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return invalidInvitationResponse(reqCorsHeaders);
     }
 
     // Query invitation with rate limiting consideration
@@ -96,8 +111,8 @@ serve(async (req) => {
     if (error) {
       console.error("Database error:", error);
       return new Response(
-        JSON.stringify({ error: "Database error" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "Unable to validate invitation" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -111,29 +126,37 @@ serve(async (req) => {
         p_severity: "warning",
       }).catch(() => {});
 
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired invitation" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return invalidInvitationResponse(reqCorsHeaders);
     }
 
-    // Return invitation details (without sensitive token)
-    const { token: _, ...safeInvitation } = invitation;
+    const safeInvitation = {
+      id: invitation.id,
+      email: maskEmail(invitation.email),
+      role: invitation.role,
+      hospital_id: invitation.hospital_id,
+      hospital: invitation.hospital,
+    };
 
     return new Response(
       JSON.stringify({
         valid: true,
         invitation: safeInvitation
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          ...reqCorsHeaders,
+        },
+      }
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in validate-invitation-token function:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ error: "Unable to validate invitation" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 });

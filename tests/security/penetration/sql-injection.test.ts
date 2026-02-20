@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeSearchQuery, toIlikePattern } from '@/utils/sanitize';
 
 describe('SQL Injection Prevention', () => {
   const sqlInjectionPayloads = [
@@ -25,13 +26,18 @@ describe('SQL Injection Prevention', () => {
 
     it('should prevent SQL injection in search queries', async () => {
       for (const payload of sqlInjectionPayloads) {
+        const sanitizedSearch = sanitizeSearchQuery(payload);
+        expect(sanitizedSearch).not.toMatch(/--|['";\\%_]/);
+
+        const safePattern = toIlikePattern(payload);
         const { data, error } = await supabase
           .from('patients')
           .select('*')
-          .ilike('name', `%${payload}%`);
+          .ilike('first_name', safePattern);
         
-        // Should safely handle malicious input
-        expect(error === null || data?.length === 0).toBe(true);
+        // Sanitized query should execute safely
+        expect(error).toBeNull();
+        expect(Array.isArray(data)).toBe(true);
       }
     });
   });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { sanitizeForLog } from '@/utils/sanitize';
+import { sanitizeForLog, sanitizePostgrestFilterValue, toIlikePattern } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
 import {  
   EPrescription, 
@@ -168,20 +168,34 @@ export const useDrugInteractions = () => {
   const [error, setError] = useState<string | null>(null);
 
   const checkInteractions = async (medications: string[]): Promise<DrugInteraction[]> => {
-    if (medications.length < 2) return [];
+    const sanitizedMeds = medications
+      .map((medication) => sanitizePostgrestFilterValue(medication))
+      .filter((medication): medication is string => Boolean(medication));
+
+    if (sanitizedMeds.length < 2) return [];
 
     setLoading(true);
     try {
+      const pairClauses: string[] = [];
+      for (let i = 0; i < sanitizedMeds.length; i++) {
+        for (let j = i + 1; j < sanitizedMeds.length; j++) {
+          const med1Pattern = toIlikePattern(sanitizedMeds[i]);
+          const med2Pattern = toIlikePattern(sanitizedMeds[j]);
+          if (!med1Pattern || !med2Pattern) continue;
+
+          pairClauses.push(`and(drug1_name.ilike.${med1Pattern},drug2_name.ilike.${med2Pattern})`);
+          pairClauses.push(`and(drug1_name.ilike.${med2Pattern},drug2_name.ilike.${med1Pattern})`);
+        }
+      }
+
+      if (pairClauses.length === 0) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('drug_interactions')
         .select('*')
-        .or(
-          medications.map(med1 => 
-            medications.map(med2 => 
-              med1 !== med2 ? `and(drug1_name.ilike.%${med1}%,drug2_name.ilike.%${med2}%)` : null
-            ).filter(Boolean).join(',')
-          ).filter(Boolean).join(',')
-        );
+        .or(pairClauses.join(','));
 
       if (error) throw error;
       
@@ -235,10 +249,16 @@ export const useDoseAdjustments = () => {
   const fetchDoseAdjustments = async (drugName: string) => {
     setLoading(true);
     try {
+      const safePattern = toIlikePattern(drugName);
+      if (!safePattern) {
+        setAdjustments([]);
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('dose_adjustments')
         .select('*')
-        .ilike('drug_name', `%${drugName}%`);
+        .ilike('drug_name', safePattern);
 
       if (error) throw error;
       setAdjustments(data || []);
@@ -268,10 +288,16 @@ export const usePediatricDosing = () => {
   const fetchPediatricDosing = async (drugName: string, ageGroup?: string) => {
     setLoading(true);
     try {
+      const safePattern = toIlikePattern(drugName);
+      if (!safePattern) {
+        setPediatricProtocols([]);
+        return [];
+      }
+
       let query = supabase
         .from('pediatric_dosing')
         .select('*')
-        .ilike('drug_name', `%${drugName}%`);
+        .ilike('drug_name', safePattern);
 
       if (ageGroup) {
         query = query.eq('age_group', ageGroup);
@@ -307,10 +333,16 @@ export const usePregnancyLactationSafety = () => {
   const fetchSafetyData = async (drugName: string) => {
     setLoading(true);
     try {
+      const safePattern = toIlikePattern(drugName);
+      if (!safePattern) {
+        setSafetyData([]);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('pregnancy_lactation_safety')
         .select('*')
-        .ilike('drug_name', `%${drugName}%`);
+        .ilike('drug_name', safePattern);
 
       if (error) throw error;
       setSafetyData(data || []);

@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
+import { rateLimit, getIdentifier } from "../_shared/rateLimit.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const requestSchema = z.object({
@@ -11,15 +12,42 @@ const requestSchema = z.object({
   lastName: z.string().min(2),
 });
 
+const ACCEPT_INVITATION_RATE_LIMIT = { windowMs: 10 * 60 * 1000, maxRequests: 8 };
+
 serve(async (req) => {
+  const reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: reqCorsHeaders });
+  }
+
+  if (!isOriginAllowed(req)) {
+    return new Response(
+      JSON.stringify({ error: "Origin not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+    );
   }
 
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 405, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+    );
+  }
+
+  const rateLimitIdentifier = `${getIdentifier(req)}:${req.headers.get("user-agent") ?? "unknown"}`;
+  const rateResult = rateLimit(rateLimitIdentifier, ACCEPT_INVITATION_RATE_LIMIT);
+  if (!rateResult.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Too many attempts. Please try again later." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(Math.ceil((rateResult.resetTime - Date.now()) / 1000)),
+          ...reqCorsHeaders,
+        },
+      }
     );
   }
 
@@ -27,7 +55,7 @@ serve(async (req) => {
   if (!validation.success) {
     return new Response(
       JSON.stringify({ error: "Validation failed", details: validation.error }),
-      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 
@@ -54,22 +82,22 @@ serve(async (req) => {
     if (invitationError) {
       console.error("Invitation lookup error:", invitationError);
       return new Response(
-        JSON.stringify({ error: "Failed to validate invitation" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "Unable to process invitation" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
     if (!invitation || invitation.status !== "pending") {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired invitation" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "Unable to accept invitation" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
     if (new Date(invitation.expires_at).getTime() <= Date.now()) {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired invitation" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "Unable to accept invitation" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -85,8 +113,8 @@ serve(async (req) => {
 
     if (createUserError || !createdUser.user) {
       return new Response(
-        JSON.stringify({ error: createUserError?.message || "Failed to create user" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "Unable to accept invitation" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -108,7 +136,7 @@ serve(async (req) => {
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return new Response(
         JSON.stringify({ error: "Failed to complete invitation acceptance" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -126,7 +154,7 @@ serve(async (req) => {
           invitation: acceptance,
           warning: "Account created but sign-in failed",
         }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
 
@@ -138,14 +166,13 @@ serve(async (req) => {
         invitation: acceptance,
         session: signInData.session,
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("accept-invitation-signup error:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ error: "Unable to process invitation" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 });

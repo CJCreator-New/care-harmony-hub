@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { UserRole } from '@/types/auth';
 import { toast } from 'sonner';
+import { devLog, sanitizeLogMessage } from '@/utils/sanitize';
 
 // Add new workflow event types
 export const WORKFLOW_EVENT_TYPES = {
@@ -61,7 +62,7 @@ export function useWorkflowOrchestrator() {
     }
 
     try {
-      console.log(`Triggering workflow: ${event.type} for hospital ${hospital.id}`);
+      devLog(`Triggering workflow: ${event.type} for hospital ${hospital.id}`);
 
       // 1. Log the event for audit purposes
       const { data: eventRecord, error: eventError } = await supabase
@@ -91,13 +92,13 @@ export function useWorkflowOrchestrator() {
       if (rulesError) throw rulesError;
 
       if (!rules || rules.length === 0) {
-        console.log(`No active rules found for event: ${event.type}`);
+        devLog(`No active rules found for event: ${event.type}`);
         return;
       }
 
       // 3. Execute actions for each rule
       for (const rule of rules) {
-        console.log(`Executing rule: ${rule.name}`);
+        devLog(`Executing rule: ${rule.name}`);
         const actions = rule.actions as WorkflowAction[];
         
         if (actions && Array.isArray(actions)) {
@@ -122,7 +123,7 @@ export function useWorkflowOrchestrator() {
       queryClient.invalidateQueries({ queryKey: ['workflow-events'] });
 
     } catch (error: any) {
-      console.error('Workflow orchestration failed:', error);
+      console.error('Workflow orchestration failed:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       toast.error(`Workflow error: ${error.message}`);
     }
   };
@@ -146,10 +147,13 @@ export function useWorkflowOrchestrator() {
     try {
       await executeSingleAction(action, event);
     } catch (actionError) {
-      console.error(`Failed to execute action ${action.type} (attempt ${attempt}):`, actionError);
+      console.error(
+        `Failed to execute action ${action.type} (attempt ${attempt}):`,
+        sanitizeLogMessage(actionError instanceof Error ? actionError.message : 'Unknown error')
+      );
 
       if (attempt < maxRetries) {
-        console.log(`Retrying action ${action.type} in ${delay}ms...`);
+        devLog(`Retrying action ${action.type} in ${delay}ms...`);
         setTimeout(() => {
           executeActionWithRetry(action, event, maxRetries, delay * 2, attempt + 1); // Exponential backoff
         }, delay);

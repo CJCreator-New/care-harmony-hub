@@ -1,6 +1,7 @@
 // Supabase Edge Function: generate-2fa-secret
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getIdentifier } from '../_shared/rateLimit.ts';
+import { getCorsHeaders, isOriginAllowed } from '../_shared/cors.ts';
 
 // Native TOTP URI generation
 function generateTOTPURI(issuer: string, label: string, secret: string): string {
@@ -38,14 +39,19 @@ function checkRateLimit(req: Request): { allowed: boolean; remaining: number; re
 }
 
 serve(async (req) => {
+  const reqCorsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
+      headers: reqCorsHeaders,
     });
+  }
+
+  if (!isOriginAllowed(req)) {
+    return new Response(
+      JSON.stringify({ error: 'Origin not allowed' }),
+      { status: 403, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
+    );
   }
 
   try {
@@ -58,7 +64,8 @@ serve(async (req) => {
           status: 429, 
           headers: { 
             'Content-Type': 'application/json',
-            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000))
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+            ...reqCorsHeaders
           } 
         }
       );
@@ -69,7 +76,7 @@ serve(async (req) => {
     if (!email) {
       return new Response(
         JSON.stringify({ error: 'Email is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
       );
     }
 
@@ -102,7 +109,7 @@ serve(async (req) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...reqCorsHeaders,
           'X-RateLimit-Remaining': String(rateLimitResult.remaining),
         },
       }
@@ -110,7 +117,7 @@ serve(async (req) => {
   } catch (error) {
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
     );
   }
 });

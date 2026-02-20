@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Activity, Users, Clock, Search, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import { sanitizeHtml, sanitizeLogMessage } from '@/utils/sanitize';
+import { sanitizeHtml, sanitizeLogMessage, sanitizePostgrestFilterValue, toIlikePattern } from '@/utils/sanitize';
 
 interface ErrorLog {
   id: string;
@@ -67,7 +67,10 @@ export function LoggingDashboard() {
 
       // Apply search filter
       if (searchTerm) {
-        query = query.ilike('message', `%${searchTerm}%`);
+        const safePattern = toIlikePattern(searchTerm);
+        if (safePattern) {
+          query = query.ilike('message', safePattern);
+        }
       }
 
       // Apply time range filter
@@ -133,7 +136,10 @@ export function LoggingDashboard() {
 
       // Apply search filter
       if (searchTerm) {
-        query = query.or(`action_type.ilike.%${searchTerm}%,details->>description.ilike.%${searchTerm}%`);
+        const safeSearch = sanitizePostgrestFilterValue(searchTerm);
+        if (safeSearch) {
+          query = query.or(`action_type.ilike.%${safeSearch}%,details->>description.ilike.%${safeSearch}%`);
+        }
       }
 
       // Apply time range filter

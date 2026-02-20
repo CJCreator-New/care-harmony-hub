@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
+import { devLog, sanitizeLogMessage } from '@/utils/sanitize';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -45,7 +46,7 @@ export function useWorkflowNotifications() {
     const doctors = await getStaffByRole('doctor');
 
     if (doctors.length === 0) {
-      console.log('No doctors found to notify');
+      devLog('No doctors found to notify');
       return;
     }
 
@@ -81,7 +82,7 @@ export function useWorkflowNotifications() {
     const nurses = await getStaffByRole('nurse');
 
     if (nurses.length === 0) {
-      console.log('No nurses found to notify');
+      devLog('No nurses found to notify');
       return;
     }
 
@@ -143,7 +144,7 @@ export function useWorkflowNotifications() {
     const receptionists = await getStaffByRole('receptionist');
 
     if (receptionists.length === 0) {
-      console.log('No receptionists found to notify');
+      devLog('No receptionists found to notify');
       return;
     }
 
@@ -179,7 +180,7 @@ export function useWorkflowNotifications() {
     const pharmacists = await getStaffByRole('pharmacist');
 
     if (pharmacists.length === 0) {
-      console.log('No pharmacists found to notify');
+      devLog('No pharmacists found to notify');
       return;
     }
 
@@ -217,7 +218,7 @@ export function useWorkflowNotifications() {
     const labTechs = await getStaffByRole('lab_technician');
 
     if (labTechs.length === 0) {
-      console.log('No lab technicians found to notify');
+      devLog('No lab technicians found to notify');
       return;
     }
 
