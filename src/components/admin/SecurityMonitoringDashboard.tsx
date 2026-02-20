@@ -70,8 +70,8 @@ export function SecurityMonitoringDashboard() {
           break;
       }
 
-      const { data, error } = await supabase
-        .from('activity_logs')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('activity_logs') as any)
         .select('*')
         .eq('hospital_id', hospitalId)
         .gte('created_at', startDate.toISOString())
@@ -81,7 +81,7 @@ export function SecurityMonitoringDashboard() {
       if (error) throw error;
       
       // Map activity_logs to SecurityEvent format
-      return (data || []).map(log => ({
+      return ((data as any[]) || []).map((log: any) => ({
         id: log.id,
         user_id: log.user_id,
         action: log.action_type,

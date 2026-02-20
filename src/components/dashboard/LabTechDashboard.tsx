@@ -156,7 +156,7 @@ export function LabTechDashboard() {
           <TabsTrigger value="automation" className="flex items-center gap-2">
             <Cpu className="h-4 w-4" />
             Lab Automation
-            {stats?.critical > 0 && (
+            {(stats?.critical ?? 0) > 0 && (
               <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] animate-pulse">
                 !
               </Badge>
