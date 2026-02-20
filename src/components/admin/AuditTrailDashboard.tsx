@@ -36,8 +36,8 @@ export function AuditTrailDashboard() {
     if (!hospital?.id) return;
     
     try {
-      const { data, error } = await supabase
-        .from('activity_logs')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('activity_logs') as any)
         .select('*')
         .eq('hospital_id', hospital.id)
         .order('created_at', { ascending: false })
@@ -46,7 +46,7 @@ export function AuditTrailDashboard() {
       if (error) throw error;
       
       // Map activity_logs to AuditLogEntry format
-      const mappedData: AuditLogEntry[] = (data || []).map(log => ({
+      const mappedData: AuditLogEntry[] = ((data as any[]) || []).map((log: any) => ({
         id: log.id,
         user_id: log.user_id,
         action: log.action_type,

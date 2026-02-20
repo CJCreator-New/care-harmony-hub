@@ -41,11 +41,14 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
       };
 
       if (isOnline) {
-        const { error } = await supabase.from('consultations').insert(consultationData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase.from('consultations') as any).update({
+          clinical_notes: notes,
+        }).eq('id', consultationId);
         if (error) throw error;
         toast.success('Consultation notes saved successfully');
       } else {
-        queueAction('create', 'consultations', consultationData);
+        queueAction('update', 'consultations', { id: consultationId, clinical_notes: notes });
         toast.success('Consultation notes queued for sync');
       }
     } catch (error) {

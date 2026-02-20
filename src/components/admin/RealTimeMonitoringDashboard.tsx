@@ -29,18 +29,18 @@ export const RealTimeMonitoringDashboard = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       // Real-time system metrics using existing tables
-      const { count: activeUsers } = await supabase
-        .from('profiles')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count: activeUsers } = await (supabase.from('profiles') as any)
         .select('*', { count: 'exact', head: true })
         .not('last_login', 'is', null);
 
-      const { count: patientFlow } = await supabase
-        .from('appointments')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count: patientFlow } = await (supabase.from('appointments') as any)
         .select('*', { count: 'exact', head: true })
         .eq('status', 'in_progress');
 
-      const { data: staffData } = await supabase
-        .from('profiles')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: staffData } = await (supabase.from('profiles') as any)
         .select('id, is_staff')
         .eq('is_staff', true);
 

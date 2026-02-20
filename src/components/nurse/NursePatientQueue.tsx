@@ -28,8 +28,8 @@ export function NursePatientQueue() {
   const { data: queuePatients, isLoading, refetch } = useQuery({
     queryKey: ['nurse-queue', hospital?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('patient_queue')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('patient_queue') as any)
         .select(`
           *,
           patient:patients(*),
@@ -50,10 +50,10 @@ export function NursePatientQueue() {
   const { data: prepStatuses } = useQuery({
     queryKey: ['prep-statuses', hospital?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('patient_prep_status')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('patient_prep_checklists') as any)
         .select('*')
-        .eq('status', 'ready_for_doctor');
+        .eq('ready_for_doctor', true);
 
       if (error) throw error;
       return data;

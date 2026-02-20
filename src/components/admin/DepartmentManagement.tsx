@@ -44,14 +44,14 @@ export function DepartmentManagement() {
     queryKey: ['departments', hospital?.id],
     queryFn: async () => {
       if (!hospital?.id) return [];
-      const { data, error } = await supabase
-        .from('departments')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('departments') as any)
         .select('*')
         .eq('hospital_id', hospital.id)
         .order('name', { ascending: true });
       
       if (error) throw error;
-      return data as Department[];
+      return (data || []) as Department[];
     },
     enabled: !!hospital?.id,
   });
@@ -69,8 +69,8 @@ export function DepartmentManagement() {
   const addMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!hospital?.id) throw new Error('No hospital');
-      const { error } = await supabase
-        .from('departments')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('departments') as any)
         .insert({
           hospital_id: hospital.id,
           name: data.name,
@@ -92,8 +92,8 @@ export function DepartmentManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const { error } = await supabase
-        .from('departments')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('departments') as any)
         .update({
           name: data.name,
           code: data.code || null,
@@ -112,8 +112,8 @@ export function DepartmentManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('departments')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('departments') as any)
         .update({ is_active: false })
         .eq('id', id);
       if (error) throw error;

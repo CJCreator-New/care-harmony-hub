@@ -720,7 +720,7 @@ export function useNurseWorkflow() {
     try {
       // Update the patient prep checklist to mark as ready for doctor
       const { error } = await supabase
-        .from('patient_prep_checklist')
+        .from('patient_prep_checklists')
         .update({
           ready_for_doctor: true,
           chief_complaint_recorded: !!data.chief_complaint,

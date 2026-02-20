@@ -1531,6 +1531,60 @@ export type Database = {
           },
         ]
       }
+      patient_consents: {
+        Row: {
+          consent_date: string
+          created_at: string
+          data_processing_consent: boolean | null
+          data_sharing_consent: boolean | null
+          hospital_id: string
+          id: string
+          patient_id: string
+          telemedicine_consent: boolean | null
+          treatment_consent: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          consent_date?: string
+          created_at?: string
+          data_processing_consent?: boolean | null
+          data_sharing_consent?: boolean | null
+          hospital_id: string
+          id?: string
+          patient_id: string
+          telemedicine_consent?: boolean | null
+          treatment_consent?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          consent_date?: string
+          created_at?: string
+          data_processing_consent?: boolean | null
+          data_sharing_consent?: boolean | null
+          hospital_id?: string
+          id?: string
+          patient_id?: string
+          telemedicine_consent?: boolean | null
+          treatment_consent?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_consents_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_prep_checklists: {
         Row: {
           allergies_verified: boolean | null
@@ -2845,6 +2899,89 @@ export type Database = {
           },
         ]
       }
+      task_assignments: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          hospital_id: string
+          id: string
+          notes: string | null
+          patient_id: string | null
+          priority: string
+          status: string
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          priority?: string
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          priority?: string
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telemedicine_sessions: {
         Row: {
           actual_end: string | null
@@ -2995,6 +3132,7 @@ export type Database = {
       two_factor_secrets: {
         Row: {
           backup_codes: string[]
+          backup_codes_salt: string | null
           created_at: string
           id: string
           secret: string
@@ -3004,6 +3142,7 @@ export type Database = {
         }
         Insert: {
           backup_codes?: string[]
+          backup_codes_salt?: string | null
           created_at?: string
           id?: string
           secret: string
@@ -3013,6 +3152,7 @@ export type Database = {
         }
         Update: {
           backup_codes?: string[]
+          backup_codes_salt?: string | null
           created_at?: string
           id?: string
           secret?: string
@@ -3162,6 +3302,16 @@ export type Database = {
       }
       increment_failed_login: { Args: { _user_id: string }; Returns: undefined }
       is_account_locked: { Args: { _user_id: string }; Returns: boolean }
+      log_security_event: {
+        Args: {
+          p_details?: Json
+          p_event_type: string
+          p_severity?: string
+          p_user_agent?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       reset_failed_login: { Args: { _user_id: string }; Returns: undefined }
       user_belongs_to_hospital: {
         Args: { _hospital_id: string; _user_id: string }

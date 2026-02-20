@@ -71,8 +71,8 @@ export function ResourceManagement() {
     queryKey: ['hospital-resources', hospital?.id],
     queryFn: async () => {
       if (!hospital?.id) return [];
-      const { data, error } = await supabase
-        .from('hospital_resources')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('hospital_resources') as any)
         .select('*')
         .eq('hospital_id', hospital.id)
         .eq('is_active', true)
@@ -80,7 +80,7 @@ export function ResourceManagement() {
         .order('name', { ascending: true });
       
       if (error) throw error;
-      return data as Resource[];
+      return (data || []) as Resource[];
     },
     enabled: !!hospital?.id,
   });
@@ -88,8 +88,8 @@ export function ResourceManagement() {
   const addMutation = useMutation({
     mutationFn: async (resource: typeof newResource) => {
       if (!hospital?.id) throw new Error('No hospital');
-      const { error } = await supabase
-        .from('hospital_resources')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('hospital_resources') as any)
         .insert({
           hospital_id: hospital.id,
           ...resource,
@@ -118,8 +118,8 @@ export function ResourceManagement() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: ResourceStatus }) => {
-      const { error } = await supabase
-        .from('hospital_resources')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('hospital_resources') as any)
         .update({ status })
         .eq('id', id);
       if (error) throw error;
