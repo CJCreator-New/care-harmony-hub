@@ -3278,6 +3278,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_patient_role: { Args: { p_user_id: string }; Returns: undefined }
       generate_claim_number: {
         Args: { p_hospital_id: string }
         Returns: string

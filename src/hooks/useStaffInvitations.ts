@@ -191,20 +191,13 @@ export function useStaffInvitations() {
 
       if (profileError) throw profileError;
 
-      // Create user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: invitation.role,
-          hospital_id: invitation.hospital_id,
-        });
-
-      if (roleError) throw roleError;
+      // Role assignment is handled server-side by the accept_staff_invitation RPC
+      // called via the accept-invitation-signup edge function (JoinPage.tsx).
+      // This client-side path only updates the invitation status.
 
       // Mark invitation as accepted
-      const { error: updateError } = await supabase
-        .from('staff_invitations')
+      const { error: updateError } = await (supabase
+        .from('staff_invitations') as any)
         .update({
           status: 'accepted',
           accepted_at: new Date().toISOString(),
