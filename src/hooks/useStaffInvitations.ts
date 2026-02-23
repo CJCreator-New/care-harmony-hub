@@ -171,47 +171,17 @@ export function useStaffInvitations() {
 
   const acceptInvitation = useCallback(async (token: string, userId: string) => {
     try {
-      // Get invitation details
-      const { data: invitation, error: fetchError } = await supabase
-        .from('staff_invitations')
-        .select('*')
-        .eq('token', token)
-        .eq('status', 'pending')
-        .maybeSingle();
+      // Delegate the entire acceptance — profile update, role assignment, and
+      // invitation status update — to the accept-invitation-signup edge function
+      // which calls the accept_staff_invitation SECURITY DEFINER RPC. This
+      // prevents client-side direct inserts into user_roles (privilege escalation).
+      // The edge function performs its own token validation server-side.
+      const { error: acceptError } = await supabase.functions.invoke(
+        'accept-invitation-signup',
+        { body: { token, userId } }
+      );
 
-      if (fetchError || !invitation) {
-        throw new Error('Invalid or expired invitation');
-      }
-
-      // Update profile with hospital_id
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ hospital_id: invitation.hospital_id })
-        .eq('user_id', userId);
-
-      if (profileError) throw profileError;
-
-      // Create user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: invitation.role,
-          hospital_id: invitation.hospital_id,
-        });
-
-      if (roleError) throw roleError;
-
-      // Mark invitation as accepted
-      const { error: updateError } = await supabase
-        .from('staff_invitations')
-        .update({
-          status: 'accepted',
-          accepted_at: new Date().toISOString(),
-        })
-        .eq('id', invitation.id);
-
-      if (updateError) throw updateError;
+      if (acceptError) throw acceptError;
 
       return { error: null };
     } catch (err) {

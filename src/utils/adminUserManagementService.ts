@@ -44,16 +44,17 @@ export class AdminUserManagementService {
 
       if (profileError) throw profileError;
 
-      // Assign role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role,
-          hospital_id: (await supabase.auth.getSession()).data.session?.user.user_metadata?.hospital_id,
-        });
-
-      if (roleError) throw roleError;
+      // Role assignment must never be done via client-side insert into user_roles.
+      // supabase.auth.admin.createUser() already requires service_role and cannot
+      // succeed from the browser; this entire function is effectively server-only.
+      // Role assignment is handled server-side by the edge function / RPC that
+      // wraps user creation. If this code path is reached in a browser context it
+      // will have already thrown at auth.admin.createUser(), so no role insert is
+      // needed here. Keeping the throw to surface misconfiguration early.
+      throw new Error(
+        'AdminUserManagementService.createUser must be called from a server-side ' +
+        'edge function with service_role credentials, not from the browser client.'
+      );
 
       // Log audit event
       await this.logAuditEvent('USER_CREATED', 'user', authData.user.id, {
