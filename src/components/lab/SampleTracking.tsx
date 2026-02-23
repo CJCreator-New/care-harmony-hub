@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSampleTracking } from '@/hooks/useSampleTracking';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePatients } from '@/hooks/usePatients';
 import { format } from 'date-fns';
 import { Search, Plus, Clock, AlertTriangle, CheckCircle, XCircle, Thermometer, MapPin, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,10 +39,13 @@ export function SampleTracking({ className }: SampleTrackingProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedSample, setSelectedSample] = useState<any>(null);
+  const [errors, setErrors] = useState<{ sample_id?: string; patient_id?: string; test_type?: string }>({});
+  const { data: patientsData } = usePatients({ limit: 100 });
+  const patients = patientsData?.patients || [];
 
   // Form states
   const [newSample, setNewSample] = useState({
-    sample_id: '',
+    sample_id: `LAB-${new Date().getFullYear()}-${String((samples?.length || 0) + 1).padStart(3, '0')}`,
     patient_id: '',
     test_type: '',
     priority: 'routine' as const,
@@ -65,6 +69,16 @@ export function SampleTracking({ className }: SampleTrackingProps) {
 
   const handleCreateSample = () => {
     if (!profile?.id) return;
+    const validationErrors: { sample_id?: string; patient_id?: string; test_type?: string } = {};
+    if (!newSample.sample_id.trim()) validationErrors.sample_id = 'Sample ID is required';
+    if (!newSample.patient_id.trim()) validationErrors.patient_id = 'Patient is required';
+    if (!newSample.test_type.trim()) validationErrors.test_type = 'Test type is required';
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      toast.error('Please fill all required fields');
+      return;
+    }
+    setErrors({});
 
     createSample({
       sample_id: newSample.sample_id,
@@ -82,7 +96,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
     });
 
     setNewSample({
-      sample_id: '',
+      sample_id: `LAB-${new Date().getFullYear()}-${String((samples?.length || 0) + 2).padStart(3, '0')}`,
       patient_id: '',
       test_type: '',
       priority: 'routine',
@@ -185,33 +199,56 @@ export function SampleTracking({ className }: SampleTrackingProps) {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="sample_id">Sample ID</Label>
+                  <Label htmlFor="sample_id">Sample ID *</Label>
                   <Input
                     id="sample_id"
                     value={newSample.sample_id}
-                    onChange={(e) => setNewSample(prev => ({ ...prev, sample_id: e.target.value }))}
-                    placeholder="LAB-2024-001"
+                    onChange={(e) => {
+                      setNewSample(prev => ({ ...prev, sample_id: e.target.value }));
+                      if (errors.sample_id) setErrors(prev => ({ ...prev, sample_id: undefined }));
+                    }}
+                    placeholder={`LAB-${new Date().getFullYear()}-001`}
+                    className={errors.sample_id ? 'border-destructive' : ''}
                   />
+                  {errors.sample_id && <p className="text-xs text-destructive mt-1">{errors.sample_id}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="patient_id">Patient ID</Label>
-                  <Input
-                    id="patient_id"
+                  <Label htmlFor="patient_id">Patient *</Label>
+                  <Select
                     value={newSample.patient_id}
-                    onChange={(e) => setNewSample(prev => ({ ...prev, patient_id: e.target.value }))}
-                    placeholder="Patient ID"
-                  />
+                    onValueChange={(value) => {
+                      setNewSample(prev => ({ ...prev, patient_id: value }));
+                      if (errors.patient_id) setErrors(prev => ({ ...prev, patient_id: undefined }));
+                    }}
+                  >
+                    <SelectTrigger id="patient_id" className={errors.patient_id ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select patient" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {patients.map((patient) => (
+                        <SelectItem key={patient.id} value={patient.id}>
+                          {patient.first_name} {patient.last_name} - MRN: {patient.mrn}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.patient_id && <p className="text-xs text-destructive mt-1">{errors.patient_id}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="test_type">Test Type</Label>
+                  <Label htmlFor="test_type">Test Type *</Label>
                   <Input
                     id="test_type"
                     value={newSample.test_type}
-                    onChange={(e) => setNewSample(prev => ({ ...prev, test_type: e.target.value }))}
+                    onChange={(e) => {
+                      setNewSample(prev => ({ ...prev, test_type: e.target.value }));
+                      if (errors.test_type) setErrors(prev => ({ ...prev, test_type: undefined }));
+                    }}
                     placeholder="CBC, Chemistry, etc."
+                    className={errors.test_type ? 'border-destructive' : ''}
                   />
+                  {errors.test_type && <p className="text-xs text-destructive mt-1">{errors.test_type}</p>}
                 </div>
                 <div>
                   <Label htmlFor="priority">Priority</Label>

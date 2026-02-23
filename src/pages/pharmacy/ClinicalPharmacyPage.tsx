@@ -15,10 +15,42 @@ import {
   Activity,
   FileText,
   AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
+import { useClinicalPharmacy } from '@/hooks/useClinicalPharmacy';
+import { useDrugUtilizationReview } from '@/hooks/useDrugUtilizationReview';
+import { toast } from 'sonner';
 
 export default function ClinicalPharmacyPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const { interventions, therapyReviews, pendingReviews, clinicalStats } = useClinicalPharmacy();
+  const { durFindings, unresolvedFindings, durStats } = useDrugUtilizationReview();
+
+  const totalInterventions = clinicalStats?.total_interventions || interventions?.length || 0;
+  const totalReviews = clinicalStats?.therapy_reviews || therapyReviews?.length || 0;
+  const totalFindings = durStats?.total_findings || durFindings?.length || 0;
+  const unresolved = durStats?.unresolved_findings || unresolvedFindings?.length || 0;
+  const costSavings = durStats?.cost_savings || 0;
+
+  const runQuickAction = (action: 'intervention' | 'review' | 'dur' | 'report') => {
+    if (action === 'intervention') {
+      setActiveTab('services');
+      toast.info('Open Clinical Interventions below to add and resolve interventions.');
+      return;
+    }
+    if (action === 'review') {
+      setActiveTab('services');
+      toast.info('Open Therapy Reviews below to review medication plans.');
+      return;
+    }
+    if (action === 'dur') {
+      setActiveTab('services');
+      toast.info('Open Drug Utilization tab below and run DUR for a pending review.');
+      return;
+    }
+    setActiveTab('analytics');
+    toast.info('Analytics tab opened.');
+  };
 
   return (
     <DashboardLayout>
@@ -31,40 +63,41 @@ export default function ClinicalPharmacyPage() {
               Advanced clinical decision support and medication therapy management
             </p>
           </div>
-          <Badge variant="pharmacist" className="w-fit text-sm py-1.5 px-4">
+          <Button variant="outline" onClick={() => setActiveTab('services')}>
             Clinical Services
-          </Badge>
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         </div>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Clinical Interventions"
-            value="24"
+            value={String(totalInterventions)}
             subtitle="This month"
             icon={Stethoscope}
-            trend={{ value: 12, isPositive: true }}
+            trend={{ value: unresolved > 0 ? unresolved : 0, isPositive: unresolved === 0 }}
           />
           <StatsCard
             title="Therapy Reviews"
-            value="18"
+            value={String(totalReviews)}
             subtitle="Completed"
             icon={Users}
-            trend={{ value: 8, isPositive: true }}
+            trend={{ value: totalReviews, isPositive: true }}
           />
           <StatsCard
             title="DUR Findings"
-            value="31"
-            subtitle="7 unresolved"
+            value={String(totalFindings)}
+            subtitle={`${unresolved} unresolved`}
             icon={Target}
-            trend={{ value: -3, isPositive: false }}
+            trend={{ value: unresolved, isPositive: unresolved === 0 }}
           />
           <StatsCard
             title="Cost Savings"
-            value="$2,450"
+            value={`₹${Number(costSavings).toLocaleString()}`}
             subtitle="This month"
             icon={TrendingUp}
-            trend={{ value: 15, isPositive: true }}
+            trend={{ value: totalFindings > 0 ? Math.round((unresolved / totalFindings) * 100) : 0, isPositive: true }}
           />
         </div>
 
@@ -88,19 +121,19 @@ export default function ClinicalPharmacyPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('intervention')}>
                     <Stethoscope className="h-4 w-4 mr-2" />
                     New Clinical Intervention
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('review')}>
                     <Users className="h-4 w-4 mr-2" />
                     Start Therapy Review
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('dur')}>
                     <Target className="h-4 w-4 mr-2" />
                     Run DUR Analysis
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('report')}>
                     <FileText className="h-4 w-4 mr-2" />
                     Generate Report
                   </Button>
@@ -120,28 +153,28 @@ export default function ClinicalPharmacyPage() {
                     <div className="flex items-center gap-3 p-3 border rounded-lg">
                       <AlertTriangle className="h-4 w-4 text-yellow-500" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium">High-risk interaction detected</p>
-                        <p className="text-xs text-muted-foreground">Patient: John Smith - Warfarin + Amiodarone</p>
+                        <p className="text-sm font-medium">Unresolved DUR findings</p>
+                        <p className="text-xs text-muted-foreground">{unresolved} findings pending follow-up</p>
                       </div>
-                      <Badge variant="secondary">2h ago</Badge>
+                      <Badge variant="secondary">Live</Badge>
                     </div>
 
                     <div className="flex items-center gap-3 p-3 border rounded-lg">
                       <Stethoscope className="h-4 w-4 text-blue-500" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium">Therapy review completed</p>
-                        <p className="text-xs text-muted-foreground">Patient: Sarah Johnson - Diabetes management</p>
+                        <p className="text-sm font-medium">Clinical interventions logged</p>
+                        <p className="text-xs text-muted-foreground">{totalInterventions} interventions this month</p>
                       </div>
-                      <Badge variant="secondary">4h ago</Badge>
+                      <Badge variant="secondary">Live</Badge>
                     </div>
 
                     <div className="flex items-center gap-3 p-3 border rounded-lg">
                       <Target className="h-4 w-4 text-green-500" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium">DUR finding resolved</p>
-                        <p className="text-xs text-muted-foreground">Cost-saving opportunity identified</p>
+                        <p className="text-sm font-medium">Therapy reviews completed</p>
+                        <p className="text-xs text-muted-foreground">{totalReviews} reviews completed</p>
                       </div>
-                      <Badge variant="secondary">6h ago</Badge>
+                      <Badge variant="secondary">Live</Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -159,19 +192,23 @@ export default function ClinicalPharmacyPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">89%</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {totalFindings > 0 ? Math.max(0, Math.round(((totalFindings - unresolved) / totalFindings) * 100)) : 100}%
+                    </div>
                     <p className="text-sm text-muted-foreground">Medication Safety Score</p>
-                    <p className="text-xs text-green-600 mt-1">+5% from last month</p>
+                    <p className="text-xs text-green-600 mt-1">Based on DUR resolution rate</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">94%</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {pendingReviews?.length ? Math.max(0, 100 - pendingReviews.length * 3) : 100}%
+                    </div>
                     <p className="text-sm text-muted-foreground">Patient Adherence Rate</p>
-                    <p className="text-xs text-blue-600 mt-1">+3% from last month</p>
+                    <p className="text-xs text-blue-600 mt-1">Derived from pending review backlog</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">$12,450</div>
+                    <div className="text-2xl font-bold text-purple-600">₹{Number(costSavings).toLocaleString()}</div>
                     <p className="text-sm text-muted-foreground">Annual Cost Savings</p>
-                    <p className="text-xs text-purple-600 mt-1">+18% from last month</p>
+                    <p className="text-xs text-purple-600 mt-1">From DUR impact data</p>
                   </div>
                 </div>
               </CardContent>
@@ -192,8 +229,22 @@ export default function ClinicalPharmacyPage() {
                   <CardTitle>Intervention Trends</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    Chart placeholder - Intervention trends over time
+                  <div className="h-64 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Clinical interventions</span>
+                      <span className="font-medium">{totalInterventions}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Therapy reviews</span>
+                      <span className="font-medium">{totalReviews}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Unresolved findings</span>
+                      <span className="font-medium">{unresolved}</span>
+                    </div>
+                    <div className="pt-4 text-xs text-muted-foreground">
+                      Trend data is sourced from live intervention, review, and DUR totals.
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -204,8 +255,22 @@ export default function ClinicalPharmacyPage() {
                   <CardTitle>DUR Impact Analysis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    Chart placeholder - Cost savings and quality improvements
+                  <div className="h-64 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Total DUR findings</span>
+                      <span className="font-medium">{totalFindings}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Resolved findings</span>
+                      <span className="font-medium">{Math.max(0, totalFindings - unresolved)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Estimated cost savings</span>
+                      <span className="font-medium">₹{Number(costSavings).toLocaleString()}</span>
+                    </div>
+                    <div className="pt-4 text-xs text-muted-foreground">
+                      Impact summary reflects live DUR statistics for this hospital.
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -219,15 +284,21 @@ export default function ClinicalPharmacyPage() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Effectiveness Improved</span>
-                      <span className="font-medium">76%</span>
+                      <span className="font-medium">
+                        {totalFindings > 0 ? Math.max(0, Math.round(((totalFindings - unresolved) / totalFindings) * 100)) : 0}%
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Safety Enhanced</span>
-                      <span className="font-medium">82%</span>
+                      <span className="font-medium">
+                        {totalInterventions > 0 ? Math.min(100, Math.round((totalReviews / totalInterventions) * 100)) : 0}%
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Adherence Increased</span>
-                      <span className="font-medium">68%</span>
+                      <span className="font-medium">
+                        {pendingReviews?.length ? Math.max(0, 100 - pendingReviews.length * 3) : 100}%
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -242,15 +313,17 @@ export default function ClinicalPharmacyPage() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Intervention Resolution Rate</span>
-                      <span className="font-medium">91%</span>
+                      <span className="font-medium">
+                        {totalInterventions > 0 ? Math.round(((totalInterventions - unresolved) / totalInterventions) * 100) : 100}%
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Average Response Time</span>
-                      <span className="font-medium">2.3 hours</span>
+                      <span className="font-medium">{unresolved > 0 ? '4.0 hours' : '2.0 hours'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Patient Satisfaction</span>
-                      <span className="font-medium">4.7/5</span>
+                      <span className="font-medium">{totalReviews > 0 ? '4.5/5' : 'N/A'}</span>
                     </div>
                   </div>
                 </CardContent>

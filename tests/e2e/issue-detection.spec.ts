@@ -39,7 +39,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
 
   test('Check: Admin Dashboard Load Time', async ({ page }) => {
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'admin@hospital.com');
     await page.fill('input[type="password"]', 'Admin@123');
     await page.click('button[type="submit"]');
@@ -54,7 +54,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Doctor Patient Queue Updates', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'doctor@hospital.com');
     await page.fill('input[type="password"]', 'Doctor@123');
     await page.click('button[type="submit"]');
@@ -69,7 +69,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Nurse Vital Signs Form Validation', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'nurse@hospital.com');
     await page.fill('input[type="password"]', 'Nurse@123');
     await page.click('button[type="submit"]');
@@ -92,7 +92,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Receptionist Appointment Scheduling', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'receptionist@hospital.com');
     await page.fill('input[type="password"]', 'Receptionist@123');
     await page.click('button[type="submit"]');
@@ -110,7 +110,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Pharmacist Drug Interaction Alerts', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'pharmacist@hospital.com');
     await page.fill('input[type="password"]', 'Pharmacist@123');
     await page.click('button[type="submit"]');
@@ -128,7 +128,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Lab Tech Results Entry Form', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'labtech@hospital.com');
     await page.fill('input[type="password"]', 'LabTech@123');
     await page.click('button[type="submit"]');
@@ -146,7 +146,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Patient Portal Medical Records', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'patient@hospital.com');
     await page.fill('input[type="password"]', 'Patient@123');
     await page.click('button[type="submit"]');
@@ -165,7 +165,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
 
   test('Check: RBAC Permission Enforcement', async ({ page }) => {
     // Test doctor accessing admin panel
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'doctor@hospital.com');
     await page.fill('input[type="password"]', 'Doctor@123');
     await page.click('button[type="submit"]');
@@ -183,7 +183,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Real-time Notifications', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'doctor@hospital.com');
     await page.fill('input[type="password"]', 'Doctor@123');
     await page.click('button[type="submit"]');
@@ -198,7 +198,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Audit Logging', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'admin@hospital.com');
     await page.fill('input[type="password"]', 'Admin@123');
     await page.click('button[type="submit"]');
@@ -216,7 +216,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   });
 
   test('Check: Data Validation - Email Format', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'invalid-email');
     await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
@@ -231,7 +231,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
 
   test('Check: Cross-role Workflow - Prescription Flow', async ({ page }) => {
     // Doctor creates prescription
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'doctor@hospital.com');
     await page.fill('input[type="password"]', 'Doctor@123');
     await page.click('button[type="submit"]');
@@ -247,7 +247,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
 
   test('Check: Cross-role Workflow - Lab Order Flow', async ({ page }) => {
     // Doctor creates lab order
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     await page.fill('input[type="email"]', 'doctor@hospital.com');
     await page.fill('input[type="password"]', 'Doctor@123');
     await page.click('button[type="submit"]');
@@ -263,7 +263,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
 
   test('Check: Performance - Page Load Time', async ({ page }) => {
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     const loadTime = Date.now() - startTime;
 
     if (loadTime > 2000) {
@@ -276,7 +276,7 @@ test.describe('CareSync Issue Detection & Resolution', () => {
   test('Check: Error Handling - Network Error', async ({ page }) => {
     // Simulate network error
     await page.context().setOffline(true);
-    await page.goto(`${BASE_URL}/login`).catch(() => {});
+    await page.goto(`${BASE_URL}/hospital/login`).catch(() => {});
     
     const errorMessage = await page.locator('text=Network Error').isVisible().catch(() => false);
     await page.context().setOffline(false);

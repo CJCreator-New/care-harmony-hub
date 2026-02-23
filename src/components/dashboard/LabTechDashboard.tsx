@@ -38,6 +38,12 @@ export function LabTechDashboard() {
     return 'Good evening';
   };
 
+  const getDisplayName = () => {
+    const name = profile?.first_name?.trim();
+    if (!name) return 'Lab Technician';
+    return name.replace(/'s$/i, '');
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -81,13 +87,13 @@ export function LabTechDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, {profile?.first_name || 'Lab Technician'}!
+              {getGreeting()}, {getDisplayName()}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Lab orders and test results management.
             </p>
           </div>
-          <Badge variant="info" className="w-fit text-sm py-1.5 px-4">
+          <Badge variant="info" className="w-fit text-sm py-1.5 px-4 self-start md:self-auto">
             Lab Technician
           </Badge>
         </div>

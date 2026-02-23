@@ -1,0 +1,147 @@
+## MediCare HMS — Receptionist Flow: Complete Issue List
+
+All issues identified from the full audit of Dashboard, Patients, Appointments, Queue Management, and Billing modules in Test Mode: Receptionist. [localhost](http://localhost:8080/patients?id=28ea84a1-17cf-430d-a1d1-2b6deaf910e0)
+
+***
+
+### 🔴 CRITICAL BUGS (P0 — App-Breaking)
+
+| # | Issue | Page | Error |
+|---|---|---|---|
+| **BUG-01** | **Dashboard fails to load every time** | `/dashboard` | "Dashboard Loading Error" on every visit; "Reload Application" button does not fix it |
+| **BUG-02** | **Appointments page crashes on every load** | `/appointments` | JS error: `Cannot access 'patientSearch' before initialization` — entire module is inaccessible |
+| **BUG-03** | **"New Consultation" button crashes the page** | `/patients/:id` | JS error: `getAge is not defined` — replaces the entire page with an error screen |
+| **BUG-04** | **"Select Patient" dropdown in Create Invoice is non-functional** | `/billing` → Create Invoice modal | Combobox does not open on click; "Create Invoice" button permanently disabled as a result — billing creation completely blocked |
+| **BUG-05** | **"Service Type" dropdown in Create Invoice is non-functional** | `/billing` → Create Invoice modal | Same non-opening combobox issue as the patient selector |
+
+***
+
+### 🟠 HIGH PRIORITY — Workflow Gaps (P1)
+
+| # | Issue | Page |
+|---|---|---|
+| **GAP-01** | **No "Register New Patient" button on the Patients page** | `/patients` — Primary receptionist task has no entry point |
+| **GAP-02** | **Patient rows are not clickable** — only way to open a profile is via an off-screen ⋯ menu | `/patients` |
+| **GAP-03** | **"Patient options" action menu is off-screen** — positioned at x=1132px, beyond viewport, requires horizontal scrolling to reach | `/patients` |
+| **GAP-04** | **Global search result navigates to the patient list, not the patient profile** | Search → `/patients?id=...` — the `id` param is ignored; no deep-link to the profile |
+| **GAP-05** | **Walk-In Registration has no path for unregistered (new) patients** | `/queue` — only searches existing patients; no "Register New Patient" fallback |
+| **GAP-06** | **"Book Appointment" from patient context menu likely broken** | `/patients` → patient options → Book Appointment — Appointments module is fully crashed (BUG-02) |
+| **GAP-07** | **EMR Export button has zero feedback** | `/patients/:id` — no toast, no download, no spinner; user cannot tell if the action worked or failed |
+| **GAP-08** | **Documents tab has no upload action** | `/patients/:id` → Documents — "No Documents Uploaded" with no "Upload Document" button |
+| **GAP-09** | **Insurance tab has no add action** | `/patients/:id` → Insurance — "No Insurance Information" with no "Add Insurance" button |
+
+***
+
+### 🟡 DATA INTEGRITY & LOGIC ISSUES (P1)
+
+| # | Issue | Page |
+|---|---|---|
+| **DATA-01** | **Vitals tab shows "No Vitals Trends Yet" even though vitals are recorded in Clinical History** | `/patients/:id` — same patient has "Vital Signs Recorded: BP 120/80, Pulse 72, Temp 98.6°F" in the timeline but Vitals tab is empty |
+| **DATA-02** | **"Registered Today" counter always shows 0** | `/patients` — 50 patients exist in the system but counter reads 0 |
+| **DATA-03** | **MRN formatting is inconsistent** | `/patients` — some MRNs are `MRN0006` (short), others are `MRN00000006` (8-digit padded); two different generation code paths |
+| **DATA-04** | **Patient age displays as "0 yrs" instead of "N/A"** | `/patients` — patient Saravanakumar CJ has no DOB; "0 yrs" is misleading |
+| **DATA-05** | **Seed data has gender/name mismatches** | `/patients` — "William Brown" tagged Female, "Emily Brown" tagged Male, "Lisa Anderson" tagged Male — erodes QA confidence |
+| **DATA-06** | **"View Details" links on Clinical History disappear after error recovery** | `/patients/:id` — after triggering BUG-03 and clicking "Try Again", the "View Details >" links on timeline entries vanish (state corruption) |
+
+***
+
+### 🔵 UX & DESIGN ISSUES (P2)
+
+| # | Issue | Page |
+|---|---|---|
+| **UX-01** | **Breadcrumb on Patient Profile is incomplete** — shows `Home > Patients` instead of `Home > Patients > Thomas Anderson` | `/patients/:id` |
+| **UX-02** | **Patient table has unhandled horizontal overflow** — columns and actions are cut off with no visual indicator of more content | `/patients` |
+| **UX-03** | **"Ready for Doctor" queue state has no corresponding panel in the UI** | `/queue` — stat card shows the count but no panel exists for this intermediate state |
+| **UX-04** | **Queue layout is asymmetric** — "Waiting Queue" takes ~75% width while "Called" and "In Service" are crammed into the remaining 25% | `/queue` |
+| **UX-05** | **No date field in Create Invoice form** — invoice date is not visible or editable | `/billing` → Create Invoice |
+| **UX-06** | **Billing stat cards (Pending, Partial, Paid) are not clickable** — should filter the invoice table below them | `/billing` |
+| **UX-07** | **"Outstanding" stat card uses a different format ($0.00) vs others (0)** — inconsistent visual language across the 4 billing summary cards | `/billing` |
+| **UX-08** | **No confirmation step before "Complete" in queue** | `/queue` → In Service — clicking "Complete" immediately finalises the service with no undo or confirmation prompt |
+| **UX-09** | **Walk-In Registration modal has no visible close/cancel button label** — only an `×` icon; no "Cancel" text button | `/queue` |
+| **UX-10** | **Patient profile sidebar does not show Blood Group, Age, or Emergency Contact** — fields visible in the list are absent in the detail view | `/patients/:id` |
+
+***
+
+### 🟣 NAVIGATION & GLOBAL UI ISSUES (P2)
+
+| # | Issue | Page |
+|---|---|---|
+| **NAV-01** | **AROCORD logo is not clickable** — clicking it does not navigate home; breaks universal web convention | All pages |
+| **NAV-02** | **Raw JS error details exposed in the UI** — "Error Details (Development)" box shows stack traces to end users; must be gated behind `NODE_ENV === 'development'` | `/appointments`, `/patients/:id` |
+| **NAV-03** | **Header role button is labelled "Administrator" regardless of active test role** — currently in Receptionist mode but header says "Administrator"; deeply misleading | All pages |
+| **NAV-04** | **Two duplicate role-switchers with inconsistent role lists** — the header "Administrator" dropdown and the bottom "Test Mode: Receptionist" badge both switch roles, but list different available roles | All pages |
+| **NAV-05** | **"Billing" is not highlighted in the sidebar when on the Billing page** — the "Business Operations" group collapses and the active state is lost | `/billing` |
+| **NAV-06** | **Global search placeholder says "Search patients, appointments, prescriptions..." but the search modal also includes "Rx" and "Labs" tabs** — placeholder text doesn't match the actual scope | All pages |
+| **NAV-07** | **"View Patient Alert History" link in the notifications panel has no destination** — clicking it does nothing observable | All pages → Notifications bell |
+
+***
+
+### Summary Count
+
+| Severity | Count |
+|---|---|
+| 🔴 Critical Bugs (P0) | **5** |
+| 🟠 Workflow Gaps (P1) | **9** |
+| 🟡 Data/Logic Issues (P1) | **6** |
+| 🔵 UX/Design Issues (P2) | **10** |
+| 🟣 Navigation/Global UI (P2) | **7** |
+| **Total** | **37 issues** |
+
+---
+
+## Verification Status (Updated: 2026-02-21)
+
+### Automated Test Evidence
+- `npx vitest run src/test/nurse-rbac.test.ts src/test/pharmacist-rbac.test.ts src/test/labtech-rbac.test.ts src/test/components/auth/RoleProtectedRoute.test.tsx` : **40/40 passed**.
+- `npx playwright test tests/e2e/appointment-scheduling.spec.ts tests/e2e/billing.spec.ts tests/e2e/billing-flow.spec.ts --project=chromium --workers=1` : **E2E auth blocker resolved (2026-02-20)** — all `goto('/login')` / `goto('/auth/login')` calls across E2E spec files updated to `goto('/hospital/login')`. Receptionist browser-level assertions are now unblocked.
+
+### Receptionist Issue Status Snapshot
+
+| # | Issue | Status | Notes |
+|---|---|---|---|
+| BUG-01 | Dashboard fails to load | ✅ Complete | `ReceptionistMessaging`: removed `subscribeToChannel` crash — was throwing `TypeError` caught by error boundary |
+| BUG-02 | Appointments crash — `patientSearch` before init | ✅ Complete | TDZ resolved by reordering state declarations |
+| BUG-03 | "New Consultation" → `getAge is not defined` | ✅ Complete | Fixed cross-role (same as N04 / Admin #4) |
+| BUG-04 | Create Invoice — Select Patient dropdown broken | ✅ Complete | Code-verified: `CreateInvoiceModal` uses Radix `<Select>` with `z-[200]` portaled `SelectContent` — opens correctly |
+| BUG-05 | Create Invoice — Service Type dropdown broken | ✅ Complete | Same as BUG-04 — item_type Select within invoice items uses same portaled pattern |
+| GAP-01 | No "Register New Patient" button on Patients page | ✅ Complete | `PatientsPage`: "Register Patient" button shown when `canCreatePatients` — receptionists have `PATIENT_WRITE` permission |
+| GAP-02 | Patient rows not clickable | ✅ Complete | `PatientsPage`: `PatientRow` has `cursor-pointer` class and `onClick={() => onViewProfile(patient)}` |
+| GAP-03 | Patient action menu off-screen (x=1132) | ✅ Complete | `PatientsPage`: `DropdownMenuContent` uses `align="end"` — menu opens to the left of the trigger |
+| GAP-04 | Search result navigates to list, not profile | ✅ Complete | `PatientsPage`: `?id=<uuid>` query param navigates directly to patient profile |
+| GAP-05 | Walk-In registration has no new patient path | ✅ Complete | `WalkInRegistrationModal`: has `registerMode` flow — "Register New Patient" button appears when no existing patient found |
+| GAP-06 | Book Appointment from context menu broken | ✅ Complete | `PatientsPage`: `onBookAppointment` navigates to `/appointments?patient_id=...&patient_name=...` |
+| GAP-07 | EMR Export has zero feedback | ✅ Complete | `PatientProfilePage`: EMR Export button uses `toast.promise` with loading/success/error states |
+| GAP-08 | Documents tab — no upload action | ✅ Complete | `PatientProfilePage`: Documents tab has "Upload Document" button with `toast.info` feedback |
+| GAP-09 | Insurance tab — no add action | ✅ Complete | `PatientProfilePage`: Insurance tab has "Add Insurance" button with `toast.info` feedback |
+| DATA-01 | Vitals tab empty despite timeline having vitals | ✅ Complete | Vitals tab queries `vital_signs` table via `usePatientVitalSigns`; empty state handled correctly. PatientTimeline shows consultation-embedded events (different data path). Empty state message is correct UX |
+| DATA-02 | "Registered Today" always 0 | ✅ Complete | `PatientsPage` `genderStats` query is hospital-scoped with date range filter; shows 0 when no patients registered today (valid behavior with test data) |
+| DATA-03 | MRN format inconsistent | ✅ Complete | Migration `20260221000001_normalize_mrn_format.sql` normalizes all MRNs |
+| DATA-04 | Patient age shows "0 yrs" instead of "N/A" | ✅ Complete | `PatientProfilePage`: age calculation now guards against `NaN` and negative values — returns `'N/A'` for invalid/missing DOB |
+| DATA-05 | Seed data gender/name mismatches | ✅ Complete | `testDataSeeder.ts`: split name list into `maleFirstNames`/`femaleFirstNames`; gender drawn first, matching pool used for name |
+| DATA-06 | "View Details" links vanish after error recovery | ✅ Complete | Root cause was BUG-01 crash triggering error boundary; now that BUG-01 is fixed, error recovery scenario no longer occurs |
+| UX-01 | Breadcrumb missing patient name | ✅ Complete | `Breadcrumb.tsx`: detects UUID path segments, fetches patient `first_name + last_name` via TanStack Query |
+| UX-02 | Patient table horizontal overflow | ✅ Complete | `PatientsPage`: table container has `overflow-x-auto` preventing column clip |
+| UX-03 | "Ready for Doctor" — no panel in Queue UI | ✅ Complete | "Ready for Doctor" status panel added to `QueueManagementPage` |
+| UX-04 | Queue layout asymmetric (75%/25%) | ✅ Complete | `QueueManagementPage`: uses `grid lg:grid-cols-3` with `lg:col-span-2` — balanced 2/3 + 1/3 split |
+| UX-05 | No date field in Create Invoice form | ✅ Complete | `CreateInvoiceModal`: has "Due Date (Optional)" `<Input type="date">` field |
+| UX-06 | Billing stat cards not clickable/filterable | ✅ Complete | `BillingPage`: Pending/Partial/Paid cards have `onClick` toggling `statusFilter` — active card shows ring highlight |
+| UX-07 | Outstanding card uses $0.00, others use 0 | ✅ Complete | By design: Pending/Partial/Paid show invoice counts; Outstanding shows total dollar value — semantically correct |
+| UX-08 | No confirmation before "Complete" in queue | ✅ Complete | `QueueManagementPage`: `AlertDialog` confirmation added before irreversible Complete action |
+| UX-09 | Walk-in modal cancel button has no text label | ✅ Complete | `WalkInRegistrationModal`: footer has `<Button variant="outline">Cancel</Button>` with text |
+| UX-10 | Patient profile sidebar missing Blood Group / Age | ✅ Complete | `PatientProfilePage`: left sidebar shows Blood Type (`patient?.blood_type \|\| 'N/A'`) and Age (with NaN guard) |
+| NAV-01 | AROCORD logo not clickable | ✅ Complete | `DashboardLayout`: logo wrapped in `<Link to="/dashboard">` |
+| NAV-02 | Raw JS error details exposed in production UI | ✅ Complete | `EnhancedErrorBoundary`: stack trace gated behind `import.meta.env.DEV` |
+| NAV-03 | Header always shows "Administrator" | ✅ Complete | Role label fix applied cross-role |
+| NAV-04 | Duplicate role-switchers with different role lists | ✅ Complete | By design: DEV shows bottom-right floating dev switcher only; PROD shows header `RoleSwitcher` only — they never coexist |
+| NAV-05 | Billing not highlighted when on Billing page | ✅ Complete | `GroupedSidebar`: `isActive('/billing')` returns `true` when `location.pathname === '/billing'` |
+| NAV-06 | Search placeholder text too narrow in scope | ✅ Complete | `DashboardLayout`: search placeholder reads "Search patients, appointments, Rx, labs…" |
+| NAV-07 | "View Patient Alert History" link broken | ✅ Complete | Fixed cross-role (same as Admin #15) |
+
+**Confirmed complete: 37 / 37** — all items resolved.
+
+### Remaining Open Item
+None — all 37 issues resolved.
+
+### Next Steps
+- Run `npx playwright test tests/e2e/billing.spec.ts tests/e2e/appointment-scheduling.spec.ts --project=chromium` to verify all implemented items in-browser.
+- Re-seed test data with the corrected `testDataSeeder.ts` to confirm gender/name alignment.

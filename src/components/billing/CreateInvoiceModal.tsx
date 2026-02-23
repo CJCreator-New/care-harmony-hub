@@ -45,6 +45,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
 
   const [patientId, setPatientId] = useState("");
   const [notes, setNotes] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [items, setItems] = useState<InvoiceItem[]>([createInvoiceItem()]);
 
   const { data: patientsData } = usePatients();
@@ -84,11 +85,13 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
           item_type: item.item_type,
         })),
         notes: notes || undefined,
+        dueDate: dueDate || undefined,
       },
       {
         onSuccess: () => {
           setPatientId("");
           setNotes("");
+          setDueDate("");
           setItems([createInvoiceItem()]);
           onOpenChange(false);
         },
@@ -110,7 +113,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
               <SelectTrigger>
                 <SelectValue placeholder="Select patient" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[200]">
                 {patientsList.map((patient) => (
                   <SelectItem key={patient.id} value={patient.id}>
                     {patient.first_name} {patient.last_name} ({patient.mrn})
@@ -145,7 +148,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[200]">
                         <SelectItem value="service">Service</SelectItem>
                         <SelectItem value="medication">Medication</SelectItem>
                         <SelectItem value="lab">Lab Test</SelectItem>
@@ -199,6 +202,15 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
               <p className="text-sm text-muted-foreground">Total</p>
               <p className="text-2xl font-bold">${subtotal.toFixed(2)}</p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Due Date (Optional)</Label>
+            <Input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">

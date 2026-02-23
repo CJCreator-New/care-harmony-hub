@@ -93,7 +93,7 @@ export function WorkflowOrchestrationPanel() {
           action: 'send_notification',
           is_active: true,
           hospital_id: hospitalId!,
-          last_triggered: new Date().toISOString()
+          last_triggered: null
         },
         {
           id: '2',
@@ -104,7 +104,7 @@ export function WorkflowOrchestrationPanel() {
           action: 'trigger_edge_function',
           is_active: true,
           hospital_id: hospitalId!,
-          last_triggered: new Date(Date.now() - 3600000).toISOString()
+          last_triggered: null
         }
       ] as WorkflowRule[];
     },

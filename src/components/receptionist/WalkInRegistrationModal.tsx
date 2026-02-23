@@ -12,8 +12,10 @@ import {
   UserPlus,
   CheckCircle2,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
 import { useSearchPatients } from '@/hooks/usePatients';
+import { useCreatePatient } from '@/hooks/usePatients';
 import { useAddToQueue, PriorityLevel } from '@/hooks/useQueue';
 import { toast } from 'sonner';
 
@@ -37,9 +39,12 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
   const [reason, setReason] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
+  const [registerMode, setRegisterMode] = useState(false);
+  const [newPatient, setNewPatient] = useState({ firstName: '', lastName: '', dob: '', phone: '', gender: 'other' as string });
 
   const { data: searchResults = [], isLoading: isSearching } = useSearchPatients(searchTerm);
   const addToQueue = useAddToQueue();
+  const createPatient = useCreatePatient();
 
   useEffect(() => {
     if (!open) {
@@ -50,11 +55,33 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
       setReason('');
       setIsComplete(false);
       setQueueNumber(null);
+      setRegisterMode(false);
+      setNewPatient({ firstName: '', lastName: '', dob: '', phone: '', gender: 'other' });
     }
   }, [open]);
 
   const handleSelectPatient = (patient: SelectedPatient) => {
     setSelectedPatient(patient);
+  };
+
+  const handleRegisterNewPatient = async () => {
+    if (!newPatient.firstName || !newPatient.lastName) {
+      toast.error('First name and last name are required.');
+      return;
+    }
+    try {
+      const created = await createPatient.mutateAsync({
+        first_name: newPatient.firstName,
+        last_name: newPatient.lastName,
+        date_of_birth: newPatient.dob || new Date('1990-01-01').toISOString().split('T')[0],
+        phone: newPatient.phone || null,
+        gender: (newPatient.gender as 'male' | 'female' | 'other') || 'other',
+      });
+      setSelectedPatient({ id: created.id, first_name: created.first_name, last_name: created.last_name, mrn: created.mrn });
+      setRegisterMode(false);
+    } catch {
+      // error handled by hook
+    }
   };
 
   const handleRegister = async () => {
@@ -135,9 +162,62 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
                   </div>
                 )}
 
-                {searchTerm.length >= 2 && !isSearching && searchResults.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground text-sm">
-                    No patients found. Please register the patient first.
+                {searchTerm.length >= 2 && !isSearching && searchResults.length === 0 && !registerMode && (
+                  <div className="text-center py-4 space-y-3">
+                    <p className="text-muted-foreground text-sm">No existing patients found.</p>
+                    <Button variant="outline" size="sm" onClick={() => setRegisterMode(true)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Register New Patient
+                    </Button>
+                  </div>
+                )}
+
+                {registerMode && (
+                  <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Button variant="ghost" size="icon" onClick={() => setRegisterMode(false)} className="h-7 w-7">
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm font-semibold">New Patient Details</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">First Name *</Label>
+                        <Input value={newPatient.firstName} onChange={(e) => setNewPatient(p => ({ ...p, firstName: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Last Name *</Label>
+                        <Input value={newPatient.lastName} onChange={(e) => setNewPatient(p => ({ ...p, lastName: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Date of Birth</Label>
+                        <Input type="date" value={newPatient.dob} onChange={(e) => setNewPatient(p => ({ ...p, dob: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Phone</Label>
+                        <Input value={newPatient.phone} onChange={(e) => setNewPatient(p => ({ ...p, phone: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs">Gender</Label>
+                        <Select value={newPatient.gender} onValueChange={(v) => setNewPatient(p => ({ ...p, gender: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="z-[200]">
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      onClick={handleRegisterNewPatient}
+                      disabled={createPatient.isPending}
+                    >
+                      {createPatient.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Register &amp; Continue
+                    </Button>
                   </div>
                 )}
 
@@ -240,11 +320,13 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
         </div>
 
         <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           {selectedPatient && (
             <Button
               onClick={handleRegister}
               disabled={addToQueue.isPending}
-              className="w-full"
             >
               {addToQueue.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add to Queue

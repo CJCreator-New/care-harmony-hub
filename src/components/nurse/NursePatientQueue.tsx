@@ -11,7 +11,8 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Activity
+  Activity,
+  Heart,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PatientPrepModal } from './PatientPrepModal';
 import { format, differenceInMinutes } from 'date-fns';
 
-export function NursePatientQueue() {
+export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patient: any) => void } = {}) {
   const { hospital } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -67,6 +68,17 @@ export function NursePatientQueue() {
     entry.patient?.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     entry.patient?.mrn.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getDisplayQueueNumber = (entry: any, index: number) => {
+    const duplicates = (queuePatients || []).filter((item) => item.queue_number === entry.queue_number).length;
+    return duplicates > 1 ? index + 1 : entry.queue_number;
+  };
+
+  const getSafeWaitMinutes = (entry: any) => {
+    const raw = differenceInMinutes(new Date(), new Date(entry.check_in_time));
+    if (!Number.isFinite(raw) || raw < 0) return 0;
+    return Math.min(raw, 24 * 60);
+  };
 
   // Predictive prioritization algorithm
   const calculatePriorityScore = (entry: any) => {
@@ -162,7 +174,7 @@ export function NursePatientQueue() {
               </div>
             ) : prioritizedPatients && prioritizedPatients.length > 0 ? (
               <div className="space-y-3">
-                {prioritizedPatients.map((entry) => (
+                {prioritizedPatients.map((entry, index) => (
                   <div
                     key={entry.id}
                     className={`p-4 rounded-lg border transition-colors ${
@@ -174,9 +186,9 @@ export function NursePatientQueue() {
                     <div className="flex items-start justify-between">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-lg">#{entry.queue_number}</span>
+                          <span className="font-bold text-lg">#{getDisplayQueueNumber(entry, index)}</span>
                           <span className="font-medium">
-                            {entry.patient?.first_name} {entry.patient?.last_name}
+                            {entry.patient?.first_name || 'Unknown'} {entry.patient?.last_name || 'Patient'}
                           </span>
                           {getStatusBadge(entry)}
                           {getPriorityBadge(entry.priority)}
@@ -189,7 +201,9 @@ export function NursePatientQueue() {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>MRN: {entry.patient?.mrn}</span>
                           <span>
-                            {new Date().getFullYear() - new Date(entry.patient?.date_of_birth).getFullYear()} yrs
+                            {entry.patient?.date_of_birth
+                              ? new Date().getFullYear() - new Date(entry.patient.date_of_birth).getFullYear()
+                              : 'N/A'} yrs
                           </span>
                           <span className="capitalize">{entry.patient?.gender}</span>
                         </div>
@@ -202,7 +216,7 @@ export function NursePatientQueue() {
 
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
-                          Waiting {differenceInMinutes(new Date(), new Date(entry.check_in_time))} min
+                          Waiting {getSafeWaitMinutes(entry)} min
                           {entry.check_in_time && (
                             <> • Checked in at {format(new Date(entry.check_in_time), 'h:mm a')}</>
                           )}
@@ -218,7 +232,17 @@ export function NursePatientQueue() {
                         )}
                       </div>
 
-                      <div className="ml-4">
+                      <div className="ml-4 flex flex-col gap-2">
+                        {onRecordVitals && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onRecordVitals(entry.patient)}
+                          >
+                            <Heart className="mr-2 h-4 w-4" />
+                            Record Vitals
+                          </Button>
+                        )}
                         {isPrepCompleted(entry.id) ? (
                           <Button disabled className="bg-success">
                             <CheckCircle className="mr-2 h-4 w-4" />

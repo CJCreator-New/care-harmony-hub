@@ -50,7 +50,8 @@ export function NurseDashboard() {
     return 'Good evening';
   };
 
-  const waitingPatients = activeQueue.filter(q => q.status === 'waiting') || [];
+  // Count ALL active queue entries (waiting, called, in_service) for the KPI
+  const waitingPatients = activeQueue || [];
   const readyForDoctor = checklists.filter(c => c.ready_for_doctor).length;
 
   return (
@@ -60,7 +61,7 @@ export function NurseDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, {profile?.first_name || 'Nurse'}!
+              {getGreeting()}, {profile?.first_name?.trim() || 'Nurse'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Patient queue and vitals management.
@@ -74,7 +75,7 @@ export function NurseDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button onClick={() => setIsVitalsModalOpen(true)}>
+        <Button variant="outline" onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
           Record Vitals
         </Button>
@@ -88,12 +89,9 @@ export function NurseDashboard() {
           <Pill className="h-4 w-4 mr-2" />
           Administer Medication
         </Button>
-        <Button variant="outline" onClick={() => setHandoverMode('create')} className="relative">
+        <Button variant="outline" onClick={() => setHandoverMode('create')}>
           <ClipboardList className="h-4 w-4 mr-2" />
           Create Handover
-          <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-700 border-green-200">
-            Auto
-          </Badge>
         </Button>
         {pendingHandovers.length > 0 && (
           <Button variant="outline" onClick={() => setHandoverMode('view')}>
@@ -107,9 +105,9 @@ export function NurseDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
-          title="Patients Waiting"
+          title="Patients in Queue"
           value={waitingPatients.length.toString()}
-          subtitle="In queue"
+          subtitle="Active patients"
           icon={Users}
           variant="warning"
         />
@@ -157,7 +155,12 @@ export function NurseDashboard() {
           {/* Main Content Grid */}
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <NursePatientQueue />
+              <NursePatientQueue
+                onRecordVitals={(patient) => {
+                  setSelectedPatient(patient);
+                  setIsVitalsModalOpen(true);
+                }}
+              />
               <NurseTaskPanel />
             </div>
             <div className="space-y-6">

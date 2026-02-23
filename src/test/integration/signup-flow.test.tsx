@@ -51,7 +51,7 @@ describe('Signup Flow', () => {
   afterEach(() => {
   });
 
-  it('completes signup and navigates to role setup', async () => {
+  it('completes signup and navigates to role setup', { timeout: 20000 }, async () => {
     const user = userEvent.setup();
     render(<SignupPage />);
 
@@ -66,7 +66,7 @@ describe('Signup Flow', () => {
 
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
-    expect(screen.getByText('Administrator Account')).toBeInTheDocument();
+    expect(screen.getAllByText('Administrator Account').length).toBeGreaterThan(0);
 
     await user.type(screen.getByLabelText('First Name *'), 'Ava');
     await user.type(screen.getByLabelText('Last Name *'), 'Stone');

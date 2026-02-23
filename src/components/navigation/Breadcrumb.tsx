@@ -1,6 +1,8 @@
 import { useLocation, Link } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BreadcrumbItem {
   label: string;
@@ -57,6 +59,24 @@ const routeLabels: Record<string, string> = {
 export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
   const location = useLocation();
 
+  // Detect if we're on a patient profile page and fetch the patient name
+  const patientIdMatch = location.pathname.match(/^\/patients\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  const patientId = patientIdMatch ? patientIdMatch[1] : null;
+
+  const { data: patientName } = useQuery({
+    queryKey: ['breadcrumb-patient', patientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('patients')
+        .select('first_name, last_name')
+        .eq('id', patientId!)
+        .single();
+      return data ? `${data.first_name} ${data.last_name}` : 'Patient Details';
+    },
+    enabled: !!patientId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const generateBreadcrumbs = (): BreadcrumbItem[] => {
     if (customItems) {
       return customItems;
@@ -73,17 +93,17 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
       currentPath += `/${segment}`;
       const label = routeLabels[currentPath];
 
-      if (label) {
-        // Handle dynamic segments (like patient IDs)
-        if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-          // UUID - likely a patient ID
-          breadcrumbs.push({ label: 'Patient Details', href: currentPath });
-        } else if (segment.match(/^\d+$/)) {
-          // Numeric ID
-          breadcrumbs.push({ label: 'Details', href: currentPath });
-        } else {
-          breadcrumbs.push({ label, href: currentPath });
-        }
+      // Dynamic segments (UUIDs / numeric IDs) must be checked first regardless of routeLabels
+      if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        // UUID - check if this is a patient profile (previous segment was 'patients')
+        const prevSegment = pathSegments[pathSegments.indexOf(segment) - 1];
+        const label = prevSegment === 'patients' && patientName ? patientName : 'Details';
+        breadcrumbs.push({ label, href: currentPath });
+      } else if (segment.match(/^\d+$/)) {
+        // Numeric ID
+        breadcrumbs.push({ label: 'Details', href: currentPath });
+      } else if (label) {
+        breadcrumbs.push({ label, href: currentPath });
       }
     }
 

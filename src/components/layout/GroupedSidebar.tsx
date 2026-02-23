@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -158,10 +158,27 @@ export function GroupedSidebar({ userRole, testRole, className }: GroupedSidebar
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     navGroups.forEach(group => {
-      initial[group.label] = group.defaultExpanded || false;
+      const hasActiveItem = group.items.some(item =>
+        window.location.pathname === item.href ||
+        window.location.pathname.startsWith(item.href + '/')
+      );
+      initial[group.label] = group.defaultExpanded || hasActiveItem || false;
     });
     return initial;
   });
+
+  // Auto-expand the group that contains the currently active route
+  useEffect(() => {
+    navGroups.forEach(group => {
+      const hasActiveItem = group.items.some(item =>
+        location.pathname === item.href ||
+        location.pathname.startsWith(item.href + '/')
+      );
+      if (hasActiveItem) {
+        setExpandedGroups(prev => ({ ...prev, [group.label]: true }));
+      }
+    });
+  }, [location.pathname]);
 
   const toggleGroup = (groupLabel: string) => {
     setExpandedGroups(prev => ({
@@ -221,6 +238,7 @@ export function GroupedSidebar({ userRole, testRole, className }: GroupedSidebar
                     isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground"
                   )}
                   size="sm"
+                  title={item.label}
                 >
                   <item.icon className="h-4 w-4 mr-3" />
                   <span className="truncate">{item.label}</span>

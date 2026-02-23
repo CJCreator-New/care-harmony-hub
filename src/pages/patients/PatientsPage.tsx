@@ -1,5 +1,7 @@
-import { useState, useCallback, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback, memo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,12 +72,17 @@ const genderLabels: Record<string, string> = {
 };
 
 // Memoized Patient Row Component for performance optimization
-const PatientRow = memo(({ patient, onViewProfile, calculateAge }: {
+const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateAge }: {
   patient: any;
   onViewProfile: (patient: any) => void;
+  onBookAppointment: (patient: any) => void;
   calculateAge: (dob: string) => number;
 }) => (
-  <TableRow key={patient.id}>
+  <TableRow
+    key={patient.id}
+    className="cursor-pointer hover:bg-muted/50 transition-colors"
+    onClick={() => onViewProfile(patient)}
+  >
     <TableCell>
       <Badge variant="outline" className="font-mono">
         {patient.mrn}
@@ -86,7 +93,7 @@ const PatientRow = memo(({ patient, onViewProfile, calculateAge }: {
     </TableCell>
     <TableCell>
       <div className="flex items-center gap-2">
-        <span>{calculateAge(patient.date_of_birth)} yrs</span>
+        <span>{calculateAge(patient.date_of_birth)}</span>
         <Badge variant="secondary" className="text-xs">
           {genderLabels[patient.gender] || patient.gender}
         </Badge>
@@ -126,20 +133,20 @@ const PatientRow = memo(({ patient, onViewProfile, calculateAge }: {
     <TableCell>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Patient options">
+          <Button variant="ghost" size="icon" aria-label="Patient options" onClick={(e) => e.stopPropagation()}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onViewProfile(patient)}>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewProfile(patient); }}>
             <Eye className="h-4 w-4 mr-2" />
             View Profile
           </DropdownMenuItem>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onBookAppointment(patient); }}>
             <Calendar className="h-4 w-4 mr-2" />
             Book Appointment
           </DropdownMenuItem>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewProfile(patient); }}>
             <FileText className="h-4 w-4 mr-2" />
             Medical Records
           </DropdownMenuItem>
@@ -153,10 +160,19 @@ PatientRow.displayName = 'PatientRow';
 
 export default function PatientsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { canCreatePatients } = usePermissions();
   const { logActivity } = useActivityLog();
   const { toast } = useToast();
+
+  // Deep-link: /patients?id=<uuid> -> navigate directly to patient profile
+  useEffect(() => {
+    const patientId = searchParams.get('id');
+    if (patientId) {
+      navigate(`/patients/${patientId}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<string>('all');
@@ -195,9 +211,51 @@ export default function PatientsPage() {
     pageSize: 25,
   });
 
-  const calculateAge = (dob: string) => {
-    return differenceInYears(new Date(), new Date(dob));
+  const calculateAge = (dob: string | null | undefined): string => {
+    if (!dob) return '—';
+    const age = differenceInYears(new Date(), new Date(dob));
+    return isNaN(age) ? '—' : `${age} yrs`;
   };
+
+  // Hospital-wide patient gender statistics (independent of pagination)
+  const { data: genderStats } = useQuery({
+    queryKey: ['patient-gender-stats', profile?.hospital_id],
+    queryFn: async () => {
+      const hospitalId = profile?.hospital_id;
+      if (!hospitalId) return { male: 0, female: 0, today: 0 };
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const tomorrowStart = new Date(todayStart);
+      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+      const [{ count: maleCount }, { count: femaleCount }, { count: todayCount }] =
+        await Promise.all([
+          supabase
+            .from('patients')
+            .select('*', { count: 'exact', head: true })
+            .eq('hospital_id', hospitalId)
+            .eq('is_active', true)
+            .eq('gender', 'male'),
+          supabase
+            .from('patients')
+            .select('*', { count: 'exact', head: true })
+            .eq('hospital_id', hospitalId)
+            .eq('is_active', true)
+            .eq('gender', 'female'),
+          supabase
+            .from('patients')
+            .select('*', { count: 'exact', head: true })
+            .eq('hospital_id', hospitalId)
+            .gte('created_at', todayStart.toISOString())
+            .lt('created_at', tomorrowStart.toISOString()),
+        ]);
+
+      return { male: maleCount ?? 0, female: femaleCount ?? 0, today: todayCount ?? 0 };
+    },
+    enabled: !!profile?.hospital_id,
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <DashboardLayout>
@@ -234,10 +292,8 @@ export default function PatientsPage() {
               <Users className="h-6 w-6 text-blue-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {patients.filter(p => p.gender === 'male').length}
-              </p>
-              <p className="text-sm text-muted-foreground">Male (Current Page)</p>
+              <p className="text-2xl font-bold">{genderStats?.male ?? '—'}</p>
+              <p className="text-sm text-muted-foreground">Male Patients</p>
             </div>
           </div>
           <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
@@ -245,10 +301,8 @@ export default function PatientsPage() {
               <Users className="h-6 w-6 text-pink-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {patients.filter(p => p.gender === 'female').length}
-              </p>
-              <p className="text-sm text-muted-foreground">Female (Current Page)</p>
+              <p className="text-2xl font-bold">{genderStats?.female ?? '—'}</p>
+              <p className="text-sm text-muted-foreground">Female Patients</p>
             </div>
           </div>
           <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
@@ -256,14 +310,8 @@ export default function PatientsPage() {
               <Calendar className="h-6 w-6 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {patients.filter(p => {
-                  const created = new Date(p.created_at);
-                  const today = new Date();
-                  return created.toDateString() === today.toDateString();
-                }).length}
-              </p>
-              <p className="text-sm text-muted-foreground">Registered Today (Current Page)</p>
+              <p className="text-2xl font-bold">{genderStats?.today ?? '—'}</p>
+              <p className="text-sm text-muted-foreground">Registered Today</p>
             </div>
           </div>
         </div>
@@ -295,7 +343,7 @@ export default function PatientsPage() {
         </div>
 
         {/* Patients Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-x-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -344,6 +392,9 @@ export default function PatientsPage() {
                         details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
                       });
                       navigate(`/patients/${patient.id}`);
+                    }}
+                    onBookAppointment={(patient) => {
+                      navigate(`/appointments?patient_id=${patient.id}&patient_name=${encodeURIComponent(`${patient.first_name} ${patient.last_name}`)}`);
                     }}
                   />
                 ))}

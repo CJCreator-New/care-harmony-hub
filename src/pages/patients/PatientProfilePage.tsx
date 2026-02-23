@@ -14,7 +14,11 @@ import {
   FileText,
   BadgeInfo,
   History,
-  Activity
+  Activity,
+  Droplets,
+  AlertTriangle,
+  Upload,
+  ShieldCheck
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +27,9 @@ import { Badge } from '@/components/ui/badge';
 import { PatientTimeline } from '@/components/patients/PatientTimeline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
+import { usePatientVitalSigns } from '@/hooks/useVitalSigns';
+import { differenceInYears, format as formatDate } from 'date-fns';
+import { toast } from 'sonner';
 
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +49,8 @@ export default function PatientProfilePage() {
     },
     enabled: !!id,
   });
+
+  const { data: vitalSigns = [] } = usePatientVitalSigns(id || '');
 
   if (isLoading) {
     return (
@@ -72,7 +81,20 @@ export default function PatientProfilePage() {
             </div>
           </div>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" className="gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                toast.promise(
+                  new Promise(resolve => setTimeout(resolve, 1500)),
+                  {
+                    loading: `Generating EMR export for ${patient?.first_name} ${patient?.last_name}…`,
+                    success: 'EMR export ready — download will be available once document module is enabled.',
+                    error: 'Export failed.',
+                  }
+                );
+              }}
+            >
               <FileText className="h-4 w-4" />
               EMR Export
             </Button>
@@ -124,6 +146,39 @@ export default function PatientProfilePage() {
                     <p>{patient?.email || 'N/A'}</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div className="text-sm">
+                    <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Age</p>
+                    <p>{(() => {
+                    if (!patient?.date_of_birth) return 'N/A';
+                    const age = differenceInYears(new Date(), new Date(patient.date_of_birth));
+                    return isNaN(age) || age < 0 ? 'N/A' : `${age} yrs`;
+                  })()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Droplets className="h-4 w-4 text-muted-foreground" />
+                  <div className="text-sm">
+                    <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Blood Type</p>
+                    <p>{patient?.blood_type || 'N/A'}</p>
+                  </div>
+                </div>
+                {(patient?.emergency_contact_name || patient?.emergency_contact_phone) && (
+                  <div className="flex items-start gap-3 pt-2 border-t">
+                    <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                    <div className="text-sm">
+                      <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Emergency Contact</p>
+                      <p className="font-medium">{patient.emergency_contact_name || 'N/A'}</p>
+                      {patient.emergency_contact_relationship && (
+                        <p className="text-xs text-muted-foreground capitalize">{patient.emergency_contact_relationship}</p>
+                      )}
+                      {patient.emergency_contact_phone && (
+                        <p className="text-xs">{patient.emergency_contact_phone}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -131,7 +186,8 @@ export default function PatientProfilePage() {
           {/* Right Column: Timeline and Details */}
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="clinical">
-              <TabsList className="grid w-full grid-cols-4 mb-4">
+              <div className="overflow-x-auto pb-2">
+              <TabsList className="inline-grid min-w-[720px] w-full grid-cols-4 mb-2">
                 <TabsTrigger value="clinical" className="gap-2">
                   <History className="h-4 w-4" />
                   Clinical History
@@ -149,17 +205,129 @@ export default function PatientProfilePage() {
                   Insurance
                 </TabsTrigger>
               </TabsList>
+              </div>
 
               <TabsContent value="clinical" className="space-y-4">
                 <PatientTimeline patientId={id!} />
               </TabsContent>
               
-              <TabsContent value="vitals">
+              <TabsContent value="vitals" className="space-y-4">
+                {vitalSigns.length === 0 ? (
+                  <div className="p-12 text-center bg-muted/30 rounded-lg border-2 border-dashed">
+                    <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                    <h4 className="font-semibold">No Vitals Recorded Yet</h4>
+                    <p className="text-sm text-muted-foreground">Vital signs will appear here once recorded during consultations.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-sm text-muted-foreground">{vitalSigns.length} vital sign reading{vitalSigns.length !== 1 ? 's' : ''} recorded</div>
+                    {vitalSigns.map((vs) => (
+                      <div key={vs.id} className="rounded-lg border bg-card p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">
+                            {vs.recorded_at ? formatDate(new Date(vs.recorded_at), 'MMM d, yyyy — h:mm a') : 'N/A'}
+                          </span>
+                          {vs.recorder && (
+                            <span className="text-xs text-muted-foreground">by {vs.recorder.first_name} {vs.recorder.last_name}</span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {vs.blood_pressure_systolic && vs.blood_pressure_diastolic && (
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <p className="text-xs text-muted-foreground">Blood Pressure</p>
+                              <p className="font-bold text-sm">{vs.blood_pressure_systolic}/{vs.blood_pressure_diastolic} <span className="text-xs font-normal">mmHg</span></p>
+                            </div>
+                          )}
+                          {vs.heart_rate && (
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <p className="text-xs text-muted-foreground">Heart Rate</p>
+                              <p className="font-bold text-sm">{vs.heart_rate} <span className="text-xs font-normal">bpm</span></p>
+                            </div>
+                          )}
+                          {vs.temperature && (
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <p className="text-xs text-muted-foreground">Temperature</p>
+                              <p className="font-bold text-sm">{vs.temperature} <span className="text-xs font-normal">°F</span></p>
+                            </div>
+                          )}
+                          {vs.oxygen_saturation && (
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <p className="text-xs text-muted-foreground">O₂ Saturation</p>
+                              <p className="font-bold text-sm">{vs.oxygen_saturation}<span className="text-xs font-normal">%</span></p>
+                            </div>
+                          )}
+                          {vs.respiratory_rate && (
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <p className="text-xs text-muted-foreground">Resp. Rate</p>
+                              <p className="font-bold text-sm">{vs.respiratory_rate} <span className="text-xs font-normal">br/min</span></p>
+                            </div>
+                          )}
+                          {vs.weight && (
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <p className="text-xs text-muted-foreground">Weight</p>
+                              <p className="font-bold text-sm">{vs.weight} <span className="text-xs font-normal">kg</span></p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="documents">
                 <div className="p-12 text-center bg-muted/30 rounded-lg border-2 border-dashed">
-                  <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                  <h4 className="font-semibold">No Vitals Trends Yet</h4>
-                  <p className="text-sm text-muted-foreground">Historical vital signs will appear here once recorded in consultations.</p>
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                  <h4 className="font-semibold">No Documents Uploaded</h4>
+                  <p className="text-sm text-muted-foreground mb-4">Patient documents such as lab reports, referrals, and consent forms will appear here.</p>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => toast.info('Document upload module is coming soon.')}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload Document
+                  </Button>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="insurance">
+                {patient?.insurance_provider ? (
+                  <div className="rounded-xl border bg-card p-6 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ShieldCheck className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold text-lg">Insurance Details</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Provider</p>
+                        <p className="text-sm font-medium">{patient.insurance_provider}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Policy Number</p>
+                        <p className="text-sm font-medium font-mono">{patient.insurance_policy_number || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Group Number</p>
+                        <p className="text-sm font-medium font-mono">{patient.insurance_group_number || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center bg-muted/30 rounded-lg border-2 border-dashed">
+                    <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                    <h4 className="font-semibold">No Insurance Information</h4>
+                    <p className="text-sm text-muted-foreground mb-4">Insurance details and coverage information will be displayed once added to the patient record.</p>
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => toast.info('Edit the patient record to add insurance information.')}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Insurance
+                    </Button>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>

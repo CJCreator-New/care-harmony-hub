@@ -14,7 +14,6 @@ import { WorkflowOrchestrationPanel } from '@/components/admin/WorkflowOrchestra
 import { WorkflowMetricsDashboard } from '@/components/workflow/WorkflowMetricsDashboard';
 import { StaffPerformanceMetrics } from '@/components/analytics/StaffPerformanceMetrics';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
@@ -45,15 +44,12 @@ export function AdminDashboardComponent() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {greeting}, {profile?.first_name || 'Admin'}!
+              {greeting}, {profile?.first_name?.trim() || 'Admin'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Hospital overview and management dashboard.
             </p>
           </div>
-          <Badge variant="admin" className="w-fit text-sm py-1.5 px-4">
-            Administrator
-          </Badge>
         </div>
       </div>
 

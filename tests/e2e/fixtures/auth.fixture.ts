@@ -22,7 +22,7 @@ function getStorageStatePath(role: UserRole): string {
 async function performLogin(page: Page, user: TestUser): Promise<void> {
   const config = getEnvironmentConfig();
   
-  await page.goto(`${config.baseURL}/login`);
+  await page.goto(`${config.baseURL}/hospital/login`);
   await page.waitForLoadState('networkidle');
 
   // Fill login form

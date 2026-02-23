@@ -41,6 +41,12 @@ export function PharmacistDashboard() {
     return 'Good evening';
   };
 
+  const getDisplayName = () => {
+    const name = profile?.first_name?.trim();
+    if (!name) return 'Pharmacist';
+    return name.replace(/'s$/i, '');
+  };
+
   const getPriorityColor = (priority: string | null) => {
     switch (priority) {
       case 'urgent':
@@ -64,13 +70,13 @@ export function PharmacistDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, {profile?.first_name || 'Pharmacist'}!
+              {getGreeting()}, {getDisplayName()}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Prescriptions and medication management.
             </p>
           </div>
-          <Badge variant="pharmacy" className="w-fit text-sm py-1.5 px-4">
+          <Badge variant="pharmacy" className="w-fit text-sm py-1.5 px-4 self-start md:self-auto">
             Pharmacist
           </Badge>
         </div>

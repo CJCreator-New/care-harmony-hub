@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Search, UserCheck, AlertCircle, DollarSign, UserPlus, AlertTriangle } from 'lucide-react';
+import { Search, UserCheck, AlertTriangle, UserPlus } from 'lucide-react';
 
 export function EnhancedCheckIn() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,8 +30,7 @@ export function EnhancedCheckIn() {
         .from('patients')
         .select(`
           id, mrn, first_name, last_name, phone, date_of_birth,
-          insurance_provider, insurance_policy_number, insurance_status,
-          outstanding_balance
+          insurance_provider, insurance_policy_number
         `)
         .eq('hospital_id', hospital.id)
         .or(`mrn.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
@@ -159,27 +158,15 @@ export function EnhancedCheckIn() {
                     <div className="font-medium">
                       {patient.first_name} {patient.last_name}
                     </div>
-                    {patient.outstanding_balance > 0 && (
-                      <Badge variant="destructive" className="text-xs">
-                        <DollarSign className="h-3 w-3 mr-1" />
-                        ${patient.outstanding_balance}
-                      </Badge>
-                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     MRN: {patient.mrn} | Phone: {patient.phone}
                   </div>
                   {patient.insurance_provider && (
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={patient.insurance_status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                      <Badge variant="secondary" className="text-xs">
                         {patient.insurance_provider}
                       </Badge>
-                      {patient.insurance_status !== 'active' && (
-                        <span className="text-xs text-amber-600 flex items-center">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Verify Insurance
-                        </span>
-                      )}
                     </div>
                   )}
                 </div>

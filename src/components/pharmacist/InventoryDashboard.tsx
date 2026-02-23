@@ -41,7 +41,8 @@ export function InventoryDashboard() {
 
   const filteredMeds = medications?.filter(med => 
     med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    med.code?.toLowerCase().includes(searchTerm.toLowerCase())
+    med.generic_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    med.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -162,24 +163,24 @@ export function InventoryDashboard() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{med.name}</span>
-                          <span className="text-xs text-muted-foreground">{med.code}</span>
+                          <span className="text-xs text-muted-foreground">{med.generic_name || '-'}</span>
                         </div>
                       </TableCell>
                       <TableCell>{med.category}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span>{med.stock_quantity} {med.unit}</span>
+                          <span>{med.current_stock} {med.unit}</span>
                           <div className="w-24 h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
                             <div 
-                              className={`h-full ${med.stock_quantity < 20 ? 'bg-red-500' : 'bg-green-500'}`}
-                              style={{ width: `${Math.min(100, (med.stock_quantity / (med.reorder_level || 100)) * 50)}%` }}
+                              className={`h-full ${med.current_stock <= med.minimum_stock ? 'bg-red-500' : 'bg-green-500'}`}
+                              style={{ width: `${Math.min(100, ((med.current_stock || 0) / Math.max(1, (med.minimum_stock || 1) * 2)) * 100)}%` }}
                             />
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>${med.unit_price?.toFixed(2)}</TableCell>
                       <TableCell>
-                        {med.stock_quantity < (med.reorder_level || 10) ? (
+                        {med.current_stock <= med.minimum_stock ? (
                           <Badge variant="destructive">Low Stock</Badge>
                         ) : (
                           <Badge variant="success">In Stock</Badge>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,31 +99,43 @@ export default function BillingPage() {
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-destructive/50 ${statusFilter === 'pending' ? 'ring-2 ring-destructive' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
               <AlertCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.pending || 0}</div>
+              <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-yellow-400/50 ${statusFilter === 'partial' ? 'ring-2 ring-yellow-400' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'partial' ? 'all' : 'partial')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Partial Payment</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.partial || 0}</div>
+              <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-green-500/50 ${statusFilter === 'paid' ? 'ring-2 ring-green-500' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'paid' ? 'all' : 'paid')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Paid</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.paid || 0}</div>
+              <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
           <Card>
@@ -133,7 +145,7 @@ export default function BillingPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${(stats?.totalOutstanding || 0).toFixed(2)}
+                {stats?.totalOutstanding ? `$${stats.totalOutstanding.toFixed(2)}` : '$0.00'}
               </div>
             </CardContent>
           </Card>
@@ -280,6 +292,13 @@ function PaymentModal({
   const recordPayment = useRecordPayment();
 
   const balance = invoice ? invoice.total - invoice.paid_amount : 0;
+
+  // Pre-fill the amount with the outstanding balance when the dialog opens
+  useEffect(() => {
+    if (open && invoice) {
+      setAmount(balance.toFixed(2));
+    }
+  }, [open, invoice?.id]);
 
   const handleSubmit = () => {
     if (!invoice) return;

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { clearDevTestRole } from '@/utils/devRoleSwitch';
 
 interface FormErrors {
   [key: string]: string;
@@ -106,6 +107,25 @@ export default function SignupPage() {
   const { signup, createHospitalAndProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Ensure signup starts from a clean role state and does not inherit
+    // any developer role override from previous sessions.
+    const hadDevOverride =
+      import.meta.env.DEV &&
+      typeof window !== 'undefined' &&
+      !!window.localStorage.getItem('testRole');
+    clearDevTestRole();
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('preferredRole');
+    }
+    if (hadDevOverride) {
+      toast({
+        title: 'Dev role override cleared',
+        description: 'Signup flow is using authenticated roles only.',
+      });
+    }
+  }, [toast]);
 
   const validateStep1 = () => {
     const newErrors: FormErrors = {};
@@ -206,6 +226,7 @@ export default function SignupPage() {
         title: 'Registration Successful!',
         description: 'Welcome to AROCORD-HIMS. Now let\'s set up your team...',
       });
+      clearDevTestRole();
       navigate('/hospital/role-setup');
     } catch (error) {
       toast({

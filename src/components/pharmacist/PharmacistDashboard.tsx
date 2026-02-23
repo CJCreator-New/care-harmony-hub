@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePrescriptionStats } from '@/hooks/usePrescriptions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PrescriptionQueue } from './PrescriptionQueue';
@@ -20,10 +21,21 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { InventoryDashboard } from './InventoryDashboard';
+import { useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export default function PharmacistDashboard() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('queue');
   const { data: stats, isLoading: statsLoading } = usePrescriptionStats();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'refills' || tab === 'queue' || tab === 'tasks' || tab === 'clinical' || tab === 'inventory' || tab === 'analytics') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const metrics = [
     {

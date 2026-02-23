@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Billing & Payment Processing', () => {
   test.beforeEach(async ({ page }) => {
     // Login as receptionist (handles billing)
-    await page.goto('/login');
+    await page.goto('/hospital/login');
     await page.getByLabel('Email').fill('receptionist@testgeneral.com');
     await page.getByLabel('Password').fill('TestPass123!');
     await page.getByRole('button', { name: /sign in|login/i }).click();

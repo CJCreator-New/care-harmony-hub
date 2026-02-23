@@ -45,6 +45,7 @@ import { APPOINTMENT_COLUMNS } from "@/lib/queryColumns";
 import { ScheduleAppointmentModal } from "@/components/appointments/ScheduleAppointmentModal";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   scheduled: { label: "Scheduled", color: "bg-blue-100 text-blue-800", icon: <Clock className="h-3 w-3" /> },
@@ -272,9 +273,16 @@ export default function AppointmentsPage() {
                     {isLoading || isSearching ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
-                          <div className="flex justify-center items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>{isSearching ? "Searching..." : "Loading appointments..."}</span>
+                          <div className="space-y-3">
+                            <div className="flex justify-center items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>{isSearching ? "Searching..." : "Loading appointments..."}</span>
+                            </div>
+                            <div className="space-y-2">
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>

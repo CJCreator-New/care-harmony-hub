@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ROLE_PERMISSIONS, hasPermission, hasAnyPermission, Permission, UserRole } from '@/types/rbac';
+import { ROLE_PERMISSIONS, hasPermission, hasAnyPermission, Permission, UserRole, PermissionCategory } from '@/types/rbac';
 
 export function usePermissions() {
   const { primaryRole, roles } = useAuth();
@@ -43,9 +43,17 @@ export function usePermissions() {
     canInAnyRole,
     permissions: currentPermissions,
     allPermissions,
+    // Convenience helpers used across components
+    canCreatePatients: can(PermissionCategory.PATIENT_WRITE),
+    canViewPatients: can(PermissionCategory.PATIENT_READ),
+    canManageStaff: can(PermissionCategory.STAFF_MANAGE),
+    canViewReports: can(PermissionCategory.REPORTS_READ),
+    canManageQueue: can(PermissionCategory.QUEUE_WRITE),
+    canRecordVitals: can(PermissionCategory.VITALS_WRITE),
   };
 }
 
 export function hasAnyRole(userRoles: UserRole[], requiredRoles: UserRole[]): boolean {
+  if (!requiredRoles || requiredRoles.length === 0) return false;
   return requiredRoles.some(role => userRoles.includes(role));
 }

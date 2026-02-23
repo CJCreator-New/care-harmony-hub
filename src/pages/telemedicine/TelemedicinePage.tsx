@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -24,14 +26,18 @@ import {
 } from 'lucide-react';
 import { VideoCallModal } from '@/components/telemedicine/VideoCallModal';
 import { useAppointments } from '@/hooks/useAppointments';
+import { usePatients } from '@/hooks/usePatients';
 import { format, parseISO, isToday } from 'date-fns';
 
 export default function TelemedicinePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false);
+  const [pickerPatientId, setPickerPatientId] = useState<string>('');
 
   const { data: appointments, isLoading } = useAppointments();
+  const { data: patients = [] } = usePatients();
 
   // Filter for telemedicine appointments
   const telemedicineAppointments = appointments?.filter(
@@ -53,6 +59,19 @@ export default function TelemedicinePage() {
 
   const handleStartCall = (appointment: any) => {
     setSelectedPatient(appointment.patient);
+    setIsVideoModalOpen(true);
+  };
+
+  const handleStartNewCall = () => {
+    setPickerPatientId('');
+    setIsPatientPickerOpen(true);
+  };
+
+  const handleConfirmPatientPick = () => {
+    const patient = patients.find((p: any) => p.id === pickerPatientId);
+    if (!patient) return;
+    setSelectedPatient(patient);
+    setIsPatientPickerOpen(false);
     setIsVideoModalOpen(true);
   };
 
@@ -87,7 +106,7 @@ export default function TelemedicinePage() {
               Conduct virtual consultations with patients
             </p>
           </div>
-          <Button onClick={() => setIsVideoModalOpen(true)}>
+          <Button onClick={handleStartNewCall}>
             <Plus className="mr-2 h-4 w-4" />
             Start New Call
           </Button>
@@ -190,6 +209,10 @@ export default function TelemedicinePage() {
                       <p className="text-sm text-muted-foreground mt-1">
                         Schedule a telemedicine appointment to get started
                       </p>
+                      <Button className="mt-4" onClick={handleStartNewCall}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Schedule Test Session
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -198,10 +221,12 @@ export default function TelemedicinePage() {
                       <TableCell>
                         <div>
                           <p className="font-medium">
-                            {appointment.patient?.first_name} {appointment.patient?.last_name}
+                            {appointment.patient
+                              ? `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim() || 'Unknown Patient'
+                              : 'Unknown Patient'}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {appointment.patient?.mrn}
+                            {appointment.patient?.mrn || '—'}
                           </p>
                         </div>
                       </TableCell>
@@ -245,6 +270,38 @@ export default function TelemedicinePage() {
         onOpenChange={setIsVideoModalOpen}
         patient={selectedPatient}
       />
+
+      {/* Patient picker for ad-hoc calls */}
+      <Dialog open={isPatientPickerOpen} onOpenChange={setIsPatientPickerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select a Patient</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={pickerPatientId} onValueChange={setPickerPatientId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Search and select a patient..." />
+              </SelectTrigger>
+              <SelectContent>
+                {patients.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.first_name} {p.last_name} — {p.mrn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPatientPickerOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={!pickerPatientId} onClick={handleConfirmPatientPick}>
+              <Video className="h-4 w-4 mr-2" />
+              Start Call
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

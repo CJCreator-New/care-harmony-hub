@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { usePendingLabOrders } from '@/hooks/usePharmacyLabStats';
 
 interface AutomationJob {
   id: string;
@@ -34,7 +36,9 @@ interface AutomationJob {
 }
 
 export function LabAutomationPanel() {
-  const { hospital } = useAuth();
+  const { hospital, user } = useAuth();
+  const navigate = useNavigate();
+  const { data: pendingOrders = [] } = usePendingLabOrders();
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
   const [activeSensors, setActiveSensors] = useState({
     temperature: 4.2,
@@ -43,13 +47,22 @@ export function LabAutomationPanel() {
   });
 
   useEffect(() => {
-    // Generate some mock initial jobs
-    setJobs([
-      { id: '1', test_name: 'CBC w/ Differential', patient_name: 'John Doe', progress: 45, status: 'processing' },
-      { id: '2', test_name: 'Comprehensive Metabolic Panel', patient_name: 'Jane Smith', progress: 89, status: 'verifying' },
-      { id: '3', test_name: 'Hemoglobin A1c', patient_name: 'Robert Brown', progress: 12, status: 'initializing' },
-      { id: '4', test_name: 'Troponin I', patient_name: 'Alice Wilson', progress: 67, status: 'flagged', is_critical: true },
-    ]);
+    const mappedJobs = pendingOrders.slice(0, 4).map((order: any) => ({
+      id: order.id,
+      test_name: order.test_name || 'Unknown Test',
+      patient_name: `${order.patient?.first_name || ''} ${order.patient?.last_name || ''}`.trim() || 'Unknown Patient',
+      progress:
+        order.status === 'pending' ? 20 :
+        order.status === 'collected' ? 45 :
+        order.status === 'in_progress' ? 75 : 100,
+      status:
+        order.status === 'pending' ? 'initializing' :
+        order.status === 'collected' ? 'processing' :
+        order.status === 'in_progress' ? 'verifying' :
+        'completed',
+      is_critical: Boolean(order.is_critical),
+    })) as AutomationJob[];
+    setJobs(mappedJobs);
 
     // Simulate progress updates
     const interval = setInterval(() => {
@@ -85,15 +98,25 @@ export function LabAutomationPanel() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [pendingOrders]);
 
-  const handleEscalateCritical = (job: AutomationJob) => {
+  const handleEscalateCritical = async (job: AutomationJob) => {
     toast.error(`CRITICAL ALERT ESCALATED: ${job.test_name} for ${job.patient_name}`, {
       description: 'Medical Director and Primary Care Physician notified.',
       duration: 8000
     });
-    
-    // In a real app, this would trigger a system-wide critical notification
+
+    if (user?.id && hospital?.id) {
+      await supabase.from('notifications').insert({
+        hospital_id: hospital.id,
+        recipient_id: user.id,
+        type: 'emergency',
+        title: `Critical Lab Alert Escalated: ${job.test_name}`,
+        message: `${job.patient_name} requires immediate review.`,
+        priority: 'urgent',
+        is_read: false,
+      });
+    }
   };
 
   return (
@@ -202,7 +225,12 @@ export function LabAutomationPanel() {
                 
                 {job.status === 'completed' && (
                   <div className="mt-3 flex justify-end">
-                    <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold text-primary">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-[10px] font-bold text-primary"
+                      onClick={() => navigate('/laboratory?tab=results')}
+                    >
                       Review Results
                       <ArrowUpRight className="h-3 w-3 ml-1" />
                     </Button>

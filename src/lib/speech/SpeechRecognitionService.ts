@@ -1,4 +1,5 @@
 import { AIDateSanitizer, AIEncryptionService, AISecurityAuditor } from '../ai/security';
+import { MedicalTerminologyServiceImpl } from '../medical/MedicalTerminologyService';
 /**
  * Speech Recognition Provider Configuration
  */
@@ -50,8 +51,8 @@ export class SpeechRecognitionManager implements SpeechRecognitionService {
   private sanitizer: AIDateSanitizer;
   private encryptor: AIEncryptionService;
   private auditor: AISecurityAuditor;
-  private medicalTerminology: any; // We'll initialize this differently
-  private 
+  private medicalTerminology: MedicalTerminologyServiceImpl;
+
   constructor() {
     this.sanitizer = new AIDateSanitizer();
     this.encryptor = new AIEncryptionService();

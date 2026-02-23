@@ -28,6 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export interface Notification {
   id: string;
@@ -43,6 +44,7 @@ export interface Notification {
 
 export function NotificationsSystem() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -257,7 +259,7 @@ export function NotificationsSystem() {
         </ScrollArea>
         <DropdownMenuSeparator className="m-0" />
         <div className="p-2">
-          <Button variant="ghost" className="w-full text-xs font-bold text-primary hover:bg-primary/5 h-9">
+          <Button variant="ghost" className="w-full text-xs font-bold text-primary hover:bg-primary/5 h-9" onClick={() => navigate('/notifications')}>
             View Patient Alert History
           </Button>
         </div>

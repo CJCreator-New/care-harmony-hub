@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,7 @@ import {
   Upload,
   Eye,
   Loader2,
+  Plus,
 } from 'lucide-react';
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
 import { usePatient } from '@/hooks/usePatients';
@@ -52,6 +54,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 import { Pagination } from '@/components/ui/pagination';
 import { AIResultInterpretation } from '@/components/lab/AIResultInterpretation';
+import { CreateLabOrderModal } from '@/components/lab/CreateLabOrderModal';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'warning' | 'info' | 'success' | 'destructive' }> = {
   pending: { label: 'Pending', variant: 'warning' },
@@ -74,12 +77,25 @@ function PatientName({ patientId }: { patientId: string }) {
 }
 
 export default function LaboratoryPage() {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const getInitialStatus = () => {
+    if (initialTab === 'collected') return 'sample_collected';
+    if (initialTab === 'results') return 'in_progress';
+    return 'all';
+  };
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<LabOrder | null>(null);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [resultNotes, setResultNotes] = useState('');
   const [isCriticalValue, setIsCriticalValue] = useState(false);
+  const [newLabOrderOpen, setNewLabOrderOpen] = useState(false);
+
+  // Sync tab param to status filter
+  useEffect(() => {
+    setStatusFilter(getInitialStatus());
+  }, [initialTab]);
 
   const { user } = useAuth();
 
@@ -200,6 +216,10 @@ export default function LaboratoryPage() {
             <h1 className="text-2xl md:text-3xl font-bold">Laboratory</h1>
             <p className="text-muted-foreground">Manage lab orders and test results</p>
           </div>
+          <Button onClick={() => setNewLabOrderOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Lab Order
+          </Button>
         </div>
 
         {/* Stats */}
@@ -290,6 +310,14 @@ export default function LaboratoryPage() {
                 <TestTube2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium mb-1">No lab orders found</p>
                 <p className="text-sm">{searchTerm ? "No orders match your search" : "Orders from consultations will appear here"}</p>
+                {!searchTerm && (
+                  <Button className="mt-4" asChild>
+                    <Link to="/consultations">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Lab Order
+                    </Link>
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -451,6 +479,8 @@ export default function LaboratoryPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CreateLabOrderModal open={newLabOrderOpen} onOpenChange={setNewLabOrderOpen} />
     </DashboardLayout>
   );
 }

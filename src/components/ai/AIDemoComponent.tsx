@@ -24,6 +24,7 @@ interface DemoPatientData {
 }
 
 export default function AIDemoComponent() {
+  const [hasAttemptedOperation, setHasAttemptedOperation] = useState(false);
   const [patientData, setPatientData] = useState<DemoPatientData>({
     age: 45,
     gender: 'Female',
@@ -57,6 +58,7 @@ export default function AIDemoComponent() {
   const { auditHistory } = useAIAudit();
 
   const handleAIDiagnosis = async () => {
+    setHasAttemptedOperation(true);
     try {
       await diagnosePatient(patientData, customContext);
     } catch (err) {
@@ -65,6 +67,7 @@ export default function AIDemoComponent() {
   };
 
   const handleTreatmentPlan = async () => {
+    setHasAttemptedOperation(true);
     try {
       await createTreatmentPlan(patientData, customContext);
     } catch (err) {
@@ -73,6 +76,7 @@ export default function AIDemoComponent() {
   };
 
   const handleMedicationReview = async () => {
+    setHasAttemptedOperation(true);
     try {
       await reviewMedications(patientData, patientData.currentMedications);
     } catch (err) {
@@ -81,6 +85,7 @@ export default function AIDemoComponent() {
   };
 
   const handleClinicalSummary = async () => {
+    setHasAttemptedOperation(true);
     try {
       await summarizeClinicalData(patientData);
     } catch (err) {
@@ -133,7 +138,7 @@ export default function AIDemoComponent() {
       </div>
 
       {/* Compliance Warnings */}
-      {complianceStatus?.issues && complianceStatus.issues.length > 0 && (
+      {hasAttemptedOperation && complianceStatus?.issues && complianceStatus.issues.length > 0 && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Compliance Issues</AlertTitle>
@@ -300,12 +305,17 @@ export default function AIDemoComponent() {
             <div className="mt-4">
               <p className="text-sm font-medium mb-2">Available AI Providers:</p>
               <div className="flex flex-wrap gap-2">
-                {providers.map((provider) => (
+                {(providers.length > 0 ? providers : [{ name: 'Demo Provider', model: 'Simulated' }]).map((provider) => (
                   <Badge key={provider.name} variant="outline">
                     {provider.name} ({provider.model})
                   </Badge>
                 ))}
               </div>
+              {providers.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  No live providers configured for this hospital. Demo mode will use simulated responses.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

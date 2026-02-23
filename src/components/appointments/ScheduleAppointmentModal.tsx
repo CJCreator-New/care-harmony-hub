@@ -44,7 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { usePatients } from "@/hooks/usePatients";
+import { useSearchPatients, usePatients } from "@/hooks/usePatients";
 import { useCreateAppointment } from "@/hooks/useAppointments";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,15 +92,25 @@ export function ScheduleAppointmentModal({
   selectedDate,
 }: ScheduleAppointmentModalProps) {
   const { hospital } = useAuth();
-  const { data: patientsData, isLoading: patientsLoading } = usePatients();
-  const patientsList = patientsData?.patients || [];
-  const createAppointment = useCreateAppointment();
+  // Declare state BEFORE hooks that depend on it to avoid temporal dead zone
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<{
     id: string;
     name: string;
     mrn: string;
   } | null>(null);
+
+  // Load all active patients for initial display
+  const { data: allPatientsData, isLoading: allPatientsLoading } = usePatients({ limit: 100 });
+  // Search patients when user types
+  const { data: searchResults, isLoading: searchLoading } = useSearchPatients(patientSearch);
+
+  // Use search results when searching (≥2 chars), otherwise show all patients
+  const filteredPatients = patientSearch.length >= 2 ? (searchResults || []) : (allPatientsData?.patients || []);
+  // Also show loading when hospital context isn't ready yet (prevents false "no patients" flash)
+  const patientsLoading = !hospital?.id || (patientSearch.length >= 2 ? searchLoading : allPatientsLoading);
+
+  const createAppointment = useCreateAppointment();
 
   // Fetch doctors
   const { data: doctors } = useQuery({
@@ -134,14 +144,7 @@ export function ScheduleAppointmentModal({
     },
   });
 
-  const filteredPatients = patientsList.filter(
-    (patient: { first_name: string; last_name: string; mrn: string }) =>
-      patient.first_name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-      patient.last_name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-      patient.mrn.toLowerCase().includes(patientSearch.toLowerCase())
-  );
-
-  const handlePatientSelect = (patient: (typeof patientsList)[number]) => {
+  const handlePatientSelect = (patient: (typeof filteredPatients)[number]) => {
     setSelectedPatient({
       id: patient.id,
       name: `${patient.first_name} ${patient.last_name}`,
@@ -247,7 +250,7 @@ export function ScheduleAppointmentModal({
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              filteredPatients.slice(0, 10).map((patient: (typeof patientsList)[number]) => (
+                              filteredPatients.slice(0, 10).map((patient: (typeof filteredPatients)[number]) => (
                                 <TableRow
                                   key={patient.id}
                                   className="cursor-pointer hover:bg-muted/50"

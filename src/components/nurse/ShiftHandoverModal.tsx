@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,19 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Clock,
-  AlertTriangle,
-  CheckCircle2,
-  Plus,
-  X,
-  Loader2,
-  ClipboardList,
-  User,
-} from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle2, Plus, X, Loader2, ClipboardList } from 'lucide-react';
 import { useCreateHandover, usePendingHandovers, useAcknowledgeHandover } from '@/hooks/useNurseWorkflow';
 import { useActiveQueue } from '@/hooks/useQueue';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface ShiftHandoverModalProps {
   open: boolean;
@@ -38,10 +31,10 @@ interface CriticalPatient {
 interface PendingTask {
   task: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
-  patient_id?: string;
 }
 
 export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverModalProps) {
+  const { profile, hospital } = useAuth();
   const [shiftType, setShiftType] = useState<string>('day');
   const [criticalPatients, setCriticalPatients] = useState<CriticalPatient[]>([]);
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
@@ -52,7 +45,7 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
 
   const { data: queue = [] } = useActiveQueue();
-  const { data: pendingHandovers = [] } = usePendingHandovers();
+  const { handovers: pendingHandovers = [] } = usePendingHandovers();
   const createHandover = useCreateHandover();
   const acknowledgeHandover = useAcknowledgeHandover();
 
@@ -64,76 +57,89 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
       setNewPatientName('');
       setNewPatientNotes('');
       setNewTask('');
-    } else if (open && mode === 'create' && queue.length > 0) {
-      // Auto-populate critical patients from queue
+      return;
+    }
+
+    if (mode === 'create' && queue.length > 0) {
       const criticalFromQueue = queue
-        .filter(entry => entry.priority === 'emergency' || entry.priority === 'urgent')
-        .map(entry => ({
+        .filter((entry) => entry.priority === 'emergency' || entry.priority === 'urgent')
+        .map((entry) => ({
           patient_id: entry.patient?.id || '',
-          patient_name: `${entry.patient?.first_name} ${entry.patient?.last_name}`,
-          notes: `Priority: ${entry.priority}, Status: ${entry.status}, Reason: ${entry.appointment?.reason_for_visit || 'Not specified'}`
+          patient_name: `${entry.patient?.first_name || ''} ${entry.patient?.last_name || ''}`.trim() || 'Unknown Patient',
+          notes: `Priority: ${entry.priority}, Status: ${entry.status}`,
         }));
 
       setCriticalPatients(criticalFromQueue);
 
-      // Auto-generate handover notes
-      const queueSummary = `Current queue: ${queue.length} patients. ${queue.filter(p => p.status === 'waiting').length} waiting, ${queue.filter(p => p.status === 'called').length} called, ${queue.filter(p => p.status === 'in_prep').length} in prep.`;
-      const criticalSummary = criticalFromQueue.length > 0 ?
-        `Critical patients requiring immediate attention: ${criticalFromQueue.map(p => p.patient_name).join(', ')}.` : '';
-
-      setNotes(`${queueSummary}${criticalSummary ? ' ' + criticalSummary : ''}`);
+      const queueSummary = `Current queue: ${queue.length} patients. ${queue.filter((p) => p.status === 'waiting').length} waiting, ${queue.filter((p) => p.status === 'called').length} called, ${queue.filter((p) => p.status === 'in_service').length} in service.`;
+      const criticalSummary = criticalFromQueue.length > 0
+        ? `Critical patients: ${criticalFromQueue.map((p) => p.patient_name).join(', ')}.`
+        : '';
+      setNotes(`${queueSummary}${criticalSummary ? ` ${criticalSummary}` : ''}`);
     }
   }, [open, mode, queue]);
 
   const handleAddCriticalPatient = () => {
-    if (!newPatientName.trim()) return;
-    setCriticalPatients([
-      ...criticalPatients,
-      { patient_id: '', patient_name: newPatientName, notes: newPatientNotes },
-    ]);
+    if (!newPatientName.trim()) {
+      toast.error('Patient name is required');
+      return;
+    }
+    setCriticalPatients([...criticalPatients, { patient_id: '', patient_name: newPatientName.trim(), notes: newPatientNotes.trim() }]);
     setNewPatientName('');
     setNewPatientNotes('');
   };
 
-  const handleRemoveCriticalPatient = (index: number) => {
-    setCriticalPatients(criticalPatients.filter((_, i) => i !== index));
-  };
-
   const handleAddTask = () => {
-    if (!newTask.trim()) return;
-    setPendingTasks([...pendingTasks, { task: newTask, priority: newTaskPriority }]);
+    if (!newTask.trim()) {
+      toast.error('Task description is required');
+      return;
+    }
+    setPendingTasks([...pendingTasks, { task: newTask.trim(), priority: newTaskPriority }]);
     setNewTask('');
     setNewTaskPriority('normal');
   };
 
-  const handleRemoveTask = (index: number) => {
-    setPendingTasks(pendingTasks.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async () => {
-    await createHandover.mutateAsync({
-      shift_type: shiftType,
-      critical_patients: criticalPatients,
-      pending_tasks: pendingTasks,
-      notes: notes || undefined,
-    });
-    onOpenChange(false);
+    if (!profile?.id || !hospital?.id) {
+      toast.error('Missing user or hospital context');
+      return;
+    }
+
+    if (!notes.trim() && criticalPatients.length === 0 && pendingTasks.length === 0) {
+      toast.error('Add notes, critical patients, or pending tasks before submitting');
+      return;
+    }
+
+    const handoverNotes = [
+      notes.trim(),
+      criticalPatients.length ? `Critical: ${criticalPatients.map((cp) => `${cp.patient_name}${cp.notes ? ` (${cp.notes})` : ''}`).join('; ')}` : '',
+      pendingTasks.length ? `Pending tasks: ${pendingTasks.map((task) => `${task.task} [${task.priority}]`).join('; ')}` : '',
+      `Shift: ${shiftType}`,
+    ].filter(Boolean).join('\n\n');
+
+    try {
+      await createHandover.mutateAsync({
+        outgoing_nurse_id: profile.id,
+        shift_date: new Date().toISOString().slice(0, 10),
+        shift_type: shiftType,
+        notes: handoverNotes,
+        pending_tasks: pendingTasks.map((task) => task.task),
+        status: 'pending',
+        hospital_id: hospital.id,
+      } as any);
+      toast.success('Handover submitted');
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error?.message ? `Failed to submit handover: ${error.message}` : 'Failed to submit handover');
+    }
   };
 
   const handleAcknowledge = async (handoverId: string) => {
-    await acknowledgeHandover.mutateAsync(handoverId);
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return 'destructive';
-      case 'high':
-        return 'warning';
-      case 'normal':
-        return 'secondary';
-      default:
-        return 'outline';
+    try {
+      await acknowledgeHandover.mutateAsync(handoverId);
+      toast.success('Handover acknowledged');
+    } catch (error: any) {
+      toast.error(error?.message ? `Failed to acknowledge handover: ${error.message}` : 'Failed to acknowledge handover');
     }
   };
 
@@ -160,47 +166,22 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                   <Card key={handover.id}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">
-                          {handover.shift_type.charAt(0).toUpperCase() + handover.shift_type.slice(1)} Shift
-                        </CardTitle>
-                        <Badge variant="warning">Pending</Badge>
+                        <CardTitle className="text-base">Shift Handover</CardTitle>
+                        <Badge variant="secondary">Pending</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        From: {handover.outgoing_nurse?.first_name} {handover.outgoing_nurse?.last_name} •{' '}
-                        {format(new Date(handover.handover_time), 'MMM d, h:mm a')}
+                        Date: {handover.shift_date ? format(new Date(handover.shift_date), 'MMM d, yyyy') : 'N/A'}
                       </p>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      {(handover.critical_patients as CriticalPatient[])?.length > 0 && (
+                    <CardContent className="space-y-3">
+                      {(handover as any).pending_tasks?.length > 0 && (
                         <div>
-                          <p className="text-sm font-medium flex items-center gap-1 mb-2">
-                            <AlertTriangle className="h-4 w-4 text-destructive" />
-                            Critical Patients
-                          </p>
-                          <div className="space-y-2">
-                            {(handover.critical_patients as CriticalPatient[]).map((cp) => (
-                              <div
-                                key={`${cp.patient_name}-${cp.notes}`}
-                                className="p-2 bg-destructive/10 rounded text-sm"
-                              >
-                                <p className="font-medium">{cp.patient_name}</p>
-                                <p className="text-muted-foreground">{cp.notes}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {(handover.pending_tasks as PendingTask[])?.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium mb-2">Pending Tasks</p>
+                          <p className="text-sm font-medium mb-2">Priority Items</p>
                           <div className="space-y-1">
-                            {(handover.pending_tasks as PendingTask[]).map((task) => (
-                              <div key={`${task.task}-${task.priority}`} className="flex items-center gap-2">
-                                <Badge variant={getPriorityColor(task.priority)} className="text-xs">
-                                  {task.priority}
-                                </Badge>
-                                <span className="text-sm">{task.task}</span>
+                            {(handover as any).pending_tasks.map((task: string) => (
+                              <div key={task} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="text-xs">Pending</Badge>
+                                <span className="text-sm">{task}</span>
                               </div>
                             ))}
                           </div>
@@ -210,15 +191,11 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                       {handover.notes && (
                         <div>
                           <p className="text-sm font-medium mb-1">Notes</p>
-                          <p className="text-sm text-muted-foreground">{handover.notes}</p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{handover.notes}</p>
                         </div>
                       )}
 
-                      <Button
-                        className="w-full"
-                        onClick={() => handleAcknowledge(handover.id)}
-                        disabled={acknowledgeHandover.isPending}
-                      >
+                      <Button className="w-full" onClick={() => handleAcknowledge(handover.id)} disabled={acknowledgeHandover.isPending}>
                         {acknowledgeHandover.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                         Acknowledge Handover
                       </Button>
@@ -245,7 +222,6 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
 
         <ScrollArea className="max-h-[65vh] pr-4">
           <div className="space-y-6">
-            {/* Shift Type */}
             <div className="space-y-2">
               <Label>Shift Type</Label>
               <Select value={shiftType} onValueChange={setShiftType}>
@@ -262,24 +238,20 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
 
             <Separator />
 
-            {/* Critical Patients */}
             <div className="space-y-3">
               <Label className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
                 Critical Patients
               </Label>
 
-              {criticalPatients.map((cp) => (
-                <Card
-                  key={`${cp.patient_name}-${cp.notes}`}
-                  className="bg-destructive/5 border-destructive/20"
-                >
+              {criticalPatients.map((cp, index) => (
+                <Card key={`${cp.patient_name}-${cp.notes}-${index}`} className="bg-destructive/5 border-destructive/20">
                   <CardContent className="p-3 flex items-start justify-between">
                     <div>
                       <p className="font-medium">{cp.patient_name}</p>
                       <p className="text-sm text-muted-foreground">{cp.notes}</p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleRemoveCriticalPatient(index)}>
+                    <Button variant="ghost" size="icon" onClick={() => setCriticalPatients(criticalPatients.filter((_, i) => i !== index))}>
                       <X className="h-4 w-4" />
                     </Button>
                   </CardContent>
@@ -287,17 +259,8 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
               ))}
 
               <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                <Input
-                  placeholder="Patient name"
-                  value={newPatientName}
-                  onChange={(e) => setNewPatientName(e.target.value)}
-                />
-                <Textarea
-                  placeholder="Critical notes..."
-                  value={newPatientNotes}
-                  onChange={(e) => setNewPatientNotes(e.target.value)}
-                  rows={2}
-                />
+                <Input placeholder="Patient name" value={newPatientName} onChange={(e) => setNewPatientName(e.target.value)} />
+                <Textarea placeholder="Critical notes..." value={newPatientNotes} onChange={(e) => setNewPatientNotes(e.target.value)} rows={2} />
                 <Button variant="outline" size="sm" onClick={handleAddCriticalPatient}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Critical Patient
@@ -307,31 +270,22 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
 
             <Separator />
 
-            {/* Pending Tasks */}
             <div className="space-y-3">
               <Label>Pending Tasks</Label>
 
-              {pendingTasks.map((task) => (
-                <div
-                  key={`${task.task}-${task.priority}`}
-                  className="flex items-center gap-2 p-2 border rounded-lg"
-                >
-                  <Badge variant={getPriorityColor(task.priority)}>{task.priority}</Badge>
+              {pendingTasks.map((task, index) => (
+                <div key={`${task.task}-${task.priority}-${index}`} className="flex items-center gap-2 p-2 border rounded-lg">
+                  <Badge variant="secondary">{task.priority}</Badge>
                   <span className="flex-1 text-sm">{task.task}</span>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemoveTask(index)}>
+                  <Button variant="ghost" size="icon" onClick={() => setPendingTasks(pendingTasks.filter((_, i) => i !== index))}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
 
               <div className="flex gap-2">
-                <Input
-                  placeholder="Task description"
-                  value={newTask}
-                  onChange={(e) => setNewTask(e.target.value)}
-                  className="flex-1"
-                />
-                <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as any)}>
+                <Input placeholder="Task description" value={newTask} onChange={(e) => setNewTask(e.target.value)} className="flex-1" />
+                <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as 'low' | 'normal' | 'high' | 'urgent')}>
                   <SelectTrigger className="w-28">
                     <SelectValue />
                   </SelectTrigger>
@@ -342,12 +296,7 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                     <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleAddTask}
-                  aria-label="Add task"
-                >
+                <Button variant="outline" size="icon" onClick={handleAddTask} aria-label="Add task">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -355,7 +304,6 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
 
             <Separator />
 
-            {/* General Notes */}
             <div className="space-y-2">
               <Label>General Notes</Label>
               <Textarea
@@ -369,9 +317,7 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={createHandover.isPending}>
             {createHandover.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Submit Handover

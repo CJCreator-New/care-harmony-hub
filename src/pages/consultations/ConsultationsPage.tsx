@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { useConsultations, CONSULTATION_STEPS } from "@/hooks/useConsultations";
 import { format } from "date-fns";
 import { StartConsultationModal } from "@/components/consultations/StartConsultationModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ConsultationsPage() {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ export default function ConsultationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+  const { primaryRole } = useAuth();
+  const canStartConsultation = primaryRole === 'admin' || primaryRole === 'doctor';
 
   const filteredConsultations = consultations?.filter((consultation) => {
     const matchesSearch =
@@ -72,10 +75,12 @@ export default function ConsultationsPage() {
               Manage patient consultations and clinical workflows
             </p>
           </div>
-          <Button onClick={() => setIsStartModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Start Consultation
-          </Button>
+          {canStartConsultation && (
+            <Button onClick={() => setIsStartModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Start Consultation
+            </Button>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -224,10 +229,12 @@ export default function ConsultationsPage() {
         </Card>
       </div>
 
-      <StartConsultationModal
-        open={isStartModalOpen}
-        onOpenChange={setIsStartModalOpen}
-      />
+      {canStartConsultation && (
+        <StartConsultationModal
+          open={isStartModalOpen}
+          onOpenChange={setIsStartModalOpen}
+        />
+      )}
     </DashboardLayout>
   );
 }

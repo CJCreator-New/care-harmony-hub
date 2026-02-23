@@ -5,6 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Users,
   Clock,
   UserCheck,
@@ -22,6 +32,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { PatientPrepChecklistCard } from '@/components/nurse/PatientPrepChecklistCard';
+import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
 
 export default function QueueManagementPage() {
   const { data: queue = [], isLoading } = useActiveQueue();
@@ -35,11 +46,14 @@ export default function QueueManagementPage() {
   useQueueRealtime();
 
   // Nurse workflow state
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
   const [selectedPatientForVitals, setSelectedPatientForVitals] = useState<any>(null);
   const [selectedQueueEntryForPrep, setSelectedQueueEntryForPrep] = useState<QueueEntry | null>(null);
+  const [confirmCompleteId, setConfirmCompleteId] = useState<string | null>(null);
 
-  const canRecordVitals = permissions.canRecordVitals;
+  const canRecordVitals = permissions.can('vitals:write');
+  const canManageQueue = permissions.can('queue:write');
 
   // Force re-render every minute for wait times
   const [, setTick] = useState(0);
@@ -124,7 +138,14 @@ export default function QueueManagementPage() {
   };
 
   const handleComplete = (id: string) => {
-    completeService.mutate(id);
+    setConfirmCompleteId(id);
+  };
+
+  const handleConfirmComplete = () => {
+    if (confirmCompleteId) {
+      completeService.mutate(confirmCompleteId);
+      setConfirmCompleteId(null);
+    }
   };
 
   const handleRecordVitals = (entry: QueueEntry) => {
@@ -159,12 +180,20 @@ export default function QueueManagementPage() {
             <h1 className="text-2xl md:text-3xl font-bold">Queue Management</h1>
             <p className="text-muted-foreground">Real-time patient queue and service tracking</p>
           </div>
-          {canRecordVitals && (
-            <Button onClick={() => setIsVitalsModalOpen(true)}>
-              <Heart className="h-4 w-4 mr-2" />
-              Record Vitals
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {canManageQueue && (
+              <Button variant="outline" onClick={() => setIsWalkInModalOpen(true)}>
+                <Users className="h-4 w-4 mr-2" />
+                Walk-In Registration
+              </Button>
+            )}
+            {canRecordVitals && (
+              <Button onClick={() => setIsVitalsModalOpen(true)}>
+                <Heart className="h-4 w-4 mr-2" />
+                Record Vitals
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -338,6 +367,48 @@ export default function QueueManagementPage() {
 
           {/* Active Patients */}
           <div className="space-y-6">
+            {/* Ready for Doctor */}
+            {(() => {
+              const readyPatients = waitingPatients.filter(p => getPatientPrepStatus(p.patient_id) === 'ready');
+              if (readyPatients.length === 0) return null;
+              return (
+                <Card className="border-success/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Stethoscope className="h-5 w-5 text-success" />
+                      Ready for Doctor
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {readyPatients.map((entry: QueueEntry) => (
+                        <div key={entry.id} className="p-3 rounded-lg border bg-success/5 border-success/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-lg">#{entry.queue_number}</span>
+                            <Badge variant="success" className="text-xs">Ready</Badge>
+                          </div>
+                          <p className="font-medium text-sm">
+                            {entry.patient?.first_name} {entry.patient?.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Waited {getWaitTime(entry.check_in_time)}
+                          </p>
+                          <Button
+                            size="sm"
+                            className="w-full bg-success hover:bg-success/90"
+                            onClick={() => handleCallNext(entry.id)}
+                          >
+                            <Bell className="h-4 w-4 mr-1" />
+                            Call for Consultation
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* Called Patients */}
             <Card>
               <CardHeader className="pb-3">
@@ -426,6 +497,11 @@ export default function QueueManagementPage() {
         </div>
       </div>
 
+      <WalkInRegistrationModal
+        open={isWalkInModalOpen}
+        onOpenChange={setIsWalkInModalOpen}
+      />
+
       {/* Vitals Modal */}
       <RecordVitalsModal
         open={isVitalsModalOpen}
@@ -436,6 +512,24 @@ export default function QueueManagementPage() {
         patient={selectedPatientForVitals}
         showPatientSelector={!selectedPatientForVitals}
       />
+
+      {/* Complete Service Confirmation */}
+      <AlertDialog open={!!confirmCompleteId} onOpenChange={(open) => !open && setConfirmCompleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Complete Service?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the patient's service as completed and remove them from the active queue. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmComplete}>
+              Complete Service
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

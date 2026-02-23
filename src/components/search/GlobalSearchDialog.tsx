@@ -196,7 +196,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
     onOpenChange(false);
     switch (result.type) {
       case 'patient':
-        navigate(`/patients?id=${result.id}`);
+        navigate(`/patients/${result.id}`);
         break;
       case 'appointment':
         navigate(`/appointments?id=${result.id}`);
@@ -239,6 +239,16 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
               placeholder="Search patients, appointments, prescriptions..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  if (query) {
+                    setQuery('');
+                  } else {
+                    onOpenChange(false);
+                  }
+                }
+              }}
               className="border-0 focus-visible:ring-0 text-lg px-0"
               autoFocus
             />

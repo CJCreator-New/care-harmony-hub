@@ -84,6 +84,7 @@ export function useNurseTasks(patientId?: string) {
 
   const createTask = useCallback(async (taskData: Partial<NurseTask>) => {
     if (!profile?.id) throw new Error('Not authenticated');
+    if (!profile?.hospital_id) throw new Error('Hospital context not available');
 
     try {
       const { data, error: createError } = await supabase
@@ -96,7 +97,9 @@ export function useNurseTasks(patientId?: string) {
           status: 'pending',
           due_date: taskData.due_date,
           assigned_to: profile.id,
-          task_type: taskData.task_type,
+          assigned_by: profile.id,
+          hospital_id: profile.hospital_id,
+          task_type: taskData.task_type || 'other',
           context: taskData.context,
         })
         .select()

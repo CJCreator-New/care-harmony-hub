@@ -90,7 +90,9 @@ export function useAI({ purpose, dataRetentionDays = 90 }: UseAIProps): UseAIRes
     additionalOptions?: any
   ): Promise<AIResponse> => {
     if (!hospital?.id || !profile?.id) {
-      throw new Error('Authentication required for AI operations');
+      const authError = 'Authentication required for AI operations';
+      setError(authError);
+      throw new Error(authError);
     }
 
     setIsLoading(true);

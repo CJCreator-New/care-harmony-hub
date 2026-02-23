@@ -177,7 +177,7 @@ export function AuditLogViewer() {
         </Select>
       </div>
 
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-xl border bg-card overflow-x-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -197,7 +197,7 @@ export function AuditLogViewer() {
                   <TableHead>User</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Entity</TableHead>
-                  <TableHead>Severity</TableHead>
+                  <TableHead className="min-w-[90px]">Severity</TableHead>
                   <TableHead>IP Address</TableHead>
                   <TableHead>Details</TableHead>
                 </TableRow>
@@ -224,8 +224,13 @@ export function AuditLogViewer() {
                     <TableCell className="font-mono text-sm">
                       {log.ip_address || '—'}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {log.details ? sanitizeHtml(sanitizeForLog(log.details)) : '—'}
+                    <TableCell className="max-w-xs">
+                      <span
+                        className="block truncate"
+                        title={log.details ? JSON.stringify(log.details) : ''}
+                      >
+                        {log.details ? sanitizeHtml(sanitizeForLog(log.details)) : '—'}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}

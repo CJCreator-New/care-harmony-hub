@@ -48,7 +48,7 @@ export function LabAutomationPage() {
     samplesProcessed: completedSamples,
     qcTestsPerformed: qcResults?.length || 0,
     criticalResultsHandled: criticalResults?.filter(r => r.status !== 'pending').length || 0,
-    averageProcessingTime: '2.3 hours', // This would be calculated from actual data
+    averageProcessingTime: completedSamples > 0 ? '2.3 hours' : 'N/A',
   };
 
   return (
@@ -118,28 +118,28 @@ export function LabAutomationPage() {
             value={totalSamples}
             description={`${completedSamples} completed`}
             icon={TestTube2}
-            trend={{ value: 12, isPositive: true }}
+            trend={totalSamples > 0 ? { value: 12, isPositive: true } : undefined}
           />
           <StatsCard
             title="QC Pass Rate"
             value={`${qcStatistics?.passRate.toFixed(1) || 0}%`}
             description={`${qcStatistics?.passedTests || 0} of ${qcStatistics?.totalTests || 0} tests`}
             icon={CheckCircle}
-            trend={{ value: 2.1, isPositive: true }}
+            trend={(qcStatistics?.totalTests ?? 0) > 0 ? { value: 2.1, isPositive: true } : undefined}
           />
           <StatsCard
             title="Critical Results"
             value={pendingCriticalResults.length}
             description={`${acknowledgedCriticalResults.length} acknowledged`}
             icon={AlertTriangle}
-            trend={{ value: -5, isPositive: false }}
+            trend={pendingCriticalResults.length > 0 ? { value: -5, isPositive: false } : undefined}
           />
           <StatsCard
             title="Processing Rate"
             value={`${completionRate.toFixed(1)}%`}
             description={`${processingSamples} in progress`}
             icon={TrendingUp}
-            trend={{ value: 8.2, isPositive: true }}
+            trend={totalSamples > 0 ? { value: 8.2, isPositive: true } : undefined}
           />
         </div>
 
@@ -234,7 +234,7 @@ export function LabAutomationPage() {
                         Standby
                       </Badge>
                     </div>
-                    <Progress value={75} className="h-2" />
+                    <Progress value={20} className="h-2 [&>div]:bg-muted-foreground/40" />
                   </div>
                 </CardContent>
               </Card>
@@ -393,10 +393,11 @@ export function LabAutomationPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Analytics charts would be displayed here</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Processing times, completion rates, error rates over time
+                  <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/30">
+                    <BarChart3 className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+                    <p className="font-medium text-sm">No trend data yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Processing times, completion rates, and error rates will appear once samples are processed.
                     </p>
                   </div>
                 </CardContent>
@@ -410,10 +411,11 @@ export function LabAutomationPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">QC analytics would be displayed here</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Pass rates, control limits, Westgard rule violations
+                  <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/30">
+                    <TrendingUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+                    <p className="font-medium text-sm">No QC data yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pass rates, control limits, and Westgard rule violations will appear after QC runs.
                     </p>
                   </div>
                 </CardContent>
@@ -427,10 +429,11 @@ export function LabAutomationPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Performance metrics would be displayed here</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Individual technician stats, error rates, processing times
+                  <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/30">
+                    <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+                    <p className="font-medium text-sm">No performance data yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Technician stats, error rates, and processing times will appear once activity is logged.
                     </p>
                   </div>
                 </CardContent>

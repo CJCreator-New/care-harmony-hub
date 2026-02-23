@@ -27,6 +27,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 interface NurseTaskPanelProps {
   patientId?: string;
@@ -93,21 +94,29 @@ export function NurseTaskPanel({ patientId, compact = false }: NurseTaskPanelPro
   };
 
   const handleCreateTask = async () => {
-    if (!newTask.title.trim()) return;
-    
-    await createTask({
-      ...newTask,
-      patient_id: patientId,
-    });
-    
-    setNewTask({
-      title: '',
-      description: '',
-      priority: 'medium',
-      task_type: 'other',
-      due_date: '',
-    });
-    setIsCreateOpen(false);
+    if (!newTask.title.trim()) {
+      toast.error('Task title is required');
+      return;
+    }
+
+    try {
+      await createTask({
+        ...newTask,
+        patient_id: patientId,
+      });
+
+      setNewTask({
+        title: '',
+        description: '',
+        priority: 'medium',
+        task_type: 'other',
+        due_date: '',
+      });
+      setIsCreateOpen(false);
+      toast.success('Task created');
+    } catch (error: any) {
+      toast.error(error?.message ? `Failed to create task: ${error.message}` : 'Failed to create task');
+    }
   };
 
   const isOverdue = (dueDate?: string) => {
@@ -290,7 +299,7 @@ export function NurseTaskPanel({ patientId, compact = false }: NurseTaskPanelPro
             <p className="text-xs text-muted-foreground">Completed</p>
           </div>
           <div className="text-center p-2 bg-muted rounded">
-            <p className="text-lg font-bold text-destructive">{stats.overdue}</p>
+            <p className={`text-lg font-bold ${stats.overdue > 0 ? 'text-destructive' : 'text-foreground'}`}>{stats.overdue}</p>
             <p className="text-xs text-muted-foreground">Overdue</p>
           </div>
         </div>

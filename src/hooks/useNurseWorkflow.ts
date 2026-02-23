@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   TriageAssessment, 
   MedicationReconciliation, 
@@ -27,19 +28,21 @@ export interface PatientPrepChecklist {
   updated_at: string;
 }
 
-// Shift Handover Interface
+// Shift Handover Interface — matches actual shift_handovers table schema
 export interface ShiftHandover {
   id: string;
-  patient_id: string;
-  from_nurse_id: string;
-  to_nurse_id?: string;
-  shift_date: string;
-  handover_notes: string;
-  priority_items: string[];
-  acknowledged: boolean;
-  acknowledged_at?: string;
   hospital_id: string;
+  outgoing_nurse_id: string;
+  incoming_nurse_id?: string | null;
+  shift_date: string;
+  shift_type: string;
+  notes: string | null;
+  pending_tasks: string[] | null;
+  critical_patients?: any | null;
+  status: string;
+  acknowledged_at?: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 // Triage Assessment Hooks
@@ -585,11 +588,11 @@ export const usePendingHandovers = (nurseId?: string) => {
       let query = supabase
         .from('shift_handovers')
         .select('*')
-        .eq('acknowledged', false)
+        .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (nurseId) {
-        query = query.eq('to_nurse_id', nurseId);
+        query = query.eq('incoming_nurse_id', nurseId);
       }
 
       const { data, error } = await query;
@@ -623,7 +626,7 @@ export const useAcknowledgeHandover = () => {
       const { data, error } = await supabase
         .from('shift_handovers')
         .update({
-          acknowledged: true,
+          status: 'acknowledged',
           acknowledged_at: new Date().toISOString()
         })
         .eq('id', handoverId)
@@ -645,14 +648,20 @@ export const useAcknowledgeHandover = () => {
 
 // Medication Administration Hooks
 export const useRecordMedicationAdministration = () => {
+  const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const mutateAsync = async (data: Partial<MARAdministration>) => {
+  const mutateAsync = async (data: Record<string, any>) => {
     setLoading(true);
     try {
       const { data: result, error } = await supabase
-        .from('mar_administrations')
-        .insert(data)
+        .from('medication_administrations')
+        .insert({
+          ...data,
+          administered_by: profile?.id,
+          hospital_id: profile?.hospital_id,
+          administered_at: new Date().toISOString(),
+        })
         .select()
         .single();
 
@@ -679,9 +688,9 @@ export const useMedicationAdministrations = (patientId?: string) => {
     setError(null);
     try {
       let query = supabase
-        .from('mar_administrations')
+        .from('medication_administrations')
         .select('*')
-        .order('scheduled_time', { ascending: false });
+        .order('administered_at', { ascending: false });
 
       if (patientId) {
         query = query.eq('patient_id', patientId);

@@ -284,6 +284,7 @@ export const useMedicalTerminology = (): MedicalTerminologyService => {
   return medicalTerminologyService;
 };
 
+
 export const useMedicalTermCorrection = () => {
   const service = useMedicalTerminology();
 
@@ -306,5 +307,3 @@ export const useMedicalTermCorrection = () => {
   };
 };
 
-// Export the class
-export { MedicalTerminologyServiceImpl };

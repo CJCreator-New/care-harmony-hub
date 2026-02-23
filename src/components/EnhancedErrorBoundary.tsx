@@ -87,7 +87,7 @@ class EnhancedErrorBoundary extends Component<Props, State> {
             <CardContent className="space-y-4">
               <div className="text-center text-gray-600">
                 <p>We encountered an unexpected error. Our team has been notified.</p>
-                {process.env.NODE_ENV === 'development' && this.state.error && (
+                {import.meta.env.DEV && this.state.error && (
                   <details className="mt-4 text-left">
                     <summary className="cursor-pointer text-sm font-medium">
                       Error Details (Development)

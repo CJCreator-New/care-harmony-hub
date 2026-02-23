@@ -45,9 +45,13 @@ import {
   Medication,
 } from "@/hooks/useMedications";
 import { ReorderSystemCard } from "@/components/inventory/ReorderSystemCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function InventoryPage() {
   useMedicationsRealtime();
+  const { primaryRole } = useAuth();
+  const canAddMedication = primaryRole === 'admin' || primaryRole === 'pharmacist';
 
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<string>("all");
@@ -100,10 +104,12 @@ export default function InventoryPage() {
               Track medication stock levels and manage inventory
             </p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Medication
-          </Button>
+          {canAddMedication && (
+            <Button onClick={() => setIsAddModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Medication
+            </Button>
+          )}
         </div>
 
         {/* Reorder System Card */}
@@ -175,8 +181,8 @@ export default function InventoryPage() {
 
         {/* Inventory Table */}
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Medication</TableHead>
@@ -198,10 +204,16 @@ export default function InventoryPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : filteredMedications?.length === 0 ? (
+                ) : !filteredMedications || filteredMedications.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      No medications found
+                    <TableCell colSpan={8} className="text-center py-12">
+                      <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-40" />
+                      <p className="font-medium text-muted-foreground">No medications found</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {searchTerm || stockFilter !== 'all'
+                          ? 'Try adjusting your search or filter criteria.'
+                          : 'Add your first medication to start tracking inventory.'}
+                      </p>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -278,6 +290,7 @@ function AddMedicationModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [errors, setErrors] = useState<{ name?: string }>({});
   const [formData, setFormData] = useState({
     name: "",
     generic_name: "",
@@ -296,7 +309,13 @@ function AddMedicationModal({
   const createMedication = useCreateMedication();
 
   const handleSubmit = () => {
-    if (!formData.name) return;
+    if (!formData.name.trim()) {
+      setErrors({ name: "Medication name is required" });
+      toast.error("Medication name is required");
+      return;
+    }
+
+    setErrors({});
 
     createMedication.mutate(
       {
@@ -349,8 +368,13 @@ function AddMedicationModal({
               <Label>Medication Name *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (errors.name) setErrors({});
+                }}
+                className={errors.name ? "border-destructive" : ""}
               />
+              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label>Generic Name</Label>
@@ -486,7 +510,7 @@ function AddMedicationModal({
               />
             </div>
             <div className="space-y-2">
-              <Label>Unit Price ($)</Label>
+              <Label>Unit Price (₹)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -504,7 +528,7 @@ function AddMedicationModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={createMedication.isPending || !formData.name}>
+          <Button onClick={handleSubmit} disabled={createMedication.isPending}>
             {createMedication.isPending ? "Adding..." : "Add Medication"}
           </Button>
         </DialogFooter>

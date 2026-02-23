@@ -121,7 +121,7 @@ export function ReceptionistDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {greeting}, {profile?.first_name || 'Receptionist'}!
+              {greeting}, {profile?.first_name?.trim() || 'Receptionist'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Appointments, check-ins, and billing overview.
@@ -262,8 +262,12 @@ export function ReceptionistDashboard() {
                               <span>{request.appointment_type}</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>{format(parseISO(request.preferred_date), 'MMM d, yyyy')}</span>
+                              {request.preferred_date && (
+                                <>
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{format(parseISO(request.preferred_date), 'MMM d, yyyy')}</span>
+                                </>
+                              )}
                               {request.preferred_time && (
                                 <>
                                   <Clock className="h-3 w-3 ml-2" />

@@ -74,9 +74,10 @@ export class TestDataSeeder {
 
   private async createPatients(count: number) {
     const patients: Array<Record<string, unknown>> = [];
-    const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Lisa', 'James', 'Maria', 'William', 'Jennifer', 'Richard', 'Patricia', 'Charles', 'Linda', 'Joseph', 'Barbara', 'Thomas', 'Elizabeth'];
+    // Separate name pools per gender so seeded patients have realistic name/gender combinations (Admin #28, DATA-05)
+    const maleFirstNames = ['John', 'Michael', 'David', 'Robert', 'James', 'William', 'Richard', 'Charles', 'Joseph', 'Thomas'];
+    const femaleFirstNames = ['Jane', 'Sarah', 'Emily', 'Lisa', 'Maria', 'Jennifer', 'Patricia', 'Linda', 'Barbara', 'Elizabeth'];
     const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
-    const genders: ('male' | 'female' | 'other' | 'prefer_not_to_say')[] = ['male', 'female', 'other'];
     const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
     // Get current max MRN number for this hospital
@@ -97,7 +98,11 @@ export class TestDataSeeder {
     }
 
     for (let i = 0; i < count; i++) {
-      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      // Pick gender first, then select a name that matches – prevents e.g. "Thomas" being marked female
+      const rand = Math.random();
+      const gender: 'male' | 'female' | 'other' = rand < 0.48 ? 'male' : rand < 0.96 ? 'female' : 'other';
+      const namePool = gender === 'female' ? femaleFirstNames : maleFirstNames;
+      const firstName = namePool[Math.floor(Math.random() * namePool.length)];
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
       const birthYear = 1950 + Math.floor(Math.random() * 50);
       const birthMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
@@ -112,7 +117,7 @@ export class TestDataSeeder {
         first_name: firstName,
         last_name: lastName,
         date_of_birth: `${birthYear}-${birthMonth}-${birthDay}`,
-        gender: genders[Math.floor(Math.random() * genders.length)],
+        gender,
         phone: `+1${Math.floor(Math.random() * 9000000000) + 1000000000}`,
         email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`,
         address: `${Math.floor(Math.random() * 9999) + 1} ${['Main', 'Oak', 'Pine', 'Elm', 'Cedar'][Math.floor(Math.random() * 5)]} St`,
@@ -162,40 +167,28 @@ export class TestDataSeeder {
     const firstNames = ['Dr. Alice', 'Dr. Bob', 'Nurse Carol', 'Nurse Dan', 'Emma', 'Frank', 'Grace', 'Henry', 'Ivy', 'Jack'];
     const lastNames = ['Anderson', 'Brown', 'Clark', 'Davis', 'Evans', 'Foster', 'Green', 'Harris', 'Irwin', 'Jackson'];
 
+    // NOTE (Admin #31): Real staff accounts must be created via the Staff Invitation flow because
+    // Supabase auth users cannot be created client-side. This seeder therefore only returns
+    // placeholder records used for appointment/queue assignment and does NOT create user_roles
+    // for the current admin user (which previously caused the admin to accumulate all 6 roles).
     const staff: Array<Record<string, unknown>> = [];
-    
-    // Get existing auth users to use as staff
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user found');
-    
+
     for (let i = 0; i < count; i++) {
-      const role = roles[i % roles.length];
-      
-      const profile = {
-        user_id: user.id, // Use current user's ID
+      staff.push({
+        // Placeholder staff entries – use a deterministic fake UUID so they never
+        // collide with a real auth user and never overwrite the admin's profile.
+        id: crypto.randomUUID(),
         hospital_id: this.hospitalId,
         first_name: firstNames[i % firstNames.length],
         last_name: lastNames[i % lastNames.length],
-        email: `staff${i}@hospital.com`
-      };
-
-      staff.push(profile);
+        role: roles[i % roles.length],
+        email: `staff${i}_seed@hospital-demo.internal`
+      });
     }
 
-    const { data: profileData, error: profileError } = await supabase.from('profiles').upsert(staff, { onConflict: 'user_id' }).select();
-    if (profileError) throw profileError;
-
-    // Create user roles
-    const userRoles = profileData.map((profile, idx) => ({
-      user_id: profile.user_id,
-      hospital_id: this.hospitalId,
-      role: roles[idx % roles.length]
-    }));
-
-    const { error: roleError } = await supabase.from('user_roles').upsert(userRoles, { onConflict: 'user_id,hospital_id,role' });
-    if (roleError) throw roleError;
-
-    return profileData;
+    // Return the placeholder list so the rest of the seeder (appointments, queue)
+    // can reference staff[i].id / staff[i].user_id without real DB writes for profiles.
+    return staff;
   }
 
   private async createAppointments(count: number, patients: Array<Record<string, unknown>>, staff: Array<Record<string, unknown>>, includeToday: boolean) {

@@ -4,8 +4,31 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { RoleSwitchErrorBoundary } from '@/components/DashboardErrorBoundary';
 import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 import { UserRole } from '@/types/auth';
+
+// Skeleton placeholder shown while role dashboard lazy-loads
+const dashboardSkeletonKeys = ['card-1', 'card-2', 'card-3', 'card-4'];
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {dashboardSkeletonKeys.map((key) => (
+          <Skeleton key={key} className="h-28 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <Skeleton className="lg:col-span-2 h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    </div>
+  );
+}
 
 // Lazy load role-specific dashboards
 const AdminDashboard = lazy(() => import('@/components/dashboard/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -57,11 +80,7 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <RoleSwitchErrorBoundary key={activeRole || 'loading'} currentRole={activeRole}>
-        <Suspense fallback={
-          <div className="flex items-center justify-center p-12 min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        }>
+        <Suspense fallback={<DashboardSkeleton />}>
           {renderDashboard()}
         </Suspense>
       </RoleSwitchErrorBoundary>

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Pill, Brain, Shield, BookOpen, TrendingUp, AlertTriangle, Target, Activity } from 'lucide-react';
@@ -6,7 +7,8 @@ import TreatmentRecommendationsEngine from '@/components/ai/TreatmentRecommendat
 
 export default function TreatmentRecommendationsPage() {
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <DashboardLayout>
+      <div className="container mx-auto py-8 space-y-8">
       {/* Page Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
@@ -168,5 +170,6 @@ export default function TreatmentRecommendationsPage() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }

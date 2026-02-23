@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -19,7 +20,8 @@ const TreatmentPlanOptimizationEngine = lazy(() => import('@/components/ai/Treat
 
 export default function TreatmentPlanOptimizationPage() {
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 space-y-6">
       {/* Page Header */}
       <div className="text-center space-y-4">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-3">
@@ -203,5 +205,6 @@ export default function TreatmentPlanOptimizationPage() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }

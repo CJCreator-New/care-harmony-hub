@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Stethoscope, Brain, Shield, BookOpen, TrendingUp, AlertTriangle } from 'lucide-react';
@@ -6,7 +7,8 @@ import DifferentialDiagnosisEngine from '@/components/ai/DifferentialDiagnosisEn
 
 export default function DifferentialDiagnosisPage() {
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <DashboardLayout>
+      <div className="container mx-auto py-8 space-y-8">
       {/* Page Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
@@ -157,5 +159,6 @@ export default function DifferentialDiagnosisPage() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }

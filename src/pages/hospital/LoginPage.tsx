@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
@@ -11,6 +11,7 @@ import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client';
 import { TwoFactorVerifyModal } from '@/components/auth/TwoFactorVerifyModal';
 import { BackupCodeVerifyModal } from '@/components/auth/BackupCodeVerifyModal';
+import { clearDevTestRole } from '@/utils/devRoleSwitch';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -28,6 +29,25 @@ export default function LoginPage() {
   const { logActivity } = useActivityLog();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Prevent stale dev role overrides from forcing unexpected role switches
+    // when users enter the real login flow.
+    const hadDevOverride =
+      import.meta.env.DEV &&
+      typeof window !== 'undefined' &&
+      !!window.localStorage.getItem('testRole');
+    clearDevTestRole();
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('preferredRole');
+    }
+    if (hadDevOverride) {
+      toast({
+        title: 'Dev role override cleared',
+        description: 'Login flow is using authenticated roles only.',
+      });
+    }
+  }, [toast]);
 
   const checkTwoFactorRequired = async (userId: string): Promise<boolean> => {
     try {
@@ -81,6 +101,7 @@ export default function LoginPage() {
 
         // No 2FA required, proceed to dashboard
         logActivity({ actionType: 'login', details: { email } });
+        clearDevTestRole();
         toast({
           title: 'Welcome back!',
           description: 'You have successfully logged in.',
@@ -104,6 +125,7 @@ export default function LoginPage() {
     setPendingUserId(null);
     
     logActivity({ actionType: 'login', details: { email, twoFactorUsed: true } });
+    clearDevTestRole();
     toast({
       title: 'Welcome back!',
       description: 'You have successfully logged in with 2FA.',

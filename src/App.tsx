@@ -92,7 +92,7 @@ const queryClient = new QueryClient({
 
 // Protected Route Component - redirects to setup if account incomplete
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, profile, hospital, roles } = useAuth();
+  const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles } = useAuth();
   
   // Enable session timeout for authenticated users
   useSessionTimeout({ enabled: isAuthenticated });
@@ -107,6 +107,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/hospital/login" replace />;
+  }
+
+  // Wait for profile data to fully hydrate before evaluating setup status.
+  // This prevents a race condition where isLoading=false but fetchUserData
+  // hasn't resolved yet, causing a spurious redirect to account-setup.
+  if (!isProfileReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
   }
 
   // Check if setup is incomplete
@@ -302,6 +313,7 @@ function AppRoutes() {
         }
       />
       <Route path="/pharmacy/prescriptions" element={<Navigate to="/pharmacy" replace />} />
+      <Route path="/clinical-pharmacy" element={<Navigate to="/pharmacy/clinical" replace />} />
       <Route
         path="/pharmacy/clinical"
         element={
@@ -508,6 +520,7 @@ function AppRoutes() {
           </RoleProtectedRoute>
         }
       />
+      <Route path="/treatment-plan-optimizer" element={<Navigate to="/treatment-plan-optimization" replace />} />
       <Route
         path="/predictive-analytics"
         element={
@@ -524,6 +537,7 @@ function AppRoutes() {
           </RoleProtectedRoute>
         }
       />
+      <Route path="/length-of-stay-forecast" element={<Navigate to="/length-of-stay-forecasting" replace />} />
       <Route
         path="/resource-utilization-optimization"
         element={

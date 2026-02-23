@@ -16,7 +16,7 @@ test.describe('Accessibility Tests', () => {
   });
 
   test('Login page should pass accessibility checks', async ({ page }) => {
-    await page.goto('/auth/login');
+    await page.goto('/hospital/login');
     const accessibilityScanResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
@@ -110,7 +110,7 @@ test.describe('Accessibility Tests', () => {
   });
 
   test('Form elements should have labels', async ({ page }) => {
-    await page.goto('/auth/login');
+    await page.goto('/hospital/login');
 
     const inputs = page.locator('input, select, textarea');
     const inputCount = await inputs.count();
@@ -146,7 +146,7 @@ test.describe('Accessibility Tests', () => {
   });
 
   test('Focus indicators should be visible', async ({ page }) => {
-    await page.goto('/auth/login');
+    await page.goto('/hospital/login');
 
     // Focus on an input element
     const emailInput = page.locator('input[type="email"]');

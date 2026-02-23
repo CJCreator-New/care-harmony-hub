@@ -60,7 +60,6 @@ export function useLowStockMedications() {
         .select('*')
         .eq('hospital_id', hospital.id)
         .eq('is_active', true)
-        .lt('current_stock', supabase.rpc as any) // This will be filtered client-side
         .order('current_stock');
 
       if (error) throw error;
@@ -180,7 +179,7 @@ export function useCreateMedication() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['medications'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['medication-stats'] });
       toast.success('Medication added to inventory');
     },
     onError: (error: Error) => {
@@ -219,7 +218,7 @@ export function useUpdateMedicationStock() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['medications'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['medication-stats'] });
       toast.success('Stock updated');
     },
     onError: (error: Error) => {

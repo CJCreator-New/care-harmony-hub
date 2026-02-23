@@ -61,13 +61,14 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const hasValue = (value: number | '') => value !== '' && Number.isFinite(Number(value));
 
   // Validation rules
   const validateVitals = () => {
     const newErrors: Record<string, string> = {};
     
-    if (vitals.temperature && (Number(vitals.temperature) < 95 || Number(vitals.temperature) > 110)) {
-      newErrors.temperature = 'Temperature should be between 95-110°F';
+    if (vitals.temperature && (Number(vitals.temperature) < 35 || Number(vitals.temperature) > 43)) {
+      newErrors.temperature = 'Temperature should be between 35–43 °C';
     }
     if (vitals.blood_pressure_systolic && (Number(vitals.blood_pressure_systolic) < 70 || Number(vitals.blood_pressure_systolic) > 250)) {
       newErrors.blood_pressure_systolic = 'Systolic BP should be between 70-250 mmHg';
@@ -95,8 +96,8 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
 
   const calculateBMI = () => {
     if (vitals.weight && vitals.height) {
-      const weightKg = Number(vitals.weight) * 0.453592; // lbs to kg
-      const heightM = Number(vitals.height) * 0.0254; // inches to meters
+      const weightKg = Number(vitals.weight);
+      const heightM = Number(vitals.height) / 100; // cm to metres
       return (weightKg / (heightM * heightM)).toFixed(1);
     }
     return null;
@@ -114,61 +115,95 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
     }
 
     setIsSubmitting(true);
-    
-    // Use database transaction for data consistency
-    const { error: transactionError } = await supabase.rpc('complete_patient_prep', {
-      p_patient_id: patient.id,
-      p_queue_entry_id: queueEntry.id,
-      p_vitals_data: {
+    try {
+      const authUser = await supabase.auth.getUser();
+      const payload = {
         ...vitals,
         bmi: calculateBMI() ? Number(calculateBMI()) : null,
         recorded_at: new Date().toISOString(),
-        recorded_by: (await supabase.auth.getUser()).data.user?.id
-      },
-      p_chief_complaint: chiefComplaint,
-      p_allergies: allergies || null,
-      p_current_medications: currentMedications || null,
-      p_nurse_notes: notes || null
-    });
+        recorded_by: authUser.data.user?.id,
+      };
 
-    if (transactionError) {
-      console.error('Error completing patient prep:', transactionError);
-      toast.error('Failed to complete patient prep');
-      setIsSubmitting(false);
-      return;
-    }
+      // Prefer RPC flow, but gracefully fallback when the function is not deployed.
+      const { error: transactionError } = await supabase.rpc('complete_patient_prep', {
+        p_patient_id: patient.id,
+        p_queue_entry_id: queueEntry.id,
+        p_vitals_data: payload,
+        p_chief_complaint: chiefComplaint,
+        p_allergies: allergies || null,
+        p_current_medications: currentMedications || null,
+        p_nurse_notes: notes || null,
+      });
 
-    // Check for critical vital signs and alert if necessary
-    const criticalValues = [];
-    if (Number(vitals.temperature) > 102) criticalValues.push('High fever');
-    if (Number(vitals.blood_pressure_systolic) > 180) criticalValues.push('Severe hypertension');
-    if (Number(vitals.heart_rate) > 120) criticalValues.push('Tachycardia');
-    if (Number(vitals.oxygen_saturation) < 90) criticalValues.push('Low oxygen saturation');
-    
-    if (criticalValues.length > 0) {
-      // Send critical alert to doctor
-      await supabase.from('notifications').insert({
-        hospital_id: patient.hospital_id,
-        recipient_id: queueEntry.assigned_doctor_id,
-        type: 'critical_vitals',
-        title: 'CRITICAL: Abnormal Vital Signs',
-        message: `${patient.first_name} ${patient.last_name} has critical vital signs: ${criticalValues.join(', ')}`,
-        priority: 'critical',
-        data: {
+      if (transactionError) {
+        const rpcMessage = (transactionError.message || '').toLowerCase();
+        const rpcCode = transactionError.code || '';
+        // Fallback for: function not found (42883), undefined table (42P01),
+        // raised exception inside the function (P0001/XX000), or "does not exist" messages.
+        const shouldFallback =
+          rpcMessage.includes('function') ||
+          rpcMessage.includes('does not exist') ||
+          rpcCode === '42883' ||
+          rpcCode === '42P01' ||
+          rpcCode === 'P0001' ||
+          rpcCode === 'XX000';
+        if (!shouldFallback) {
+          throw transactionError;
+        }
+
+        const { error: checklistError } = await supabase.from('patient_prep_checklists').upsert({
           patient_id: patient.id,
           queue_entry_id: queueEntry.id,
-          critical_values: criticalValues,
-          vitals
-        }
-      });
-      
-      toast.warning('Critical vital signs detected - Doctor has been alerted immediately!');
-    }
+          hospital_id: patient.hospital_id,
+          vitals_completed: true,
+          chief_complaint_recorded: true,
+          ready_for_doctor: true,
+          notes: notes || null,
+        });
+        if (checklistError) throw checklistError;
 
-    toast.success('Patient prep completed successfully!');
-    onComplete();
-    onClose();
-    setIsSubmitting(false);
+        const { error: queueError } = await supabase
+          .from('patient_queue')
+          .update({ status: 'in_service', notes: chiefComplaint })
+          .eq('id', queueEntry.id);
+        if (queueError) throw queueError;
+      }
+
+      // Check for critical vital signs and alert if necessary
+      const criticalValues: string[] = [];
+      if (hasValue(vitals.temperature) && Number(vitals.temperature) > 102) criticalValues.push('High fever');
+      if (hasValue(vitals.blood_pressure_systolic) && Number(vitals.blood_pressure_systolic) > 180) criticalValues.push('Severe hypertension');
+      if (hasValue(vitals.heart_rate) && Number(vitals.heart_rate) > 120) criticalValues.push('Tachycardia');
+      if (hasValue(vitals.oxygen_saturation) && Number(vitals.oxygen_saturation) < 90) criticalValues.push('Low oxygen saturation');
+      
+      if (criticalValues.length > 0) {
+        await supabase.from('notifications').insert({
+          hospital_id: patient.hospital_id,
+          recipient_id: queueEntry.assigned_doctor_id,
+          type: 'critical_vitals',
+          title: 'CRITICAL: Abnormal Vital Signs',
+          message: `${patient.first_name} ${patient.last_name} has critical vital signs: ${criticalValues.join(', ')}`,
+          priority: 'critical',
+          data: {
+            patient_id: patient.id,
+            queue_entry_id: queueEntry.id,
+            critical_values: criticalValues,
+            vitals,
+          },
+        });
+        
+        toast.warning('Critical vital signs detected - Doctor has been alerted immediately!');
+      }
+
+      toast.success('Patient prep completed successfully!');
+      onComplete();
+      onClose();
+    } catch (error: any) {
+      console.error('Error completing patient prep:', error);
+      toast.error(error?.message ? `Failed to complete patient prep: ${error.message}` : 'Failed to complete patient prep');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -202,7 +237,7 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Thermometer className="h-4 w-4" />
-                    Temperature (°F)
+                    Temperature (°C)
                   </Label>
                   <Input
                     type="number"
@@ -286,7 +321,7 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Weight className="h-4 w-4" />
-                    Weight (lbs)
+                    Weight (kg)
                   </Label>
                   <Input
                     type="number"
@@ -299,7 +334,7 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Ruler className="h-4 w-4" />
-                    Height (inches)
+                    Height (cm)
                   </Label>
                   <Input
                     type="number"
@@ -379,10 +414,10 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
           </Card>
 
           {/* Critical Values Alert */}
-          {(Number(vitals.temperature) > 102 || 
-            Number(vitals.blood_pressure_systolic) > 180 || 
-            Number(vitals.heart_rate) > 120 || 
-            Number(vitals.oxygen_saturation) < 95) && (
+          {((hasValue(vitals.temperature) && Number(vitals.temperature) > 102) || 
+            (hasValue(vitals.blood_pressure_systolic) && Number(vitals.blood_pressure_systolic) > 180) || 
+            (hasValue(vitals.heart_rate) && Number(vitals.heart_rate) > 120) || 
+            (hasValue(vitals.oxygen_saturation) && Number(vitals.oxygen_saturation) < 95)) && (
             <Alert className="border-red-500 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-500" />
               <AlertDescription className="text-red-700">

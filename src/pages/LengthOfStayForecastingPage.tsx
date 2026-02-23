@@ -1,4 +1,5 @@
 import React from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { LengthOfStayForecastingEngine } from '@/components/ai/LengthOfStayForecastingEngine';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +8,8 @@ import { Info, Shield, TrendingUp, Clock, Users, Activity } from 'lucide-react';
 
 const LengthOfStayForecastingPage: React.FC = () => {
   return (
-    <div className="container mx-auto p-6 space-y-8">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 space-y-8">
       {/* Header Section */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-2 mb-4">
@@ -176,6 +178,7 @@ const LengthOfStayForecastingPage: React.FC = () => {
         </AlertDescription>
       </Alert>
     </div>
+    </DashboardLayout>
   );
 };
 

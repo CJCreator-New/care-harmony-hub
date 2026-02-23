@@ -75,6 +75,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const persistedTestRole = getDevTestRole(roles);
 
+  // Detect macOS for keyboard shortcut display
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
   // HIPAA-compliant session timeout - 30 min inactivity auto-logout
   useSessionTimeout({
     enabled: isAuthenticated,
@@ -180,13 +183,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 h-16 border-b border-sidebar-border">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-              <Activity className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-sidebar-primary-foreground">AROCORD</h1>
-              <p className="text-xs text-sidebar-foreground/60">HIMS</p>
-            </div>
+            <Link to="/dashboard" className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary shrink-0">
+                <Activity className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-sidebar-primary-foreground">AROCORD</h1>
+                <p className="text-xs text-sidebar-foreground/60">HIMS</p>
+              </div>
+            </Link>
             <button
               className="ml-auto lg:hidden text-sidebar-foreground hover:text-sidebar-primary-foreground"
               onClick={() => setSidebarOpen(false)}
@@ -247,18 +252,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <span className="flex-1 text-left text-sm text-muted-foreground">
-                  Search patients, appointments...
+                  Search patients, appointments, Rx, labs…
                 </span>
                 <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border bg-background px-1.5 font-mono text-xs text-muted-foreground">
-                  ⌘K
+                  {isMac ? '⌘K' : 'Ctrl K'}
                 </kbd>
               </button>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Role Switcher - Production */}
-              {roles.length > 1 && (
-                <RoleSwitcher variant="default" />
+              {/* Role Switcher - Production only (hidden in dev mode to avoid conflicting with the dev role switcher) */}
+              {roles.length > 1 && !import.meta.env.DEV && (
+                <RoleSwitcher variant="default" currentRole={activeRole} />
               )}
 
               {/* Theme Toggle */}
@@ -302,9 +307,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium">{profile?.first_name} {profile?.last_name}</p>
                       <p className="text-xs text-muted-foreground">{profile?.email}</p>
-                      {primaryRole && (
-                        <Badge variant={roleColors[primaryRole] as any} className="w-fit mt-1">
-                          {getRoleLabel(primaryRole)}
+                      {activeRole && (
+                        <Badge variant={roleColors[activeRole] as any} className="w-fit mt-1">
+                          {getRoleLabel(activeRole)}
                         </Badge>
                       )}
                     </div>

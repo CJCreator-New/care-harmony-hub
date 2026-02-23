@@ -33,6 +33,9 @@ import { toast } from 'sonner';
 import { format, differenceInYears, differenceInMinutes } from 'date-fns';
 import { QuickConsultationModal } from './QuickConsultationModal';
 
+// File-level helper so PatientCard (also file-level) can access it
+const getAge = (dob: string) => differenceInYears(new Date(), new Date(dob));
+
 interface StartConsultationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -91,10 +94,6 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
     } finally {
       setStartingId(null);
     }
-  };
-
-  const getAge = (dob: string) => {
-    return differenceInYears(new Date(), new Date(dob));
   };
 
   const getPriorityBadge = (priority: string | null) => {
@@ -355,7 +354,7 @@ function PatientCard({ patient, onStartConsultation, startingId }: PatientCardPr
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>MRN: {patient.mrn}</span>
-          <span>{getAge(patient.date_of_birth)} yrs</span>
+          <span>{patient.date_of_birth ? getAge(patient.date_of_birth) : 'N/A'} yrs</span>
           <span className="capitalize">{patient.gender}</span>
           {patient.waitTime > 0 && (
             <span>Wait: {Math.floor(patient.waitTime / 60)}h {patient.waitTime % 60}m</span>

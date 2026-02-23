@@ -2,10 +2,19 @@
 import { vi } from 'vitest';
 
 // Mock sonner globally to prevent DOM access
-vi.mock('sonner', () => ({
-  toast: vi.fn(),
-  Toaster: () => null,
-}));
+vi.mock('sonner', () => {
+  const toastFn = vi.fn();
+  toastFn.error = vi.fn();
+  toastFn.success = vi.fn();
+  toastFn.info = vi.fn();
+  toastFn.warning = vi.fn();
+  toastFn.dismiss = vi.fn();
+  toastFn.promise = vi.fn();
+  return {
+    toast: toastFn,
+    Toaster: () => null,
+  };
+});
 
 // Mock crypto module globally
 vi.mock('crypto', () => ({

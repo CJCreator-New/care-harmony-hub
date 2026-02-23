@@ -28,9 +28,9 @@ export const LAB_ORDER_COLUMNS = {
 };
 
 export const MEDICATION_COLUMNS = {
-  list: 'id, name, dosage, frequency, status, patient_id, prescribed_by, prescribed_at',
-  detail: 'id, name, dosage, frequency, duration, instructions, status, patient_id, prescribed_by, prescribed_at, dispensed_at',
-  active: 'id, name, dosage, frequency, patient_id, prescribed_at',
+  list: 'id, hospital_id, name, generic_name, category, form, strength, unit, manufacturer, current_stock, minimum_stock, unit_price, expiry_date, batch_number, is_active, created_at, updated_at',
+  detail: 'id, hospital_id, name, generic_name, category, form, strength, unit, manufacturer, current_stock, minimum_stock, unit_price, expiry_date, batch_number, is_active, created_at, updated_at',
+  active: 'id, name, current_stock, minimum_stock, unit, is_active',
 };
 
 export const PRESCRIPTION_COLUMNS = {

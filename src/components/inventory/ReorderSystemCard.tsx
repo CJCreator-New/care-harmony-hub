@@ -26,12 +26,22 @@ export function ReorderSystemCard() {
     setIsGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('check-low-stock');
-      
-      if (error) throw error;
-      
+
+      if (error) {
+        // Fallback to local computation when edge function is unavailable.
+        const lowStockCount = lowStockMeds?.length || 0;
+        setLastCheck(new Date().toISOString());
+        if (lowStockCount === 0) {
+          toast.success('All medications are well stocked!');
+        } else {
+          toast.success(`Reorder report generated: ${lowStockCount} items need attention`);
+        }
+        return;
+      }
+
       setLastCheck(new Date().toISOString());
-      
-      if (data.lowStockCount === 0) {
+
+      if ((data?.lowStockCount || 0) === 0) {
         toast.success('All medications are well stocked!');
       } else {
         toast.success(`Reorder report generated: ${data.lowStockCount} items need attention`);

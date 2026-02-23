@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
@@ -42,8 +42,31 @@ export function DoctorDashboard() {
   const { data: unreadCount } = useUnreadMessagesCount();
   const { data: stats, isLoading: statsLoading } = useDoctorStats();
   const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
+  const [stableStats, setStableStats] = useState({
+    todaysPatients: 0,
+    completedConsultations: 0,
+    pendingLabs: 0,
+    readyForConsult: 0,
+  });
   const [showConsultationModal, setShowConsultationModal] = useState(false);
   const { logActivity } = useAudit();
+
+  useEffect(() => {
+    if (stats) {
+      setStableStats((prev) => ({
+        ...prev,
+        todaysPatients: stats.todaysPatients ?? prev.todaysPatients,
+        completedConsultations: stats.completedConsultations ?? prev.completedConsultations,
+        pendingLabs: stats.pendingLabs ?? prev.pendingLabs,
+      }));
+    }
+  }, [stats]);
+
+  useEffect(() => {
+    if (!readyLoading) {
+      setStableStats((prev) => ({ ...prev, readyForConsult: patientsReady.length }));
+    }
+  }, [patientsReady.length, readyLoading]);
 
   const handleStartConsultation = (patientId: string) => {
     logActivity({
@@ -69,7 +92,7 @@ export function DoctorDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, Dr. {profile?.last_name || 'Doctor'}!
+              {getGreeting()}, Dr. {profile?.last_name?.trim() || 'Doctor'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Your patient schedule and consultations for today.
@@ -103,7 +126,7 @@ export function DoctorDashboard() {
         <Button variant="outline" asChild>
           <Link to="/consultations/mobile">
             <Smartphone className="h-4 w-4 mr-2" />
-            Mobile Notes
+            Quick Notes
           </Link>
         </Button>
         <Button variant="outline" asChild>
@@ -121,10 +144,7 @@ export function DoctorDashboard() {
         <Button variant="outline" asChild>
           <Link to="/messages">
             <MessageSquare className="h-4 w-4 mr-2" />
-            Messages
-            {unreadCount && unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">{unreadCount}</Badge>
-            )}
+            {`Messages ${unreadCount ?? 0}`}
           </Link>
         </Button>
       </div>
@@ -133,28 +153,28 @@ export function DoctorDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Today's Patients"
-          value={statsLoading ? '--' : String(stats?.todaysPatients || 0)}
+          value={String(statsLoading && stableStats.todaysPatients === 0 ? '--' : stableStats.todaysPatients)}
           subtitle="Scheduled"
           icon={Users}
           variant="primary"
         />
         <StatsCard
           title="Ready for Consult"
-          value={readyLoading ? '--' : String(patientsReady.length)}
+          value={String(readyLoading && stableStats.readyForConsult === 0 ? '--' : stableStats.readyForConsult)}
           subtitle="Awaiting you"
           icon={UserCheck}
           variant="success"
         />
         <StatsCard
           title="Consultations"
-          value={statsLoading ? '--' : String(stats?.completedConsultations || 0)}
+          value={String(statsLoading && stableStats.completedConsultations === 0 ? '--' : stableStats.completedConsultations)}
           subtitle="Completed today"
           icon={Stethoscope}
           variant="info"
         />
         <StatsCard
           title="Pending Labs"
-          value={statsLoading ? '--' : String(stats?.pendingLabs || 0)}
+          value={String(statsLoading && stableStats.pendingLabs === 0 ? '--' : stableStats.pendingLabs)}
           subtitle="Awaiting results"
           icon={TestTube2}
           variant="warning"

@@ -243,8 +243,8 @@ export default function AdminRoleSetupPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-4">
-            {roleOptions.slice(0, 4).map((option) => (
+          <div className="grid grid-cols-3 gap-3 pt-4">
+            {roleOptions.map((option) => (
               <div key={option.role} className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
                 <div className="p-1.5 rounded bg-white/10">
                   {option.icon}

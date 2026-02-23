@@ -178,6 +178,10 @@ export default function AccountSetupPage() {
     navigate('/hospital/login');
   };
 
+  const handleGoToRoleSetup = () => {
+    navigate('/hospital/role-setup');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -381,10 +385,14 @@ export default function AccountSetupPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                If you were invited, please use the invitation link sent to your email. Otherwise, contact your hospital administrator to request access.
+                Your account is ready, but role assignment is still pending. Continue to role setup to complete onboarding.
               </div>
-              <div className="flex justify-end pt-4">
-                <Button onClick={handleSignOut}>Sign out</Button>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={handleSignOut}>Sign out</Button>
+                <Button onClick={handleGoToRoleSetup}>
+                  Continue to Role Setup
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>

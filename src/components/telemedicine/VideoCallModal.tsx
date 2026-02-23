@@ -539,7 +539,9 @@ export function VideoCallModal({
                   <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-lg font-medium mb-2">Ready to Start Consultation</h3>
                   <p className="text-muted-foreground mb-6">
-                    Click below to start a video call with {patient?.first_name} {patient?.last_name}
+                    {patient
+                      ? `Click below to start a video call with ${patient.first_name} ${patient.last_name}`
+                      : 'Select a patient from the appointments list, then click below to start a video call.'}
                   </p>
                   <Button 
                     size="lg" 

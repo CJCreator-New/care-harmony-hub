@@ -42,6 +42,7 @@ interface AuthContextType {
   primaryRole: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isProfileReady: boolean;
   login: (email: string, password: string) => Promise<{ error: Error | null }>;
   signup: (
     email: string,
@@ -187,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [preferredRole, setPreferredRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProfileReady, setIsProfileReady] = useState(false);
   const isE2EMockAuthEnabled =
     typeof window !== 'undefined' && import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
 
@@ -242,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setRoles([mockUser.role]);
     setPreferredRole(mockUser.role);
+    setIsProfileReady(true);
 
     try {
       window.localStorage.setItem(E2E_MOCK_AUTH_STORAGE_KEY, email.trim().toLowerCase());
@@ -259,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHospital(null);
       setRoles([]);
       setPreferredRole(null);
+      setIsProfileReady(false);
       try {
         window.localStorage.removeItem(E2E_MOCK_AUTH_STORAGE_KEY);
         window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
@@ -289,6 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHospital(null);
       setRoles([]);
       setPreferredRole(null);
+      setIsProfileReady(false);
       try {
         window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
         window.localStorage.removeItem('testRole');
@@ -342,6 +347,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching user data:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsProfileReady(true);
     }
   }, []);
 
@@ -399,6 +406,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentSession?.user ?? null);
       if (currentSession?.user) {
         fetchUserData(currentSession.user.id);
+      } else {
+        setIsProfileReady(true);
       }
       setIsLoading(false);
     });
@@ -487,7 +496,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const mockUserId = `e2e-signup-${Date.now()}`;
       const nowIso = new Date().toISOString();
-      const role: UserRole = 'admin';
       const mockSupabaseUser = {
         id: mockUserId,
         aud: 'authenticated',
@@ -536,8 +544,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: 'admin@testgeneral.com',
         license_number: 'LIC-E2E-001',
       });
-      setRoles([role]);
-      setPreferredRole(role);
+      // Keep roles empty on initial signup so the normal role-setup flow applies.
+      setRoles([]);
+      setPreferredRole(null);
       return { error: null, userId: mockUserId };
     }
 
@@ -614,6 +623,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const createHospitalAndProfile = useCallback(
     async (hospitalData: Partial<Hospital>) => {
       if (isE2EMockAuthEnabled) {
+        const adminRole: UserRole = 'admin';
         setHospital({
           id: hospital?.id || 'e2e-hospital-001',
           name: hospitalData.name || hospital?.name || 'My Hospital',
@@ -625,6 +635,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: hospitalData.email || hospital?.email || null,
           license_number: hospitalData.license_number || hospital?.license_number || null,
         });
+        // In mock mode, once hospital setup is complete the creator must have admin access
+        // so onboarding can continue without falling into the "no role" dead-end state.
+        setRoles([adminRole]);
+        setPreferredRole(adminRole);
+        try {
+          window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, adminRole);
+        } catch {
+          // Ignore storage errors
+        }
         return { error: null };
       }
 
@@ -758,6 +777,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         primaryRole,
         isAuthenticated: !!session,
         isLoading,
+        isProfileReady,
         login,
         signup,
         logout,

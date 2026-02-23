@@ -33,13 +33,6 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const consultationData = {
-        patient_id: patientId,
-        consultation_id: consultationId,
-        notes,
-        timestamp: new Date().toISOString(),
-      };
-
       if (isOnline) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase.from('consultations') as any).update({
@@ -48,7 +41,7 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
         if (error) throw error;
         toast.success('Consultation notes saved successfully');
       } else {
-        queueAction('update', 'consultations', { id: consultationId, clinical_notes: notes });
+        queueAction('update', 'consultations', { id: consultationId, patient_id: patientId, clinical_notes: notes });
         toast.success('Consultation notes queued for sync');
       }
     } catch (error) {

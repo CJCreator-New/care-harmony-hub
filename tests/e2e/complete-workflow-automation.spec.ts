@@ -15,7 +15,7 @@ const testUsers = {
 
 // Helper function to login
 async function login(page, email, password) {
-  await page.goto(`${BASE_URL}/login`);
+  await page.goto(`${BASE_URL}/hospital/login`);
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
@@ -308,7 +308,7 @@ test.describe('CareSync Complete Workflow Automation', () => {
   });
 
   test('Data Validation: Invalid email rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    await page.goto(`${BASE_URL}/hospital/login`);
     
     // Enter invalid email
     await page.fill('input[type="email"]', 'invalid-email');

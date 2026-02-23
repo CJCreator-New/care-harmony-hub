@@ -41,14 +41,7 @@ export function ReceptionistMessaging({ compact = false }: ReceptionistMessaging
   const [loading, setLoading] = useState(false);
 
   const { profile } = useAuth();
-  const { subscribeToChannel } = useRealtimeUpdates();
-
-  useEffect(() => {
-    if (profile?.id) {
-      loadMessages();
-      setupRealtimeSubscription();
-    }
-  }, [profile?.id]);
+  useRealtimeUpdates();
 
   const loadMessages = async () => {
     if (!profile?.id) return;
@@ -78,23 +71,38 @@ export function ReceptionistMessaging({ compact = false }: ReceptionistMessaging
     }
   };
 
-  const setupRealtimeSubscription = () => {
+  // Load messages when profile is ready
+  useEffect(() => {
+    if (profile?.id) {
+      loadMessages();
+    }
+  }, [profile?.id]);
+
+  // Set up realtime subscription directly via Supabase channel
+  useEffect(() => {
     if (!profile?.id) return;
 
-    subscribeToChannel('communication_messages', `messages_${profile.id}`, (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const newMsg = payload.new as Message;
-        setMessages(prev => [newMsg, ...prev]);
-
-        // Show notification for urgent messages
-        if (newMsg.priority === 'urgent') {
-          toast.error(`Urgent message from ${newMsg.sender?.first_name}: ${newMsg.content}`);
-        } else {
-          toast.info(`New message from ${newMsg.sender?.first_name}`);
+    const channel = supabase
+      .channel(`messages_${profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'communication_messages' },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          setMessages(prev => [newMsg, ...prev]);
+          if (newMsg.priority === 'urgent') {
+            toast.error(`Urgent message from ${(newMsg as any).sender?.first_name}: ${newMsg.content}`);
+          } else {
+            toast.info(`New message from ${(newMsg as any).sender?.first_name}`);
+          }
         }
-      }
-    });
-  };
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !profile?.id) return;

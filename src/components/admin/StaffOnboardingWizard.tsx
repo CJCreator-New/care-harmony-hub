@@ -371,7 +371,10 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
             Back
           </Button>
           {step < 3 ? (
-            <Button onClick={nextStep}>
+            <Button
+              onClick={nextStep}
+              disabled={step === 2 && formData.roles.length === 0}
+            >
               Next
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>

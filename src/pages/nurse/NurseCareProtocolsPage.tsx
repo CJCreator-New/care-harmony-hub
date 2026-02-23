@@ -6,14 +6,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { usePatients } from '@/hooks/usePatients';
+import { useActiveQueue } from '@/hooks/useQueue';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 export default function NurseCareProtocolsPage() {
   const navigate = useNavigate();
   const [selectedPatient, setSelectedPatient] = useState<string>('');
-  const { data: patients } = usePatients();
+  const { data: patientsData } = usePatients();
+  const { data: activeQueue = [] } = useActiveQueue();
+  const patients = patientsData?.patients || [];
+  const queuePatients = activeQueue
+    .map((entry) => entry.patient)
+    .filter((patient): patient is { id: string; first_name: string; last_name: string; mrn: string } => Boolean(patient));
+  const selectablePatients = patients.length > 0 ? patients : queuePatients;
 
   return (
-    <div className="container max-w-4xl mx-auto py-6 space-y-6">
+    <DashboardLayout>
+      <div className="container max-w-4xl mx-auto py-6 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
           <ArrowLeft className="h-5 w-5" />
@@ -34,19 +43,23 @@ export default function NurseCareProtocolsPage() {
               <SelectValue placeholder="Choose a patient..." />
             </SelectTrigger>
             <SelectContent>
-              {patients?.map((patient) => (
+              {selectablePatients.map((patient) => (
                 <SelectItem key={patient.id} value={patient.id}>
                   {patient.first_name} {patient.last_name} - MRN: {patient.mrn}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {selectablePatients.length === 0 && (
+            <p className="text-sm text-muted-foreground mt-2">No patients available for protocol assignment.</p>
+          )}
         </CardContent>
       </Card>
 
       {selectedPatient && (
         <SmartChecklist patientId={selectedPatient} />
       )}
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
