@@ -168,13 +168,10 @@ export default function PatientRegisterPage() {
 
         if (profileError) console.error('Profile update error:', profileError);
 
-        // Assign patient role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'patient',
-          });
+        // Assign patient role via secure server-side function
+        const { error: roleError } = await supabase.rpc('assign_patient_role', {
+          p_user_id: authData.user.id,
+        });
 
         if (roleError) console.error('Role assignment error:', roleError);
       }
