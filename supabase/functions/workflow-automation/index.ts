@@ -123,111 +123,198 @@ async function processWorkflowRules(supabaseClient: any, data: any) {
   })
 }
 
+/**
+ * Execute all actions defined in a workflow rule.
+ *
+ * The actions payload is normalised to an array so that both legacy object-keyed
+ * format `{ "task": {...} }` and the current array format
+ * `[{ "type": "create_task", "target_role": "nurse", ... }]` are handled.
+ *
+ * Supported action types:
+ *   create_task        – create a workflow_tasks row and notify the assignee
+ *   send_notification  – insert a notifications row for the target role
+ *   update_status      – update the source entity's status (no-op in Edge Fn,
+ *                        status updates are performed by DB triggers)
+ *   trigger_function   – fire another Edge Function by name
+ */
 async function executeRuleActions(supabaseClient: any, rule: WorkflowRule, recordData: any) {
-  const createdTasks = []
+  const createdTasks: any[] = []
 
-  if (rule.actions.task) {
-    const taskData = rule.actions.task
+  // ── Normalise actions to an array ────────────────────────────────────────
+  let actionsArray: any[] = []
+  if (Array.isArray(rule.actions)) {
+    actionsArray = rule.actions
+  } else if (rule.actions && typeof rule.actions === 'object') {
+    // Legacy object-keyed format: { task: {...}, assignment_strategy: '...' }
+    if (rule.actions.task) {
+      actionsArray.push({ type: 'create_task', ...rule.actions.task })
+    }
+    // allow other legacy keys to fall through gracefully
+  }
 
-    // Find optimal assignee
-    const assigneeId = await findOptimalAssignee(
-      supabaseClient,
-      taskData.workflow_type,
-      recordData.hospital_id,
-      rule.actions.assignment_strategy || 'workload'
-    )
+  for (const action of actionsArray) {
+    switch (action.type) {
 
-    if (assigneeId) {
-      const dueDate = taskData.due_hours
-        ? new Date(Date.now() + taskData.due_hours * 60 * 60 * 1000).toISOString()
-        : null
+      case 'create_task': {
+        const targetRole: string = action.target_role || 'admin'
+        const assigneeId = await findOptimalAssigneeByRole(
+          supabaseClient,
+          targetRole,
+          recordData.hospital_id,
+        )
 
-      const { data: task, error: taskError } = await supabaseClient
-        .from('workflow_tasks')
-        .insert({
-          title: taskData.title,
-          description: taskData.description,
-          workflow_type: taskData.workflow_type,
-          priority: taskData.priority || 'medium',
-          assigned_to: assigneeId,
-          patient_id: recordData.id,
-          due_date: dueDate,
-          hospital_id: recordData.hospital_id,
-          metadata: {
-            auto_generated: true,
-            rule_id: rule.id,
-            trigger_event: rule.trigger_event
+        if (assigneeId) {
+          const dueDate = action.due_hours
+            ? new Date(Date.now() + action.due_hours * 60 * 60 * 1000).toISOString()
+            : null
+
+          const { data: task, error: taskError } = await supabaseClient
+            .from('workflow_tasks')
+            .insert({
+              title:        action.title       || action.message || `Workflow task: ${rule.name}`,
+              description:  action.description || action.message,
+              workflow_type: targetRole,
+              priority:     action.priority    || action.metadata?.priority || 'normal',
+              assigned_to:  assigneeId,
+              patient_id:   recordData.patient_id || recordData.id,
+              due_date:     dueDate,
+              hospital_id:  recordData.hospital_id,
+              metadata: {
+                auto_generated: true,
+                rule_id:        rule.id,
+                trigger_event:  rule.trigger_event,
+                ...(action.metadata || {}),
+              },
+            })
+            .select()
+            .single()
+
+          if (!taskError && task) {
+            createdTasks.push(task)
+            await sendTaskNotification(supabaseClient, task, assigneeId)
           }
-        })
-        .select()
-        .single()
-
-      if (!taskError && task) {
-        createdTasks.push(task)
-
-        // Send notification to assignee
-        await sendTaskNotification(supabaseClient, task, assigneeId)
+        }
+        break
       }
+
+      case 'send_notification': {
+        // Fan-out by role; recordData must carry hospital_id
+        const targetRole: string = action.target_role || 'admin'
+        const { data: recipients } = await supabaseClient
+          .from('profiles')
+          .select('user_id')
+          .eq('hospital_id', recordData.hospital_id)
+          .in('user_id', (
+            await supabaseClient
+              .from('user_roles')
+              .select('user_id')
+              .eq('role', targetRole)
+              .eq('hospital_id', recordData.hospital_id)
+          ).data?.map((r: any) => r.user_id) ?? [])
+
+        for (const recipient of recipients ?? []) {
+          await supabaseClient.from('notifications').insert({
+            hospital_id:  recordData.hospital_id,
+            recipient_id: recipient.user_id,
+            type:         action.notification_type || 'task',
+            title:        action.title   || rule.name,
+            message:      action.message || rule.description,
+            priority:     action.metadata?.priority || 'normal',
+            category:     action.category || 'clinical',
+            metadata: {
+              rule_id:       rule.id,
+              trigger_event: rule.trigger_event,
+              patient_id:    recordData.patient_id || recordData.id,
+              ...(action.metadata || {}),
+            },
+          })
+        }
+        break
+      }
+
+      case 'update_status':
+        // Status transitions are handled by DB triggers – nothing to do here.
+        break
+
+      case 'trigger_function': {
+        const fnName: string = action.metadata?.function_name
+        if (fnName) {
+          try {
+            await supabaseClient.functions.invoke(fnName, {
+              body: { action: 'process', data: recordData },
+            })
+          } catch (err) {
+            console.warn(`trigger_function ${fnName} failed:`, err)
+          }
+        }
+        break
+      }
+
+      default:
+        console.warn(`Unknown workflow action type: ${action.type}`)
     }
   }
 
   return createdTasks
 }
 
-async function findOptimalAssignee(supabaseClient: any, workflowType: string, hospitalId: string, strategy: string) {
-  let roleFilter = []
-
-  switch (workflowType) {
-    case 'consultation':
-      roleFilter = ['doctor']
-      break
-    case 'medication':
-      roleFilter = ['pharmacist', 'nurse']
-      break
-    case 'lab_order':
-      roleFilter = ['lab_technician']
-      break
-    case 'billing':
-      roleFilter = ['admin', 'receptionist']
-      break
-    default:
-      roleFilter = ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']
-  }
-
-  const { data: profiles, error } = await supabaseClient
-    .from('profiles')
-    .select('id, role')
+// ── Helper: find optimal assignee by role name (replaces findOptimalAssignee) ─
+async function findOptimalAssigneeByRole(
+  supabaseClient: any,
+  role: string,
+  hospitalId: string,
+): Promise<string | null> {
+  const { data: roleRows } = await supabaseClient
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', role)
     .eq('hospital_id', hospitalId)
-    .in('role', roleFilter)
 
-  if (error || !profiles?.length) return null
+  if (!roleRows?.length) return null
 
-  // Get current task counts for each user
-  const userIds = profiles.map(p => p.id)
+  const userIds = roleRows.map((r: any) => r.user_id)
+
+  // Get current task counts to find least-loaded staff member
   const { data: taskCounts } = await supabaseClient
     .from('workflow_tasks')
     .select('assigned_to')
     .in('assigned_to', userIds)
     .in('status', ['pending', 'in_progress'])
 
-  const workloadMap = new Map()
-  taskCounts?.forEach(task => {
-    workloadMap.set(task.assigned_to, (workloadMap.get(task.assigned_to) || 0) + 1)
+  const workloadMap = new Map<string, number>()
+  taskCounts?.forEach((task: any) => {
+    workloadMap.set(task.assigned_to, (workloadMap.get(task.assigned_to) ?? 0) + 1)
   })
 
-  // Find user with lowest workload
-  let bestAssignee = null
+  let bestUserId: string | null = null
   let lowestWorkload = Infinity
 
-  for (const profile of profiles) {
-    const workload = workloadMap.get(profile.id) || 0
+  for (const userId of userIds) {
+    const workload = workloadMap.get(userId) ?? 0
     if (workload < lowestWorkload) {
       lowestWorkload = workload
-      bestAssignee = profile.id
+      bestUserId = userId
     }
   }
 
-  return bestAssignee
+  return bestUserId
+}
+
+// ── Legacy wrapper kept for any callers that pass a workflowType string ──────
+async function findOptimalAssignee(
+  supabaseClient: any,
+  workflowType: string,
+  hospitalId: string,
+  _strategy: string,
+): Promise<string | null> {
+  const roleMap: Record<string, string> = {
+    consultation: 'doctor',
+    medication:   'pharmacist',
+    lab_order:    'lab_technician',
+    billing:      'receptionist',
+  }
+  const role = roleMap[workflowType] ?? 'admin'
+  return findOptimalAssigneeByRole(supabaseClient, role, hospitalId)
 }
 
 async function sendTaskNotification(supabaseClient: any, task: WorkflowTask, assigneeId: string) {

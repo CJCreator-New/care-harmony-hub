@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,8 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
-import { usePatientPortal } from '@/hooks/usePatientPortal';
+import { usePatientBillingQuery } from '@/hooks/usePatientPortalQueries';
+import { useTelemetry } from '@/hooks/useTelemetry';
 import { paymentService } from '@/utils/paymentService';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -36,92 +37,26 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const summarySkeletonKeys = ["summary-1", "summary-2", "summary-3", "summary-4"];
 
-  const {
-    billingData,
-    loading,
-    error,
-    refetch
-  } = usePatientPortal();
+  const { data: billingRaw, isLoading: loading, error, refetch } = usePatientBillingQuery(patientId);
+  const { emit } = useTelemetry();
 
-  // Mock billing data - in real implementation, this would come from the hook
-  const mockBillingData = {
-    outstandingBalance: 1250.75,
-    totalPaid: 8750.25,
-    totalBilled: 10001.00,
-    invoices: [
-      {
-        id: 'INV-2024-001',
-        date: '2024-01-15',
-        dueDate: '2024-02-15',
-        amount: 450.00,
-        paid: 450.00,
-        status: 'paid',
-        description: 'Consultation and Lab Tests',
-        items: [
-          { description: 'Initial Consultation', amount: 150.00 },
-          { description: 'Blood Tests', amount: 200.00 },
-          { description: 'X-Ray', amount: 100.00 }
-        ]
-      },
-      {
-        id: 'INV-2024-002',
-        date: '2024-01-20',
-        dueDate: '2024-02-20',
-        amount: 800.75,
-        paid: 600.00,
-        status: 'partial',
-        description: 'Emergency Room Visit',
-        items: [
-          { description: 'ER Visit', amount: 500.00 },
-          { description: 'CT Scan', amount: 300.75 }
-        ]
-      },
-      {
-        id: 'INV-2024-003',
-        date: '2024-01-25',
-        dueDate: '2024-02-25',
-        amount: 650.00,
-        paid: 0.00,
-        status: 'unpaid',
-        description: 'Surgery and Follow-up',
-        items: [
-          { description: 'Surgery', amount: 500.00 },
-          { description: 'Follow-up Consultation', amount: 150.00 }
-        ]
-      }
-    ],
-    paymentHistory: [
-      {
-        id: 'PAY-2024-001',
-        date: '2024-01-16',
-        amount: 450.00,
-        method: 'Credit Card',
-        status: 'completed',
-        invoiceId: 'INV-2024-001'
-      },
-      {
-        id: 'PAY-2024-002',
-        date: '2024-01-22',
-        amount: 600.00,
-        method: 'Insurance',
-        status: 'completed',
-        invoiceId: 'INV-2024-002'
-      }
-    ],
-    insuranceClaims: [
-      {
-        id: 'CLM-2024-001',
-        date: '2024-01-20',
-        amount: 800.75,
-        status: 'approved',
-        approvedAmount: 600.00,
-        deniedAmount: 200.75,
-        reason: 'Pre-authorization required for CT scan'
-      }
-    ]
-  };
-
-  const billingDataToUse = billingData || mockBillingData;
+  const billingDataToUse = useMemo(() => {
+    const invoices = (billingRaw?.invoices ?? []).map((inv: any) => ({
+      ...inv,
+      date: inv.created_at,
+      dueDate: inv.due_date,
+      amount: inv.total_amount ?? 0,
+    }));
+    const paymentHistory = billingRaw?.payments ?? [];
+    const outstandingBalance = invoices
+      .filter((inv: any) => inv.status !== 'paid')
+      .reduce((sum: number, inv: any) => sum + (inv.amount_due ?? inv.amount ?? 0), 0);
+    const totalBilled = invoices.reduce((sum: number, inv: any) => sum + (inv.amount ?? 0), 0);
+    const totalPaid = paymentHistory
+      .filter((p: any) => p.status === 'completed' || p.status === 'paid')
+      .reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0);
+    return { invoices, paymentHistory, insuranceClaims: [], outstandingBalance, totalBilled, totalPaid };
+  }, [billingRaw]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -173,6 +108,12 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
     } catch (error) {
       console.error('Payment failed:', error);
       toast.error('Payment failed. Please try again or contact support.');
+      // T-91: non-PHI error telemetry for payment post failures
+      emit('payment_post_failed', {
+        entityType: 'invoice',
+        entityId: invoiceId,
+        errorCode: error instanceof Error ? error.message : 'unknown',
+      });
     } finally {
       setIsProcessingPayment(false);
     }

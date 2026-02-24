@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 export interface Message {
   id: string;
@@ -234,7 +235,14 @@ export function useMessageContacts() {
       if (!user?.id) throw new Error('No user context');
 
       if (isPatient) {
-        // Patients can message doctors and nurses
+        // Patients can message configured care-team roles.
+        const defaultAllowedRoles = ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
+        const configuredRoles = (import.meta.env.VITE_PATIENT_MESSAGE_ALLOWED_ROLES as string | undefined)
+          ?.split(',')
+          .map((r) => r.trim())
+          .filter(Boolean);
+        const allowedRoles = (configuredRoles && configuredRoles.length > 0) ? configuredRoles : defaultAllowedRoles;
+
         const { data, error } = await supabase
           .from('profiles')
           .select(`
@@ -248,7 +256,7 @@ export function useMessageContacts() {
 
         if (error) throw error;
 
-        // Filter to only doctors and nurses
+        // Filter to configured care-team roles.
         const staffIds = data?.map(p => p.user_id).filter((id): id is string => id != null) || [];
         if (staffIds.length === 0) return [];
 
@@ -256,7 +264,7 @@ export function useMessageContacts() {
           .from('user_roles')
           .select('user_id, role')
           .in('user_id', staffIds)
-          .in('role', ['doctor', 'nurse']);
+          .in('role', allowedRoles as any);
 
         if (rolesError) throw rolesError;
 

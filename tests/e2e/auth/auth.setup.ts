@@ -80,7 +80,7 @@ setup('authenticate as pharmacist', async ({ page }) => {
 
 // Setup authentication for lab_technician role
 setup('authenticate as lab_technician', async ({ page }) => {
-  const user = TEST_USERS.lab_tech;
+  const user = TEST_USERS.lab_technician;
   
   await page.goto('/hospital/login');
   await page.fill('#email', user.email);
@@ -89,4 +89,17 @@ setup('authenticate as lab_technician', async ({ page }) => {
   
   await expect(page).toHaveURL(/.*dashboard.*/);
   await page.context().storageState({ path: path.join(authDir, 'lab_technician.json') });
+});
+
+// Setup authentication for patient role
+setup('authenticate as patient', async ({ page }) => {
+  const user = TEST_USERS.patient;
+
+  await page.goto('/hospital/login');
+  await page.fill('#email', user.email);
+  await page.fill('#password', user.password);
+  await page.click('button[type="submit"]');
+
+  await expect(page).toHaveURL(/.*dashboard|portal.*/);
+  await page.context().storageState({ path: path.join(authDir, 'patient.json') });
 });

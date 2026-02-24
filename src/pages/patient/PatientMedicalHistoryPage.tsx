@@ -7,25 +7,20 @@ import {
   Activity,
   Heart,
   Thermometer,
-  Wind,
   Droplets,
   Scale,
   Ruler,
-  Calendar,
   User,
   AlertTriangle,
-  Pill,
 } from 'lucide-react';
 import { usePatientProfile, usePatientVitals } from '@/hooks/usePatientPortal';
 import { format, parseISO, differenceInYears } from 'date-fns';
 
 export default function PatientMedicalHistoryPage() {
-  const { data: profile, isLoading: profileLoading } = usePatientProfile();
-  const { data: vitals = [], isLoading: vitalsLoading } = usePatientVitals();
+  const { profile, loading: profileLoading } = usePatientProfile();
+  const { vitals = [], loading: vitalsLoading } = usePatientVitals();
 
   const latestVitals = vitals[0];
-
-  const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
   return (
     <DashboardLayout>

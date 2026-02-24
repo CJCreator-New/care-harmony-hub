@@ -78,7 +78,13 @@ export function useDrugUtilizationReview() {
             patient_name,
             medication_name,
             dosage,
-            quantity
+            quantity,
+            items:prescription_items(
+              id,
+              medication_name,
+              dosage,
+              quantity
+            )
           ),
           patients:patient_id (
             id,
@@ -97,7 +103,14 @@ export function useDrugUtilizationReview() {
 
       if (error) throw error;
       return data as (DURFinding & {
-        prescriptions: { id: string; patient_name: string; medication_name: string; dosage: string; quantity: number };
+        prescriptions: {
+          id: string;
+          patient_name: string;
+          medication_name?: string | null;
+          dosage?: string | null;
+          quantity?: number | null;
+          items?: Array<{ id: string; medication_name: string; dosage: string; quantity?: number | null }>;
+        };
         patients: { id: string; first_name: string; last_name: string; insurance_provider?: string };
         dur_criteria: { name: string; category: string };
       })[];
@@ -116,7 +129,12 @@ export function useDrugUtilizationReview() {
           prescriptions:prescription_id (
             patient_name,
             medication_name,
-            dosage
+            dosage,
+            items:prescription_items(
+              id,
+              medication_name,
+              dosage
+            )
           ),
           patients:patient_id (
             first_name,

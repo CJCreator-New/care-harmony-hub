@@ -24,7 +24,8 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'insurance'>('cash');
   const [processing, setProcessing] = useState(false);
 
-  const { data: patients = [] } = usePatients();
+  const { data: patientsData } = usePatients();
+  const patients = patientsData?.patients || [];
   const { data: invoices = [] } = useInvoices();
   const recordPayment = useRecordPayment();
   const [cardModalOpen, setCardModalOpen] = useState(false);
@@ -33,10 +34,10 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
 
   // Get outstanding invoices for selected patient
   const patientInvoices = invoices.filter(
-    inv => inv.patient_id === selectedPatient && inv.status === 'unpaid'
+    inv => inv.patient_id === selectedPatient && (inv.status === 'pending' || inv.status === 'partial')
   );
 
-  const totalOutstanding = patientInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
+  const totalOutstanding = patientInvoices.reduce((sum, inv) => sum + (inv.total - inv.paid_amount), 0);
 
   const handlePayment = async () => {
     if (!selectedPatient || !paymentAmount) {
@@ -52,14 +53,22 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
 
     setProcessing(true);
     try {
+      if (patientInvoices.length === 0) {
+        toast.error('No outstanding invoices found for selected patient');
+        return;
+      }
+
+      const boundedAmount = Math.min(amount, totalOutstanding);
+
       // Record payment for outstanding invoices
-      let remainingAmount = amount;
+      let remainingAmount = boundedAmount;
       const payments = [];
 
       for (const invoice of patientInvoices) {
         if (remainingAmount <= 0) break;
 
-        const paymentForInvoice = Math.min(remainingAmount, invoice.total_amount);
+        const outstandingForInvoice = Math.max(invoice.total - invoice.paid_amount, 0);
+        const paymentForInvoice = Math.min(remainingAmount, outstandingForInvoice);
         payments.push({
           invoice_id: invoice.id,
           amount: paymentForInvoice,
@@ -73,22 +82,22 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
       if (paymentMethod === 'card') {
         // Open card modal and defer recording until capture completes
         setPendingPayments(payments);
-        setPendingAmount(amount);
+        setPendingAmount(boundedAmount);
         setCardModalOpen(true);
       } else {
         // Record payments for non-card methods immediately
         for (const payment of payments) {
           const payload = {
-            invoiceId: payment.invoice_id || payment.invoiceId || payment.invoiceId,
+            invoiceId: payment.invoice_id,
             amount: payment.amount,
-            paymentMethod: payment.payment_method || payment.paymentMethod || payment.paymentMethod,
+            paymentMethod: payment.payment_method,
             notes: payment.notes,
           };
           await recordPayment.mutateAsync(payload);
         }
       }
 
-      toast.success(`Payment of $${amount.toFixed(2)} recorded successfully`);
+      toast.success(`Payment of $${boundedAmount.toFixed(2)} recorded successfully`);
       setOpen(false);
       setSelectedPatient('');
       setPaymentAmount('');
@@ -106,7 +115,7 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
     // After card capture, record payments with a synthetic reference
     for (const payment of pendingPayments) {
       const payload = {
-        invoiceId: payment.invoice_id || payment.invoiceId || payment.invoiceId,
+        invoiceId: payment.invoice_id,
         amount: payment.amount,
         paymentMethod: 'card',
         notes: payment.notes || 'Card payment (receptionist)',
@@ -238,7 +247,7 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
                 </div>
                 {totalOutstanding > 0 && (
                   <div className="text-xs text-green-700 mt-1">
-                    Remaining balance: ${(totalOutstanding - parseFloat(paymentAmount || '0')).toFixed(2)}
+                    Remaining balance: ${Math.max(0, totalOutstanding - parseFloat(paymentAmount || '0')).toFixed(2)}
                   </div>
                 )}
               </div>

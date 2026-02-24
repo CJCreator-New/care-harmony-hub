@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   ArrowLeft, 
   User, 
   Calendar, 
@@ -20,14 +20,14 @@ import {
   Upload,
   ShieldCheck
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PatientTimeline } from '@/components/patients/PatientTimeline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
 import { usePatientVitalSigns } from '@/hooks/useVitalSigns';
+import { usePatient } from '@/hooks/usePatients';
+import { EditPatientModal } from '@/components/patients/EditPatientModal';
 import { differenceInYears, format as formatDate } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -35,20 +35,9 @@ export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [consultationModalOpen, setConsultationModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
-  const { data: patient, isLoading } = useQuery({
-    queryKey: ['patient', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
+  const { data: patient, isLoading } = usePatient(id);
 
   const { data: vitalSigns = [] } = usePatientVitalSigns(id || '');
 
@@ -81,6 +70,9 @@ export default function PatientProfilePage() {
             </div>
           </div>
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setEditModalOpen(true)}>
+              Edit Details
+            </Button>
             <Button
               variant="outline"
               className="gap-2"
@@ -337,6 +329,11 @@ export default function PatientProfilePage() {
       <StartConsultationModal
         open={consultationModalOpen}
         onOpenChange={setConsultationModalOpen}
+      />
+      <EditPatientModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        patient={patient}
       />
     </DashboardLayout>
   );

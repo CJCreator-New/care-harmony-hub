@@ -9,13 +9,13 @@ import { format, parseISO } from 'date-fns';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-warning/10 text-warning border-warning/20',
-  collected: 'bg-info/10 text-info border-info/20',
-  processing: 'bg-primary/10 text-primary border-primary/20',
+  sample_collected: 'bg-info/10 text-info border-info/20',
+  in_progress: 'bg-primary/10 text-primary border-primary/20',
   completed: 'bg-success/10 text-success border-success/20',
 };
 
 export default function PatientLabResultsPage() {
-  const { data: labResults = [], isLoading } = usePatientLabResults();
+  const { labResults = [], loading: isLoading } = usePatientLabResults();
   const skeletonKeys = ['lab-1', 'lab-2', 'lab-3'];
 
   const pendingResults = labResults.filter((l) => l.status !== 'completed');

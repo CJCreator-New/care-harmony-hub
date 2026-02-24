@@ -1,356 +1,97 @@
-# E2E Testing for CareSync HMS
+# Playwright E2E Test Suite
 
-This directory contains comprehensive end-to-end tests for the CareSync Hospital Management System, focusing on critical patient workflows and role-based access control.
+This folder contains a generic, observable Playwright Test setup designed to exercise major user journeys with deterministic mock data.
 
-## 🎯 Test Coverage
+## What is included
 
-### Critical Patient Flow Tests (`patient-flow-critical.spec.ts`)
-Tests the complete patient journey through the healthcare system:
+- `playwright.config.ts`
+- `mockData.ts` deterministic users/entities/notifications/settings
+- `utils.ts` shared helpers (`login`, `navigateTo`, API interception, error collection)
+- Route-level coverage specs:
+  - `home-page.spec.ts`
+  - `login-page.spec.ts`
+  - `dashboard-page.spec.ts`
+  - `settings-page.spec.ts`
+- Journey/flow specs:
+  - `auth-and-onboarding.spec.ts`
+  - `primary-business-flow.spec.ts`
+  - `edit-and-delete-flow.spec.ts`
+  - `notifications-and-settings-flow.spec.ts`
 
-1. **Patient Check-in** (Receptionist role)
-   - Queue management and patient registration
-   - Appointment verification and check-in process
+## Install and browser setup
 
-2. **Vitals Recording** (Nurse role)
-   - Recording patient vital signs
-   - Data validation and error handling
-
-3. **Patient Preparation** (Nurse role)
-   - Pre-consultation checklist completion
-   - Patient readiness verification
-
-4. **Consultation** (Doctor role)
-   - 5-step consultation workflow
-   - Clinical documentation and diagnosis
-   - Prescription creation with safety checks
-
-5. **Prescription Dispensing** (Pharmacist role)
-   - Prescription processing and verification
-   - Drug interaction checking
-   - Medication dispensing workflow
-
-### Role-Based Access Control Tests (`role-based-access.spec.ts`)
-Validates security and permissions across all user roles:
-
-- **Route Access Control**: Ensures users can only access authorized pages
-- **UI Element Visibility**: Verifies role-appropriate interface elements
-- **Data Access Restrictions**: Tests data isolation between roles and hospitals
-- **Role Switching**: Validates localStorage persistence and role transitions
-- **Security Edge Cases**: Tests unauthorized access attempts and role escalation
-
-## 🚀 Running Tests
-
-### Prerequisites
 ```bash
-# Install dependencies
 npm install
-
-# Ensure Playwright browsers are installed
 npx playwright install
 ```
 
-### Test Commands
+## Run locally
 
 ```bash
-# Run all E2E tests
+# Standard E2E run
 npm run test:e2e
 
-# Run critical patient flow tests only
-npm run test:e2e:patient-flow
-
-# Run role-based access control tests only
-npm run test:e2e:rbac
-
-# Run both critical test suites
-npm run test:e2e:critical
-
-# Run tests with UI (interactive mode)
+# Headed + visible slow interactions for walkthroughs
 npm run test:e2e:ui
 
-# Run tests in headed mode (visible browser)
-npm run test:e2e:headed
+# Role setup coverage (Admin, Doctor, Nurse, Receptionist, Lab, Pharmacist, Patient Portal)
+npm run test:e2e:roles:setup
 
-# Run specific test file
-npx playwright test patient-flow-critical.spec.ts
-
-# Run tests on specific browser
-npx playwright test --project=chromium
-
-# Run tests with debug mode
-npx playwright test --debug
+# Headless one-off run
+npx playwright test --headless
 ```
 
-## 🏗️ Test Architecture
+## Run in CI
 
-### Test Structure
-```
-tests/e2e/
-├── patient-flow-critical.spec.ts    # Critical patient workflow tests
-├── role-based-access.spec.ts        # RBAC and security tests
-├── utils/
-│   └── test-helpers.ts              # Shared utilities and helpers
-└── config/
-    └── e2e.config.ts                # Test configuration and data
-```
-
-### Key Components
-
-#### Test Helpers (`utils/test-helpers.ts`)
-- **Role Management**: `setTestRole()`, `loginAsTestUser()`
-- **API Mocking**: `setupApiMocks()` for consistent test data
-- **Form Utilities**: `fillForm()`, `completeConsultationStep()`
-- **Test Data**: Predefined patient, vitals, and prescription data
-
-#### Configuration (`config/e2e.config.ts`)
-- Test environment settings
-- User credentials and test data templates
-- Performance thresholds and timeouts
-- API endpoints and selectors
-
-## 🔧 Test Features
-
-### Role Switching with localStorage Persistence
-Tests validate that the role switching functionality works correctly:
-
-```typescript
-// Switch to nurse role
-await setTestRole(page, 'nurse');
-
-// Role persists across navigation
-await page.goto('/queue');
-await page.goto('/dashboard');
-
-// Verify role is still active
-const currentRole = await page.evaluate(() => localStorage.getItem('testRole'));
-expect(currentRole).toBe('nurse');
-```
-
-### Comprehensive API Mocking
-All tests use mocked API responses for consistency:
-
-```typescript
-await setupApiMocks(page);
-// Provides mock data for patients, appointments, consultations, etc.
-```
-
-### Data Validation Testing
-Tests include validation for:
-- Form input validation
-- Drug interaction alerts
-- Allergy checking
-- Role-based data access restrictions
-
-### Error Handling
-Tests cover various error scenarios:
-- Network failures
-- Invalid data submission
-- Unauthorized access attempts
-- Session timeouts
-
-## 📊 Test Data
-
-### Default Test Patient
-```typescript
-{
-  firstName: 'Jane',
-  lastName: 'TestPatient',
-  mrn: 'MRN-E2E-001',
-  phone: '555-0123',
-  email: 'jane.testpatient@example.com',
-  dateOfBirth: '1985-06-15',
-  gender: 'female'
-}
-```
-
-### Test Vitals
-```typescript
-{
-  bloodPressure: '140/90',
-  heartRate: '78',
-  temperature: '98.6',
-  weight: '165',
-  height: '5\'6"'
-}
-```
-
-### Test Prescription
-```typescript
-{
-  medication: 'Lisinopril',
-  dosage: '10mg',
-  frequency: 'Once daily',
-  duration: '30 days'
-}
-```
-
-## 🛡️ Security Testing
-
-### Role-Based Access Matrix
-Tests validate access permissions for each route:
-
-| Route | Admin | Doctor | Nurse | Receptionist | Pharmacist | Lab Tech | Patient |
-|-------|-------|--------|-------|--------------|------------|----------|---------|
-| `/dashboard` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| `/patients` | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `/consultations` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `/pharmacy` | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| `/settings/staff-management` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-### Security Test Cases
-- **Unauthorized Route Access**: Attempts to access restricted pages
-- **Role Escalation Prevention**: Attempts to manipulate localStorage
-- **Data Isolation**: Ensures users only see appropriate data
-- **API Endpoint Protection**: Validates API-level access control
-
-## 🎭 Browser Support
-
-Tests run on multiple browsers and devices:
-- **Desktop**: Chrome, Firefox, Safari, Edge
-- **Mobile**: Chrome Mobile, Safari Mobile
-- **Responsive**: Tests validate mobile-responsive design
-
-## 📈 Performance Testing
-
-Tests include performance validations:
-- Page load times < 5 seconds
-- API response times < 2 seconds
-- Memory usage monitoring
-- Network request optimization
-
-## 🐛 Debugging Tests
-
-### Debug Mode
 ```bash
-# Run with debug mode (pauses execution)
-npx playwright test --debug
-
-# Run specific test with debug
-npx playwright test patient-flow-critical.spec.ts --debug
+CI=true npx playwright test --reporter=line
 ```
 
-### Screenshots and Videos
-```bash
-# Run with screenshots on failure
-npx playwright test --screenshot=only-on-failure
+Recommended CI artifacts to upload:
 
-# Run with video recording
-npx playwright test --video=on-first-retry
-```
+- `playwright-report/`
+- `test-results/`
 
-### Trace Viewer
-```bash
-# Generate trace files
-npx playwright test --trace=on
+## Mock data and deterministic state
 
-# View trace
-npx playwright show-trace trace.zip
-```
+- Tests call `installMockApi(page)` which intercepts `**/api/**` with `page.route` and returns JSON from `mockData.ts`.
+- `resetMockState()` is called before each test to keep initial state consistent.
+- `enableTestMode(page)` sets `localStorage.TEST_MODE=true` before app scripts run.
 
-## 🔍 Test Reports
+## Adding new tests
 
-### HTML Report
-```bash
-# Generate and view HTML report
-npx playwright show-report
-```
+1. Add a new `*.spec.ts` in `tests/e2e`.
+2. Reuse helpers from `utils.ts`:
+   - `navigateTo(page, '/route')`
+   - `login(page)`
+   - `installMockApi(page)`
+   - `createErrorCollector(page)`
+3. Wrap major actions in `test.step('...')` for readable execution.
+4. Prefer semantic selectors:
+   - `getByRole`
+   - `getByLabel`
+   - `getByText`
+   - `getByTestId`
+5. If UI is hard to target, add stable `data-testid` attributes in app code.
+6. Extend `mockData.ts` and corresponding API route handlers when new flows require new entities.
 
-### CI/CD Integration
-Tests are configured for CI/CD environments:
-- Automatic retries on failure
-- Parallel execution
-- Artifact collection (screenshots, videos, traces)
+## Role coverage matrix
 
-## 📝 Writing New Tests
+The suite `role-setup-coverage.spec.ts` validates the same deterministic setup pattern for:
 
-### Test Template
-```typescript
-import { test, expect } from '@playwright/test';
-import { setTestRole, loginAsTestUser, setupApiMocks } from './utils/test-helpers';
+- Admin
+- Doctor
+- Nurse
+- Receptionist
+- Lab (`lab_technician`)
+- Pharmacist
+- Patient Portal (`patient`)
 
-test.describe('New Feature Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page);
-    await loginAsTestUser(page, 'doctor');
-  });
+## Failure artifact interpretation
 
-  test('should perform new feature workflow', async ({ page }) => {
-    await test.step('Step 1: Setup', async () => {
-      // Test setup
-    });
+- `trace`: available on first retry. Open with:
+  - `npx playwright show-trace <trace.zip>`
+- `screenshot`: captured automatically on failure.
+- `video`: recorded on first retry for visual debugging.
 
-    await test.step('Step 2: Action', async () => {
-      // Test action
-    });
-
-    await test.step('Step 3: Verification', async () => {
-      // Test verification
-    });
-  });
-});
-```
-
-### Best Practices
-1. **Use test.step()** for clear test organization
-2. **Mock API calls** for consistent test data
-3. **Test role-based access** for security features
-4. **Include error scenarios** and edge cases
-5. **Use descriptive test names** and assertions
-6. **Clean up state** between tests
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-#### Test Timeouts
-```bash
-# Increase timeout for slow operations
-test.setTimeout(60000);
-```
-
-#### Element Not Found
-```typescript
-// Wait for element to be visible
-await expect(page.getByText('Expected Text')).toBeVisible();
-
-// Use more specific selectors
-await page.getByRole('button', { name: 'Specific Button' }).click();
-```
-
-#### Role Switching Issues
-```typescript
-// Ensure role is set and page is reloaded
-await setTestRole(page, 'nurse');
-await page.waitForLoadState('networkidle');
-```
-
-#### API Mock Issues
-```typescript
-// Verify mock is set up before navigation
-await setupApiMocks(page);
-await page.goto('/target-page');
-```
-
-### Debug Checklist
-- [ ] Are API mocks set up correctly?
-- [ ] Is the correct role set for the test?
-- [ ] Are selectors specific enough?
-- [ ] Is the page fully loaded before assertions?
-- [ ] Are there any console errors?
-
-## 📚 Additional Resources
-
-- [Playwright Documentation](https://playwright.dev/)
-- [Test Best Practices](https://playwright.dev/docs/best-practices)
-- [Debugging Tests](https://playwright.dev/docs/debug)
-- [CI/CD Integration](https://playwright.dev/docs/ci)
-
-## 🤝 Contributing
-
-When adding new E2E tests:
-
-1. Follow the existing test structure and patterns
-2. Use the shared test helpers and utilities
-3. Include both happy path and error scenarios
-4. Test role-based access control where applicable
-5. Add appropriate documentation and comments
-6. Ensure tests are deterministic and reliable
+Use `test.step` names in traces to locate exact failing stages quickly.

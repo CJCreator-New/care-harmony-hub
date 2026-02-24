@@ -31,8 +31,10 @@ import {
   CONSULTATION_STEPS,
 } from "@/hooks/useConsultations";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
+import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useCreateInvoice } from '@/hooks/useBilling';
-import { useWorkflowOrchestrator } from "@/hooks/useWorkflowOrchestrator";
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { mapToCanonicalLabPriority, mapToWorkflowPriority } from '@/utils/labPriority';
 import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
 import { PhysicalExamStep } from "@/components/consultations/steps/PhysicalExamStep";
 import { DiagnosisStepEnhanced } from "@/components/consultations/steps/DiagnosisStepEnhanced";
@@ -52,6 +54,7 @@ export default function ConsultationWorkflowPage() {
   const updateConsultation = useUpdateConsultation();
   const advanceStep = useAdvanceConsultationStep();
   const createPrescription = useCreatePrescription();
+  const createLabOrder = useCreateLabOrder();
   const createInvoice = useCreateInvoice();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const [activeStep, setActiveStep] = useState(1);
@@ -59,6 +62,27 @@ export default function ConsultationWorkflowPage() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  const getDiagnosisSummary = () => {
+    const diagnosisList = Array.isArray(formData.diagnoses) ? formData.diagnoses : [];
+    const diagnosisDescriptions = diagnosisList
+      .map((dx: any) => {
+        if (typeof dx === 'string') return dx;
+        if (dx?.description) return dx.description;
+        if (dx?.short_description) return dx.short_description;
+        if (dx?.icd_code) return dx.icd_code;
+        return '';
+      })
+      .filter(Boolean);
+
+    if (diagnosisDescriptions.length > 0) {
+      return diagnosisDescriptions.join(', ');
+    }
+    if (Array.isArray(formData.final_diagnosis) && formData.final_diagnosis.length > 0) {
+      return formData.final_diagnosis.join(', ');
+    }
+    return 'Not documented';
+  };
 
   useEffect(() => {
     if (consultation) {
@@ -185,7 +209,7 @@ CHIEF COMPLAINT:
 ${formData.chief_complaint || 'Not documented'}
 
 DIAGNOSIS:
-${formData.final_diagnosis?.join(', ') || 'Not documented'}
+${getDiagnosisSummary()}
 
 TREATMENT PLAN:
 ${formData.treatment_plan || 'Not documented'}
@@ -254,7 +278,7 @@ ${formData.soap_plan || 'Not documented'}`;
             });
             // Always notify pharmacists via workflow orchestrator when prescriptions are created
             await triggerWorkflow({
-              type: 'prescription_created',
+              type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
               patientId: consultation.patient_id,
               data: {
                 patientName,
@@ -270,44 +294,39 @@ ${formData.soap_plan || 'Not documented'}`;
         }
 
         // Create lab orders in the database and notify lab
-        if (formData.lab_orders?.length > 0 && formData.lab_notified) {
+        if (formData.lab_orders?.length > 0) {
           try {
             for (const order of formData.lab_orders) {
-              // Create lab order record
-              const { data: labOrder, error: labError } = await supabase
-                .from('lab_orders')
-                .insert({
-                  hospital_id: consultation.hospital_id,
-                  patient_id: consultation.patient_id,
-                  consultation_id: id,
-                  ordered_by: consultation.doctor_id,
-                  test_name: order.test,
-                  priority: order.priority || 'routine',
-                  status: 'pending',
-                  notes: order.notes || formData.handoff_notes,
-                })
-                .select()
-                .single();
-
-              if (labError) throw labError;
+              // Use useCreateLabOrder to also insert into lab_queue (durable work queue)
+              const labOrder = await createLabOrder.mutateAsync({
+                hospital_id: consultation.hospital_id,
+                patient_id: consultation.patient_id,
+                consultation_id: id,
+                ordered_by: consultation.doctor_id,
+                test_name: order.test,
+                priority: mapToCanonicalLabPriority(order.priority),
+                status: 'pending',
+                notes: order.notes || formData.handoff_notes,
+              });
 
               // Notify lab technicians via workflow orchestrator
               await triggerWorkflow({
-                type: 'lab_order_created',
+                type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
                 patientId: consultation.patient_id,
                 data: {
                   patientName,
                   testName: order.test,
                   labOrderId: labOrder.id,
-                  priority: order.priority || 'routine'
+                  priority: mapToCanonicalLabPriority(order.priority)
                 },
-                priority: order.priority === 'urgent' ? 'urgent' : 'normal'
+                priority: mapToWorkflowPriority(order.priority)
               });
             }
             toast.success(`${formData.lab_orders.length} lab order(s) sent to laboratory`);
           } catch (err) {
             console.error('Error creating lab orders:', err);
             toast.error('Failed to send lab orders to laboratory');
+            throw err;
           }
         }
 
@@ -334,7 +353,7 @@ ${formData.soap_plan || 'Not documented'}`;
             });
 
             await triggerWorkflow({
-              type: 'invoice_created',
+              type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
               patientId: consultation.patient_id,
               data: {
                 patientName,
@@ -421,6 +440,22 @@ ${formData.soap_plan || 'Not documented'}`;
 
         setIsCompleted(true);
         toast.success("Consultation completed successfully!");
+
+        // Notify all receptionists so they can begin billing/checkout.
+        // This fires unconditionally — whether or not an invoice was already
+        // created inside the billing block above.
+        const completionPatientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
+        await triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
+          patientId: consultation.patient_id,
+          data: {
+            patientName: completionPatientName,
+            consultationId: id ?? '',
+            prescriptionCount: formData.prescriptions?.length || 0,
+            labOrderCount: formData.lab_orders?.length || 0,
+            billingNotified: !!formData.billing_notified,
+          },
+        });
         
         // Redirect after a short delay to show completion state
         setTimeout(() => {

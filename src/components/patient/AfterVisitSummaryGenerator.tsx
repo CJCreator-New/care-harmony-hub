@@ -14,7 +14,9 @@ interface AfterVisitSummaryGeneratorProps {
   patientName: string;
   visitData: {
     chief_complaint: string;
-    diagnosis: string;
+    diagnosis?: string;
+    diagnoses?: Array<string | { description?: string; short_description?: string; icd_code?: string }>;
+    final_diagnosis?: string[];
     treatment_plan: string;
     prescriptions: Array<{
       medication_name: string;
@@ -42,6 +44,22 @@ export const AfterVisitSummaryGenerator: React.FC<AfterVisitSummaryGeneratorProp
   const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'sms' | 'portal' | 'print'>('portal');
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+
+  const deriveDiagnosisSummary = () => {
+    const diagnoses = Array.isArray(visitData.diagnoses) ? visitData.diagnoses : [];
+    const normalized = diagnoses
+      .map((dx) => {
+        if (typeof dx === 'string') return dx;
+        return dx.description || dx.short_description || dx.icd_code || '';
+      })
+      .filter(Boolean);
+
+    if (normalized.length > 0) return normalized.join(', ');
+    if (Array.isArray(visitData.final_diagnosis) && visitData.final_diagnosis.length > 0) {
+      return visitData.final_diagnosis.join(', ');
+    }
+    return visitData.diagnosis || '';
+  };
 
   // Mock templates (in real app, fetch from database)
   const mockTemplates: AVSTemplate[] = [
@@ -103,7 +121,7 @@ export const AfterVisitSummaryGenerator: React.FC<AfterVisitSummaryGeneratorProp
       consultation_id: consultationId,
       visit_date: new Date().toISOString().split('T')[0],
       chief_complaint: visitData.chief_complaint,
-      diagnosis_summary: visitData.diagnosis,
+      diagnosis_summary: deriveDiagnosisSummary(),
       treatment_plan: visitData.treatment_plan,
       medications_prescribed: visitData.prescriptions.map(rx => ({
         medication_name: rx.medication_name,

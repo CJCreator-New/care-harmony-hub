@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useAppointmentOptimization } from '@/hooks/useAppointmentOptimization';
+import { useTimeSlots } from '@/hooks/useDoctorAvailability';
+import { useCreateAppointment } from '@/hooks/useAppointments';
 import { Calendar, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SmartSchedulerProps {
   patientId: string;
@@ -15,16 +18,47 @@ export function SmartScheduler({ patientId }: SmartSchedulerProps) {
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   const { optimizeSlot, predictWaitTime } = useAppointmentOptimization();
 
-  // Mock available slots
-  const availableSlots = [
-    { time: '09:00 AM', available: true, score: 80, doctor: 'Dr. Smith' },
-    { time: '10:30 AM', available: true, score: 75, doctor: 'Dr. Johnson' },
-    { time: '02:00 PM', available: true, score: 60, doctor: 'Dr. Smith' },
-    { time: '03:30 PM', available: true, score: 55, doctor: 'Dr. Williams' },
-  ];
+  const today = new Date().toISOString().split('T')[0];
+  const { data: rawSlots = [], isLoading: slotsLoading } = useTimeSlots(today);
+  const createAppointment = useCreateAppointment();
+
+  // Build enriched slot objects compatible with optimizeSlot while retaining
+  // the fields needed for booking (doctor_id, slot_date).
+  const availableSlots = rawSlots
+    .filter((s) => !s.is_booked)
+    .map((s) => ({
+      id: s.id,
+      time: s.start_time,
+      available: true,
+      score: 70,
+      doctor: s.doctor
+        ? `Dr. ${s.doctor.first_name} ${s.doctor.last_name}`
+        : 'Unknown',
+      doctor_id: s.doctor_id as string,
+      slot_date: s.slot_date as string,
+    }));
 
   const optimizedSlots = optimizeSlot({ priority }, availableSlots);
   const recommendedSlot = optimizedSlots[0];
+  const selectedRawSlot = availableSlots.find((s) => s.time === selectedSlot);
+
+  const handleBook = async () => {
+    if (!selectedRawSlot) return;
+    try {
+      await createAppointment.mutateAsync({
+        patient_id: patientId,
+        doctor_id: selectedRawSlot.doctor_id,
+        scheduled_date: selectedRawSlot.slot_date,
+        scheduled_time: selectedRawSlot.time,
+        appointment_type: 'general',
+        priority: priority === 'follow-up' ? undefined : priority,
+      });
+      toast.success('Appointment booked successfully');
+      setSelectedSlot('');
+    } catch {
+      toast.error('Failed to book appointment');
+    }
+  };
 
   return (
     <Card>
@@ -66,34 +100,50 @@ export function SmartScheduler({ patientId }: SmartSchedulerProps) {
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Available Slots</label>
-          {optimizedSlots.map((slot, idx) => (
-            <div
-              key={slot.time}
-              className={`p-3 border rounded-lg cursor-pointer hover:bg-muted ${
-                selectedSlot === slot.time ? 'border-primary bg-primary/5' : ''
-              }`}
-              onClick={() => setSelectedSlot(slot.time)}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{slot.time}</p>
-                  <p className="text-sm text-muted-foreground">{slot.doctor}</p>
-                </div>
-                <div className="text-right">
-                  <Badge variant={idx === 0 ? 'default' : 'secondary'}>
-                    {idx === 0 ? 'Best Match' : `#${idx + 1}`}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {predictWaitTime(slot.time, idx)} min wait
-                  </p>
+          {slotsLoading ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              <Clock className="h-4 w-4 inline mr-1 animate-spin" />
+              Loading available slots…
+            </p>
+          ) : optimizedSlots.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center flex items-center justify-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              No available slots for today
+            </p>
+          ) : (
+            optimizedSlots.map((slot, idx) => (
+              <div
+                key={slot.time}
+                className={`p-3 border rounded-lg cursor-pointer hover:bg-muted ${
+                  selectedSlot === slot.time ? 'border-primary bg-primary/5' : ''
+                }`}
+                onClick={() => setSelectedSlot(slot.time)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{slot.time}</p>
+                    <p className="text-sm text-muted-foreground">{slot.doctor}</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={idx === 0 ? 'default' : 'secondary'}>
+                      {idx === 0 ? 'Best Match' : `#${idx + 1}`}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {predictWaitTime(slot.time, idx)} min wait
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
-        <Button className="w-full" disabled={!selectedSlot}>
-          Book Appointment
+        <Button
+          className="w-full"
+          disabled={!selectedSlot || createAppointment.isPending}
+          onClick={handleBook}
+        >
+          {createAppointment.isPending ? 'Booking…' : 'Book Appointment'}
         </Button>
       </CardContent>
     </Card>

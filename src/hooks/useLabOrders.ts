@@ -96,6 +96,7 @@ export function useUpdateLabOrder() {
 export function useCreateLabOrder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { hospital, user } = useAuth();
 
   return useMutation({
     mutationFn: async (order: LabOrderInsert) => {
@@ -113,7 +114,7 @@ export function useCreateLabOrder() {
           hospital_id: data.hospital_id,
           lab_order_id: data.id,
           patient_id: data.patient_id,
-          status: 'queued',
+          status: 'pending',
           priority: order.priority || 'normal',
           metadata: { test_name: data.test_name }
         });
@@ -125,13 +126,31 @@ export function useCreateLabOrder() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
       queryClient.invalidateQueries({ queryKey: ['lab-order-stats'] });
       toast({ title: 'Lab order created' });
+      // T-90: Critical-handoff telemetry — lab_order_dispatch_success (no PHI)
+      void supabase.from('activity_logs').insert({
+        user_id: user?.id ?? null,
+        hospital_id: hospital?.id ?? null,
+        action_type: 'telemetry:lab_order_dispatch_success',
+        entity_type: 'lab_order',
+        entity_id: data?.id ?? null,
+        details: { event: 'lab_order_dispatch_success', emitted_at: new Date().toISOString() },
+      });
     },
     onError: (error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      // T-90 / T-91: telemetry — lab_order_dispatch_failure (no PHI)
+      void supabase.from('activity_logs').insert({
+        user_id: user?.id ?? null,
+        hospital_id: hospital?.id ?? null,
+        action_type: 'telemetry:lab_order_dispatch_failure',
+        entity_type: 'lab_order',
+        entity_id: null,
+        details: { event: 'lab_order_dispatch_failure', error_code: error.message, emitted_at: new Date().toISOString() },
+      });
     },
   });
 }

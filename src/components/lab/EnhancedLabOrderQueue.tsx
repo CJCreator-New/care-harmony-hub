@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLabOrders } from '@/hooks/useLabOrders';
+import { useLabOrders, useUpdateLabOrder } from '@/hooks/useLabOrders';
 import { useCriticalValueAlerts } from '@/hooks/useCriticalValueAlerts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,16 +7,36 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TestTube2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 export function EnhancedLabOrderQueue() {
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
   const { data: orders, isLoading } = useLabOrders(selectedStatus);
   const { alerts } = useCriticalValueAlerts();
+  const updateLabOrder = useUpdateLabOrder();
+
+  const STATUS_TRANSITIONS: Record<string, string> = {
+    pending: 'sample_collected',
+    sample_collected: 'in_progress',
+    in_progress: 'completed',
+  };
+
+  const handleAction = async (e: React.MouseEvent, order: any) => {
+    e.stopPropagation();
+    const nextStatus = STATUS_TRANSITIONS[order.status];
+    if (!nextStatus) return; // 'completed' has no next transition
+    try {
+      await updateLabOrder.mutateAsync({ id: order.id, status: nextStatus });
+      toast.success(`Order updated to ${nextStatus.replace('_', ' ')}`);
+    } catch {
+      toast.error('Failed to update lab order');
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
       pending: 'secondary',
-      collected: 'default',
+      sample_collected: 'default',
       in_progress: 'default',
       completed: 'default',
     };
@@ -54,7 +74,7 @@ export function EnhancedLabOrderQueue() {
       </CardHeader>
       <CardContent>
         <div className="flex gap-2 mb-4">
-          {['pending', 'collected', 'in_progress', 'completed'].map((status) => (
+          {['pending', 'sample_collected', 'in_progress', 'completed'].map((status) => (
             <Button
               key={status}
               variant={selectedStatus === status ? 'default' : 'outline'}
@@ -103,9 +123,13 @@ export function EnhancedLabOrderQueue() {
                         </span>
                       </div>
                     </div>
-                    <Button size="sm">
+                    <Button
+                      size="sm"
+                      onClick={(e) => handleAction(e, order)}
+                      disabled={updateLabOrder.isPending || order.status === 'completed'}
+                    >
                       {order.status === 'pending' && 'Collect'}
-                      {order.status === 'collected' && 'Process'}
+                      {order.status === 'sample_collected' && 'Process'}
                       {order.status === 'in_progress' && 'Enter Results'}
                       {order.status === 'completed' && 'View'}
                     </Button>

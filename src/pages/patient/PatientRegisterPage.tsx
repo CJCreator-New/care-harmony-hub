@@ -168,13 +168,35 @@ export default function PatientRegisterPage() {
 
         if (profileError) console.error('Profile update error:', profileError);
 
-        // Assign patient role via SECURITY DEFINER RPC — never allow client-side
-        // direct insert into user_roles (privilege escalation risk).
-        const { error: roleError } = await supabase.rpc('assign_patient_role', {
+        // Atomically assign patient role + create patients record in one transaction.
+        // Idempotent: safe to retry on duplicate-registration attempts (T-46).
+        const { error: registerError } = await supabase.rpc('register_patient', {
           p_user_id: authData.user.id,
+          p_first_name: formData.firstName,
+          p_last_name: formData.lastName,
+          p_email: formData.email || null,
+          p_phone: formData.phone || null,
+          p_date_of_birth: formData.dateOfBirth,
+          p_gender: formData.gender,
+          p_address: formData.address || null,
+          p_city: formData.city || null,
+          p_state: formData.state || null,
+          p_zip: formData.zip || null,
+          p_blood_type: formData.bloodType || null,
+          p_allergies: formData.allergies
+            ? formData.allergies.split(',').map((a) => a.trim()).filter(Boolean)
+            : null,
+          p_chronic_conditions: formData.chronicConditions
+            ? formData.chronicConditions.split(',').map((c) => c.trim()).filter(Boolean)
+            : null,
+          p_emergency_contact_name: formData.emergencyContactName || null,
+          p_emergency_contact_phone: formData.emergencyContactPhone || null,
+          p_emergency_contact_relationship: formData.emergencyContactRelationship || null,
         });
 
-        if (roleError) console.error('Role assignment error:', roleError);
+        if (registerError) {
+          throw registerError;
+        }
       }
 
       toast({

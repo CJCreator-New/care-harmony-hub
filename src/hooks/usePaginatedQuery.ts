@@ -48,7 +48,20 @@ export function usePaginatedQuery({
       if (debouncedSearch && searchColumn) {
         const safePattern = toIlikePattern(debouncedSearch);
         if (safePattern) {
-          query = query.ilike(searchColumn, safePattern);
+          // Support multi-column search strings like "first_name,last_name,mrn"
+          // by converting to PostgREST OR syntax.
+          if (searchColumn.includes(',')) {
+            const clauses = searchColumn
+              .split(',')
+              .map((col) => col.trim())
+              .filter(Boolean)
+              .map((col) => `${col}.ilike.${safePattern}`);
+            if (clauses.length > 0) {
+              query = query.or(clauses.join(','));
+            }
+          } else {
+            query = query.ilike(searchColumn, safePattern);
+          }
         }
       }
 

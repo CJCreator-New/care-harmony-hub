@@ -60,11 +60,13 @@ export function SystemConfiguration() {
   const fetchSettings = async () => {
     if (!hospitalId) return;
     try {
-      const { data, error } = await supabase
+      // 'settings' is a jsonb column not yet reflected in generated types;
+      // cast to any so TypeScript resolves the chain correctly.
+      const { data, error } = await (supabase
         .from('hospitals')
         .select('settings')
         .eq('id', hospitalId)
-        .single();
+        .single() as any) as Promise<{ data: { settings: Record<string, unknown> } | null; error: unknown }>;
 
       if (error) throw error;
       if (data?.settings) {
@@ -86,10 +88,10 @@ export function SystemConfiguration() {
     if (!hospitalId) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase
         .from('hospitals')
-        .update({ settings: JSON.parse(JSON.stringify(settings)) })
-        .eq('id', hospitalId);
+        .update({ settings: JSON.parse(JSON.stringify(settings)) } as any)
+        .eq('id', hospitalId) as any);
 
       if (error) throw error;
       toast({

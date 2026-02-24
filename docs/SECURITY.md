@@ -390,7 +390,95 @@ If you discover a security vulnerability:
 | 2024-01-15 | Data export tool with audit logging | ✅ Implemented |
 | 2024-01-15 | Security event monitoring | ✅ Implemented |
 | 2024-01-15 | Failed login tracking | ✅ Implemented |
+| 2026-02-24 | Cross-hospital RLS probe tests added | ✅ Implemented |
+| 2026-02-24 | 2FA AES-GCM encryption verified | ✅ Implemented |
+| 2026-02-24 | Performance indexes + partition strategy | ✅ Implemented |
 
 ## 🔒 Production Security Status: READY FOR DEPLOYMENT
 
 **All critical security gaps resolved. System is HIPAA-ready with comprehensive audit trail and compliance features.**
+
+---
+
+## Security Evidence Index
+
+This index links each security control to its test file(s) and migration(s) for audit purposes.
+
+### Access Control
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| Hospital-scoped RLS on all 46 tables | Migration | `supabase/migrations/20260209100000_m3_rls_hardening.sql` |
+| RLS gates verified by automated probe | Test | `tests/security/p0-db-rls-gates.test.ts` |
+| Cross-hospital data isolation | Test | `tests/security/p0-db-rls-gates.test.ts` — 4 cross-hospital probe tests |
+| Role-based access control (7 roles) | Code | `src/components/RoleProtectedRoute.tsx`, `src/hooks/usePermissions.ts` |
+| Hospital ID scoped to all user queries | Code | `src/context/AuthContext.tsx` — `hospital` from auth profile |
+| Admin user management hospital scoping | Code | `src/services/adminUserManagementService.ts` — T-08 |
+
+### Authentication
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| MFA/TOTP support | Edge Function | `supabase/functions/store-2fa-secret/index.ts` |
+| 2FA secrets stored AES-GCM encrypted (not plaintext) | Edge Function | `supabase/functions/store-2fa-secret/index.ts:44–57` — `v1:{iv}.{ciphertext}` format |
+| 2FA verification | Edge Function | `supabase/functions/verify-2fa/index.ts`, `supabase/functions/verify-totp/index.ts` |
+| Backup codes salted SHA-256 hashed | Edge Function | `supabase/functions/store-2fa-secret/index.ts:59–66` |
+| One-time backup code consumption | Edge Function | `supabase/functions/verify-backup-code/index.ts` |
+| Session timeout 30 min (HIPAA) | Code | `src/hooks/useSessionTimeout.ts` |
+| Password reset flow | Code | `src/pages/patient/PatientLoginPage.tsx` |
+
+### Audit & Logging
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| Activity log on every data mutation | Code | `src/hooks/useActivityLog.ts` |
+| Check-in audit markers | Code | `src/hooks/useQueue.ts` — T-89 |
+| Operational telemetry (no PHI) | Code | `src/hooks/useTelemetry.ts` — T-90/T-91 |
+| Console.log gated behind `DEV` flag | Code | `src/hooks/useWorkflowOrchestrator.ts`, `useWorkflowNotifications.ts`, `useIntegration.ts`, `useOfflineSync.ts`, `useRealtimeUpdates.ts` — T-13 |
+| PHI stripped before logging | Code | `src/lib/sanitize.ts` — `sanitizeForLog()` |
+| HIPAA audit trail dashboard | Feature | `src/pages/admin/AuditTrailPage.tsx` |
+
+### Data Protection
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| PHI encrypted at rest (patient data) | Code | `src/hooks/useHIPAACompliance.ts` — encrypt/decrypt helpers |
+| Encryption metadata persisted on mutations | Code | `src/hooks/usePatients.ts` — `encryption_metadata` field |
+| Input sanitization before DB writes | Code | `src/lib/sanitize.ts` |
+| Atomic patient registration (no half-state) | Migration + Code | `supabase/migrations/20260224000001_register_patient_atomic.sql`, `src/pages/patient/PatientRegisterPage.tsx` |
+| Supabase RLS on `two_factor_secrets` | Test | `tests/security/p0-db-rls-gates.test.ts` — "not openly readable" test |
+
+### Network & Transport
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| HTTPS/TLS enforced | Infrastructure | Supabase default + hosting config |
+| CORS allowed-origins validation | Edge Functions | `supabase/functions/_shared/cors.ts` — `isOriginAllowed()` |
+| CORS_ALLOWED_ORIGINS secret | Config | Supabase Edge Function secret (see `docs/DEPLOYMENT.md`) |
+| Request validation on all edge functions | Edge Functions | `supabase/functions/_shared/validation.ts` — Zod schemas |
+
+### Security Testing
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| Security test suite (27 tests) | Test | `tests/security/` — run via `npm run test:security` |
+| P0 RLS gate probe (8 tests) | Test | `tests/security/p0-db-rls-gates.test.ts` |
+| Accessibility compliance (13 tests) | Test | `tests/accessibility/` — run via `npm run test:accessibility` |
+| Rate-limit 429 on invitation endpoint | Test | `tests/security/` — T-12 |
+| HIPAA compliance assertions (≥10) | Test | `tests/` — T-14 |
+
+### Performance & Availability
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| DB performance indexes | Migration | `supabase/migrations/20260223000001_perf_indexes.sql` |
+| `activity_logs` range partitioning | Migration | `supabase/migrations/` — T-19 |
+| Health check endpoint | Edge Function | `supabase/functions/health-check/index.ts` |
+| System monitoring endpoint | Edge Function | `supabase/functions/system-monitoring/index.ts` |
+
+### Feature Flag & Rollback Controls
+
+| Control | Evidence Type | Location |
+|---------|--------------|----------|
+| Per-hospital runtime feature flags | Migration + Code | `supabase/migrations/20260224000002_feature_flags.sql`, `src/hooks/useFeatureFlags.ts` |
+| Rollback procedures documented | Documentation | `plans/FEATURE_FLAG_ROLLBACK_PROCEDURES.md` |

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,20 +20,51 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Search, Stethoscope, Clock, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useConsultations, CONSULTATION_STEPS } from "@/hooks/useConsultations";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useConsultations, CONSULTATION_STEPS, useGetOrCreateConsultation } from "@/hooks/useConsultations";
 import { format } from "date-fns";
 import { StartConsultationModal } from "@/components/consultations/StartConsultationModal";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ConsultationsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: consultations, isLoading } = useConsultations();
+  const getOrCreateConsultation = useGetOrCreateConsultation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
   const { primaryRole } = useAuth();
+  const quickStartHandledRef = useRef<string | null>(null);
   const canStartConsultation = primaryRole === 'admin' || primaryRole === 'doctor';
+
+  useEffect(() => {
+    const patientId = searchParams.get('patientId');
+    if (!patientId || !canStartConsultation) return;
+    if (quickStartHandledRef.current === patientId) return;
+    if (getOrCreateConsultation.isPending) return;
+
+    quickStartHandledRef.current = patientId;
+
+    (async () => {
+      try {
+        const consultation = await getOrCreateConsultation.mutateAsync(patientId);
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('patientId');
+        setSearchParams(nextParams, { replace: true });
+        navigate(`/consultations/${consultation.id}`);
+      } catch {
+        // Error toast is handled inside hook
+        quickStartHandledRef.current = null;
+      }
+    })();
+  }, [
+    canStartConsultation,
+    getOrCreateConsultation,
+    navigate,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const filteredConsultations = consultations?.filter((consultation) => {
     const matchesSearch =

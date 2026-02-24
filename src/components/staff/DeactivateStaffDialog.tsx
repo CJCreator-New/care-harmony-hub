@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
 import { getRoleLabel } from '@/types/rbac';
 import {
@@ -39,32 +40,40 @@ export function DeactivateStaffDialog({
   onSuccess,
 }: DeactivateStaffDialogProps) {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDeactivate = async () => {
-    if (!staff) return;
+    if (!staff || !profile?.hospital_id) return;
 
     setIsLoading(true);
     try {
-      // Remove all roles for this user (effectively deactivating them)
+      // Prevent removing the last admin for this hospital.
+      if (staff.roles.includes('admin')) {
+        const { count, error: countError } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+          .eq('hospital_id', profile.hospital_id)
+          .eq('role', 'admin');
+
+        if (countError) throw countError;
+        if ((count ?? 0) <= 1) {
+          throw new Error('Cannot deactivate the last active admin for this hospital');
+        }
+      }
+
+      // Remove roles only for the current hospital context.
       const { error: roleError } = await supabase
         .from('user_roles')
         .delete()
-        .eq('user_id', staff.user_id);
+        .eq('user_id', staff.user_id)
+        .eq('hospital_id', profile.hospital_id);
 
       if (roleError) throw roleError;
 
-      // Remove hospital association from profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ hospital_id: null })
-        .eq('user_id', staff.user_id);
-
-      if (profileError) throw profileError;
-
       toast({
         title: 'Staff Deactivated',
-        description: `${staff.first_name} ${staff.last_name} has been removed from the hospital.`,
+        description: `${staff.first_name} ${staff.last_name} has been removed from this hospital.`,
       });
 
       onSuccess();
@@ -73,7 +82,7 @@ export function DeactivateStaffDialog({
       console.error('Error deactivating staff:', error);
       toast({
         title: 'Error',
-        description: 'Failed to deactivate staff member. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to deactivate staff member. Please try again.',
         variant: 'destructive',
       });
     } finally {

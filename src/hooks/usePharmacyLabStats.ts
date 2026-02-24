@@ -87,7 +87,13 @@ export function usePendingPrescriptions() {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data || [];
+      return (data || []).map((rx: any) => ({
+        ...rx,
+        priority: rx.priority || rx.metadata?.priority || 'normal',
+        drug_interactions: Array.isArray(rx.drug_interactions) ? rx.drug_interactions : (rx.metadata?.drug_interactions || []),
+        allergy_alerts: Array.isArray(rx.allergy_alerts) ? rx.allergy_alerts : (rx.metadata?.allergy_alerts || []),
+        items: Array.isArray(rx.items) ? rx.items : [],
+      }));
     },
     enabled: !!hospital?.id,
   });
@@ -127,7 +133,7 @@ export function useLabTechStats() {
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
-        .eq('status', 'collected');
+        .eq('status', 'sample_collected');
 
       // In progress
       const { data: inProgress } = await supabase
@@ -207,7 +213,7 @@ export function usePendingLabOrders() {
           patient:patients(id, first_name, last_name, mrn, date_of_birth)
         `)
         .eq('hospital_id', hospital.id)
-        .in('status', ['pending', 'collected', 'in_progress'])
+        .in('status', ['pending', 'sample_collected', 'in_progress'])
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
 

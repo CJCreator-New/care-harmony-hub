@@ -19,6 +19,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { DigitalCheckinSession, CheckinWorkflow, PreVisitQuestionnaire } from '@/types/patient-portal';
+import { useDigitalCheckin } from '@/hooks/usePatientPortal';
 
 interface DigitalCheckinWorkflowProps {
   sessionToken: string;
@@ -44,6 +45,12 @@ export const DigitalCheckinWorkflow: React.FC<DigitalCheckinWorkflowProps> = ({
   const [workflow, setWorkflow] = useState<CheckinWorkflow | null>(null);
   const [stepData, setStepData] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const {
+    session,
+    getCheckinSession,
+    updateCheckinStep,
+    completeCheckin: completeCheckinSession,
+  } = useDigitalCheckin();
 
   // Mock workflow configuration
   const mockWorkflow: CheckinWorkflow = {
@@ -116,6 +123,15 @@ export const DigitalCheckinWorkflow: React.FC<DigitalCheckinWorkflowProps> = ({
     }
     
     onStepComplete(stepId, data);
+
+    if (session?.id) {
+      const nextData = {
+        ...stepData,
+        [stepId]: data,
+        current_step: Math.min(currentStep + 1, mockWorkflow.total_steps - 1),
+      };
+      void updateCheckinStep(session.id, nextData);
+    }
     
     // Move to next step
     if (currentStep < mockWorkflow.total_steps - 1) {
@@ -131,10 +147,17 @@ export const DigitalCheckinWorkflow: React.FC<DigitalCheckinWorkflowProps> = ({
 
   const handleCompleteCheckin = () => {
     setIsLoading(true);
-    setTimeout(() => {
-      onCheckinComplete(sessionToken);
-      setIsLoading(false);
-    }, 1000);
+    const finish = async () => {
+      try {
+        if (session?.id) {
+          await completeCheckinSession(session.id);
+        }
+        onCheckinComplete(session?.id || sessionToken);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void finish();
   };
 
   const renderStepContent = () => {
@@ -173,7 +196,16 @@ export const DigitalCheckinWorkflow: React.FC<DigitalCheckinWorkflowProps> = ({
 
   useEffect(() => {
     setWorkflow(mockWorkflow);
+    void getCheckinSession(sessionToken);
   }, []);
+
+  useEffect(() => {
+    if (!session || !workflow) return;
+    const persistedCurrentStep = Number((session as any)?.checkin_data?.current_step ?? 0);
+    if (!Number.isNaN(persistedCurrentStep) && persistedCurrentStep >= 0) {
+      setCurrentStep(Math.min(persistedCurrentStep, workflow.total_steps - 1));
+    }
+  }, [session, workflow]);
 
   if (!workflow) {
     return (

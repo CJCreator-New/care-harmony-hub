@@ -1,13 +1,14 @@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Thermometer, Heart, Droplets, Wind, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Thermometer, Heart, Droplets, Wind, ChevronDown } from "lucide-react";
 import { HPITemplateSelector } from "../HPITemplateSelector";
 import { HPIData } from "@/types/soap";
 import { useLatestVitals } from "@/hooks/useVitalSigns";
-import { useEffect } from "react";
-import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface ChiefComplaintStepProps {
   data: Record<string, any>;
@@ -27,42 +28,30 @@ export function ChiefComplaintStep({
   const vitals = data.vitals || {};
   const { data: latestVitals, isLoading: vitalsLoading } = useLatestVitals(patient?.id || "");
 
-  // Auto-populate vitals from latest readings
-  useEffect(() => {
-    if (latestVitals && !vitals.temperature && !vitals.heart_rate && !vitals.blood_pressure) {
-      const autoVitals: Record<string, any> = {};
-
-      if (latestVitals.temperature) {
-        autoVitals.temperature = latestVitals.temperature.toString();
-      }
-      if (latestVitals.heart_rate) {
-        autoVitals.heart_rate = latestVitals.heart_rate.toString();
-      }
-      if (latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic) {
-        autoVitals.blood_pressure = `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`;
-      }
-      if (latestVitals.respiratory_rate) {
-        autoVitals.respiratory_rate = latestVitals.respiratory_rate.toString();
-      }
-      if (latestVitals.oxygen_saturation) {
-        autoVitals.oxygen_saturation = latestVitals.oxygen_saturation.toString();
-      }
-      if (latestVitals.weight) {
-        autoVitals.weight = latestVitals.weight.toString();
-      }
-      if (latestVitals.height) {
-        autoVitals.height = latestVitals.height.toString();
-      }
-      if (latestVitals.pain_level) {
-        autoVitals.pain_level = latestVitals.pain_level.toString();
-      }
-
-      if (Object.keys(autoVitals).length > 0) {
-        onUpdate("vitals", { ...vitals, ...autoVitals });
-        toast.success("Vitals auto-populated from latest readings");
-      }
+  // Only fill fields the doctor has NOT already entered — prevents silent overwrite
+  const handleUseNurseVitals = () => {
+    if (!latestVitals) return;
+    const patch: Record<string, string> = {};
+    if (!vitals.temperature && latestVitals.temperature)
+      patch.temperature = latestVitals.temperature.toString();
+    if (!vitals.heart_rate && latestVitals.heart_rate)
+      patch.heart_rate = latestVitals.heart_rate.toString();
+    if (!vitals.blood_pressure && latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic)
+      patch.blood_pressure = `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`;
+    if (!vitals.respiratory_rate && latestVitals.respiratory_rate)
+      patch.respiratory_rate = latestVitals.respiratory_rate.toString();
+    if (!vitals.oxygen_saturation && latestVitals.oxygen_saturation)
+      patch.oxygen_saturation = latestVitals.oxygen_saturation.toString();
+    if (!vitals.weight && latestVitals.weight)
+      patch.weight = latestVitals.weight.toString();
+    if (!vitals.height && latestVitals.height)
+      patch.height = latestVitals.height.toString();
+    if (!vitals.pain_level && latestVitals.pain_level)
+      patch.pain_level = latestVitals.pain_level.toString();
+    if (Object.keys(patch).length > 0) {
+      onUpdate("vitals", { ...vitals, ...patch });
     }
-  }, [latestVitals, vitals, onUpdate]);
+  };
 
   const handleVitalsChange = (key: string, value: string) => {
     onUpdate("vitals", { ...vitals, [key]: value });
@@ -80,18 +69,36 @@ export function ChiefComplaintStep({
       {/* Vitals Section */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            Vital Signs
-            {latestVitals && Object.keys(vitals).length > 0 && (
-              <span className="flex items-center gap-1 text-xs text-success">
-                <CheckCircle className="h-3 w-3" />
-                Auto-populated
-              </span>
-            )}
+          <CardTitle className="text-base flex items-center justify-between">
+            <span>Vital Signs</span>
             {vitalsLoading && (
-              <span className="text-xs text-muted-foreground">Loading latest vitals...</span>
+              <span className="text-xs text-muted-foreground">Loading vitals…</span>
             )}
           </CardTitle>
+          {latestVitals && (
+            <Alert className="mt-2 py-2 border-blue-200 bg-blue-50/50">
+              <AlertDescription className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-blue-700">
+                  <strong>Nurse vitals available</strong>
+                  {latestVitals.recorder && (
+                    <> — recorded by {latestVitals.recorder.first_name} {latestVitals.recorder.last_name}</>
+                  )}
+                  {latestVitals.recorded_at && (
+                    <> at {format(new Date(latestVitals.recorded_at), 'MMM d, h:mm a')}</>
+                  )}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-xs shrink-0 border-blue-300 hover:bg-blue-100"
+                  onClick={handleUseNurseVitals}
+                >
+                  <ChevronDown className="h-3 w-3 mr-1" />
+                  Use these vitals
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -25,7 +25,11 @@ export type ActionType =
   | 'payment_record'
   | 'staff_invite'
   | 'staff_deactivate'
-  | 'settings_update';
+  | 'settings_update'
+  // Check-in pipeline audit markers (T-89)
+  | 'checkin_queue_created'
+  | 'checkin_nurse_notified'
+  | 'checkin_workflow_emitted';
 
 export interface ActivityLog {
   id: string;

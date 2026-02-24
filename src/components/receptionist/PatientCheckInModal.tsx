@@ -21,8 +21,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { useSearchPatients } from '@/hooks/usePatients';
-import { useTodayAppointments, useCheckInAppointment, Appointment } from '@/hooks/useAppointments';
-import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
+import { useTodayAppointments, Appointment } from '@/hooks/useAppointments';
+import { PriorityLevel } from '@/hooks/useQueue';
+import { useUnifiedCheckIn } from '@/hooks/useUnifiedCheckIn';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -58,13 +59,13 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
   const [sendSmsConfirmation, setSendSmsConfirmation] = useState(true);
   const [sendEmailConfirmation, setSendEmailConfirmation] = useState(false);
   const [copayCollected, setCopayCollected] = useState(false);
-  const [priority, setPriority] = useState('normal');
+  const [priority, setPriority] = useState<PriorityLevel>('normal');
   const [isWalkIn, setIsWalkIn] = useState(false);
+  const [completedQueueNumber, setCompletedQueueNumber] = useState<number | null>(null);
 
   const { data: searchResults = [], isLoading: isSearching } = useSearchPatients(searchTerm);
   const { data: todayAppointments = [] } = useTodayAppointments();
-  const checkIn = useCheckInAppointment();
-  const { notifyPatientCheckedIn } = useWorkflowNotifications();
+  const { checkIn, isPending } = useUnifiedCheckIn();
 
   // Check if patient is eligible for express check-in
   const isEligibleForExpressCheckIn = (patient: SelectedPatient) => {
@@ -79,14 +80,13 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
   // Handle express check-in
   const handleExpressCheckIn = async (patient: SelectedPatient, appointment?: Appointment) => {
     try {
-      if (appointment) {
-        const result = await checkIn.mutateAsync(appointment.id);
-        const patientName = `${patient.first_name} ${patient.last_name}`;
-        await notifyPatientCheckedIn(patient.id, patientName, result.queue_number || 0);
-      } else {
-        // For walk-ins, handle via queue
-        toast.success(`${patient.first_name} ${patient.last_name} checked in via express mode`);
-      }
+      const queueNumber = await checkIn({
+        patient,
+        appointmentId: appointment?.id,
+        priority,
+        isWalkIn: !appointment,
+      });
+      setCompletedQueueNumber(queueNumber);
       setStep('complete');
     } catch (error) {
       toast.error('Express check-in failed');
@@ -106,6 +106,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       setCopayCollected(false);
       setPriority('normal');
       setIsWalkIn(false);
+      setCompletedQueueNumber(null);
       setSendSmsConfirmation(true);
       setSendEmailConfirmation(false);
     }
@@ -146,14 +147,22 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
 
     try {
       if (selectedAppointment) {
-        const result = await checkIn.mutateAsync(selectedAppointment.id);
-        
-        // Notify nurses about the new check-in
-        const patientName = `${selectedPatient.first_name} ${selectedPatient.last_name}`;
-        await notifyPatientCheckedIn(selectedPatient.id, patientName, result.queue_number || 0);
+        const queueNumber = await checkIn({
+          patient: selectedPatient,
+          appointmentId: selectedAppointment.id,
+          priority,
+        });
+        setCompletedQueueNumber(queueNumber);
       } else if (isWalkIn) {
-        // For walk-ins, we'll handle this separately via queue
-        toast.success('Walk-in patient registered');
+        const queueNumber = await checkIn({
+          patient: selectedPatient,
+          priority,
+          isWalkIn: true,
+        });
+        setCompletedQueueNumber(queueNumber);
+      } else {
+        toast.error('No appointment selected. Mark as walk-in to continue.');
+        return;
       }
       setStep('complete');
     } catch (error) {
@@ -524,10 +533,10 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           {selectedPatient?.first_name} {selectedPatient?.last_name} has been added to the queue.
         </p>
       </div>
-      {selectedAppointment?.queue_number && (
+      {completedQueueNumber && (
         <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-lg">
           <span className="text-sm text-muted-foreground">Queue Number:</span>
-          <span className="text-2xl font-bold text-primary">#{selectedAppointment.queue_number}</span>
+          <span className="text-2xl font-bold text-primary">#{completedQueueNumber}</span>
         </div>
       )}
 
@@ -641,18 +650,18 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           {step === 'copay' && (
             <Button
               onClick={handleCompleteCheckIn}
-              disabled={checkIn.isPending}
+              disabled={isPending}
             >
-              {checkIn.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Complete Check-In
             </Button>
           )}
           {step === 'express' && (
             <Button
               onClick={handleCompleteCheckIn}
-              disabled={checkIn.isPending}
+              disabled={isPending}
             >
-              {checkIn.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Confirm Express Check-In
             </Button>
           )}

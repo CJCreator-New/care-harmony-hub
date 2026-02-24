@@ -56,7 +56,10 @@ export function EnhancedPrescriptionQueue() {
         ) : (
           <ScrollArea className="h-[400px]">
             <div className="space-y-3">
-              {prescriptions.map((rx: any) => (
+              {prescriptions.map((rx: any) => {
+                const items = Array.isArray(rx.items) ? rx.items : [];
+                const primaryItem = items[0];
+                return (
                 <div
                   key={rx.id}
                   className="p-4 border rounded-lg space-y-2"
@@ -64,12 +67,21 @@ export function EnhancedPrescriptionQueue() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{rx.medication_name}</span>
+                        <span className="font-medium">
+                          {primaryItem?.medication_name || 'Medication pending review'}
+                        </span>
                         {getStatusBadge(rx.status)}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {rx.dosage} - {rx.frequency} for {rx.duration}
+                        {primaryItem
+                          ? `${primaryItem.dosage} - ${primaryItem.frequency} for ${primaryItem.duration}`
+                          : 'No medication details available'}
                       </div>
+                      {items.length > 1 && (
+                        <div className="text-xs text-muted-foreground">
+                          +{items.length - 1} additional medication(s)
+                        </div>
+                      )}
                       <div className="text-sm text-muted-foreground">
                         Patient: {rx.patient?.first_name} {rx.patient?.last_name} (MRN: {rx.patient?.mrn})
                       </div>
@@ -103,7 +115,7 @@ export function EnhancedPrescriptionQueue() {
                     </Alert>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           </ScrollArea>
         )}

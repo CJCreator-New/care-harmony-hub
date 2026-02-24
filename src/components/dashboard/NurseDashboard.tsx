@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
@@ -26,9 +26,7 @@ import { PatientPrepStation } from '@/components/nurse/PatientPrepStation';
 import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { usePendingHandovers, usePatientChecklists } from '@/hooks/useNurseWorkflow';
-import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 import { NurseTaskPanel } from '@/components/nurse/NurseTaskPanel';
-import { useDoctorAvailability } from '@/hooks/useDoctorAvailability';
 
 export function NurseDashboard() {
   const { profile } = useAuth();
@@ -39,9 +37,8 @@ export function NurseDashboard() {
   
   const { data: vitalsCount } = useTodayVitalsCount();
   const { data: activeQueue = [] } = useActiveQueue();
-  const { handovers: pendingHandovers = [] } = usePendingHandovers();
+  const { handovers: pendingHandovers = [] } = usePendingHandovers(profile?.id);
   const { checklists = [] } = usePatientChecklists();
-  const { data: doctorAvailability = [] } = useDoctorAvailability();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -179,67 +176,15 @@ export function NurseDashboard() {
                     </Link>
                   </Button>
                   <Button className="w-full justify-start" variant="outline" asChild>
-                    <Link to="/consultations">
-                      <Activity className="h-4 w-4 mr-2" />
-                      Active Consultations
+                    <Link to="/patients">
+                      <Users className="h-4 w-4 mr-2" />
+                      Patient Records
                     </Link>
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Doctor Availability Widget */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Doctor Availability
-                  </CardTitle>
-                  <CardDescription>
-                    Real-time status for patient handoffs
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {doctorAvailability.length === 0 ? (
-                      <div className="text-center py-4 text-muted-foreground">
-                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No doctors available</p>
-                      </div>
-                    ) : (
-                      doctorAvailability.slice(0, 4).map((doctor) => (
-                        <div
-                          key={doctor.id}
-                          className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`h-3 w-3 rounded-full ${
-                              doctor.status === 'available' ? 'bg-success' :
-                              doctor.status === 'in_consultation' ? 'bg-warning' :
-                              doctor.status === 'break' ? 'bg-info' :
-                              'bg-muted'
-                            }`} />
-                            <div>
-                              <p className="text-sm font-medium">
-                                Dr. {doctor.last_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground capitalize">
-                                {doctor.status.replace('_', ' ')}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            {doctor.current_patient_count !== undefined && (
-                              <p className="text-xs text-muted-foreground">
-                                {doctor.current_patient_count} patients
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+
             </div>
           </div>
         </TabsContent>

@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Play, Pause, Trash2, Settings, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
 interface AutomationRule {
   id: string;
@@ -36,7 +37,7 @@ export function WorkflowRulesEngine() {
   const [newRule, setNewRule] = useState({
     rule_name: '',
     rule_type: 'care_team_assignment',
-    trigger_event: 'patient_check_in',
+    trigger_event: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN,
     trigger_condition: '',
     action_type: 'assign_task',
     action_target: '',
@@ -83,7 +84,7 @@ export function WorkflowRulesEngine() {
       setNewRule({
         rule_name: '',
         rule_type: 'care_team_assignment',
-        trigger_event: 'patient_check_in',
+        trigger_event: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN,
         trigger_condition: '',
         action_type: 'assign_task',
         action_target: '',
@@ -127,11 +128,11 @@ export function WorkflowRulesEngine() {
   ];
 
   const triggerEvents = [
-    { value: 'patient_check_in', label: 'Patient Check-in' },
-    { value: 'lab_order_created', label: 'Lab Order Created' },
-    { value: 'prescription_created', label: 'Prescription Created' },
-    { value: 'consultation_completed', label: 'Consultation Completed' },
-    { value: 'critical_result', label: 'Critical Result' },
+    { value: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN, label: 'Patient Check-in' },
+    { value: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED, label: 'Lab Order Created' },
+    { value: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED, label: 'Prescription Created' },
+    { value: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED, label: 'Consultation Completed' },
+    { value: WORKFLOW_EVENT_TYPES.LAB_CRITICAL_ALERT, label: 'Critical Result' },
   ];
 
   const actionTypes = [

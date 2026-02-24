@@ -554,7 +554,264 @@ if (error) {
 
 ---
 
-## Best Practices
+## Edge Functions Reference
+
+All edge functions are hosted at:
+```
+https://<SUPABASE_PROJECT_ID>.supabase.co/functions/v1/<function-name>
+```
+
+### Authentication Tiers
+
+| Tier | Header Required | Description |
+|------|----------------|-------------|
+| **Authenticated** | `Authorization: Bearer <jwt>` | Valid Supabase session JWT |
+| **Service Role** | Internal only | Called server-side via service key |
+| **Public** | None | No auth required (health check only) |
+
+---
+
+### Authentication & 2FA Functions
+
+#### `generate-2fa-secret`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Generates a new TOTP secret for the current user
+- **Request**: `{}` (empty — uses JWT identity)
+- **Response**: `{ secret: string, qrCodeUrl: string, backupCodes: string[] }`
+- **Rate limit**: 5 req/min per user
+
+#### `store-2fa-secret`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Encrypts (AES-GCM) and persists TOTP secret + hashed backup codes
+- **Request**: `{ secret: string, backupCodes: string[] }`
+- **Response**: `{ success: true }`
+- **Security**: Secret stored as `v1:{iv}.{ciphertext}` using `TWO_FACTOR_ENCRYPTION_KEY` env secret
+
+#### `verify-2fa`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Verifies a 6-digit TOTP code during login
+- **Request**: `{ code: string }`
+- **Response**: `{ valid: boolean }`
+
+#### `verify-totp`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Validates TOTP code against stored encrypted secret
+- **Request**: `{ token: string, userId: string }`
+- **Response**: `{ verified: boolean }`
+
+#### `verify-backup-code`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Validates a one-time backup code (salted SHA-256 comparison)
+- **Request**: `{ code: string }`
+- **Response**: `{ valid: boolean, codesRemaining: number }`
+
+---
+
+### User & Hospital Management
+
+#### `create-hospital-admin`
+- **Method**: `POST`
+- **Auth**: Service Role (admin bootstrap only)
+- **Purpose**: Creates a new hospital record + initial admin user in one transaction
+- **Request**: `{ hospitalName: string, adminEmail: string, adminPassword: string, adminFirstName: string, adminLastName: string }`
+- **Response**: `{ hospitalId: string, userId: string }`
+
+#### `accept-invitation-signup`
+- **Method**: `POST`
+- **Auth**: Public (token-gated)
+- **Purpose**: Completes staff registration from an email invitation link
+- **Request**: `{ token: string, password: string, firstName: string, lastName: string }`
+- **Response**: `{ success: true, session: Session }`
+
+#### `validate-invitation-token`
+- **Method**: `POST`
+- **Auth**: Public (token-gated)
+- **Purpose**: Verifies an invitation token is valid and not expired
+- **Request**: `{ token: string }`
+- **Response**: `{ valid: boolean, email: string, role: string, hospitalId: string }`
+- **Rate limit**: 10 req/min per IP
+
+---
+
+### Notifications & Messaging
+
+#### `send-notification`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Inserts a cross-role notification record and triggers real-time delivery
+- **Request**: `{ recipientId: string, type: string, title: string, message: string, priority?: 'low'|'normal'|'high'|'urgent', metadata?: object }`
+- **Response**: `{ id: string }`
+
+#### `send-email`
+- **Method**: `POST`
+- **Auth**: Service Role
+- **Purpose**: Sends transactional emails (appointment reminders, password reset, etc.)
+- **Request**: `{ to: string, subject: string, template: string, data: object }`
+- **Response**: `{ messageId: string }`
+
+#### `appointment-reminders`
+- **Method**: `POST` (cron-triggered)
+- **Auth**: Service Role
+- **Purpose**: Scans upcoming appointments and sends reminder emails/notifications
+- **Request**: `{}` (scheduled invocation)
+- **Response**: `{ sent: number, failed: number }`
+
+---
+
+### Clinical Decision Support
+
+#### `ai-clinical-support`
+- **Method**: `POST`
+- **Auth**: Authenticated (doctor role required)
+- **Purpose**: Provides AI-assisted clinical suggestions (differential diagnosis, drug interactions)
+- **Request**: `{ patientId: string, symptoms: string[], currentMedications: string[], query: string }`
+- **Response**: `{ suggestions: string[], disclaimer: string, confidence: number }`
+- **Note**: No PHI is forwarded to external AI APIs; only anonymized clinical data
+
+#### `symptom-analysis`
+- **Method**: `POST`
+- **Auth**: Authenticated
+- **Purpose**: Analyses symptom patterns and suggests triage priority
+- **Request**: `{ symptoms: string[], vitalSigns?: object, patientAge?: number }`
+- **Response**: `{ priority: 'low'|'normal'|'high'|'urgent', suggestedICD10: string[], notes: string }`
+
+#### `predict-deterioration`
+- **Method**: `POST`
+- **Auth**: Authenticated (doctor/nurse)
+- **Purpose**: Early-warning deterioration score based on vitals trend
+- **Request**: `{ patientId: string, hospitalId: string }`
+- **Response**: `{ score: number, riskLevel: 'low'|'medium'|'high', factors: string[] }`
+
+#### `clinical-pharmacy`
+- **Method**: `POST`
+- **Auth**: Authenticated (pharmacist/doctor)
+- **Purpose**: Drug interaction check and clinical pharmacy advisory
+- **Request**: `{ medications: string[], patientAllergies: string[] }`
+- **Response**: `{ interactions: Interaction[], allergies: Alert[], recommendations: string[] }`
+
+---
+
+### Laboratory
+
+#### `lab-critical-values`
+- **Method**: `POST`
+- **Auth**: Authenticated (lab_technician)
+- **Purpose**: Processes critical lab result and triggers immediate doctor notification
+- **Request**: `{ labOrderId: string, resultValue: number, unit: string, criticalRangeId: string }`
+- **Response**: `{ alertId: string, notificationSent: boolean }`
+
+#### `lab-automation`
+- **Method**: `POST`
+- **Auth**: Service Role (instrument integration)
+- **Purpose**: Accepts automated result payloads from lab analysers
+- **Request**: `{ instrumentId: string, results: LabResult[] }`
+- **Response**: `{ processed: number, errors: number }`
+
+---
+
+### Queue & Operations
+
+#### `optimize-queue`
+- **Method**: `POST`
+- **Auth**: Authenticated (receptionist/nurse/admin)
+- **Purpose**: Re-prioritises the patient queue using wait time, acuity, and appointment type
+- **Request**: `{ hospitalId: string, date?: string }`
+- **Response**: `{ reordered: number, queueSnapshot: QueueEntry[] }`
+
+#### `workflow-automation`
+- **Method**: `POST` (event-driven)
+- **Auth**: Service Role
+- **Purpose**: Executes configured workflow rules (e.g., notify nurse on check-in)
+- **Request**: `{ event: string, payload: object, hospitalId: string }`
+- **Response**: `{ rulesEvaluated: number, actionsExecuted: number }`
+
+#### `analytics-engine`
+- **Method**: `POST`
+- **Auth**: Authenticated (admin)
+- **Purpose**: Aggregates KPI metrics for admin dashboards (census, throughput, revenue)
+- **Request**: `{ hospitalId: string, dateFrom: string, dateTo: string, metrics: string[] }`
+- **Response**: `{ metrics: MetricsMap, generatedAt: string }`
+
+---
+
+### Integrations
+
+#### `fhir-integration`
+- **Method**: `POST`
+- **Auth**: Authenticated (admin/doctor)
+- **Purpose**: Export/import patient data in FHIR R4 format
+- **Request**: `{ action: 'export'|'import', resourceType: string, patientId?: string, payload?: FHIRResource }`
+- **Response**: `{ success: boolean, resource?: FHIRResource, id?: string }`
+
+#### `insurance-integration`
+- **Method**: `POST`
+- **Auth**: Authenticated (receptionist/admin)
+- **Purpose**: Verifies insurance eligibility and submits pre-authorisation requests
+- **Request**: `{ patientId: string, insuranceProviderId: string, serviceCode: string }`
+- **Response**: `{ eligible: boolean, coveragePercent: number, preAuthRequired: boolean, preAuthId?: string }`
+
+#### `telemedicine`
+- **Method**: `POST`
+- **Auth**: Authenticated (doctor/patient)
+- **Purpose**: Creates/joins a telemedicine session (video call token)
+- **Request**: `{ action: 'create'|'join', consultationId: string }`
+- **Response**: `{ roomUrl: string, token: string, expiresAt: string }`
+
+---
+
+### System & Monitoring
+
+#### `health-check`
+- **Method**: `GET`
+- **Auth**: Public
+- **Purpose**: Liveness probe for load balancers/uptime monitors
+- **Response**: `{ status: 'ok', timestamp: string, version: string }`
+
+#### `monitoring`
+- **Method**: `POST`
+- **Auth**: Service Role
+- **Purpose**: Collects system metrics (DB connections, queue depth, error rates) for Grafana/dashboards
+- **Request**: `{ hospitalId?: string }`
+- **Response**: `{ metrics: SystemMetrics }`
+
+#### `system-monitoring`
+- **Method**: `POST`
+- **Auth**: Authenticated (admin)
+- **Purpose**: Returns hospital-scoped system health report (active users, error counts, RLS violations in last 24 h)
+- **Request**: `{ hospitalId: string }`
+- **Response**: `{ health: HealthReport, alerts: Alert[] }`
+
+#### `audit-logger`
+- **Method**: `POST`
+- **Auth**: Service Role
+- **Purpose**: Appends structured HIPAA audit log entries to `activity_logs` from server-side events
+- **Request**: `{ userId: string, hospitalId: string, action: string, entityType: string, entityId: string, details?: object }`
+- **Response**: `{ id: string }`
+
+#### `backup-manager`
+- **Method**: `POST`
+- **Auth**: Service Role
+- **Purpose**: Triggers on-demand DB backup and stores metadata in `backup_runs` table
+- **Request**: `{ type: 'full'|'incremental', hospitalId?: string }`
+- **Response**: `{ backupId: string, status: 'initiated', estimatedCompletionMinutes: number }`
+
+---
+
+### Inventory
+
+#### `check-low-stock`
+- **Method**: `POST` (cron-triggered)
+- **Auth**: Service Role
+- **Purpose**: Scans pharmaceutical inventory and fires notifications for items below reorder threshold
+- **Request**: `{}` (scheduled invocation)
+- **Response**: `{ alertsSent: number, items: LowStockItem[] }`
+
+---
 
 1. **Use Select Sparingly**: Only select needed columns
    ```typescript

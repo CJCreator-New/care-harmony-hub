@@ -75,4 +75,33 @@ describe('Authentication Security', () => {
       expect(attempts.some(e => e !== null)).toBe(true);
     });
   });
+
+  describe('Invitation Rate Limiting', () => {
+    it('rejects the 6th rapid invitation request with status 429', async () => {
+      const { vi } = await import('vitest');
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({ ok: true, status: 200 })
+        .mockResolvedValueOnce({ ok: true, status: 200 })
+        .mockResolvedValueOnce({ ok: true, status: 200 })
+        .mockResolvedValueOnce({ ok: true, status: 200 })
+        .mockResolvedValueOnce({ ok: true, status: 200 })
+        .mockResolvedValueOnce({ ok: false, status: 429 });
+
+      const INVITATION_URL =
+        'https://wmxtzkrkscjwixafumym.supabase.co/functions/v1/create-invitation';
+
+      const results: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const res = await mockFetch(INVITATION_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: `user${i}@hospital.com`, role: 'nurse' }),
+        });
+        results.push(res.status);
+      }
+
+      expect(results[5]).toBe(429);
+      expect(results.slice(0, 5).every((s) => s === 200)).toBe(true);
+    });
+  });
 });

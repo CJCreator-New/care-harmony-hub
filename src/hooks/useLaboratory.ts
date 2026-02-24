@@ -1,3 +1,25 @@
+/**
+ * @deprecated useLaboratory.ts — LEGACY lab domain hooks (state-based, no React Query caching).
+ *
+ * ── Migration matrix (T-63) ─────────────────────────────────────────────────────────────────
+ * | Legacy hook (this file)      | Modern replacement              | Table / event           |
+ * |------------------------------|---------------------------------|-------------------------|
+ * | useEnhancedLabOrders         | useLabOrders (useLabOrders.ts)  | lab_orders              |
+ * | useEnhancedLabOrders.create  | useCreateLabOrder               | lab_orders INSERT       |
+ * | useEnhancedLabOrders.update  | useUpdateLabOrder               | lab_orders UPDATE       |
+ * | useLOINCCodes                | (no equivalent — keep here)     | loinc_codes             |
+ * | useLabResults                | (no equivalent — keep here)     | lab_results             |
+ * | useCriticalValueNotifications| (no equivalent — keep here)     | notifications           |
+ * | useLabTrends                 | (no equivalent — keep here)     | lab_results             |
+ * | useLabInterpretation         | (no equivalent — keep here)     | lab_interpretation_rules|
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Migration plan:
+ *  1. New components: use useLabOrders / useCreateLabOrder / useUpdateLabOrder directly.
+ *  2. Existing components using useEnhancedLabOrders: call the re-exported bridge below.
+ *  3. Delete re-exports below once all callers are migrated (target: next sprint after T-63).
+ */
+
 import { useState, useEffect } from 'react';
 import { sanitizeForLog } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +32,19 @@ import {
   LabTrend,
   LabQCResult
 } from '@/types/laboratory';
+
+// ── Bridge re-exports from authoritative modern hooks ───────────────────────────────────────
+// Prefer importing directly from useLabOrders.ts in new code.
+export {
+  useLabOrders as useLabOrdersModern,
+  useCreateLabOrder,
+  useUpdateLabOrder,
+  useLabOrderStats,
+  type LabOrder,
+  type LabOrderInsert,
+  type LabOrderUpdate,
+} from '@/hooks/useLabOrders';
+// ──────────────────────────────────────────────────────────────────────────────────────────
 
 // Hook for LOINC code management
 export const useLOINCCodes = () => {
@@ -137,7 +172,7 @@ export const useLabResults = (patientId?: string, loincCode?: string) => {
   const createCriticalValueNotification = async (result: LabResult) => {
     try {
       const { error } = await supabase
-        .from('critical_value_notifications')
+        .from('critical_value_alerts')
         .insert({
           lab_result_id: result.id,
           patient_id: patientId,
@@ -176,7 +211,7 @@ export const useCriticalValueNotifications = (hospitalId?: string) => {
     setError(null);
     try {
       let query = supabase
-        .from('critical_value_notifications')
+        .from('critical_value_alerts')
         .select('*')
         .eq('acknowledged_at', null)
         .order('notified_at', { ascending: false });
@@ -200,7 +235,7 @@ export const useCriticalValueNotifications = (hospitalId?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('critical_value_notifications')
+        .from('critical_value_alerts')
         .update({
           acknowledged_at: new Date().toISOString(),
           resolution_notes: notes
@@ -225,7 +260,7 @@ export const useCriticalValueNotifications = (hospitalId?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('critical_value_notifications')
+        .from('critical_value_alerts')
         .update({
           escalation_level: supabase.rpc('increment_escalation', { notification_id: notificationId }),
           escalated_at: new Date().toISOString()
@@ -253,7 +288,7 @@ export const useCriticalValueNotifications = (hospitalId?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('critical_value_notifications')
+        .from('critical_value_alerts')
         .update({
           read_back_verified: true,
           resolution_notes: `Read-back verified: "${readBackText}"`
@@ -284,7 +319,7 @@ export const useCriticalValueNotifications = (hospitalId?: string) => {
     const subscription = supabase
       .channel('critical_notifications')
       .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'critical_value_notifications' },
+        { event: 'INSERT', schema: 'public', table: 'critical_value_alerts' },
         (payload) => {
           setNotifications(prev => [payload.new as CriticalValueNotification, ...prev]);
         }
@@ -401,6 +436,12 @@ export const useLabTrends = (patientId: string, loincCode?: string) => {
   };
 };
 
+/**
+ * @deprecated Use `useLabOrders` from `@/hooks/useLabOrders` instead.
+ * This hook uses raw state management without React Query caching.
+ * Migration: replace `useEnhancedLabOrders()` with `useLabOrders()` + `useCreateLabOrder()` + `useUpdateLabOrder()`.
+ * See migration matrix at the top of this file (T-63).
+ */
 // Hook for enhanced lab orders with LOINC integration
 export const useEnhancedLabOrders = (patientId?: string) => {
   const [orders, setOrders] = useState<EnhancedLabOrder[]>([]);

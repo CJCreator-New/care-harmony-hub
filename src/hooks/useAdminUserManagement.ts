@@ -3,8 +3,10 @@ import { useState, useCallback } from 'react';
 import { AdminUser, UserManagementData } from '@/types/admin';
 import { UserRole } from '@/types/auth';
 import { AdminUserManagementService } from '@/utils/adminUserManagementService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function useAdminUserManagement() {
+  const { hospital } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -14,7 +16,7 @@ export function useAdminUserManagement() {
       setIsLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await AdminUserManagementService.getUsers(limit, offset);
+      const { data, error: fetchError } = await AdminUserManagementService.getUsers(limit, offset, hospital?.id);
 
       if (fetchError) throw fetchError;
 
@@ -27,7 +29,7 @@ export function useAdminUserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [hospital?.id]);
 
   const createUser = useCallback(
     async (email: string, role: UserRole, firstName: string, lastName: string, department?: string) => {
@@ -67,7 +69,7 @@ export function useAdminUserManagement() {
         setIsLoading(true);
         setError(null);
 
-        const { user, error: updateError } = await AdminUserManagementService.updateUser(userId, updates);
+        const { user, error: updateError } = await AdminUserManagementService.updateUser(userId, updates, hospital?.id);
 
         if (updateError) throw updateError;
 
@@ -82,7 +84,7 @@ export function useAdminUserManagement() {
         setIsLoading(false);
       }
     },
-    [users]
+    [users, hospital?.id]
   );
 
   const deleteUser = useCallback(
@@ -135,7 +137,7 @@ export function useAdminUserManagement() {
         setIsLoading(true);
         setError(null);
 
-        const { error: suspendError } = await AdminUserManagementService.suspendUser(userId, reason);
+        const { error: suspendError } = await AdminUserManagementService.suspendUser(userId, reason, hospital?.id);
 
         if (suspendError) throw suspendError;
 
@@ -148,7 +150,7 @@ export function useAdminUserManagement() {
         setIsLoading(false);
       }
     },
-    [users]
+    [users, hospital?.id]
   );
 
   const resetPassword = useCallback(async (userId: string) => {

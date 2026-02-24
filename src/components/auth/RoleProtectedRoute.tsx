@@ -3,12 +3,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
 import { hasAnyRole } from '@/hooks/usePermissions';
+import { hasPermission, Permission } from '@/lib/permissions';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
   allowedRoles: UserRole[];
+  requiredPermission?: Permission;
   redirectTo?: string;
   showUnauthorized?: boolean;
 }
@@ -16,6 +18,7 @@ interface RoleProtectedRouteProps {
 export function RoleProtectedRoute({
   children,
   allowedRoles,
+  requiredPermission,
   redirectTo = '/dashboard',
   showUnauthorized = true,
 }: RoleProtectedRouteProps) {
@@ -37,9 +40,12 @@ export function RoleProtectedRoute({
     return <Navigate to="/hospital/login" state={{ from: location }} replace />;
   }
 
-  const hasPermission = hasAnyRole(roles, allowedRoles);
+  const hasRoleAccess = hasAnyRole(roles, allowedRoles);
+  const hasRequiredPermission = requiredPermission
+    ? roles.some((role) => hasPermission(role, requiredPermission))
+    : true;
 
-  if (!hasPermission) {
+  if (!hasRoleAccess || !hasRequiredPermission) {
     if (showUnauthorized) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-background">

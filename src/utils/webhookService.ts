@@ -70,10 +70,6 @@ export class WebhookService {
     }
   }
 
-  constructor() {
-    this.startRetryProcessor();
-  }
-
   // Check if webhook service is configured
   isConfigured(): boolean {
     return true; // Basic implementation always configured
@@ -415,8 +411,8 @@ export const WEBHOOK_EVENTS = {
   PAYMENT_REFUNDED: 'payment.refunded',
 
   // Lab events
-  LAB_ORDER_CREATED: 'lab_order.created',
-  LAB_RESULTS_READY: 'lab_results.ready',
+  LAB_ORDER_CREATED: 'lab.order_created',
+  LAB_RESULTS_READY: 'lab.results_ready',
 
   // System events
   USER_REGISTERED: 'user.registered',

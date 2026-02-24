@@ -82,25 +82,38 @@ export class AdminUserManagementService {
 
   static async updateUser(
     userId: string,
-    updates: Partial<AdminUser>
+    updates: Partial<AdminUser>,
+    hospitalId?: string
   ): Promise<{ user?: AdminUser; error?: Error }> {
     try {
       // Update profile
-      const { error: profileError } = await supabase
+      let profileQuery = supabase
         .from('profiles')
         .update({
           first_name: updates.email?.split('@')[0],
         })
         .eq('user_id', userId);
 
+      if (hospitalId) {
+        profileQuery = profileQuery.eq('hospital_id', hospitalId);
+      }
+
+      const { error: profileError } = await profileQuery;
+
       if (profileError) throw profileError;
 
       // Update role if provided
       if (updates.role) {
-        const { error: roleError } = await supabase
+        let roleQuery = supabase
           .from('user_roles')
           .update({ role: updates.role })
           .eq('user_id', userId);
+
+        if (hospitalId) {
+          roleQuery = roleQuery.eq('hospital_id', hospitalId);
+        }
+
+        const { error: roleError } = await roleQuery;
 
         if (roleError) throw roleError;
       }
@@ -148,13 +161,19 @@ export class AdminUserManagementService {
     }
   }
 
-  static async suspendUser(userId: string, reason: string): Promise<{ error?: Error }> {
+  static async suspendUser(userId: string, reason: string, hospitalId?: string): Promise<{ error?: Error }> {
     try {
       // Update user status
-      const { error } = await supabase
+      let query = supabase
         .from('profiles')
         .update({ status: 'suspended' })
         .eq('user_id', userId);
+
+      if (hospitalId) {
+        query = query.eq('hospital_id', hospitalId);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
 
@@ -186,12 +205,22 @@ export class AdminUserManagementService {
     }
   }
 
-  static async getUsers(limit: number = 50, offset: number = 0): Promise<{ data?: UserManagementData; error?: Error }> {
+  static async getUsers(
+    limit: number = 50,
+    offset: number = 0,
+    hospitalId?: string
+  ): Promise<{ data?: UserManagementData; error?: Error }> {
     try {
-      const { data: users, error, count } = await supabase
+      let query = supabase
         .from('profiles')
         .select('*', { count: 'exact' })
         .range(offset, offset + limit - 1);
+
+      if (hospitalId) {
+        query = query.eq('hospital_id', hospitalId);
+      }
+
+      const { data: users, error, count } = await query;
 
       if (error) throw error;
 
@@ -211,13 +240,18 @@ export class AdminUserManagementService {
     }
   }
 
-  static async getUserById(userId: string): Promise<{ user?: AdminUser; error?: Error }> {
+  static async getUserById(userId: string, hospitalId?: string): Promise<{ user?: AdminUser; error?: Error }> {
     try {
-      const { data: profile, error: profileError } = await supabase
+      let query = supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', userId);
+
+      if (hospitalId) {
+        query = query.eq('hospital_id', hospitalId);
+      }
+
+      const { data: profile, error: profileError } = await query.single();
 
       if (profileError) throw profileError;
 

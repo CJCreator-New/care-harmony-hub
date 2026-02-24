@@ -36,7 +36,7 @@ import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistr
 
 export default function QueueManagementPage() {
   const { data: queue = [], isLoading } = useActiveQueue();
-  const { data: checklists = [] } = usePatientChecklists();
+  const { checklists = [] } = usePatientChecklists();
   const permissions = usePermissions();
   const callNext = useCallNextPatient();
   const startService = useStartService();

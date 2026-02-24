@@ -58,45 +58,27 @@ export function useDoctorAvailability(doctorId?: string) {
     queryFn: async () => {
       if (!hospital?.id) return [];
       
-      // Mock data for current doctor status - in production this would query a different table
-      const mockDoctors: DoctorAvailability[] = [
-        {
-          id: 'doc1',
-          hospital_id: hospital.id,
-          doctor_id: 'doctor1',
-          day_of_week: 1,
-          start_time: '09:00',
-          end_time: '17:00',
-          slot_duration_minutes: 30,
-          is_telemedicine: false,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status: 'available',
-          last_name: 'Smith',
-          current_patient_count: 2,
-          next_available: '10:30 AM'
-        },
-        {
-          id: 'doc2',
-          hospital_id: hospital.id,
-          doctor_id: 'doctor2',
-          day_of_week: 1,
-          start_time: '09:00',
-          end_time: '17:00',
-          slot_duration_minutes: 30,
-          is_telemedicine: false,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status: 'in_consultation',
-          last_name: 'Johnson',
-          current_patient_count: 1,
-          next_available: '11:00 AM'
-        }
-      ];
+      const { data, error } = await supabase
+        .from('doctor_availability')
+        .select(`
+          id, hospital_id, doctor_id, day_of_week, start_time, end_time,
+          slot_duration_minutes, is_telemedicine, is_active, created_at, updated_at,
+          doctor:profiles!doctor_id(id, first_name, last_name)
+        `)
+        .eq('hospital_id', hospital.id)
+        .eq('is_active', true);
 
-      return mockDoctors;
+      if (error) throw error;
+
+      return (data || []).map(row => {
+        const doctorProfile = Array.isArray(row.doctor) ? row.doctor[0] : row.doctor;
+        return {
+          ...row,
+          doctor: doctorProfile,
+          status: 'available' as const,
+          last_name: doctorProfile?.last_name ?? '',
+        };
+      }) as DoctorAvailability[];
     },
     enabled: !!hospital?.id,
   });

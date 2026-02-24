@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +47,7 @@ import {
 import { UserRole } from '@/types/auth';
 import { cn } from '@/lib/utils';
 import { getRoleLabel } from '@/types/rbac';
+import { useStaffInvitations } from '@/hooks/useStaffInvitations';
 
 interface PendingStaff {
   id: string;
@@ -70,6 +70,7 @@ export default function AdminRoleSetupPage() {
   const navigate = useNavigate();
   const { user, hospital, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { createInvitation } = useStaffInvitations();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [pendingStaff, setPendingStaff] = useState<PendingStaff[]>([]);
@@ -152,22 +153,15 @@ export default function AdminRoleSetupPage() {
     setIsSendingInvites(true);
 
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error('Not authenticated');
-
-      // Create invitations for each staff member
-      const invitations = pendingStaff.map(staff => ({
-        hospital_id: hospital?.id,
-        email: staff.email,
-        role: staff.role,
-        invited_by: currentUser.id,
-        token: crypto.randomUUID(),
-        status: 'pending' as const,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      }));
-
-      const { error } = await supabase.from('staff_invitations').insert(invitations);
-      if (error) throw error;
+      for (const staff of pendingStaff) {
+        const result = await createInvitation({
+          email: staff.email,
+          role: staff.role,
+        });
+        if (result.error) {
+          throw new Error(result.error);
+        }
+      }
 
       toast({
         title: 'Invitations Sent!',

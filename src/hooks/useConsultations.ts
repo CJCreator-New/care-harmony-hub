@@ -1,15 +1,54 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { clinicalApiClient } from '@/services/clinicalApiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect, useCallback, useRef } from 'react';
-import { sanitizeForLog, devLog, devError } from '@/utils/sanitize';
+import { devLog } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
-import { transformConsultationFromService, transformConsultationsFromService } from '@/utils/consultationTransformers';
 
-export type ConsultationStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+export type ConsultationStatus =
+  | 'scheduled'
+  | 'patient_overview'
+  | 'clinical_assessment'
+  | 'treatment_planning'
+  | 'final_review'
+  | 'handoff'
+  | 'in-progress'
+  | 'completed'
+  | 'cancelled';
+
+/** Lifecycle-only status — maps to DB consultation_status column. */
+export type ConsultationLifecycleStatus =
+  | 'scheduled'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+/** Workflow step names — maps to DB workflow_stage column. */
+export type WorkflowStageName =
+  | 'patient_overview'
+  | 'clinical_assessment'
+  | 'treatment_planning'
+  | 'final_review'
+  | 'handoff';
+
+/** Normalise legacy / alternate status strings to ConsultationLifecycleStatus. */
+export const LEGACY_CONSULTATION_STATUS_MAP: Record<string, ConsultationLifecycleStatus> = {
+  'active': 'in_progress',
+  'in-progress': 'in_progress',
+  'in_service': 'in_progress',
+};
+
+export function mapToLifecycleStatus(
+  raw: string | null | undefined
+): ConsultationLifecycleStatus {
+  if (!raw) return 'scheduled';
+  if (['scheduled', 'in_progress', 'completed', 'cancelled'].includes(raw)) {
+    return raw as ConsultationLifecycleStatus;
+  }
+  return LEGACY_CONSULTATION_STATUS_MAP[raw] ?? 'scheduled';
+}
 
 export interface Consultation {
   id: string;
@@ -18,6 +57,8 @@ export interface Consultation {
   patient_id: string;
   doctor_id: string;
   nurse_id: string | null;
+  consultation_status?: 'active' | 'completed' | 'cancelled';
+  workflow_stage?: Exclude<ConsultationStatus, 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>;
   status: ConsultationStatus;
   current_step: number;
   // Step 1: Patient Overview
@@ -75,11 +116,11 @@ export interface ConsultationInsert {
 }
 
 export const CONSULTATION_STEPS = [
-  { step: 1, status: 'scheduled' as ConsultationStatus, label: 'Patient Overview', description: 'Demographics, vitals, history' },
-  { step: 2, status: 'in-progress' as ConsultationStatus, label: 'Clinical Assessment', description: 'Symptoms, physical exam' },
-  { step: 3, status: 'in-progress' as ConsultationStatus, label: 'Treatment Planning', description: 'Diagnosis, prescriptions, labs' },
-  { step: 4, status: 'in-progress' as ConsultationStatus, label: 'Final Review', description: 'Summary, billing' },
-  { step: 5, status: 'completed' as ConsultationStatus, label: 'Handoff', description: 'Notify pharmacy/lab' },
+  { step: 1, status: 'patient_overview' as ConsultationStatus, label: 'Patient Overview', description: 'Demographics, vitals, history' },
+  { step: 2, status: 'clinical_assessment' as ConsultationStatus, label: 'Clinical Assessment', description: 'Symptoms, physical exam' },
+  { step: 3, status: 'treatment_planning' as ConsultationStatus, label: 'Treatment Planning', description: 'Diagnosis, prescriptions, labs' },
+  { step: 4, status: 'final_review' as ConsultationStatus, label: 'Final Review', description: 'Summary, billing' },
+  { step: 5, status: 'handoff' as ConsultationStatus, label: 'Handoff', description: 'Notify pharmacy/lab' },
 ];
 
 const withConsultationRateLimit = async <T,>(fn: () => Promise<T>) =>
@@ -104,21 +145,20 @@ export function useConsultations() {
       devLog('Fetching consultations for hospital:', hospital.id);
 
       return withConsultationRateLimit(async () => {
-        try {
-          const result = await clinicalApiClient.getConsultations({
-            limit: 100,
-            offset: 0,
-          });
+        const { data, error } = await supabase
+          .from('consultations')
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
+          .eq('hospital_id', hospital.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-          // Transform the data to match the expected format
-          const transformedData = transformConsultationsFromService(result.data);
-
-          devLog('Consultations fetched:', transformedData.length);
-          return transformedData;
-        } catch (error) {
-          devError('Error fetching consultations from clinical service:', error);
-          throw error;
-        }
+        if (error) throw error;
+        devLog('Consultations fetched:', data?.length ?? 0);
+        return (data || []) as Consultation[];
       });
     },
     enabled: !!hospital?.id,
@@ -132,15 +172,18 @@ export function useConsultation(consultationId: string | undefined) {
       if (!consultationId) return null;
 
       return withConsultationRateLimit(async () => {
-        try {
-          const consultation = await clinicalApiClient.getConsultation(consultationId);
+        const { data, error } = await supabase
+          .from('consultations')
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
+          .eq('id', consultationId)
+          .maybeSingle();
 
-          // Transform to match expected format
-          return transformConsultationFromService(consultation);
-        } catch (error) {
-          console.error('Error fetching consultation from clinical service:', sanitizeForLog(String(error)));
-          throw error;
-        }
+        if (error) throw error;
+        return data as Consultation | null;
       });
     },
     enabled: !!consultationId,
@@ -156,36 +199,68 @@ export function useCreateConsultation() {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
 
       return withConsultationRateLimit(async () => {
-        try {
-          // Check for existing consultation for this patient (any status)
-          // Note: This logic needs to be implemented in the clinical service
-          // For now, we'll create a new consultation
-          const consultationData = {
+        // Idempotency guard: return existing non-completed consultation if present
+        const { data: existing } = await supabase
+          .from('consultations')
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
+          .eq('hospital_id', hospital.id)
+          .eq('patient_id', data.patient_id)
+          .neq('status', 'completed')
+          .maybeSingle();
+
+        if (existing) return existing as Consultation;
+
+        const { data: consultation, error } = await supabase
+          .from('consultations')
+          .insert({
             patient_id: data.patient_id,
-            provider_id: profile.id,
-            appointment_id: data.appointment_id,
             hospital_id: hospital.id,
-            consultation_type: 'initial' as const,
-            status: 'scheduled' as const,
-            chief_complaint: '', // Will be filled in the workflow
-          };
+            doctor_id: profile.id,
+            nurse_id: data.nurse_id ?? null,
+            appointment_id: data.appointment_id ?? null,
+            status: 'patient_overview' as ConsultationStatus,
+            current_step: 1,
+            started_at: new Date().toISOString(),
+          })
+          .select(`
+            ${CONSULTATION_COLUMNS.detail},
+            patient:patients(${PATIENT_COLUMNS.detail}),
+            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+          `)
+          .single();
 
-          const consultation = await clinicalApiClient.createConsultation(consultationData);
-
-          // Transform to match expected format
-          return transformConsultationFromService(consultation);
-        } catch (error) {
-          console.error('Error creating consultation via clinical service:', sanitizeForLog(String(error)));
-          throw error;
-        }
+        if (error) throw error;
+        return consultation as Consultation;
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       toast.success('Consultation started');
+      // T-90: Critical-handoff telemetry — consult_start_success (no PHI in details)
+      void supabase.from('activity_logs').insert({
+        user_id: profile?.user_id ?? null,
+        hospital_id: hospital?.id ?? null,
+        action_type: 'telemetry:consult_start_success',
+        entity_type: 'consultation',
+        entity_id: data?.id ?? null,
+        details: { event: 'consult_start_success', emitted_at: new Date().toISOString() },
+      });
     },
     onError: (error: Error) => {
       toast.error(`Failed to start consultation: ${error.message}`);
+      // T-90: Critical-handoff telemetry — consult_start_failure (no PHI in details)
+      void supabase.from('activity_logs').insert({
+        user_id: profile?.user_id ?? null,
+        hospital_id: hospital?.id ?? null,
+        action_type: 'telemetry:consult_start_failure',
+        entity_type: 'consultation',
+        entity_id: null,
+        details: { event: 'consult_start_failure', error_code: error.message, emitted_at: new Date().toISOString() },
+      });
     },
   });
 }
@@ -214,7 +289,7 @@ export function useGetOrCreateConsultation() {
         if (existingConsultation) {
           // Update queue entry to in_service if not already
           await supabase
-            .from('queue_entries')
+            .from('patient_queue')
             .update({ 
               status: 'in_service', 
               service_start_time: new Date().toISOString() 
@@ -247,7 +322,7 @@ export function useGetOrCreateConsultation() {
 
         // Update queue entry to in_service
         await supabase
-          .from('queue_entries')
+          .from('patient_queue')
           .update({ 
             status: 'in_service', 
             service_start_time: new Date().toISOString() 
@@ -400,7 +475,7 @@ export function usePatientsReadyForConsultation() {
           .select(`
             *,
             patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
-            queue_entry:queue_entries!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
+            queue_entry:patient_queue!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
           `)
           .eq('hospital_id', hospital.id)
           .eq('ready_for_doctor', true)

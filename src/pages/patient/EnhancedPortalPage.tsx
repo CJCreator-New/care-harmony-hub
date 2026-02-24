@@ -37,6 +37,7 @@ import { ImmunizationRecords } from '@/components/patient/ImmunizationRecords';
 import { MedicationHistory } from '@/components/patient/MedicationHistory';
 import { useHealthMonitoring, VitalSign, HealthMetric, HealthGoal } from '@/hooks/useHealthMonitoring';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolvePatientIdByAuthUserId } from '@/services/identityResolver';
 import { format } from 'date-fns';
 import { sanitizeHtml } from '@/utils/sanitize';
 
@@ -85,12 +86,20 @@ export function EnhancedPortalPage() {
   } = useHealthMonitoring();
 
   const { data: trends30d } = useQuery(getHealthTrendsQueryOptions('30d'));
+  const { data: patientRecordId } = useQuery({
+    queryKey: ['enhanced-portal-patient-id', profile?.user_id],
+    queryFn: async () => {
+      if (!profile?.user_id) return null;
+      return resolvePatientIdByAuthUserId(profile.user_id);
+    },
+    enabled: !!profile?.user_id,
+  });
 
   const handleRecordVital = () => {
-    if (!selectedVitalType || !vitalValue) return;
+    if (!selectedVitalType || !vitalValue || !patientRecordId) return;
 
     recordVitalSign({
-      patient_id: profile?.id || '',
+      patient_id: patientRecordId,
       type: selectedVitalType as VitalSign['type'],
       value: parseFloat(vitalValue),
       unit: VITAL_SIGNS_CONFIG.find(c => c.type === selectedVitalType)?.unit || '',
@@ -102,10 +111,10 @@ export function EnhancedPortalPage() {
   };
 
   const handleRecordMetric = () => {
-    if (!selectedMetricType || !metricValue) return;
+    if (!selectedMetricType || !metricValue || !patientRecordId) return;
 
     recordHealthMetric({
-      patient_id: profile?.id || '',
+      patient_id: patientRecordId,
       metric_type: selectedMetricType as HealthMetric['metric_type'],
       value: parseFloat(metricValue),
       unit: HEALTH_METRICS_CONFIG.find(c => c.type === selectedMetricType)?.unit || '',
@@ -195,7 +204,7 @@ export function EnhancedPortalPage() {
                 </div>
                 <Button
                   onClick={handleRecordVital}
-                  disabled={isRecordingVital || !selectedVitalType || !vitalValue}
+                  disabled={isRecordingVital || !selectedVitalType || !vitalValue || !patientRecordId}
                   className="w-full"
                 >
                   {isRecordingVital ? 'Recording...' : 'Record Vital Sign'}
@@ -253,7 +262,7 @@ export function EnhancedPortalPage() {
                 </div>
                 <Button
                   onClick={handleRecordMetric}
-                  disabled={isRecordingMetric || !selectedMetricType || !metricValue}
+                  disabled={isRecordingMetric || !selectedMetricType || !metricValue || !patientRecordId}
                   className="w-full"
                 >
                   {isRecordingMetric ? 'Logging...' : 'Log Metric'}
@@ -474,9 +483,9 @@ export function EnhancedPortalPage() {
 
         <TabsContent value="records" className="space-y-6">
           <div className="grid gap-6">
-            <AllergyRecords patientId={profile?.id || ''} />
-            <ImmunizationRecords patientId={profile?.id || ''} />
-            <MedicationHistory patientId={profile?.id || ''} />
+            <AllergyRecords patientId={patientRecordId || ''} />
+            <ImmunizationRecords patientId={patientRecordId || ''} />
+            <MedicationHistory patientId={patientRecordId || ''} />
           </div>
         </TabsContent>
 

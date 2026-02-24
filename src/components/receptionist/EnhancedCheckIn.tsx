@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQueue } from '@/hooks/useQueue';
-import { useWorkflowOrchestrator } from '@/hooks/useWorkflowOrchestrator';
+import { PriorityLevel } from '@/hooks/useQueue';
+import { useUnifiedCheckIn } from '@/hooks/useUnifiedCheckIn';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,8 +18,7 @@ export function EnhancedCheckIn() {
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInData, setWalkInData] = useState({ firstName: '', lastName: '', phone: '', dob: '' });
   const { hospital } = useAuth();
-  const { addToQueue } = useQueue();
-  const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { checkIn } = useUnifiedCheckIn();
 
   const { data: patients, isLoading } = useQuery({
     queryKey: ['patients-search', searchTerm, hospital?.id],
@@ -66,23 +65,17 @@ export function EnhancedCheckIn() {
     },
   });
 
-  const handleCheckIn = async (patient: any, priority: 'normal' | 'urgent' = 'normal') => {
+  const handleCheckIn = async (patient: any, priority: PriorityLevel = 'normal') => {
     try {
-      const queueEntry = await addToQueue({
-        patient_id: patient.id,
+      await checkIn({
+        patient: {
+          id: patient.id,
+          first_name: patient.first_name,
+          last_name: patient.last_name,
+          mrn: patient.mrn,
+        },
         priority,
-        status: 'waiting',
-      });
-
-      await triggerWorkflow({
-        type: 'patient_check_in',
-        patientId: patient.id,
-        priority: priority === 'urgent' ? 'urgent' : 'normal',
-        data: {
-          patientName: `${patient.first_name} ${patient.last_name}`,
-          queueNumber: queueEntry.queue_number,
-          mrn: patient.mrn
-        }
+        isWalkIn: true,
       });
 
       toast.success(`${patient.first_name} ${patient.last_name} checked in successfully`);

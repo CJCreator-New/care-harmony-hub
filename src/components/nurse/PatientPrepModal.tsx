@@ -179,7 +179,7 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
       if (criticalValues.length > 0) {
         await supabase.from('notifications').insert({
           hospital_id: patient.hospital_id,
-          recipient_id: queueEntry.assigned_doctor_id,
+          recipient_id: queueEntry.assigned_to ?? queueEntry.assigned_doctor_id,
           type: 'critical_vitals',
           title: 'CRITICAL: Abnormal Vital Signs',
           message: `${patient.first_name} ${patient.last_name} has critical vital signs: ${criticalValues.join(', ')}`,

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
-export type QueueStatus = 'waiting' | 'called' | 'in_service' | 'completed';
+export type QueueStatus = 'waiting' | 'called' | 'in_prep' | 'in_service' | 'completed';
 export type PriorityLevel = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
 
 export interface QueueEntry {
@@ -74,12 +74,12 @@ export function useQueue(status?: QueueStatus[]) {
 }
 
 export function useActiveQueue() {
-  return useQueue(['waiting', 'called', 'in_service']);
+  return useQueue(['waiting', 'called', 'in_prep', 'in_service']);
 }
 
 export function useAddToQueue() {
   const queryClient = useQueryClient();
-  const { hospital } = useAuth();
+  const { hospital, user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ patientId, appointmentId, priority = 'normal', department }: {
@@ -97,7 +97,7 @@ export function useAddToQueue() {
         .select('id, status, queue_number')
         .eq('hospital_id', hospital.id)
         .eq('patient_id', patientId)
-        .in('status', ['waiting', 'called', 'in_service'])
+        .in('status', ['waiting', 'called', 'in_prep', 'in_service'])
         .gte('created_at', `${today}T00:00:00`)
         .maybeSingle();
 
@@ -128,6 +128,25 @@ export function useAddToQueue() {
         .single();
 
       if (error) throw error;
+
+      // T-89: Audit marker — queue entry created during check-in
+      void supabase.from('activity_logs').insert({
+        user_id: user?.id ?? null,
+        hospital_id: hospital?.id ?? null,
+        action_type: 'checkin_queue_created',
+        entity_type: 'patient_queue',
+        entity_id: data.id,
+        details: {
+          patient_id: patientId,
+          appointment_id: appointmentId ?? null,
+          queue_number: data.queue_number,
+          priority,
+          department: department ?? null,
+          workflow_event_emitted: true,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
       return data as QueueEntry;
     },
     onSuccess: (data) => {

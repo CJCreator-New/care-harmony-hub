@@ -21,6 +21,7 @@ export interface Prescription {
     first_name: string;
     last_name: string;
     mrn: string;
+    user_id: string | null;
   };
   prescriber?: {
     id: string;
@@ -56,7 +57,7 @@ export function usePrescriptions(status?: string) {
         .from('prescriptions')
         .select(`
           *,
-          patient:patients(id, first_name, last_name, mrn),
+          patient:patients(id, first_name, last_name, mrn, user_id),
           prescriber:profiles!prescriptions_prescribed_by_fkey(id, first_name, last_name),
           items:prescription_items(*)
         `)
@@ -233,11 +234,11 @@ export function usePrescriptionsRealtime() {
 
 export function useDispensePrescription() {
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, hospital } = useAuth();
 
   return useMutation({
     mutationFn: async (prescriptionId: string) => {
-      if (!profile?.id) throw new Error('No profile context');
+      if (!profile?.id || !hospital?.id) throw new Error('No profile/hospital context');
 
       const { error } = await supabase
         .from('prescriptions')
@@ -257,6 +258,18 @@ export function useDispensePrescription() {
         .eq('prescription_id', prescriptionId);
 
       if (itemsError) throw itemsError;
+
+      // Keep durable queue state synchronized with dispense lifecycle.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: queueError } = await (supabase.from('prescription_queue') as any)
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('hospital_id', hospital.id)
+        .eq('prescription_id', prescriptionId);
+
+      if (queueError) throw queueError;
 
       return { id: prescriptionId };
     },

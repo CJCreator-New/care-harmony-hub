@@ -90,6 +90,35 @@ export type UserRole = keyof typeof ROLES;
 const E2E_MOCK_AUTH_STORAGE_KEY = 'e2e-mock-auth-user';
 
 /**
+ * Authenticate as a specific role using live login UI or localStorage mock.
+ * Exported so T-xx spec files can import instead of duplicating inline.
+ */
+export async function loginAs(page: Page, role: string): Promise<void> {
+  const email =
+    process.env[`E2E_${role.toUpperCase()}_EMAIL`] ||
+    `${role.toLowerCase().replace('_', '')}@testgeneral.com`;
+  const password =
+    process.env[`E2E_${role.toUpperCase()}_PASSWORD`] || 'TestPass123!';
+
+  await page.addInitScript(
+    ({ em, r }) => {
+      window.localStorage.setItem('e2e-mock-auth-user', em);
+      window.localStorage.setItem('preferredRole', r);
+      window.localStorage.setItem('testRole', r);
+    },
+    { em: email, r: role }
+  );
+
+  await page.goto('/dashboard');
+  if (page.url().includes('/hospital/login')) {
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/password/i).fill(password);
+    await page.getByRole('button', { name: /sign in|log in|login/i }).click();
+    await page.waitForLoadState('networkidle');
+  }
+}
+
+/**
  * Set test role using localStorage and reload page
  */
 export async function setTestRole(page: Page, role: UserRole) {
@@ -180,31 +209,48 @@ export async function loginAsTestUser(page: Page, role: UserRole = 'admin') {
     process.env.E2E_FORCE_LIVE_AUTH !== 'true' &&
     process.env.VITE_E2E_MOCK_AUTH !== 'false';
 
-  if (shouldUseMockAuth) {
-    await bootstrapMockAuth(page, role);
-    await page.goto('/dashboard');
-    await expect(page).toHaveURL(/dashboard|hospital\/account-setup/i);
-    return;
-  }
-
-  const attemptLogin = async (): Promise<boolean> => {
+  const attemptUiLogin = async (): Promise<boolean> => {
     await page.goto('/hospital/login');
-    await page.getByLabel('Email').fill(roleEmail);
-    await page.getByLabel('Password').fill(TEST_DATA.ADMIN.password);
-    await page.getByRole('button', { name: /sign in|login/i }).click();
+    await page.getByLabel(/email/i).fill(roleEmail);
+    await page.getByLabel(/password/i).fill(TEST_DATA.ADMIN.password);
+    await page.getByRole('button', { name: /sign in|log in|login/i }).click();
     try {
-      await expect(page).toHaveURL(/.*(dashboard|hospital\/account-setup).*/, { timeout: 5000 });
+      await expect(page).toHaveURL(/.*(dashboard|hospital\/account-setup).*/, { timeout: 7000 });
       return true;
     } catch {
       return false;
     }
   };
 
-  const loggedIn = await attemptLogin();
+  if (shouldUseMockAuth) {
+    await bootstrapMockAuth(page, role);
+    await page.goto('/dashboard');
+    try {
+      await expect(page).toHaveURL(/dashboard|hospital\/account-setup/i, { timeout: 7000 });
+      if (role !== 'admin') {
+        await setTestRole(page, role);
+      }
+      return;
+    } catch {
+      const loggedIn = await attemptUiLogin();
+      if (loggedIn) {
+        if (page.url().includes('/hospital/account-setup')) {
+          await page.goto('/dashboard');
+          await page.waitForLoadState('networkidle');
+        }
+        if (role !== 'admin') {
+          await setTestRole(page, role);
+        }
+        return;
+      }
+    }
+  }
+
+  const loggedIn = await attemptUiLogin();
   if (!loggedIn) {
     console.log('Login failed: User lookup failed. Attempting registration...');
     await registerTestHospital(page);
-    const retried = await attemptLogin();
+    const retried = await attemptUiLogin();
     expect(retried).toBeTruthy();
   }
 

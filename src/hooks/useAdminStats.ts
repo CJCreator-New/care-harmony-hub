@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, startOfWeek } from 'date-fns';
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { devLog } from '@/utils/sanitize';
 
 export interface AdminStats {
   totalPatients: number;
@@ -138,7 +139,9 @@ export function useAdminStats() {
         .rpc('get_dashboard_stats', { p_hospital_id: hospital.id });
 
       if (error) {
-        console.error('Failed to fetch dashboard stats:', error);
+        // PGRST202 = function not yet in schema cache (migration 20260222000001 pending deployment)
+        // Degrades gracefully to zeros — devLog only so production console stays clean
+        devLog('get_dashboard_stats RPC unavailable, using defaults. Code:', error.code);
         // Return defaults on error instead of throwing to prevent error boundary triggers
         return {
           totalPatients: 0,
@@ -205,7 +208,7 @@ export function useStaffOverview() {
       // Get all staff with their roles
       const { data: staff, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, user_id, first_name, last_name')
         .eq('hospital_id', hospital.id)
         .eq('is_staff', true);
 
@@ -239,9 +242,9 @@ export function useStaffOverview() {
       return (staff || []).map(s => ({
         id: s.id,
         name: `${s.first_name} ${s.last_name}`,
-        role: roleMap.get(s.id) || 'staff',
+        role: roleMap.get(s.user_id) || 'staff',
         status: 'online' as const,
-        todayPatients: consultationCounts.get(s.id) || 0,
+        todayPatients: consultationCounts.get(s.user_id) || 0,
         lastActive: null,
       }));
     },

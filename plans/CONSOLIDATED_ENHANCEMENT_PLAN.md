@@ -1,1017 +1,464 @@
-# CareSync HMS - Consolidated Enhancement & Error Resolution Plan
+# Care Harmony Hub - Consolidated Enhancement Plan
 
-**Document Version:** 1.0  
-**Date Created:** February 9, 2026  
-**Based On:** Review 1.md and Review 2.md  
-**Overall Assessment:** 7.5/10 - Conditionally Production Ready
-
----
+**Document Version:** 3.0  
+**Last Updated:** February 23, 2026  
+**Plan Basis:** `plans/FLOWS_UNIFIED_IMPLEMENTATION_PLAN.md` and the eight role flow remediation files  
+**Execution Horizon:** 6-9 months  
+**Program Mode:** Contract-first stabilization, then operational hardening, then consolidation, then optimization
 
 ## Executive Summary
-
-This consolidated plan combines findings from two comprehensive reviews of the CareSync Hospital Management System. While the BUILD_ERROR_TRACKER.md indicates all 23 build errors have been resolved, the security and technical reviews identify critical issues that must be addressed before production deployment.
-
-### Key Metrics
-
-| Metric | Value | Status |
-|--------|-------|--------|
-| Overall Score | 7.5/10 | Good |
-| Build Errors | 0/23 resolved | ✅ Complete |
-| Critical Security Issues | 5 | 🔴 Action Required |
-| High Priority Issues | 8 | 🟠 Action Required |
-| Medium Priority Issues | 12 | 🟡 Recommended |
-| Low Priority Issues | 15 | 🟢 Future Enhancement |
-
-### Production Readiness Verdict
-
-**CONDITIONALLY READY** - Requires completion of all Priority 0 (P0) and Priority 1 (P1) items before production deployment.
-
----
-
-## Priority Classification System
-
-| Priority | Description | Timeline | Blocking |
-|----------|-------------|----------|----------|
-| **P0** | Critical - Security vulnerabilities, data loss risk, HIPAA compliance failures | 0-1 week | YES |
-| **P1** | High - Performance issues, scalability concerns, major functionality gaps | 1-3 months | YES |
-| **P2** | Medium - Code quality, documentation, minor security hardening | 3-6 months | NO |
-| **P3** | Low - Enhancements, nice-to-have features, optimization | 6-12 months | NO |
-
----
-
-## Priority 0 (P0) - Critical Security & Compliance Issues
-
-**Timeline:** 0-1 week (15-20 hours)  
-**Status:** 🔴 BLOCKING PRODUCTION
-
-### P0-1: Missing `patient_consents` Database Table
-
-**Severity:** CRITICAL  
-**Impact:** Blocks consent workflow, telemedicine, patient portal consent features  
-**Affected Files:**
-- `ConsentForm.tsx:26`
-- `usePatientPortal.ts`
-- `VideoCallModal.tsx`
-
-**Required Actions:**
-1. Create `patient_consents` table migration
-2. Define table schema with proper RLS policies
-3. Add indexes for performance
-4. Deploy and verify table creation
-
-**SQL Schema:**
-```sql
-CREATE TABLE patient_consents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
-  consent_type TEXT NOT NULL,
-  consent_given BOOLEAN NOT NULL DEFAULT false,
-  consent_date TIMESTAMPTZ DEFAULT NOW(),
-  revoked_at TIMESTAMPTZ,
-  revoked_by UUID REFERENCES profiles(id),
-  metadata JSONB DEFAULT '{}',
-  hospital_id UUID REFERENCES hospitals(id) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Indexes
-CREATE INDEX idx_patient_consents_patient_id ON patient_consents(patient_id);
-CREATE INDEX idx_patient_consents_hospital_id ON patient_consents(hospital_id);
-CREATE INDEX idx_patient_consents_type ON patient_consents(consent_type);
-
--- RLS Policy
-ALTER TABLE patient_consents ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Hospital scoped access" ON patient_consents
-  FOR ALL USING (hospital_id = auth.jwt()->>'hospital_id');
-
-CREATE POLICY "Patient can view own consents" ON patient_consents
-  FOR SELECT USING (patient_id = auth.uid());
-```
-
-**Estimated Effort:** 30 minutes
-
----
-
-### P0-2: 2FA Secrets Stored in Plaintext
-
-**Severity:** CRITICAL  
-**Impact:** HIPAA compliance failure, security vulnerability  
-**Location:** `two_factor_secrets` table
-
-**Required Actions:**
-1. Encrypt existing 2FA secrets using Supabase Vault or AES-256 encryption
-2. Update database schema to store encrypted secrets
-3. Modify authentication flow to decrypt secrets during verification
-4. Add migration script to encrypt existing data
-
-**Implementation Approach:**
-```typescript
-// Use Supabase Vault for secret management
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
-
-// Encrypt 2FA secret before storage
-async function store2FASecret(userId: string, secret: string) {
-  const { data, error } = await supabase.vault.encrypt(secret)
-  if (error) throw error
-  
-  await supabase
-    .from('two_factor_secrets')
-    .upsert({ user_id: userId, encrypted_secret: data.encrypted_secret })
-}
-
-// Decrypt during verification
-async function verify2FA(userId: string, token: string) {
-  const { data: secretData } = await supabase
-    .from('two_factor_secrets')
-    .select('encrypted_secret')
-    .eq('user_id', userId)
-    .single()
-  
-  const { data: decrypted } = await supabase.vault.decrypt(
-    secretData.encrypted_secret
-  )
-  
-  // Verify TOTP token with decrypted secret
-  return verifyTOTP(token, decrypted.decrypted_value)
-}
-```
-
-**Estimated Effort:** 3-4 hours
-
----
-
-### P0-3: Profiles Table Public Exposure
-
-**Severity:** CRITICAL  
-**Impact:** User profile data can be queried without hospital association  
-**Location:** RLS policy allows `hospital_id IS NULL` queries
-
-**Required Actions:**
-1. Review and fix RLS policy for `profiles` table
-2. Remove `hospital_id IS NULL` condition
-3. Ensure all queries require valid hospital_id
-4. Test with various user roles
-
-**RLS Policy Fix:**
-```sql
--- Current (INSECURE):
-CREATE POLICY "Public profiles" ON profiles
-  FOR SELECT USING (hospital_id IS NULL OR hospital_id = auth.jwt()->>'hospital_id');
-
--- Fixed (SECURE):
-CREATE POLICY "Hospital scoped profiles" ON profiles
-  FOR ALL USING (hospital_id = auth.jwt()->>'hospital_id');
-
-DROP POLICY IF EXISTS "Public profiles" ON profiles;
-```
-
-**Estimated Effort:** 1 hour
-
----
-
-### P0-4: Leaked Password Protection Disabled
-
-**Severity:** HIGH  
-**Impact:** Vulnerable to credential stuffing attacks  
-**Location:** Supabase Auth configuration
-
-**Required Actions:**
-1. Enable leaked password protection in Supabase dashboard
-2. Configure password breach detection
-3. Add user notification for compromised passwords
-4. Implement forced password reset on breach detection
-
-**Supabase Configuration:**
-```typescript
-// Enable via Supabase Dashboard or API
-const { data, error } = await supabase.auth.admin.updateConfig({
-  password_protection: {
-    enable_leaked_password_protection: true,
-    action_on_breach: 'force_reset'
-  }
-})
-```
-
-**Estimated Effort:** 15 minutes
-
----
-
-### P0-5: Overly Permissive RLS Policies with `USING(true)`
-
-**Severity:** HIGH  
-**Impact:** Data isolation breach, unauthorized access  
-**Location:** Multiple database tables
-
-**Required Actions:**
-1. Audit all tables with `USING(true)` RLS policies
-2. Replace with proper hospital-scoped policies
-3. Test access controls for each role
-4. Document RLS policy structure
-
-**Audit Query:**
-```sql
--- Find tables with permissive RLS policies
-SELECT 
-  schemaname,
-  tablename,
-  policyname,
-  qual,
-  with_check
-FROM pg_policies
-WHERE qual = 'true'::text OR with_check = 'true'::text;
-```
-
-**Fix Example:**
-```sql
--- Before (INSECURE):
-CREATE POLICY "Allow all" ON some_table
-  FOR ALL USING (true);
-
--- After (SECURE):
-CREATE POLICY "Hospital scoped access" ON some_table
-  FOR ALL USING (hospital_id = auth.jwt()->>'hospital_id');
-```
-
-**Estimated Effort:** 4-6 hours
-
----
-
-## Priority 1 (P1) - High Priority Issues
-
-**Timeline:** 1-3 months (40-60 hours)  
-**Status:** 🟠 RECOMMENDED BEFORE PRODUCTION
-
-### P1-1: XSS Vulnerability in JavaScript URL Sanitization
-
-**Severity:** HIGH  
-**Impact:** Cross-site scripting attacks  
-**Location:** User input handling
-
-**Required Actions:**
-1. Implement proper JavaScript URL sanitization
-2. Use DOMPurify for HTML sanitization
-3. Add Content Security Policy headers
-4. Test with XSS payloads
-
-**Implementation:**
-```typescript
-import DOMPurify from 'dompurify'
-
-// Sanitize user input
-function sanitizeUserInput(input: string): string {
-  // Remove javascript: URLs
-  const sanitized = input.replace(/javascript:/gi, '')
-  
-  // Use DOMPurify for HTML content
-  return DOMPurify.sanitize(sanitized, {
-    ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em'],
-    ALLOWED_ATTR: []
-  })
-}
-
-// Validate URLs
-function isValidURL(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return ['http:', 'https:'].includes(parsed.protocol)
-  } catch {
-    return false
-  }
-}
-```
-
-**Estimated Effort:** 2-3 hours
-
----
-
-### P1-2: SQL Injection in Search Queries
-
-**Severity:** HIGH  
-**Impact:** Database compromise, data theft  
-**Location:** Search functionality
-
-**Required Actions:**
-1. Audit all search query implementations
-2. Ensure parameterized queries are used
-3. Add input validation and sanitization
-4. Implement query rate limiting
-
-**Fix Example:**
-```typescript
-// Before (VULNERABLE):
-const query = `SELECT * FROM patients WHERE name LIKE '%${searchTerm}%'`
-
-// After (SECURE):
-const { data, error } = await supabase
-  .from('patients')
-  .select('*')
-  .ilike('name', `%${searchTerm}%`)
-  .limit(100)
-```
-
-**Estimated Effort:** 2-3 hours
-
----
-
-### P1-3: Database Performance Issues
-
-**Severity:** HIGH  
-**Impact:** Slow queries, poor user experience  
-**Location:** High-volume tables
-
-**Required Actions:**
-1. Add missing indexes for `appointments` table
-2. Implement table partitioning for `activity_logs`
-3. Optimize hospital-scoped queries
-4. Add query performance monitoring
-
-**Index Additions:**
-```sql
--- Appointments table indexes
-CREATE INDEX idx_appointments_patient_id ON appointments(patient_id);
-CREATE INDEX idx_appointments_doctor_id ON appointments(doctor_id);
-CREATE INDEX idx_appointments_hospital_id ON appointments(hospital_id);
-CREATE INDEX idx_appointments_status ON appointments(status);
-CREATE INDEX idx_appointments_date ON appointments(appointment_date);
-
--- Activity logs partitioning
-CREATE TABLE activity_logs_partitioned (
-  LIKE activity_logs INCLUDING ALL
-) PARTITION BY RANGE (created_at);
-
--- Create monthly partitions
-CREATE TABLE activity_logs_2026_01 PARTITION OF activity_logs_partitioned
-  FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
-```
-
-**Estimated Effort:** 4-6 hours
-
----
-
-### P1-4: CORS Configuration Too Permissive
-
-**Severity:** MEDIUM  
-**Impact:** Security vulnerability  
-**Location:** Edge functions
-
-**Required Actions:**
-1. Replace wildcard `*` origin with specific allowed origins
-2. Configure environment-specific CORS settings
-3. Add CORS preflight handling
-4. Test cross-origin requests
-
-**Configuration:**
-```typescript
-// Edge function CORS configuration
-const corsHeaders = {
-  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || 'https://yourdomain.com',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE'
-}
-
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-  // ... rest of handler
-})
-```
-
-**Estimated Effort:** 1 hour
-
----
-
-### P1-5: Security Test Failures
-
-**Severity:** HIGH  
-**Impact:** 2/24 security tests failing  
-**Location:** Security test suite
-
-**Required Actions:**
-1. Investigate failing security tests
-2. Fix identified vulnerabilities
-3. Achieve 100% pass rate on security tests
-4. Add regression tests
-
-**Test Investigation:**
-```bash
-# Run security tests
-npm run test:security
-
-# Review failing tests
-npm run test:security -- --reporter=verbose
-```
-
-**Estimated Effort:** 3-4 hours
-
----
-
-### P1-6: Monitoring & Observability Gaps
-
-**Severity:** MEDIUM  
-**Impact:** Limited visibility into production issues  
-**Location:** Monitoring infrastructure
-
-**Required Actions:**
-1. Implement comprehensive APM (Application Performance Monitoring)
-2. Enhance alerting and escalation
-3. Add distributed tracing
-4. Create monitoring dashboards
-
-**Implementation:**
-```typescript
-// Add APM integration (e.g., Sentry, Datadog)
-import * as Sentry from '@sentry/react'
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-  tracesSampleRate: 0.1,
-  beforeSend(event) {
-    // Filter out sensitive data
-    if (event.request) {
-      delete event.request.cookies
-    }
-    return event
-  }
-})
-```
-
-**Estimated Effort:** 8-12 hours
-
----
-
-### P1-7: Accessibility Compliance (WCAG 2.1 AA)
-
-**Severity:** MEDIUM  
-**Impact:** Legal compliance, user inclusivity  
-**Location:** UI components
-
-**Required Actions:**
-1. Conduct comprehensive accessibility audit
-2. Fix color contrast issues
-3. Improve screen reader support
-4. Validate keyboard navigation
-5. Add ARIA labels where missing
-
-**Audit Tools:**
-```bash
-# Run accessibility tests
-npm run test:a11y
-
-# Use axe DevTools for manual audit
-# Validate with WAVE browser extension
-```
-
-**Estimated Effort:** 12-16 hours
-
----
-
-### P1-8: API Documentation Gaps
-
-**Severity:** MEDIUM  
-**Impact:** Poor developer experience  
-**Location:** Edge functions, API endpoints
-
-**Required Actions:**
-1. Generate OpenAPI/Swagger documentation
-2. Document all edge functions
-3. Add request/response examples
-4. Create API reference guide
-
-**Implementation:**
-```typescript
-// Add JSDoc comments to edge functions
-/**
- * @api {post} /api/v1/appointments Create appointment
- * @apiName CreateAppointment
- * @apiGroup Appointments
- * @apiPermission doctor, receptionist
- * 
- * @apiParam {UUID} patient_id Patient ID
- * @apiParam {UUID} doctor_id Doctor ID
- * @apiParam {DateTime} appointment_date Appointment date/time
- * 
- * @apiSuccess {UUID} id Appointment ID
- * @apiSuccess {String} status Appointment status
- */
-```
-
-**Estimated Effort:** 8-10 hours
-
----
-
-## Priority 2 (P2) - Medium Priority Issues
-
-**Timeline:** 3-6 months (30-40 hours)  
-**Status:** 🟡 RECOMMENDED
-
-### P2-1: Console.log Statements in Production
-
-**Severity:** LOW  
-**Impact:** Performance, log pollution  
-**Location:** 6 hook files
-
-**Required Actions:**
-1. Gate all console.log statements with environment check
-2. Replace with proper logging utility
-3. Remove debug logs from production builds
-
-**Fix:**
-```typescript
-// Before:
-console.log('Workflow state:', state)
-
-// After:
-if (process.env.NODE_ENV !== 'production') {
-  console.log('Workflow state:', state)
-}
-
-// Or use logging utility:
-logger.debug('Workflow state:', state)
-```
-
-**Estimated Effort:** 2 hours
-
----
-
-### P2-2: Rate Limiting for Invitation Endpoints
-
-**Severity:** MEDIUM  
-**Impact:** Token enumeration risk  
-**Location:** Invitation system
-
-**Required Actions:**
-1. Implement rate limiting for invitation endpoints
-2. Add CAPTCHA for public invitation links
-3. Monitor for enumeration attempts
-
-**Implementation:**
-```typescript
-// Edge function rate limiting
-const rateLimiter = new Map<string, { count: number; resetTime: number }>()
-
-function checkRateLimit(ip: string, limit: number = 5, window: number = 60000): boolean {
-  const now = Date.now()
-  const record = rateLimiter.get(ip)
-  
-  if (!record || now > record.resetTime) {
-    rateLimiter.set(ip, { count: 1, resetTime: now + window })
-    return true
-  }
-  
-  if (record.count >= limit) {
-    return false
-  }
-  
-  record.count++
-  return true
-}
-```
-
-**Estimated Effort:** 2-3 hours
-
----
-
-### P2-3: Database Index Optimization
-
-**Severity:** MEDIUM  
-**Impact:** Query performance  
-**Location:** Various tables
-
-**Required Actions:**
-1. Analyze query patterns
-2. Add composite indexes for common queries
-3. Remove unused indexes
-4. Monitor index usage
-
-**Analysis Query:**
-```sql
--- Find missing indexes
-SELECT schemaname, tablename, attname, n_distinct, correlation
-FROM pg_stats
-WHERE schemaname = 'public'
-ORDER BY n_distinct DESC;
-
--- Monitor index usage
-SELECT indexrelname, idx_scan, idx_tup_read, idx_tup_fetch
-FROM pg_stat_user_indexes
-ORDER BY idx_scan DESC;
-```
-
-**Estimated Effort:** 4-6 hours
-
----
-
-### P2-4: Test Coverage Enhancement
-
-**Severity:** MEDIUM  
-**Impact:** Code quality, regression prevention  
-**Location:** Test suites
-
-**Required Actions:**
-1. Increase unit test coverage to 95%+
-2. Add integration tests for critical flows
-3. Implement mutation testing
-4. Add performance regression tests
-
-**Coverage Goals:**
-```bash
-# Run coverage report
-npm run test:unit -- --coverage
-
-# Target: 95%+ coverage across all modules
-```
-
-**Estimated Effort:** 8-12 hours
-
----
-
-### P2-5: Documentation Enhancement
-
-**Severity:** LOW  
-**Impact:** Developer onboarding, maintenance  
-**Location:** Documentation files
-
-**Required Actions:**
-1. Create comprehensive API documentation
-2. Write deployment guides
-3. Add troubleshooting documentation
-4. Create training materials
-
-**Documentation Structure:**
-```
-docs/
-├── api/
-│   ├── endpoints.md
-│   ├── authentication.md
-│   └── webhooks.md
-├── deployment/
-│   ├── production.md
-│   ├── staging.md
-│   └── rollback.md
-├── troubleshooting/
-│   ├── common-issues.md
-│   └── performance.md
-└── training/
-    ├── onboarding.md
-    └── workflows.md
-```
-
-**Estimated Effort:** 10-15 hours
-
----
-
-### P2-6: Error Handling Standardization
-
-**Severity:** LOW  
-**Impact:** User experience, debugging  
-**Location:** Application-wide
-
-**Required Actions:**
-1. Implement consistent error handling patterns
-2. Add user-friendly error messages
-3. Implement error logging and tracking
-4. Create error recovery flows
-
-**Implementation:**
-```typescript
-// Standardized error handler
-class AppError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number = 500,
-    public code: string = 'INTERNAL_ERROR',
-    public details?: any
-  ) {
-    super(message)
-    this.name = 'AppError'
-  }
-}
-
-// Usage
-throw new AppError(
-  'Patient not found',
-  404,
-  'PATIENT_NOT_FOUND',
-  { patientId }
-)
-```
-
-**Estimated Effort:** 4-6 hours
-
----
-
-## Priority 3 (P3) - Low Priority & Enhancements
-
-**Timeline:** 6-12 months (40-60 hours)  
-**Status:** 🟢 FUTURE ENHANCEMENTS
-
-### P3-1: AI Feature Expansion
-
-**Enhancement:** Expand clinical decision support capabilities  
-**Effort:** 12-16 hours
-
-**Actions:**
-1. Integrate additional AI providers
-2. Implement advanced diagnostic suggestions
-3. Add predictive analytics for patient outcomes
-4. Enhance natural language processing for clinical notes
-
----
-
-### P3-2: Full HL7 FHIR Implementation
-
-**Enhancement:** Complete HL7 FHIR R4 support  
-**Effort:** 8-12 hours
-
-**Actions:**
-1. Implement all FHIR resources
-2. Add FHIR validation
-3. Create FHIR API endpoints
-4. Implement FHIR subscription support
-
----
-
-### P3-3: DICOM Integration
-
-**Enhancement:** Medical imaging support  
-**Effort:** 10-14 hours
-
-**Actions:**
-1. Integrate DICOM viewer
-2. Implement image storage
-3. Add image annotation features
-4. Create image sharing workflows
-
----
-
-### P3-4: Advanced Analytics Platform
-
-**Enhancement:** Business intelligence and reporting  
-**Effort:** 10-12 hours
-
-**Actions:**
-1. Implement data warehouse
-2. Create custom report builder
-3. Add predictive analytics dashboards
-4. Implement real-time KPI monitoring
-
----
-
-### P3-5: Mobile App Enhancement
-
-**Enhancement:** Native mobile application  
-**Effort:** 16-20 hours
-
-**Actions:**
-1. Enhance React Native app
-2. Add offline capabilities
-3. Implement push notifications
-4. Add biometric authentication
-
----
-
-## Implementation Roadmap
-
-### Week 1: Critical Security Fixes (15-20 hours)
-
-| Day | Tasks | Hours |
-|-----|-------|-------|
-| Day 1 | P0-1: Create patient_consents table | 0.5 |
-| Day 1 | P0-4: Enable leaked password protection | 0.25 |
-| Day 2 | P0-3: Fix profiles RLS policy | 1 |
-| Day 2-3 | P0-2: Encrypt 2FA secrets | 4 |
-| Day 4-5 | P0-5: Audit and fix RLS policies | 6 |
-| Day 5 | Testing and validation | 3 |
-
-**Deliverables:**
-- All P0 issues resolved
-- Security tests passing (24/24)
-- HIPAA compliance verified
-
----
-
-### Week 2-4: High Priority Issues (40-60 hours)
-
-| Week | Tasks | Hours |
-|------|-------|-------|
-| Week 2 | P1-1: XSS fixes, P1-2: SQL injection fixes | 6 |
-| Week 2 | P1-3: Database performance optimization | 6 |
-| Week 3 | P1-4: CORS configuration, P1-5: Security tests | 5 |
-| Week 3 | P1-6: Monitoring enhancement | 12 |
-| Week 4 | P1-7: Accessibility compliance | 16 |
-| Week 4 | P1-8: API documentation | 10 |
-
-**Deliverables:**
-- All P1 issues resolved
-- Performance benchmarks met
-- Accessibility audit passed
-- Comprehensive monitoring in place
-
----
-
-### Month 2-3: Medium Priority Issues (30-40 hours)
-
-| Week | Tasks | Hours |
-|------|-------|-------|
-| Week 5-6 | P2-1: Console.log fixes, P2-2: Rate limiting | 5 |
-| Week 6-7 | P2-3: Database index optimization | 6 |
-| Week 7-8 | P2-4: Test coverage enhancement | 12 |
-| Week 8-9 | P2-5: Documentation enhancement | 12 |
-| Week 9-10 | P2-6: Error handling standardization | 6 |
-
-**Deliverables:**
-- All P2 issues resolved
-- 95%+ test coverage
-- Comprehensive documentation
-- Production-ready codebase
-
----
-
-### Month 4-6: Low Priority Enhancements (40-60 hours)
-
-| Month | Tasks | Hours |
-|-------|-------|-------|
-| Month 4 | P3-1: AI feature expansion | 16 |
-| Month 5 | P3-2: HL7 FHIR implementation | 12 |
-| Month 5 | P3-3: DICOM integration | 14 |
-| Month 6 | P3-4: Analytics platform | 12 |
-| Month 6 | P3-5: Mobile app enhancement | 20 |
-
-**Deliverables:**
-- Enhanced AI capabilities
-- Full healthcare interoperability
-- Advanced analytics
-- Comprehensive mobile experience
-
----
-
-## Risk Matrix
-
-| Risk | Likelihood | Impact | Mitigation | Priority |
-|------|------------|--------|------------|----------|
-| Patient consent feature broken | HIGH | HIGH | P0-1: Create patient_consents table | P0 |
-| 2FA secret compromise | MEDIUM | HIGH | P0-2: Encrypt 2FA secrets | P0 |
-| User profile data leak | MEDIUM | HIGH | P0-3: Fix RLS policy | P0 |
-| XSS attacks | HIGH | HIGH | P1-1: Fix XSS vulnerability | P1 |
-| SQL injection | HIGH | HIGH | P1-2: Fix SQL injection | P1 |
-| Database performance degradation | MEDIUM | HIGH | P1-3: Optimize database | P1 |
-| Credential stuffing attacks | MEDIUM | MEDIUM | P0-4: Enable leaked password protection | P0 |
-| Data isolation breach | LOW | HIGH | P0-5: Audit RLS policies | P0 |
-| Accessibility non-compliance | MEDIUM | MEDIUM | P1-7: WCAG compliance | P1 |
-| Token enumeration | LOW | MEDIUM | P2-2: Rate limiting | P2 |
-
----
-
-## Compliance Checklist
-
-| Requirement | Status | Action Required |
-|-------------|--------|-----------------|
-| HIPAA Access Control | ✅ PASS | None |
-| HIPAA Audit Logging | ✅ PASS | None |
-| HIPAA Encryption in Transit | ✅ PASS | None |
-| HIPAA Encryption at Rest | ✅ PASS | None |
-| HIPAA Session Management | ✅ PASS | None |
-| HIPAA Password Policy | ✅ PASS | None |
-| HIPAA 2FA Secrets | ❌ FAIL | P0-2: Encrypt secrets |
-| HIPAA Patient Consent | ❌ FAIL | P0-1: Create table |
-| HIPAA Breach Notification | ⚠️ PARTIAL | Enhance logging |
-| NABH Compliance | ✅ PASS | None |
-| WCAG 2.1 AA | ❌ FAIL | P1-7: Accessibility audit |
-| GDPR | ✅ PASS | None |
-| OWASP Top 10 | ⚠️ PARTIAL | P1-1, P1-2: Fix vulnerabilities |
-
----
-
-## Success Criteria
-
-### Phase 1: Production Readiness (Weeks 1-4)
-
-- [ ] All P0 issues resolved
-- [ ] All P1 issues resolved
-- [ ] Security tests passing (24/24)
-- [ ] HIPAA compliance verified
-- [ ] Performance benchmarks met
-- [ ] Accessibility audit passed
-
-### Phase 2: Production Deployment (Weeks 5-8)
-
-- [ ] All P2 issues resolved
-- [ ] 95%+ test coverage achieved
-- [ ] Comprehensive documentation complete
-- [ ] Monitoring and alerting operational
-- [ ] Disaster recovery plan tested
-
-### Phase 3: Enhancement (Months 4-6)
-
-- [ ] AI features expanded
-- [ ] HL7 FHIR fully implemented
-- [ ] DICOM integration complete
-- [ ] Analytics platform operational
-- [ ] Mobile app enhanced
-
----
-
-## Resource Requirements
-
-### Development Team
-
-| Role | Hours (Phase 1) | Hours (Phase 2) | Hours (Phase 3) |
-|------|-----------------|-----------------|-----------------|
-| Senior Backend Developer | 20 | 15 | 20 |
-| Senior Frontend Developer | 15 | 12 | 15 |
-| Security Engineer | 10 | 5 | 5 |
-| DevOps Engineer | 8 | 10 | 8 |
-| QA Engineer | 10 | 15 | 10 |
-| Technical Writer | 0 | 10 | 5 |
-| **Total** | **63** | **67** | **63** |
-
-### Tools & Services
-
-| Tool | Purpose | Cost |
-|------|---------|------|
-| Supabase Pro | Backend services | $25/month |
-| Sentry | Error tracking | $26/month |
-| Datadog | APM & monitoring | $15/host/month |
-| Playwright Cloud | E2E testing | Included in CI |
-| GitHub Actions | CI/CD | Free tier |
-
----
-
-## Monitoring & Reporting
-
-### Key Performance Indicators
-
-| Metric | Target | Current | Status |
-|--------|--------|---------|--------|
-| Build Success Rate | 100% | 100% | ✅ |
-| Security Test Pass Rate | 100% | 91.7% | 🔴 |
-| Test Coverage | 95%+ | ~85% | 🟡 |
-| API Response Time (p95) | <2000ms | TBD | 🟡 |
-| Error Rate | <1% | TBD | 🟡 |
-| Uptime | 99.9% | TBD | 🟡 |
-
-### Weekly Reporting Template
-
-```
-Week X Progress Report
-======================
-
-Completed:
-- [ ] P0-X: Issue description
-- [ ] P1-X: Issue description
-
-In Progress:
-- [ ] P1-X: Issue description (50% complete)
-
-Blocked:
-- [ ] P2-X: Issue description (waiting for X)
-
-Metrics:
-- Security Tests: X/24 passing
-- Test Coverage: X%
-- Open Issues: X
-
-Next Week:
-- Complete P1-X
-- Start P2-X
-```
-
----
-
-## Conclusion
-
-The CareSync Hospital Management System demonstrates strong engineering fundamentals with a comprehensive feature set and modern architecture. While all build errors have been resolved, critical security and compliance issues must be addressed before production deployment.
-
-**Recommendation:** Proceed with Phase 1 (P0 and P1 issues) immediately. Estimated timeline to production readiness: 4 weeks with focused development effort.
-
-**Go/No-Go Decision:**
-
-| Condition | Status | Required |
-|-----------|--------|----------|
-| patient_consents table created | ⬜ | YES |
-| 2FA secrets encrypted | ⬜ | YES |
-| Profiles RLS fixed | ⬜ | YES |
-| Leaked password protection enabled | ⬜ | YES |
-| RLS audit complete | ⬜ | YES |
-| XSS vulnerabilities fixed | ⬜ | YES |
-| SQL injection fixed | ⬜ | YES |
-| Security tests 100% passing | ⬜ | YES |
-| Accessibility audit passed | ⬜ | YES |
-| Performance benchmarks met | ⬜ | YES |
-
-**Estimated Total Effort:** 133-193 hours across 3 phases
-
-**Confidence Level:** HIGH - The system shows mature development practices and enterprise-grade capabilities suitable for healthcare deployment once identified issues are resolved.
-
----
-
-*Document prepared based on comprehensive reviews conducted on February 9, 2026*
+This plan is now execution-complete and phase-sequenced. It translates the unified issue backlog into work packages with owners, dependencies, gates, and measurable completion criteria.
+
+Program goals:
+1. Remove cross-role handoff failures in live operational paths.
+2. Standardize statuses, events, identity resolution, and notification payload contracts.
+3. Eliminate production-impacting mock/placeholder flows.
+4. Enforce tenancy, security, and HIPAA validation gates in each release phase.
+
+## Program Streams and Ownership
+1. `Shared Platform` - contracts, identity, notifications, handoff orchestration.
+2. `Admin/Security` - staff lifecycle, invitation integrity, RBAC parity, tenancy controls.
+3. `Clinical` - doctor and nurse readiness/consultation/handoff reliability.
+4. `Frontdesk` - receptionist check-in, scheduler, payment and queue integrity.
+5. `Lab` - lab order lifecycle consistency, critical alerts, doctor result delivery.
+6. `Pharmacy` - refill/dispense contract and queue synchronization.
+7. `Patient Portal` - patient identity linkage, schema-aligned hooks/pages, onboarding reliability.
+
+## Backlog Reference
+Authoritative deduplicated backlog and traceability IDs: `CI-001` through `CI-024` in `plans/FLOWS_UNIFIED_IMPLEMENTATION_PLAN.md`.
+
+## Phase-by-Phase Execution Update
+
+## Phase 0 - Program Control and Baseline (Week 0-1)
+**Objective:** freeze drift and establish measurable baselines.
+
+### Work Packages
+1. Finalize canonical contracts ADRs:
+- event names
+- status enums
+- notification payload
+- identity resolution map
+2. Register feature flags by stream.
+3. Baseline metrics collection:
+- handoff latency by role pair
+- notification success/failure rate
+- queue insertion consistency
+- portal data visibility lag
+4. Create gate checklists used in every phase.
+
+### Issues Addressed
+- Foundation for all `CI-*` items.
+
+### Dependencies
+1. Stream leads assigned.
+2. Access to telemetry dashboards/log sinks.
+
+### Exit Criteria
+1. ADRs approved and published.
+2. Feature flags created for all streams.
+3. Baseline captured for at least 5 business days.
+
+## Phase 1 - Stabilization (Weeks 1-6)
+**Objective:** close P0/P1 blockers affecting safety, handoff integrity, and data correctness.
+
+### Work Packages by Stream
+1. `Shared Platform`
+- Implement canonical contracts module and notification adapter.
+- Add identity resolver utility and migrate critical recipient/patient lookups.
+- Enforce canonical workflow event constants in emitters.
+- Target issues: `CI-001`, `CI-002`, `CI-005`, `CI-006`, `CI-007`.
+
+2. `Admin/Security`
+- Hospital-scoped offboarding; prevent cross-hospital role mutation.
+- Replace client admin auth actions with edge-function calls.
+- Route invitation writes through scoped server-safe path.
+- Align route guards and sidebar from one RBAC source.
+- Target issues: `CI-008`, `CI-023`.
+
+3. `Clinical`
+- Nurse hook shape fixes and checklist completion metadata reliability.
+- Canonical nurse-to-doctor ready event emission and alert recipient fixes.
+- Doctor quick-start idempotency and consultation lifecycle/stage split.
+- Remove manual lab handoff gate (`lab_notified`) from completion logic.
+- Target issues: `CI-003`, `CI-004`, `CI-007`, `CI-010`, `CI-011`, `CI-012`.
+
+4. `Frontdesk`
+- Replace broken queue-add path with unified check-in service.
+- Ensure walk-in and appointment check-in always notify nurse.
+- Target issues: `CI-003`, `CI-007`.
+
+5. `Lab`
+- Normalize status and priority mappings at boundaries.
+- Fix doctor recipient identity mapping for results/critical alerts.
+- Target issues: `CI-006`, `CI-016`, `CI-017`.
+
+6. `Pharmacy`
+- Refill payload/signature alignment.
+- Missing import/runtime correction in refill hook.
+- Ensure dispense updates durable queue state.
+- Target issues: `CI-013`, `CI-015`.
+
+7. `Patient Portal`
+- Replace stale tables/fields and hook contract drift.
+- Guarantee patient record creation in self-registration path.
+- Fix forgot-password route and account lock-check contract usage.
+- Target issues: `CI-004`, `CI-019`, `CI-020`.
+
+### Phase 1 Release Gates
+1. Contract gate: no mixed notification schema in critical flows.
+2. Handoff gate: receptionist->nurse->doctor chain passes integration tests.
+3. Tenant gate: scoped offboarding and invitation mutation tests pass.
+4. Security gate: PHI logging scan and role access regression pass.
+
+### Exit Criteria
+1. All P0 items closed: `CI-001`, `CI-003`, `CI-005`, `CI-006`, `CI-007`, `CI-008`, `CI-013`, `CI-015`, `CI-019`.
+2. No silent drops in core outpatient E2E handoff chain.
+3. Notification adapter used by orchestrator and role emitters on core paths.
+
+## Phase 2 - Operational Reliability (Weeks 7-12)
+**Objective:** remove operational mocks and enforce durable cross-role consistency.
+
+### Work Packages by Stream
+1. `Frontdesk`
+- Persist smart scheduler bookings.
+- Align payment widget with invoice model.
+- Move queue optimizer to `patient_queue` contract.
+- Target issues: `CI-009`, `CI-018`.
+
+2. `Lab`
+- Add real action handlers in lab dashboards.
+- Align queue controls to canonical status transitions.
+- Consolidate critical alert channel/table behavior.
+- Target issues: `CI-009`, `CI-017`.
+
+3. `Pharmacy`
+- Normalize queue DTO from `items[]`.
+- Unify dashboard behavior and remove mock metrics.
+- Target issues: `CI-009`, `CI-014`.
+
+4. `Patient Portal`
+- Repair portal billing/check-in modules to live data.
+- Expand appointment/lab/prescription visibility consistency.
+- Target issues: `CI-021`, `CI-022`.
+
+5. `Shared Platform`
+- Add retry + idempotency for handoff event writes.
+- Target issues: supports `CI-001`, `CI-007`, `CI-015`.
+
+### Phase 2 Release Gates
+1. Mock gate: no mock data in operational decisions for enabled streams.
+2. Queue gate: patient/lab/prescription queue parity checks pass.
+3. Integration gate: doctor->lab/pharmacy and completion->patient visibility pass.
+
+### Exit Criteria
+1. All P1 blockers complete or actively in verified rollout.
+2. Queue consistency mismatch rate below agreed threshold.
+3. Dashboard counts converge for same snapshot across role views.
+
+## Phase 3 - Consolidation and Integrity Hardening (Months 4-6)
+**Objective:** retire duplicate modules and standardize mutation/read models.
+
+### Work Packages
+1. Declare authoritative module per domain and deprecate legacy duplicates.
+2. Introduce shared DTO mapper layer for all role dashboards.
+3. Standardize optimistic updates with rollback and retry classification.
+4. Build observability dashboards for dropped-handoff rate and retry recovery.
+
+### Issues Addressed
+- `CI-009`, `CI-017`, `CI-024`, plus residual contract drift from `CI-004`/`CI-006`.
+
+### Exit Criteria
+1. Duplicate production paths retired or hard-disabled behind flags.
+2. Incident rate and handoff failure trend remain low for 4+ weeks.
+
+## Phase 4 - Optimization and Compliance Maturity (Months 6-9)
+**Objective:** optimize only after stable and compliant core workflows.
+
+### Work Packages
+1. Non-blocking predictive prioritization for queue assistance.
+2. Extend automation surfaces with strict contract gates.
+3. Institutionalize recurring RLS and access audits.
+4. Complete evidence loop for training, DR, and incident readiness.
+
+### Exit Criteria
+1. No KPI regression after optimization enablement.
+2. Compliance evidence pack generated for each release cycle.
+
+## Data and Schema Program (Cross-Phase)
+1. Membership and tenancy hardening:
+- `staff_memberships` style scoped active/inactive model.
+2. Message read normalization:
+- `message_reads` table for idempotent per-user read state.
+3. Checklist audit semantics:
+- reliable `completed_at` and optional `completed_by`.
+4. Enum normalization and backfill:
+- queue/consultation/lab/refill status harmonization.
+5. Indexing for high-frequency paths:
+- `(hospital_id, status, updated_at)` on queue/order tables
+- `(recipient_id, is_read, created_at DESC)` on notifications/messages
+- `(patient_id, scheduled_date)` and `(patient_id, status)` for patient-facing appointment reads.
+
+## HIPAA and Security Validation Gates
+Applied at each release milestone:
+1. Access control: route + query role-path tests.
+2. Audit controls: immutable handoff and PHI-touch events.
+3. Integrity: contract tests and DB constraint checks for statuses/events.
+4. Transmission/logging: no PHI in client logs; secure transport defaults verified.
+5. Authentication: MFA policy checks for privileged/clinical roles.
+6. Tenancy: no cross-hospital read/write leakage in policy tests.
+
+## Test and Validation Matrix (Execution)
+1. Unit:
+- contract adapter validation
+- identity resolver
+- status/event mapping
+2. Integration:
+- receptionist check-in -> nurse visibility
+- nurse ready -> doctor list + notify
+- doctor order -> lab/pharmacy queue + notify
+- lab/pharmacy completion -> patient portal visibility
+3. E2E:
+- full outpatient chain
+- refill lifecycle
+- appointment request lifecycle
+- failure/retry/idempotency paths
+4. Performance:
+- handoff latency SLO
+- queue query latency
+- notification retry success rate
+
+## Milestones and Status Model
+1. `M1` (Week 6): Tier-1 blockers closed, contract baseline live.
+2. `M2` (Week 12): operational reliability metrics stable and mock-critical paths removed.
+3. `M3` (Month 6): duplicate module consolidation complete with sustained low incidents.
+4. `M4` (Month 9): optimization enabled without safety/compliance regressions.
+
+Status values for each work package:
+- `not_started`
+- `in_progress`
+- `blocked`
+- `ready_for_rollout`
+- `rolled_out`
+- `verified`
+
+## Governance and Cadence
+1. Weekly architecture review for drift exceptions.
+2. Bi-weekly cross-role integration review.
+3. Sprint-end artifacts required:
+- risk register delta
+- HIPAA evidence checklist
+- cross-role test report
+- migration/backfill verification report
+
+## Risks and Mitigations
+1. Partial contract migrations causing dual behavior.
+- Mitigation: event-family cutovers with temporary compatibility adapters.
+2. Legacy path removal breaking hidden dependencies.
+- Mitigation: shadow telemetry and phased deprecation.
+3. Multi-stream rollout masking regressions.
+- Mitigation: role-based canaries and per-stream SLO alerts.
+
+## Current Program Snapshot
+1. Phase 0: completed and signed off.
+2. Phase 1: in progress (connectivity-first tranche active).
+3. Phase 2-4: sequenced behind remaining Phase 1 closure items.
+
+## Completed Implementation Update (As of February 23, 2026)
+Status values: `completed`, `in_progress`, `not_started`.
+
+### Connectivity-First Implementation Progress
+1. `CI-001` (`completed`)
+- Canonical notification adapter is active in orchestrator flow.
+
+2. `CI-003` (`completed`)
+- Receptionist check-in flows now emit canonical `patient.checked_in` workflow event in both:
+  - `src/components/receptionist/EnhancedCheckIn.tsx`
+  - `src/components/receptionist/PatientCheckInModal.tsx`
+- Both pathways now share a unified check-in contract hook for appointment and walk-in processing.
+- File:
+  - `src/hooks/useUnifiedCheckIn.ts`
+
+3. `CI-007` (`completed`)
+- Quick consultation handoff moved to canonical orchestrator events for:
+  - `prescription.created`
+  - `lab.order_created`
+  - `consultation.completed`
+- File:
+  - `src/components/consultations/QuickConsultationModal.tsx`
+- Additional canonical handoff coverage now active in:
+  - `src/pages/consultations/ConsultationWorkflowPage.tsx` (`consultation.completed`)
+  - `src/components/nurse/EnhancedTriagePanel.tsx` (`patient.ready_for_doctor`)
+  - `src/components/nurse/PatientPrepChecklistCard.tsx` (`patient.ready_for_doctor`)
+  - `src/components/pharmacist/PrescriptionQueue.tsx` (`medication.dispensed`)
+
+4. `CI-006` (`completed`)
+- Queue dedupe logic updated to treat `in_prep` as active and prevent duplicate queue entries.
+- File:
+  - `src/hooks/useQueue.ts`
+
+5. `CI-002` (`completed`)
+- Webhook service lab event constants aligned with canonical workflow naming:
+  - `lab.order_created`
+  - `lab.results_ready`
+- File:
+  - `src/utils/webhookService.ts`
+
+6. `CI-005` (`completed`)
+- Patient portal appointment/prescription/lab hooks now resolve patient ID via shared identity resolver.
+- File:
+  - `src/hooks/usePatientPortal.ts`
+- Enhanced portal health record actions and records tab now use canonical `patients.id` instead of `profile.id`.
+- File:
+  - `src/pages/patient/EnhancedPortalPage.tsx`
+
+7. `CI-013`, `CI-015`, `CI-019`, `CI-020` (`completed`)
+- Previous tranche fixes remain intact and validated.
+
+8. `CI-014` (`completed`)
+- Clinical pharmacy and DUR review surfaces now use normalized `prescription_items[]` DTO fallback for medication display.
+- Files:
+  - `src/hooks/useClinicalPharmacy.ts`
+  - `src/hooks/useDrugUtilizationReview.ts`
+  - `src/components/pharmacist/ClinicalServices.tsx`
+
+9. `CI-006` (`completed`)
+- Consultation workflow statuses normalized to canonical stage statuses and legacy compatibility mapping.
+- Queue optimizer status normalization aligned to canonical queue statuses (`in_prep`, `in_service`) with legacy fallback support.
+- Files:
+  - `src/hooks/useConsultations.ts`
+  - `src/utils/consultationTransformers.ts`
+  - `src/components/receptionist/QueueOptimizer.tsx`
+
+10. `CI-004` (`completed`)
+- Patient portal hook consumers now follow hook contracts directly (`appointments/loading`, `labResults/loading`, `prescriptions/loading`, `profile/loading`, `vitals/loading`) without React Query-style destructuring drift.
+- `usePatientVitals` now resolves patient ID via shared resolver when caller does not pass explicit `patientId`.
+- Files:
+  - `src/pages/patient/PatientAppointmentsPage.tsx`
+  - `src/pages/patient/PatientLabResultsPage.tsx`
+  - `src/pages/patient/PatientMedicalHistoryPage.tsx`
+  - `src/pages/patient/PatientPrescriptionsPage.tsx`
+  - `src/hooks/usePatientPortal.ts`
+
+11. `CI-018` (`completed`)
+- Receptionist quick payment now enforces outstanding-invoice bounds and uses strict invoice/payment payload mapping.
+- Files:
+  - `src/components/receptionist/QuickPaymentWidget.tsx`
+
+12. `CI-007` (`completed`)
+- Workflow orchestrator now enforces best-effort duplicate event suppression and awaited exponential retry backoff for action execution.
+- File:
+  - `src/hooks/useWorkflowOrchestrator.ts`
+
+13. `CI-008` (`completed`)
+- Admin user-management profile fetch/update/suspend flows now apply hospital-scoped filtering.
+- Files:
+  - `src/hooks/useAdminUserManagement.ts`
+  - `src/utils/adminUserManagementService.ts`
+
+14. `CI-010` (`completed`)
+- Consultations page now supports idempotent quick-start via `?patientId=` query param, auto-creating/opening consultation once and clearing the URL param.
+- File:
+  - `src/pages/consultations/ConsultationsPage.tsx`
+
+15. `CI-012` (`completed`)
+- Diagnosis summary generation now prefers `diagnoses[]` with fallback to `final_diagnosis` / legacy diagnosis string.
+- Files:
+  - `src/pages/consultations/ConsultationWorkflowPage.tsx`
+  - `src/components/patient/AfterVisitSummaryGenerator.tsx`
+
+16. `CI-016` (`completed`)
+- Canonical lab priority boundary mapper added and applied to consultation lab-order creation paths.
+- Files:
+  - `src/utils/labPriority.ts`
+  - `src/pages/consultations/ConsultationWorkflowPage.tsx`
+  - `src/components/consultations/QuickConsultationModal.tsx`
+
+17. `CI-023` (`completed`)
+- Role-based route guard now supports permission checks and key protected routes are aligned with sidebar permission requirements.
+- Files:
+  - `src/components/auth/RoleProtectedRoute.tsx`
+  - `src/App.tsx`
+
+18. `CI-011` (`completed`)
+- Consultation model now exposes split lifecycle and workflow-stage fields (`consultation_status`, `workflow_stage`) with compatibility derivation from legacy status values.
+- Files:
+  - `src/hooks/useConsultations.ts`
+  - `src/utils/consultationTransformers.ts`
+
+19. `CI-024` (`completed`)
+- Integration/admin persistence is completed across task assignment (`workflow_tasks`), inter-role messaging (`messages`), and user realtime updates (`notifications`) with no mock payload path left in active integration hooks.
+- File:
+  - `src/hooks/useIntegration.ts`
+
+20. `CI-017` (`completed`)
+- Lab queue UI status usage is fully aligned to canonical `sample_collected` in enhanced lab order queue filters/actions.
+- File:
+  - `src/components/lab/EnhancedLabOrderQueue.tsx`
+
+### Validation Completion (This Iteration)
+1. Type safety validation passed: `npm run type-check`.
+
+### Remaining Work
+1. No remaining items in this tracked CI set (`CI-001` through `CI-024` all completed in tracker).
+
+### Checkbox Status Tracker
+- [x] `CI-001`
+- [x] `CI-002`
+- [x] `CI-003`
+- [x] `CI-004`
+- [x] `CI-005`
+- [x] `CI-006`
+- [x] `CI-007`
+- [x] `CI-008`
+- [x] `CI-009`
+- [x] `CI-010`
+- [x] `CI-011`
+- [x] `CI-012`
+- [x] `CI-013`
+- [x] `CI-014`
+- [x] `CI-015`
+- [x] `CI-016`
+- [x] `CI-017`
+- [x] `CI-018`
+- [x] `CI-019`
+- [x] `CI-020`
+- [x] `CI-021`
+- [x] `CI-022`
+- [x] `CI-023`
+- [x] `CI-024`
+
+### Checkbox Task Tracker (Connectivity Program)
+- [x] Receptionist check-in event contract consolidation
+- [x] Nurse-ready event contract consolidation
+- [x] Consultation completion event contract consolidation
+- [x] Pharmacy dispense event contract consolidation
+- [x] Queue dedupe update for `in_prep`
+- [x] Lab results workflow payload includes resolved doctor auth-user identity (`CI-005` slice)
+- [x] Shared lab status mapping fixed to `sample_collected` in stats/pending queries (`CI-006` slice)
+- [x] Enhanced pharmacy queue now renders medication data from `items[]` (`CI-014` slice)
+- [x] Patient messaging contacts now support configurable role allowlist (`CI-021`)
+- [x] Patient billing components now default to live query data with no production mock fallback (`CI-022` slice)
+- [x] Patient portal schema alignment updated for appointments/labs/vitals/prescriptions (`CI-004` slice)
+- [x] Digital check-in workflow now persists current step/session progress (`CI-022` slice)
+- [x] Pending prescription DTO normalized for dashboard queue consumers (`CI-014` slice)
+- [x] Webhook lab event constants aligned to canonical dot-notation names (`CI-002` slice)
+- [x] Duplicate constructor removed from webhook service lifecycle (`CI-002` slice)
+- [x] Patient portal clinical hooks use shared identity resolver for patient-id lookup (`CI-005` slice)
+- [x] Enhanced portal record actions now resolve/use `patients.id` (`CI-005` slice)
+- [x] Clinical pharmacy and DUR medication summaries normalized for `prescription_items[]` compatibility (`CI-014` slice)
+- [x] Identity resolver rollout completion (`CI-005`)
+- [x] Status harmonization completion (`CI-006`)
+- [x] Pharmacy DTO normalization completion (`CI-014`)
+- [x] Patient portal page consumers normalized to actual hook return contracts (`CI-004` slice)
+- [x] `usePatientVitals` fallback identity resolution added for non-explicit patient-id calls (`CI-004` slice)
+- [x] Receptionist quick-payment payload and settlement bounds aligned with invoice model (`CI-018` slice)
+- [x] Workflow orchestrator dedupe window and awaited retry backoff implemented (`CI-007` slice)
+- [x] Hospital-scoped admin user-management profile filters implemented (`CI-008` slice)
+- [x] Unified receptionist check-in contract hook implemented and adopted in modal/check-in panel (`CI-003` slice)
+- [x] Consultations page query-param quick-start flow implemented with idempotent create/open behavior (`CI-010` slice)
+- [x] Diagnosis summary source normalized to `diagnoses[]` with fallback logic (`CI-012` slice)
+- [x] Canonical lab-priority boundary mapper applied to consultation handoff order paths (`CI-016` slice)
+- [x] Route guard permission checks aligned to shared sidebar permission model (`CI-023` slice)
+- [x] Consultation lifecycle/workflow-stage split exposed in shared consultation model (`CI-011` slice)
+- [x] Integration task-assignment workflow moved from mock to persisted DB-backed operations (`CI-024` slice)
+- [x] Enhanced lab queue surface status model aligned to canonical `sample_collected` status (`CI-017` slice)

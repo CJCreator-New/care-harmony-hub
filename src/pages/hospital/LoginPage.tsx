@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const { login } = useAuth();
+  const isE2EMockAuthEnabled = import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
   const { logActivity } = useActivityLog();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -83,6 +84,18 @@ export default function LoginPage() {
           variant: 'destructive',
         });
         setIsLoading(false);
+        return;
+      }
+
+      // In E2E mock mode, Supabase has no real session — navigate directly
+      if (isE2EMockAuthEnabled) {
+        logActivity({ actionType: 'login', details: { email } });
+        clearDevTestRole();
+        toast({
+          title: 'Welcome back!',
+          description: 'You have successfully logged in.',
+        });
+        navigate('/dashboard');
         return;
       }
 

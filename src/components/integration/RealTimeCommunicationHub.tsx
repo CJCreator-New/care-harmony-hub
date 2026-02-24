@@ -6,11 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
+import { useAuth } from '@/contexts/AuthContext';
 import { MessageSquare, AlertTriangle, Users, Clock, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { sanitizeHtml } from '@/utils/sanitize';
 
 const RealTimeCommunicationHub = () => {
+  const { profile } = useAuth();
+  const currentUserId = profile?.user_id;
   const {
     channels,
     messages,
@@ -203,7 +206,7 @@ const RealTimeCommunicationHub = () => {
                 size="sm"
                 onClick={() => {
                   const unreadMessages = messages
-                    .filter(m => !m.read_by.includes(m.sender_id))
+                    .filter(m => !m.read_by.includes(currentUserId ?? ''))
                     .map(m => m.id);
                   if (unreadMessages.length > 0) {
                     markAsRead(unreadMessages);
@@ -221,7 +224,7 @@ const RealTimeCommunicationHub = () => {
               <div 
                 key={message.id} 
                 className={`border rounded-lg p-4 ${
-                  !message.read_by.includes(message.sender_id) ? 'bg-blue-50 border-blue-200' : ''
+                  !message.read_by.includes(currentUserId ?? '') ? 'bg-blue-50 border-blue-200' : ''
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">

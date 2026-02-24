@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +31,7 @@ interface AdminRepairToolProps {
 export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
   const { user, profile, hospital, roles, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isRepairing, setIsRepairing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [hospitalName, setHospitalName] = useState('My Hospital');
@@ -143,8 +145,9 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
       setDialogOpen(false);
       onSuccess?.();
 
-      // Force page reload to refresh auth context
-      setTimeout(() => window.location.reload(), 1000);
+      // Refresh auth session then navigate instead of doing a full page reload
+      await supabase.auth.refreshSession();
+      navigate('/dashboard');
     } catch (error) {
       console.error('Repair failed:', error);
       toast({

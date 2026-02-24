@@ -34,21 +34,6 @@ export default function PatientLoginPage() {
     setIsLoading(true);
 
     try {
-      // Check if account is locked
-      const { data: lockData } = await supabase.rpc('is_account_locked', {
-        _user_id: email,
-      });
-
-      if (lockData === true) {
-        toast({
-          title: 'Account Locked',
-          description: 'Your account is temporarily locked due to multiple failed login attempts. Please try again in 30 minutes.',
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-      }
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

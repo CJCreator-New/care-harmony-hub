@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { ROLE_PROJECTS, storageStatePath } from './tests/e2e/framework/roles';
+import { ROLE_PROJECTS } from './tests/e2e/framework/roles';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:8080';
 
@@ -23,10 +23,8 @@ export default defineConfig({
     ...ROLE_PROJECTS.map((role) => ({
       name: role,
       testMatch: /access-control\.spec\.ts$/,
-      dependencies: ['setup-roles'],
       use: {
         ...devices['Desktop Chrome'],
-        storageState: storageStatePath(role),
       },
     })),
   ],
@@ -35,5 +33,8 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120000,
+    env: {
+      VITE_E2E_MOCK_AUTH: 'true',
+    },
   },
 });

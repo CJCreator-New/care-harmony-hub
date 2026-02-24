@@ -51,16 +51,18 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
 
           <Separator />
 
-          {/* Diagnoses */}
+          {/* Diagnoses — prefer data.diagnoses[], fall back to data.final_diagnosis[] */}
           <div>
             <h4 className="text-sm font-medium mb-2">Final Diagnosis</h4>
-            {data.final_diagnosis?.length > 0 ? (
+            {(data.diagnoses?.length > 0 || data.final_diagnosis?.length > 0) ? (
               <div className="flex flex-wrap gap-2">
-                {data.final_diagnosis.map((dx: string) => (
-                  <Badge key={dx} variant="default">
-                    {dx}
-                  </Badge>
-                ))}
+                {(data.diagnoses?.length > 0 ? data.diagnoses : data.final_diagnosis).map(
+                  (dx: string) => (
+                    <Badge key={dx} variant="default">
+                      {dx}
+                    </Badge>
+                  )
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No diagnoses confirmed</p>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNurseWorkflow } from '@/hooks/useNurseWorkflow';
 import { useVitalSigns } from '@/hooks/useVitalSigns';
-import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { usePatient } from '@/hooks/usePatients';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,8 @@ interface TriageChecklistItem {
 export function EnhancedTriagePanel({ patientId, queueId }: { patientId: string; queueId: string }) {
   const { markReadyForDoctor } = useNurseWorkflow();
   const { recordVitals } = useVitalSigns();
-  const { notifyPatientReady } = useWorkflowNotifications();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { data: patient } = usePatient(patientId);
 
   const [vitals, setVitals] = useState({
     systolic: '',
@@ -94,7 +96,15 @@ export function EnhancedTriagePanel({ patientId, queueId }: { patientId: string;
         triage_notes: `ESI Level: ${calculateESI().level}`,
       });
 
-      await notifyPatientReady(patientId, 'Patient Name', 1);
+      await triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.PATIENT_READY_FOR_DOCTOR,
+        patientId,
+        data: {
+          queueId,
+          patientName: patient ? `${patient.first_name} ${patient.last_name}` : 'Patient',
+          triageNotes: `ESI Level: ${calculateESI().level}`,
+        },
+      });
 
       toast.success('Patient marked ready for doctor');
     } catch (error) {

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { usePrescriptions, useDispensePrescription } from '@/hooks/usePrescriptions';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { PrescriptionDispensingModal } from '@/components/pharmacy/PrescriptionDispensingModal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -31,6 +33,7 @@ export function PrescriptionQueue() {
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const { data: prescriptions, isLoading } = usePrescriptions();
   const dispenseMutation = useDispensePrescription();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   const filteredPrescriptions = prescriptions?.filter(p => 
     p.patient?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,8 +41,32 @@ export function PrescriptionQueue() {
     p.patient?.mrn.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDispense = async (id: string) => {
-    await dispenseMutation.mutateAsync(id);
+  const handleDispense = async (_safetyData: {
+    batchNumber: string;
+    patientVerified: boolean;
+    safetyChecksComplete: boolean;
+    notes: string;
+  }) => {
+    if (!selectedPrescription) return;
+    // Capture before clearing selection
+    const prescriptionId = selectedPrescription.id as string;
+    const patientId = selectedPrescription.patient_id as string | undefined;
+    const firstMedName = selectedPrescription.items?.[0]?.medication_name as string | undefined;
+
+    await dispenseMutation.mutateAsync(prescriptionId);
+
+    // Emit canonical dispense event for downstream patient notification rules.
+    if (patientId && firstMedName) {
+      await triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.MEDICATION_DISPENSED,
+        patientId,
+        data: {
+          prescriptionId,
+          medicationName: firstMedName,
+        },
+      });
+    }
+
     setSelectedPrescription(null);
   };
 
@@ -141,124 +168,32 @@ export function PrescriptionQueue() {
         </CardContent>
       </Card>
 
-      {/* Prescription Details & Dispensing Modal */}
-      <Dialog open={!!selectedPrescription} onOpenChange={() => setSelectedPrescription(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Dispense Prescription</DialogTitle>
-            <DialogDescription>
-              Verify medication details before dispensing to the patient
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedPrescription && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-bold">Patient</label>
-                  <p className="font-medium">{selectedPrescription.patient?.first_name} {selectedPrescription.patient?.last_name}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-bold">MRN</label>
-                  <p className="font-medium">{selectedPrescription.patient?.mrn}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-bold">Prescribed By</label>
-                  <p className="font-medium">Dr. {selectedPrescription.prescriber?.first_name} {selectedPrescription.prescriber?.last_name}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase font-bold">Priority</label>
-                  <p className="font-medium capitalize">{selectedPrescription.priority || 'Normal'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-medium flex items-center gap-2">
-                  <Pill className="h-4 w-4" />
-                  Prescribed Medications
-                </h4>
-                <div className="border rounded-md overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead>Drug Name</TableHead>
-                        <TableHead>Dosage</TableHead>
-                        <TableHead>Freq</TableHead>
-                        <TableHead>Qty</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedPrescription.items?.map((item: any) => (
-                        <TableRow key={`item-${item.id}`}>
-                          <TableCell className="font-medium">{item.medication_name}</TableCell>
-                          <TableCell>{item.dosage}</TableCell>
-                          <TableCell>{item.frequency}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              {selectedPrescription.notes && (
-                <div className="space-y-2">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Doctor's Notes
-                  </h4>
-                  <p className="text-sm p-3 bg-yellow-50 text-yellow-800 rounded border border-yellow-200">
-                    {selectedPrescription.notes}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
-            <Button variant="ghost" onClick={() => {
-              // Print prescription label
-              if (selectedPrescription) {
-                const printContent = `
-                  <div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Prescription Label</h2>
-                    <p><strong>Patient:</strong> ${selectedPrescription.patient?.first_name} ${selectedPrescription.patient?.last_name}</p>
-                    <p><strong>MRN:</strong> ${selectedPrescription.patient?.mrn}</p>
-                    <p><strong>Date:</strong> ${format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
-                    <hr/>
-                    <h3>Medications:</h3>
-                    ${selectedPrescription.items?.map((item: any) => `
-                      <p><strong>${item.medication_name}</strong> - ${item.dosage} - ${item.frequency} - Qty: ${item.quantity}</p>
-                    `).join('')}
-                    <hr/>
-                    <p><strong>Prescriber:</strong> Dr. ${selectedPrescription.prescriber?.first_name} ${selectedPrescription.prescriber?.last_name}</p>
-                  </div>
-                `;
-                
-                const printWindow = window.open('', '_blank');
-                if (printWindow) {
-                  printWindow.document.write(printContent);
-                  printWindow.document.close();
-                  printWindow.print();
-                }
-                toast.success('Printing prescription label...');
+      {/* Dispensing Safety-Check Modal */}
+      <PrescriptionDispensingModal
+        open={!!selectedPrescription}
+        onOpenChange={(open) => { if (!open) setSelectedPrescription(null); }}
+        prescription={
+          selectedPrescription
+            ? {
+                id: selectedPrescription.id,
+                patient_name: `${selectedPrescription.patient?.first_name ?? ''} ${selectedPrescription.patient?.last_name ?? ''}`.trim(),
+                patient_mrn: selectedPrescription.patient?.mrn ?? '',
+                doctor_name: `Dr. ${selectedPrescription.prescriber?.first_name ?? ''} ${selectedPrescription.prescriber?.last_name ?? ''}`.trim(),
+                items: (selectedPrescription.items ?? []).map((item: any) => ({
+                  medication_name: item.medication_name,
+                  dosage: item.dosage ?? '',
+                  frequency: item.frequency ?? '',
+                  duration: item.duration ?? '',
+                  quantity: item.quantity ?? 0,
+                  instructions: item.instructions ?? '',
+                })),
+                created_at: selectedPrescription.created_at,
               }
-            }}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print Label
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setSelectedPrescription(null)}>Cancel</Button>
-              <Button 
-                onClick={() => handleDispense(selectedPrescription.id)}
-                disabled={dispenseMutation.isPending || selectedPrescription?.status === 'dispensed'}
-              >
-                {dispenseMutation.isPending ? 'Processing...' : 'Confirm Dispensing'}
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            : null
+        }
+        onDispense={handleDispense}
+        isLoading={dispenseMutation.isPending}
+      />
     </div>
   );
 }

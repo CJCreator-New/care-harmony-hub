@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { UserRole } from '@/types/auth';
 import { toast } from 'sonner';
 import { devLog, sanitizeLogMessage } from '@/utils/sanitize';
+import { sendNotification } from '@/services/notificationAdapter';
 
 // Add new workflow event types
 export const WORKFLOW_EVENT_TYPES = {
@@ -55,6 +56,8 @@ export function useWorkflowOrchestrator() {
   const { hospital, profile, primaryRole } = useAuth();
   const queryClient = useQueryClient();
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const triggerWorkflow = async (event: WorkflowEvent) => {
     if (!hospital?.id) {
       console.error('Hospital ID missing for workflow trigger');
@@ -63,6 +66,23 @@ export function useWorkflowOrchestrator() {
 
     try {
       devLog(`Triggering workflow: ${event.type} for hospital ${hospital.id}`);
+
+      // Best-effort idempotency guard to reduce duplicate handoff fan-out
+      const dedupeWindowStart = new Date(Date.now() - 30 * 1000).toISOString();
+      const { data: recentDuplicate } = await supabase
+        .from('workflow_events')
+        .select('id')
+        .eq('hospital_id', hospital.id)
+        .eq('event_type', event.type)
+        .eq('patient_id', event.patientId ?? null)
+        .eq('source_user', profile?.user_id ?? null)
+        .gte('created_at', dedupeWindowStart)
+        .maybeSingle();
+
+      if (recentDuplicate) {
+        devLog(`Skipping duplicate workflow event within dedupe window: ${event.type}`);
+        return;
+      }
 
       // 1. Log the event for audit purposes
       const { data: eventRecord, error: eventError } = await supabase
@@ -144,50 +164,71 @@ export function useWorkflowOrchestrator() {
     delay: number,
     attempt: number = 1
   ): Promise<void> => {
-    try {
-      await executeSingleAction(action, event);
-    } catch (actionError) {
-      console.error(
-        `Failed to execute action ${action.type} (attempt ${attempt}):`,
-        sanitizeLogMessage(actionError instanceof Error ? actionError.message : 'Unknown error')
-      );
+    let currentDelay = delay;
+    let lastError: unknown = null;
 
-      if (attempt < maxRetries) {
-        devLog(`Retrying action ${action.type} in ${delay}ms...`);
-        setTimeout(() => {
-          executeActionWithRetry(action, event, maxRetries, delay * 2, attempt + 1); // Exponential backoff
-        }, delay);
-      } else {
-        console.error(`Action ${action.type} failed after ${maxRetries} attempts`);
+    for (let currentAttempt = attempt; currentAttempt <= maxRetries; currentAttempt++) {
+      try {
+        await executeSingleAction(action, event);
+        return;
+      } catch (actionError) {
+        lastError = actionError;
+        console.error(
+          `Failed to execute action ${action.type} (attempt ${currentAttempt}):`,
+          sanitizeLogMessage(actionError instanceof Error ? actionError.message : 'Unknown error')
+        );
 
-        // Log failed action for admin review
-        await supabase.from('workflow_action_failures').insert({
-          hospital_id: hospital?.id,
-          workflow_event_id: event.type,
-          action_type: action.type,
-          action_metadata: action,
-          error_message: actionError instanceof Error ? actionError.message : 'Unknown error',
-          retry_attempts: maxRetries,
-          patient_id: event.patientId,
-          created_at: new Date().toISOString()
-        });
-
-        // Send notification to admin about failed action
-        await supabase.from('notifications').insert({
-          hospital_id: hospital?.id,
-          user_id: null, // System notification
-          title: 'Workflow Action Failed',
-          message: `Failed to execute ${action.type} for event ${event.type} after ${maxRetries} retries`,
-          type: 'system',
-          priority: 'high'
-        });
+        if (currentAttempt < maxRetries) {
+          devLog(`Retrying action ${action.type} in ${currentDelay}ms...`);
+          await sleep(currentDelay);
+          currentDelay *= 2;
+          continue;
+        }
       }
+    }
+
+    console.error(`Action ${action.type} failed after ${maxRetries} attempts`);
+
+    // Log failed action for admin review
+    await supabase.from('workflow_action_failures').insert({
+      hospital_id: hospital?.id,
+      workflow_event_id: event.type,
+      action_type: action.type,
+      action_metadata: action,
+      error_message: lastError instanceof Error ? lastError.message : 'Unknown error',
+      retry_attempts: maxRetries,
+      patient_id: event.patientId,
+      created_at: new Date().toISOString()
+    });
+
+    // Send notification to admin about failed action
+    if (hospital?.id && profile?.user_id) {
+      await sendNotification({
+        hospital_id: hospital.id,
+        recipient_id: profile.user_id,
+        sender_id: profile.user_id,
+        title: 'Workflow Action Failed',
+        message: `Failed to execute ${action.type} for event ${event.type} after ${maxRetries} retries`,
+        type: 'system',
+        priority: 'high',
+        metadata: { failed_action: action.type, event_type: event.type },
+      });
     }
   };
 
   const executeSingleAction = async (action: WorkflowAction, event: WorkflowEvent) => {
     switch (action.type) {
-      case 'create_task':
+      case 'create_task': {
+        // Compute due_date: urgent → +1 h, follow_up → +7 d, routine → +14 d, default → +24 h
+        const TASK_DUE_HOURS: Record<string, number> = {
+          urgent: 1,
+          follow_up: 168,
+          routine: 336,
+        };
+        const taskType = (action.metadata as Record<string, unknown>)?.task_type as string | undefined;
+        const priorityKey = taskType ?? event.priority ?? 'normal';
+        const dueDateHours = TASK_DUE_HOURS[priorityKey] ?? (event.priority === 'urgent' ? 1 : 24);
+        const dueDate = new Date(Date.now() + dueDateHours * 60 * 60 * 1_000).toISOString();
         await supabase.from('workflow_tasks').insert({
           hospital_id: hospital?.id,
           patient_id: event.patientId,
@@ -197,18 +238,25 @@ export function useWorkflowOrchestrator() {
           assigned_to: action.target_user,
           priority: event.priority || 'normal',
           status: 'pending',
-          workflow_type: event.type
+          workflow_type: event.type,
+          due_date: dueDate,
         });
         break;
+      }
 
       case 'send_notification':
-        await supabase.from('notifications').insert({
-          hospital_id: hospital?.id,
-          user_id: action.target_user,
+        if (!hospital?.id || !action.target_user) {
+          throw new Error('Notification action requires hospital context and target user');
+        }
+        await sendNotification({
+          hospital_id: hospital.id,
+          recipient_id: action.target_user,
+          sender_id: profile?.user_id ?? null,
           title: `Workflow Alert: ${event.type}`,
-          message: action.message,
+          message: action.message || `Workflow alert for ${event.type}`,
           type: 'workflow',
-          priority: event.priority === 'urgent' ? 'critical' : 'high'
+          priority: event.priority === 'urgent' ? 'critical' : 'high',
+          metadata: event.data,
         });
         break;
 

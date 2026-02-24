@@ -95,6 +95,14 @@ export function ClinicalServices({ className }: ClinicalServicesProps) {
     runDURAnalysis(prescriptionId);
   };
 
+  const getMedicationSummary = (prescription: any) => {
+    if (!prescription) return 'Medication pending review';
+    const firstItem = Array.isArray(prescription.items) ? prescription.items[0] : null;
+    const medicationName = prescription.medication_name || firstItem?.medication_name;
+    const dosage = prescription.dosage || firstItem?.dosage;
+    return [medicationName, dosage].filter(Boolean).join(' ') || 'Medication pending review';
+  };
+
   return (
     <div className={className}>
       {/* Clinical Pharmacy Statistics */}
@@ -197,7 +205,7 @@ export function ClinicalServices({ className }: ClinicalServicesProps) {
                           {intervention.patients?.first_name} {intervention.patients?.last_name}
                         </TableCell>
                         <TableCell>
-                          {intervention.prescriptions?.medication_name} {intervention.prescriptions?.dosage}
+                          {getMedicationSummary(intervention.prescriptions)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
@@ -356,7 +364,7 @@ export function ClinicalServices({ className }: ClinicalServicesProps) {
                           {finding.patients?.first_name} {finding.patients?.last_name}
                         </TableCell>
                         <TableCell>
-                          {finding.prescriptions?.medication_name}
+                          {getMedicationSummary(finding.prescriptions)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">

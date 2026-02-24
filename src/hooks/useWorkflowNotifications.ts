@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
 import { devLog, sanitizeLogMessage } from '@/utils/sanitize';
+import { resolvePatientAuthUserId } from '@/services/identityResolver';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -13,7 +14,8 @@ type AppRole = Database['public']['Enums']['app_role'];
 export function useWorkflowNotifications() {
   const { hospital, profile } = useAuth();
 
-  // Get staff members by role
+  // Get staff members by role — filters at DB level by hospital_id so that we
+  // never pull another tenant's staff into memory.
   const getStaffByRole = useCallback(async (role: AppRole) => {
     if (!hospital?.id) return [];
 
@@ -21,17 +23,18 @@ export function useWorkflowNotifications() {
       .from('user_roles')
       .select(`
         user_id,
+        hospital_id,
         profiles!inner(id, first_name, last_name, user_id, hospital_id)
       `)
-      .eq('role', role);
+      .eq('role', role)
+      .eq('hospital_id', hospital.id);
 
     if (error) {
       console.error('Error fetching staff by role:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return [];
     }
 
-    // Filter by hospital
-    return data?.filter((r: any) => r.profiles?.hospital_id === hospital.id) || [];
+    return data || [];
   }, [hospital?.id]);
 
   // Notify doctors when patient is ready for consultation
@@ -269,15 +272,23 @@ export function useWorkflowNotifications() {
   }, [hospital?.id, profile?.user_id]);
 
   // Notify patient when prescription is ready
+  // IMPORTANT: recipient_id must be the patient's auth user_id, not patients.id.
+  // We look it up from the patients table so callers only need to pass patients.id.
   const notifyPrescriptionReady = useCallback(async (
     patientId: string,
     medicationName: string
   ) => {
     if (!hospital?.id || !profile?.user_id) return;
 
+    const patientUserId = await resolvePatientAuthUserId(patientId);
+    if (!patientUserId) {
+      devLog('Patient has no linked auth account; skipping prescription ready notification');
+      return;
+    }
+
     const { error } = await supabase.from('notifications').insert({
       hospital_id: hospital.id,
-      recipient_id: patientId,
+      recipient_id: patientUserId,
       sender_id: profile.user_id,
       type: 'info',
       title: 'Prescription Ready for Pickup',
@@ -293,6 +304,7 @@ export function useWorkflowNotifications() {
   }, [hospital?.id, profile?.user_id]);
 
   // Notify patient about billing
+  // IMPORTANT: recipient_id must be the patient's auth user_id, not patients.id.
   const notifyBillingUpdate = useCallback(async (
     patientId: string,
     invoiceAmount: number,
@@ -300,9 +312,15 @@ export function useWorkflowNotifications() {
   ) => {
     if (!hospital?.id || !profile?.user_id) return;
 
+    const patientUserId = await resolvePatientAuthUserId(patientId);
+    if (!patientUserId) {
+      devLog('Patient has no linked auth account; skipping billing notification');
+      return;
+    }
+
     const { error } = await supabase.from('notifications').insert({
       hospital_id: hospital.id,
-      recipient_id: patientId,
+      recipient_id: patientUserId,
       sender_id: profile.user_id,
       type: 'info',
       title: 'Invoice Generated',

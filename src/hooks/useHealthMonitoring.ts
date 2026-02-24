@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolvePatientIdByAuthUserId } from '@/services/identityResolver';
 import { toast } from 'sonner';
 
 export interface VitalSign {
@@ -65,16 +66,22 @@ export function useHealthMonitoring() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
 
+  const resolvePatientId = async () => {
+    if (!profile?.user_id) return null;
+    return resolvePatientIdByAuthUserId(profile.user_id);
+  };
+
   // Get recent vital signs
   const { data: vitalSigns, isLoading: vitalsLoading } = useQuery({
     queryKey: ['vital-signs', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      const patientId = await resolvePatientId();
+      if (!patientId) return [];
 
       const { data, error } = await supabase
         .from('vital_signs')
         .select('*')
-        .eq('patient_id', profile.id)
+        .eq('patient_id', patientId)
         .order('recorded_at', { ascending: false })
         .limit(50);
 
@@ -88,12 +95,13 @@ export function useHealthMonitoring() {
   const { data: healthMetrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['health-metrics', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      const patientId = await resolvePatientId();
+      if (!patientId) return [];
 
       const { data, error } = await supabase
         .from('health_metrics')
         .select('*')
-        .eq('patient_id', profile.id)
+        .eq('patient_id', patientId)
         .order('date', { ascending: false })
         .limit(30);
 
@@ -107,12 +115,13 @@ export function useHealthMonitoring() {
   const { data: healthGoals, isLoading: goalsLoading } = useQuery({
     queryKey: ['health-goals', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      const patientId = await resolvePatientId();
+      if (!patientId) return [];
 
       const { data, error } = await supabase
         .from('health_goals')
         .select('*')
-        .eq('patient_id', profile.id)
+        .eq('patient_id', patientId)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
@@ -126,12 +135,13 @@ export function useHealthMonitoring() {
   const { data: healthAlerts, isLoading: alertsLoading } = useQuery({
     queryKey: ['health-alerts', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      const patientId = await resolvePatientId();
+      if (!patientId) return [];
 
       const { data, error } = await supabase
         .from('health_alerts')
         .select('*')
-        .eq('patient_id', profile.id)
+        .eq('patient_id', patientId)
         .is('resolved_at', null)
         .order('created_at', { ascending: false });
 
@@ -241,10 +251,11 @@ export function useHealthMonitoring() {
   const getHealthTrendsQueryOptions = (period: '7d' | '30d' | '90d' = '30d') => ({
     queryKey: ['health-trends', profile?.id, period],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      const patientId = await resolvePatientId();
+      if (!patientId) return [];
 
       const { data, error } = await supabase.rpc('get_health_trends', {
-        p_patient_id: profile.id,
+        p_patient_id: patientId,
         p_period: period,
       });
 
@@ -296,7 +307,7 @@ export function useHealthMonitoring() {
     recordHealthMetric: recordHealthMetricMutation.mutate,
     updateGoalProgress: updateGoalProgressMutation.mutate,
     resolveAlert: resolveAlertMutation.mutate,
-    getHealthTrends,
+    getHealthTrendsQueryOptions,
     getVitalSignRanges,
     isVitalSignAbnormal,
     isRecordingVital: recordVitalSignMutation.isPending,

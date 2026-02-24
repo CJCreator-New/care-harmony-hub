@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolvePatientIdByAuthUserId } from '@/services/identityResolver';
 import { 
   AfterVisitSummary,
   AVSTemplate,
@@ -13,6 +15,15 @@ import {
   PatientConsent,
   SymptomCheckerSession
 } from '@/types/patient-portal';
+
+const resolveEffectivePatientId = async (explicitPatientId?: string): Promise<string | null> => {
+  if (explicitPatientId) return explicitPatientId;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  return resolvePatientIdByAuthUserId(user.id);
+};
 
 // Hook for patient profile management
 export const usePatientProfile = (patientId?: string) => {
@@ -79,39 +90,24 @@ export const usePatientAppointments = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAppointments = async () => {
-    let patientRecordId = patientId;
+    const patientRecordId = await resolveEffectivePatientId(patientId);
 
-    // If no patientId provided, get patient ID from authenticated user
     if (!patientRecordId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('No authenticated user found');
-        return;
-      }
-
-      const { data: patient, error: patientError } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (patientError) {
-        setError('Failed to find patient record');
-        return;
-      }
-
-      patientRecordId = patient.id;
+      setError('Failed to find patient record');
+      return;
     }
-
-    if (!patientRecordId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select('*')
+        .select(`
+          *,
+          doctor:profiles!appointments_doctor_id_fkey(id, first_name, last_name)
+        `)
         .eq('patient_id', patientRecordId)
-        .order('appointment_date', { ascending: false });
+        .order('scheduled_date', { ascending: false })
+        .order('scheduled_time', { ascending: false });
 
       if (error) throw error;
       setAppointments(data || []);
@@ -136,37 +132,22 @@ export const usePatientPrescriptions = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPrescriptions = async () => {
-    let patientRecordId = patientId;
+    const patientRecordId = await resolveEffectivePatientId(patientId);
 
-    // If no patientId provided, get patient ID from authenticated user
     if (!patientRecordId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('No authenticated user found');
-        return;
-      }
-
-      const { data: patient, error: patientError } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (patientError) {
-        setError('Failed to find patient record');
-        return;
-      }
-
-      patientRecordId = patient.id;
+      setError('Failed to find patient record');
+      return;
     }
-
-    if (!patientRecordId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('prescriptions')
-        .select('*')
+        .select(`
+          *,
+          prescriber:profiles!prescriptions_prescribed_by_fkey(id, first_name, last_name),
+          items:prescription_items(*)
+        `)
         .eq('patient_id', patientRecordId)
         .order('created_at', { ascending: false });
 
@@ -193,14 +174,18 @@ export const usePatientVitals = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchVitals = async () => {
-    if (!patientId) return;
+    const patientRecordId = await resolveEffectivePatientId(patientId);
+    if (!patientRecordId) {
+      setError('Failed to find patient record');
+      return;
+    }
     
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('patient_vitals')
+        .from('vital_signs')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', patientRecordId)
         .order('recorded_at', { ascending: false });
 
       if (error) throw error;
@@ -226,39 +211,23 @@ export const usePatientLabResults = (patientId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchLabResults = async () => {
-    let patientRecordId = patientId;
+    const patientRecordId = await resolveEffectivePatientId(patientId);
 
-    // If no patientId provided, get patient ID from authenticated user
     if (!patientRecordId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('No authenticated user found');
-        return;
-      }
-
-      const { data: patient, error: patientError } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (patientError) {
-        setError('Failed to find patient record');
-        return;
-      }
-
-      patientRecordId = patient.id;
+      setError('Failed to find patient record');
+      return;
     }
-
-    if (!patientRecordId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('lab_results')
-        .select('*')
+        .from('lab_orders')
+        .select(`
+          *,
+          ordered_by_profile:profiles!lab_orders_ordered_by_fkey(id, first_name, last_name)
+        `)
         .eq('patient_id', patientRecordId)
-        .order('result_date', { ascending: false });
+        .order('ordered_at', { ascending: false });
 
       if (error) throw error;
       setLabResults(data || []);
@@ -815,5 +784,87 @@ export const useDigitalConsent = () => {
     error,
     fetchConsentForms,
     submitConsent
+  };
+};
+
+// Compatibility aggregate hook used by patient billing/check-in components.
+// Provides live billing primitives from canonical invoice/payment/claim tables.
+export const usePatientPortal = () => {
+  const { profile } = useAuth();
+  const [billingData, setBillingData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBillingData = async () => {
+    if (!profile?.user_id) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('id, hospital_id')
+        .eq('user_id', profile.user_id)
+        .single();
+      if (patientError) throw patientError;
+
+      const [invoicesRes, paymentsRes, claimsRes] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select('*')
+          .eq('patient_id', patient.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('payments')
+          .select(`
+            *,
+            invoice:invoices!payments_invoice_id_fkey(id, patient_id)
+          `)
+          .eq('hospital_id', patient.hospital_id)
+          .order('payment_date', { ascending: false }),
+        supabase
+          .from('insurance_claims')
+          .select('*')
+          .eq('patient_id', patient.id)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (invoicesRes.error) throw invoicesRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
+      if (claimsRes.error) throw claimsRes.error;
+
+      const invoices = invoicesRes.data || [];
+      const patientInvoiceIds = new Set(invoices.map((i: any) => i.id));
+      const paymentHistory = (paymentsRes.data || []).filter((p: any) => patientInvoiceIds.has(p.invoice_id));
+      const insuranceClaims = claimsRes.data || [];
+
+      const totalBilled = invoices.reduce((sum: number, i: any) => sum + Number(i.total || 0), 0);
+      const totalPaid = invoices.reduce((sum: number, i: any) => sum + Number(i.paid_amount || 0), 0);
+      const outstandingBalance = Math.max(0, totalBilled - totalPaid);
+
+      setBillingData({
+        outstandingBalance,
+        totalPaid,
+        totalBilled,
+        invoices,
+        paymentHistory,
+        insuranceClaims,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load patient portal billing data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBillingData();
+  }, [profile?.user_id]);
+
+  return {
+    billingData,
+    loading,
+    error,
+    refetch: fetchBillingData,
   };
 };

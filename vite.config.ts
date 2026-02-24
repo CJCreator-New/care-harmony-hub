@@ -67,7 +67,10 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/api\//]
       },
       devOptions: {
-        enabled: mode === 'development'
+        // Disable PWA service worker in dev: the SW's WebSocket client hardcodes the
+        // initial port and fails when Vite falls back to an alternate port (e.g. 8081).
+        // Production builds retain full PWA/offline capability unaffected.
+        enabled: false
       }
     }),
     mode === 'development' && componentTagger(),
@@ -147,7 +150,8 @@ export default defineConfig(({ mode }) => ({
       port: 8080,
     },
     headers: {
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://*.supabase.co https://images.unsplash.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';",
+      // ws://localhost:* covers any port vite picks (e.g. 8080 or 8081 when the primary port is in use)
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://*.supabase.co https://images.unsplash.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:*; frame-ancestors 'none';",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',

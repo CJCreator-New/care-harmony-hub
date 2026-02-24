@@ -36,7 +36,7 @@ interface QueueEntry {
   patient_id: string;
   patient_name: string;
   priority: 'routine' | 'urgent' | 'emergency';
-  status: 'waiting' | 'prepping' | 'consulting' | 'completed';
+  status: 'waiting' | 'in_prep' | 'in_service' | 'completed';
   checked_in_at: string;
   estimated_wait_time: number;
   assigned_doctor_id?: string;
@@ -82,7 +82,7 @@ export function QueueOptimizer() {
           patients:patient_id (first_name, last_name)
         `)
         .eq('hospital_id', hospital?.id)
-        .in('status', ['waiting', 'prepping', 'consulting'])
+        .in('status', ['waiting', 'called', 'in_prep', 'in_service'])
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -92,7 +92,7 @@ export function QueueOptimizer() {
         patient_id: item.patient_id,
         patient_name: `${item.patients?.first_name} ${item.patients?.last_name}`,
         priority: item.priority as any,
-        status: item.status as any,
+        status: normalizeQueueStatus(item.status),
         checked_in_at: item.created_at,
         doctor_name: item.profiles?.full_name,
         estimated_wait_time: calculateInitialWait(item.created_at),
@@ -156,8 +156,8 @@ export function QueueOptimizer() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'waiting': return <Clock className="h-4 w-4 text-blue-500" />;
-      case 'prepping': return <Activity className="h-4 w-4 text-orange-500" />;
-      case 'consulting': return <Stethoscope className="h-4 w-4 text-purple-500" />;
+      case 'in_prep': return <Activity className="h-4 w-4 text-orange-500" />;
+      case 'in_service': return <Stethoscope className="h-4 w-4 text-purple-500" />;
       default: return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     }
   };
@@ -267,7 +267,7 @@ export function QueueOptimizer() {
                         <div className={cn(
                           "p-2 rounded-full",
                           entry.status === 'waiting' ? "bg-blue-50" :
-                          entry.status === 'prepping' ? "bg-amber-50" : "bg-purple-50"
+                          entry.status === 'in_prep' ? "bg-amber-50" : "bg-purple-50"
                         )}>
                           {getStatusIcon(entry.status)}
                         </div>
@@ -288,11 +288,11 @@ export function QueueOptimizer() {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full bg-amber-500" />
-              Prepping
+              In Prep
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-2 w-2 rounded-full bg-purple-500" />
-              Consulting
+              In Service
             </div>
           </div>
         </CardFooter>
@@ -383,3 +383,17 @@ export function QueueOptimizer() {
     </div>
   );
 }
+  const normalizeQueueStatus = (status: string): QueueEntry['status'] => {
+    switch (status) {
+      case 'prepping':
+      case 'in_prep':
+        return 'in_prep';
+      case 'consulting':
+      case 'in_service':
+        return 'in_service';
+      case 'completed':
+        return 'completed';
+      default:
+        return 'waiting';
+    }
+  };

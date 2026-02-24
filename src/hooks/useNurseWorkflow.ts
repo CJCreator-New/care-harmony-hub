@@ -486,6 +486,8 @@ export const useUpdateChecklist = () => {
     chief_complaint_recorded?: boolean;
     consent_obtained?: boolean;
     ready_for_doctor?: boolean;
+    completed_at?: string;
+    completed_by?: string;
     notes?: string;
   }) => {
     setLoading(true);
@@ -732,6 +734,7 @@ export function useNurseWorkflow() {
         .from('patient_prep_checklists')
         .update({
           ready_for_doctor: true,
+          completed_at: new Date().toISOString(),
           chief_complaint_recorded: !!data.chief_complaint,
           allergies_verified: !!data.allergies,
           medications_reviewed: !!data.current_medications,

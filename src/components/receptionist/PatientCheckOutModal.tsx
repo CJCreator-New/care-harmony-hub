@@ -22,7 +22,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useActiveQueue, useCompleteService, QueueEntry } from '@/hooks/useQueue';
-import { useInvoices } from '@/hooks/useBilling';
+import { useInvoices, useRecordPayment } from '@/hooks/useBilling';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -46,6 +46,8 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
 
   const { data: inServiceQueue = [] } = useActiveQueue();
   const completeService = useCompleteService();
+  const recordPayment = useRecordPayment();
+  const { data: allInvoices = [] } = useInvoices();
 
   const inServicePatients = inServiceQueue.filter(q => q.status === 'in_service');
 
@@ -73,6 +75,22 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
     if (!selectedEntry) return;
 
     try {
+      // Record payment if an amount was entered
+      if (paymentAmount && Number(paymentAmount) > 0) {
+        const patientInvoice = allInvoices.find(
+          (inv: any) =>
+            inv.patient_id === selectedEntry.patient_id &&
+            (inv.status === 'pending' || inv.status === 'partial')
+        );
+        if (patientInvoice) {
+          await recordPayment.mutateAsync({
+            invoiceId: patientInvoice.id,
+            amount: Number(paymentAmount),
+            paymentMethod,
+          });
+        }
+      }
+
       await completeService.mutateAsync(selectedEntry.id);
       setStep('complete');
     } catch (error) {

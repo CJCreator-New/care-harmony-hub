@@ -6,14 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Stethoscope, Pill, FlaskConical, Send, Loader2, Mic } from 'lucide-react';
 import { ICD10Autocomplete } from './ICD10Autocomplete';
 import { CPTCodeMapper } from './CPTCodeMapper';
 import { ICD10Code, StructuredDiagnosis } from '@/types/icd10';
 import { useUpdateConsultation } from '@/hooks/useConsultations';
 import { useCreatePrescription } from '@/hooks/usePrescriptions';
-import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
-import { supabase } from '@/integrations/supabase/client';
+import { useCreateLabOrder } from '@/hooks/useLabOrders';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { mapToCanonicalLabPriority, mapToWorkflowPriority } from '@/utils/labPriority';
 import { toast } from 'sonner';
 import { VoiceDocumentation } from '../doctor/VoiceDocumentation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,10 +37,13 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
   const [notifyPharmacy, setNotifyPharmacy] = useState(false);
   const [notifyLab, setNotifyLab] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [newRx, setNewRx] = useState({ medication: '', dosage: '', frequency: '' });
+  const [newLabOrder, setNewLabOrder] = useState({ test: '', priority: 'routine' });
 
   const updateConsultation = useUpdateConsultation();
   const createPrescription = useCreatePrescription();
-  const { notifyPrescriptionCreated, notifyLabOrderCreated, notifyConsultationComplete } = useWorkflowNotifications();
+  const createLabOrder = useCreateLabOrder();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   const handleAddDiagnosis = (code: ICD10Code) => {
     setDiagnosis({
@@ -47,6 +53,18 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       type: 'primary',
       added_at: new Date().toISOString(),
     });
+  };
+
+  const handleAddRx = () => {
+    if (!newRx.medication) return;
+    setPrescriptions(prev => [...prev, { ...newRx }]);
+    setNewRx({ medication: '', dosage: '', frequency: '' });
+  };
+
+  const handleAddLabOrder = () => {
+    if (!newLabOrder.test) return;
+    setLabOrders(prev => [...prev, { ...newLabOrder }]);
+    setNewLabOrder({ test: '', priority: 'routine' });
   };
 
   const handleComplete = async () => {
@@ -85,34 +103,57 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
           })),
           notes,
         });
-        await notifyPrescriptionCreated(consultation.patient_id, patientName, prescriptionResult.id);
+        await triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
+          patientId: consultation.patient_id,
+          data: {
+            patientName,
+            prescriptionId: prescriptionResult.id,
+            medicationCount: prescriptions.length,
+          },
+        });
       }
 
       // Handle lab orders
       if (labOrders.length > 0 && notifyLab) {
         for (const order of labOrders) {
-          const { data: labOrder } = await supabase
-            .from('lab_orders')
-            .insert({
+          // Use createLabOrder so the durable lab_queue entry is also created
+          const labOrder = await createLabOrder.mutateAsync({
               hospital_id: consultation.hospital_id,
               patient_id: consultation.patient_id,
               consultation_id: consultation.id,
               ordered_by: consultation.doctor_id,
               test_name: order.test,
-              priority: order.priority || 'routine',
+              priority: mapToCanonicalLabPriority(order.priority),
               status: 'pending',
               notes,
-            })
-            .select()
-            .single();
+            });
 
-          if (labOrder) {
-            await notifyLabOrderCreated(consultation.patient_id, patientName, order.test, labOrder.id, order.priority || 'routine');
-          }
+          await triggerWorkflow({
+            type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
+            patientId: consultation.patient_id,
+            priority: mapToWorkflowPriority(order.priority),
+            data: {
+              patientName,
+              testName: order.test,
+              labOrderId: labOrder.id,
+              priority: mapToCanonicalLabPriority(order.priority),
+            },
+          });
         }
       }
 
-      await notifyConsultationComplete(consultation.patient_id, patientName, consultation.id);
+      await triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
+        patientId: consultation.patient_id,
+        data: {
+          patientName,
+          consultationId: consultation.id,
+          diagnosisCode: diagnosis.icd_code,
+          prescriptionCount: prescriptions.length,
+          labOrderCount: labOrders.length,
+        },
+      });
       
       toast.success('Consultation completed successfully!');
       onOpenChange(false);
@@ -181,20 +222,52 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                   Prescriptions
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2 mb-3">
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-3 gap-1">
+                  <Input
+                    value={newRx.medication}
+                    onChange={(e) => setNewRx(prev => ({ ...prev, medication: e.target.value }))}
+                    placeholder="Medication"
+                    className="text-xs h-8"
+                  />
+                  <Input
+                    value={newRx.dosage}
+                    onChange={(e) => setNewRx(prev => ({ ...prev, dosage: e.target.value }))}
+                    placeholder="Dosage"
+                    className="text-xs h-8"
+                  />
+                  <Input
+                    value={newRx.frequency}
+                    onChange={(e) => setNewRx(prev => ({ ...prev, frequency: e.target.value }))}
+                    placeholder="Frequency"
+                    className="text-xs h-8"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs h-8"
+                  onClick={handleAddRx}
+                  disabled={!newRx.medication}
+                >
+                  + Add Prescription
+                </Button>
+                {prescriptions.map((rx: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                    <span className="truncate">{rx.medication} — {rx.dosage} {rx.frequency}</span>
+                    <Button size="sm" variant="ghost" className="h-5 px-1 shrink-0" onClick={() => setPrescriptions(prev => prev.filter((_, idx) => idx !== i))}>×</Button>
+                  </div>
+                ))}
+                <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
                     id="notify-pharmacy"
                     checked={notifyPharmacy}
                     onCheckedChange={(checked) => setNotifyPharmacy(checked === true)}
                   />
-                  <label htmlFor="notify-pharmacy" className="text-sm">
+                  <label htmlFor="notify-pharmacy" className="text-xs">
                     Send to Pharmacy
                   </label>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {prescriptions.length} prescription(s) added
-                </p>
               </CardContent>
             </Card>
 
@@ -206,20 +279,48 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                   Lab Orders
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2 mb-3">
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-1">
+                  <Input
+                    value={newLabOrder.test}
+                    onChange={(e) => setNewLabOrder(prev => ({ ...prev, test: e.target.value }))}
+                    placeholder="Test name"
+                    className="text-xs h-8"
+                  />
+                  <Select value={newLabOrder.priority} onValueChange={(v) => setNewLabOrder(prev => ({ ...prev, priority: v }))}>
+                    <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Priority" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="routine">Routine</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="stat">STAT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs h-8"
+                  onClick={handleAddLabOrder}
+                  disabled={!newLabOrder.test}
+                >
+                  + Add Lab Order
+                </Button>
+                {labOrders.map((order: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                    <span className="truncate">{order.test} ({order.priority})</span>
+                    <Button size="sm" variant="ghost" className="h-5 px-1 shrink-0" onClick={() => setLabOrders(prev => prev.filter((_, idx) => idx !== i))}>×</Button>
+                  </div>
+                ))}
+                <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
                     id="notify-lab"
                     checked={notifyLab}
                     onCheckedChange={(checked) => setNotifyLab(checked === true)}
                   />
-                  <label htmlFor="notify-lab" className="text-sm">
+                  <label htmlFor="notify-lab" className="text-xs">
                     Send to Lab
                   </label>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {labOrders.length} lab order(s) added
-                </p>
               </CardContent>
             </Card>
           </div>

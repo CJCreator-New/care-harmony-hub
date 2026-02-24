@@ -10,7 +10,8 @@ import { usePatients } from '@/hooks/usePatients';
 export default function SmartSchedulerPage() {
   const navigate = useNavigate();
   const [selectedPatient, setSelectedPatient] = useState<string>('');
-  const { data: patients } = usePatients();
+  const { data: patientsData } = usePatients();
+  const patients = patientsData?.patients || [];
 
   return (
     <div className="container max-w-4xl mx-auto py-6 space-y-6">
@@ -34,7 +35,7 @@ export default function SmartSchedulerPage() {
               <SelectValue placeholder="Choose a patient..." />
             </SelectTrigger>
             <SelectContent>
-              {patients?.map((patient) => (
+              {patients.map((patient) => (
                 <SelectItem key={patient.id} value={patient.id}>
                   {patient.first_name} {patient.last_name} - MRN: {patient.mrn}
                 </SelectItem>

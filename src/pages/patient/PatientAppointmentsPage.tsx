@@ -18,6 +18,9 @@ const statusColors: Record<string, string> = {
   completed: 'bg-success/10 text-success border-success/20',
   cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
   no_show: 'bg-muted text-muted-foreground border-muted',
+  // receptionist review states
+  needs_review: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  pending_approval: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
 };
 
 const requestStatusColors: Record<string, string> = {
@@ -29,7 +32,7 @@ const requestStatusColors: Record<string, string> = {
 
 export default function PatientAppointmentsPage() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const { data: appointments = [], isLoading } = usePatientAppointments();
+  const { appointments = [], loading: isLoading } = usePatientAppointments();
   const { data: requests = [], isLoading: requestsLoading } = usePatientAppointmentRequests();
   const skeletonKeys = ['apt-1', 'apt-2', 'apt-3'];
   

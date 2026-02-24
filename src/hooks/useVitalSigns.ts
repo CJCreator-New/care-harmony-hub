@@ -53,7 +53,10 @@ export function useLatestVitals(patientId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vital_signs')
-        .select('*')
+        .select(`
+          *,
+          recorder:recorded_by(first_name, last_name)
+        `)
         .eq('patient_id', patientId)
         .order('recorded_at', { ascending: false })
         .limit(1)

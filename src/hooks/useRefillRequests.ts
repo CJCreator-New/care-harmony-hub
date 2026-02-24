@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeLogMessage } from '@/utils/sanitize';
 
 export interface RefillRequest {
   id: string;
@@ -194,16 +195,15 @@ export function useRefillRequests() {
 }
 
 // Hook for hospital staff to view all refill requests
-export function useHospitalRefillRequests() {
+export function useHospitalRefillRequests(status?: string) {
   const { profile } = useAuth();
-  const { toast } = useToast();
 
   return useQuery({
-    queryKey: ['hospital-refill-requests', profile?.hospital_id],
+    queryKey: ['hospital-refill-requests', profile?.hospital_id, status],
     queryFn: async () => {
       if (!profile?.hospital_id) throw new Error('Hospital not found');
-      
-      const { data, error } = await supabase
+
+      let query = supabase
         .from('prescription_refill_requests')
         .select(`
           *,
@@ -233,6 +233,11 @@ export function useHospitalRefillRequests() {
         .eq('hospital_id', profile.hospital_id)
         .order('created_at', { ascending: false });
 
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as RefillRequest[];
     },

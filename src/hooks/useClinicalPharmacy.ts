@@ -67,7 +67,12 @@ export function useClinicalPharmacy() {
             id,
             patient_name,
             medication_name,
-            dosage
+            dosage,
+            items:prescription_items(
+              id,
+              medication_name,
+              dosage
+            )
           ),
           patients:patient_id (
             id,
@@ -81,7 +86,13 @@ export function useClinicalPharmacy() {
 
       if (error) throw error;
       return data as (ClinicalIntervention & {
-        prescriptions: { id: string; patient_name: string; medication_name: string; dosage: string };
+        prescriptions: {
+          id: string;
+          patient_name: string;
+          medication_name?: string | null;
+          dosage?: string | null;
+          items?: Array<{ id: string; medication_name: string; dosage: string }>;
+        };
         patients: { id: string; first_name: string; last_name: string };
       })[];
     },
@@ -102,7 +113,12 @@ export function useClinicalPharmacy() {
           ),
           prescriptions:prescription_id (
             medication_name,
-            dosage
+            dosage,
+            items:prescription_items(
+              id,
+              medication_name,
+              dosage
+            )
           )
         `)
         .eq('hospital_id', profile?.hospital_id)
@@ -112,7 +128,11 @@ export function useClinicalPharmacy() {
       if (error) throw error;
       return data as (MedicationTherapyReview & {
         patients: { first_name: string; last_name: string };
-        prescriptions?: { medication_name: string; dosage: string };
+        prescriptions?: {
+          medication_name?: string | null;
+          dosage?: string | null;
+          items?: Array<{ id: string; medication_name: string; dosage: string }>;
+        };
       })[];
     },
     enabled: !!profile?.hospital_id,
@@ -131,6 +151,11 @@ export function useClinicalPharmacy() {
           dosage,
           status,
           created_at,
+          items:prescription_items(
+            id,
+            medication_name,
+            dosage
+          ),
           patients:patient_id (
             first_name,
             last_name,
@@ -144,7 +169,15 @@ export function useClinicalPharmacy() {
         .limit(20);
 
       if (error) throw error;
-      return data;
+      return (data || []).map((review: any) => {
+        const firstItem = Array.isArray(review.items) ? review.items[0] : null;
+        return {
+          ...review,
+          medication_name: review.medication_name || firstItem?.medication_name || 'Medication pending review',
+          dosage: review.dosage || firstItem?.dosage || 'N/A',
+          items: Array.isArray(review.items) ? review.items : [],
+        };
+      });
     },
     enabled: !!profile?.hospital_id,
   });

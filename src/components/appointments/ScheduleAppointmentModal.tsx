@@ -118,13 +118,15 @@ export function ScheduleAppointmentModal({
     queryFn: async () => {
       if (!hospital?.id) return [];
       
+      // 'hospital_id' filter on profiles: cast column name to satisfy Supabase
+      // JS v2 strict generic inference for columns not yet in generated types.
       const { data, error } = await supabase
         .from("profiles")
         .select("id, first_name, last_name")
-        .eq("hospital_id", hospital.id);
+        .eq("hospital_id" as any, hospital.id);
       
       if (error) throw error;
-      return data;
+      return (data || []) as Array<{ id: string; first_name: string; last_name: string }>;
     },
     enabled: !!hospital?.id,
   });

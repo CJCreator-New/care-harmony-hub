@@ -21,8 +21,10 @@ import {
   Cpu,
 } from 'lucide-react';
 import { useLabTechStats, usePendingLabOrders } from '@/hooks/usePharmacyLabStats';
+import { useUpdateLabOrder } from '@/hooks/useLabOrders';
 import { CriticalValueAlert } from '@/components/lab/CriticalValueAlert';
 import { LabAutomationPanel } from '@/components/laboratory/LabAutomationPanel';
+import { toast } from 'sonner';
 import { formatDistanceToNow, differenceInYears } from 'date-fns';
 
 export function LabTechDashboard() {
@@ -30,6 +32,27 @@ export function LabTechDashboard() {
   const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useLabTechStats();
   const { data: pendingOrders, isLoading: ordersLoading } = usePendingLabOrders();
+  const updateLabOrder = useUpdateLabOrder();
+
+  const handleCollect = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    try {
+      await updateLabOrder.mutateAsync({ id: orderId, status: 'sample_collected' });
+      toast.success('Sample collected');
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleStart = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    try {
+      await updateLabOrder.mutateAsync({ id: orderId, status: 'in_progress' });
+      toast.success('Processing started');
+    } catch (err) {
+      toast.error('Failed to update status');
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -237,7 +260,15 @@ export function LabTechDashboard() {
                                 </span>
                               </div>
                             </div>
-                            <Button size="sm">
+                            <Button
+                              size="sm"
+                              onClick={(e) =>
+                                order.status === 'pending'
+                                  ? handleCollect(e, order.id)
+                                  : handleStart(e, order.id)
+                              }
+                              disabled={updateLabOrder.isPending}
+                            >
                               {order.status === 'pending' ? 'Collect' : 'Process'}
                             </Button>
                           </div>

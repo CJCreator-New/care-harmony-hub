@@ -1,6 +1,41 @@
 import { Consultation, ConsultationStatus } from '@/hooks/useConsultations';
 import { Consultation as ServiceConsultation } from '@/types/clinical';
 
+function normalizeConsultationStatus(status: string | null | undefined): ConsultationStatus {
+  switch (status) {
+    case 'scheduled':
+    case 'patient_overview':
+    case 'clinical_assessment':
+    case 'treatment_planning':
+    case 'final_review':
+    case 'handoff':
+    case 'completed':
+    case 'cancelled':
+      return status;
+    case 'in_progress':
+    case 'in-progress':
+      return 'clinical_assessment';
+    default:
+      return 'patient_overview';
+  }
+}
+
+function deriveWorkflowStage(status: ConsultationStatus): Consultation['workflow_stage'] {
+  if (status === 'patient_overview') return 'patient_overview';
+  if (status === 'clinical_assessment') return 'clinical_assessment';
+  if (status === 'treatment_planning') return 'treatment_planning';
+  if (status === 'final_review') return 'final_review';
+  if (status === 'handoff') return 'handoff';
+  if (status === 'scheduled' || status === 'in-progress') return 'clinical_assessment';
+  return undefined;
+}
+
+function deriveConsultationLifecycle(status: ConsultationStatus): Consultation['consultation_status'] {
+  if (status === 'completed') return 'completed';
+  if (status === 'cancelled') return 'cancelled';
+  return 'active';
+}
+
 /**
  * Transforms consultation data from clinical service to frontend format
  * This is a temporary transformation until the frontend is fully migrated
@@ -8,10 +43,13 @@ import { Consultation as ServiceConsultation } from '@/types/clinical';
 export function transformConsultationFromService(
   consultation: ServiceConsultation
 ): Consultation {
+  const normalizedStatus = normalizeConsultationStatus(consultation.status);
   return {
     ...consultation,
     doctor_id: consultation.provider_id,
-    status: consultation.status as ConsultationStatus,
+    status: normalizedStatus,
+    workflow_stage: deriveWorkflowStage(normalizedStatus),
+    consultation_status: deriveConsultationLifecycle(normalizedStatus),
     current_step: 1, // Default mapping
     vitals: consultation.vital_signs || {},
     chief_complaint: consultation.chief_complaint,

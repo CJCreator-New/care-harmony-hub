@@ -3,7 +3,7 @@
  * Role-based test credentials for all CareSync user types
  */
 
-export type UserRole = 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_tech' | 'patient';
+export type UserRole = 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient';
 
 export interface TestUser {
   email: string;
@@ -58,10 +58,10 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
     hospitalId: 'test-hospital-001',
     permissions: ['view_prescriptions', 'dispense_medications', 'manage_inventory', 'drug_interactions'],
   },
-  lab_tech: {
+  lab_technician: {
     email: 'lab@testgeneral.com',
     password: 'TestPass123!',
-    role: 'lab_tech',
+    role: 'lab_technician',
     displayName: 'Larry LabTech',
     hospitalId: 'test-hospital-001',
     permissions: ['view_lab_orders', 'enter_results', 'manage_samples', 'quality_control'],

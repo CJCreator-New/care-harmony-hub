@@ -150,9 +150,11 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
 
+      // Cast to any: local Role union differs slightly from the DB-generated enum
+      // type, but the values are identical at runtime.
       const { error } = await supabase
         .from('staff_invitations')
-        .insert(invitations);
+        .insert(invitations as any);
 
       if (error) throw error;
 

@@ -23,7 +23,7 @@ import {
   useUpdateChecklist,
   PatientPrepChecklist,
 } from '@/hooks/useNurseWorkflow';
-import { useWorkflowNotifications } from '@/hooks/useWorkflowNotifications';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useActiveQueue, useUpdateQueueEntry } from '@/hooks/useQueue';
 import { toast } from 'sonner';
 import { sanitizeLogMessage, sanitizeForLog } from '@/utils/sanitize';
@@ -57,7 +57,7 @@ export function PatientPrepChecklistCard({
   const createChecklist = useCreateChecklist();
   const updateChecklist = useUpdateChecklist();
   const updateQueueEntry = useUpdateQueueEntry();
-  const { notifyPatientReady } = useWorkflowNotifications();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
   const { data: queue = [] } = useActiveQueue();
 
   const [checklist, setChecklist] = useState<Partial<PatientPrepChecklist>>({
@@ -211,6 +211,7 @@ export function PatientPrepChecklistCard({
       await updateChecklist.mutateAsync({
         id: existingChecklist.id,
         ready_for_doctor: true,
+        completed_at: new Date().toISOString(),
       });
 
       const queueEntry = queue.find(q => q.patient_id === patientId);
@@ -222,7 +223,17 @@ export function PatientPrepChecklistCard({
         });
       }
       
-      await notifyPatientReady(patientId, patientName, queueEntry?.queue_number);
+      await triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.PATIENT_READY_FOR_DOCTOR,
+        patientId,
+        priority: priority === 'emergency' ? 'urgent' : priority,
+        data: {
+          patientName,
+          queueNumber: queueEntry?.queue_number,
+          queueEntryId: queueEntry?.id,
+          checklistId: existingChecklist.id,
+        },
+      });
 
       toast.success(`✅ ${patientName} is now ready for doctor consultation`);
       onComplete?.();

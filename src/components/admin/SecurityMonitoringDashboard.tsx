@@ -165,41 +165,42 @@ export function SecurityMonitoringDashboard() {
           break;
       }
 
+      // activity_logs columns are not yet reflected in generated types; cast
+      // column names to any to satisfy Supabase JS v2 strict generic inference.
+      const activityLogs = supabase.from('activity_logs') as any;
+
       // Get total events
-      const { count: totalEvents } = await supabase
-        .from('activity_logs')
+      const { count: totalEvents } = await activityLogs
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .gte('created_at', startDate.toISOString());
 
       // Get critical events
-      const { count: criticalEvents } = await supabase
-        .from('activity_logs')
+      const { count: criticalEvents } = await activityLogs
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .eq('severity', 'critical')
         .gte('created_at', startDate.toISOString());
 
       // Get active devices (count unique user_agents in recent logs)
-      const { data: recentLogs } = await supabase
-        .from('activity_logs')
+      const { data: recentLogs } = await activityLogs
         .select('user_agent')
         .eq('hospital_id', hospitalId)
         .gte('created_at', startDate.toISOString());
 
-      const activeDevices = new Set(recentLogs?.map(log => log.user_agent).filter(Boolean)).size;
+      const activeDevices = new Set(
+        (recentLogs as Array<{ user_agent: string | null }>)?.map(log => log.user_agent).filter(Boolean)
+      ).size;
 
       // Get failed logins (access_denied actions)
-      const { count: failedLogins } = await supabase
-        .from('activity_logs')
+      const { count: failedLogins } = await activityLogs
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .eq('action_type', 'access_denied')
         .gte('created_at', startDate.toISOString());
 
       // Get suspicious activities (high/critical severity)
-      const { count: suspiciousActivities } = await supabase
-        .from('activity_logs')
+      const { count: suspiciousActivities } = await activityLogs
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospitalId)
         .in('severity', ['high', 'critical'])
@@ -274,8 +275,7 @@ export function SecurityMonitoringDashboard() {
     if (!hospitalId) return;
 
     try {
-      const { error } = await supabase
-        .from('activity_logs')
+      const { error } = await (supabase.from('activity_logs') as any)
         .delete()
         .eq('hospital_id', hospitalId)
         .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Older than 30 days

@@ -54,6 +54,7 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from('patient_prep_checklists') as any)
         .select('*')
+        .eq('hospital_id', hospital?.id)
         .eq('ready_for_doctor', true);
 
       if (error) throw error;

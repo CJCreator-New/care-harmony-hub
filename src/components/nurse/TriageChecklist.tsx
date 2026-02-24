@@ -24,7 +24,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useWorkflowOrchestrator } from '@/hooks/useWorkflowOrchestrator';
+import { WORKFLOW_EVENT_TYPES, useWorkflowOrchestrator } from '@/hooks/useWorkflowOrchestrator';
 
 interface ChecklistItem {
   id: string;
@@ -98,8 +98,9 @@ export function TriageChecklist({ patientId, appointmentId, onComplete }: Triage
 
       if (error) throw error;
 
-      if (isFinal && allCompleted) {        await triggerWorkflow({
-          type: 'triage_completed',
+      if (isFinal && allCompleted) {
+        await triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.PATIENT_READY_FOR_DOCTOR,
           patientId: patientId,
           data: {
             appointmentId,

@@ -153,6 +153,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<Navigate to="/hospital/forgot-password" replace />} />
       <Route path="/patient/login" element={<Navigate to="/patient-login" replace />} />
       <Route path="/patient/register" element={<Navigate to="/patient-register" replace />} />
+      <Route path="/patient/forgot-password" element={<Navigate to="/hospital/forgot-password" replace />} />
       
       {/* Public Routes */}
       <Route
@@ -259,7 +260,7 @@ function AppRoutes() {
       <Route
         path="/patients"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']} requiredPermission="patients">
             <PatientsPage />
           </RoleProtectedRoute>
         }
@@ -275,7 +276,7 @@ function AppRoutes() {
       <Route
         path="/appointments"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']} requiredPermission="appointments">
             <AppointmentsPage />
           </RoleProtectedRoute>
         }
@@ -283,7 +284,7 @@ function AppRoutes() {
       <Route
         path="/consultations"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']} requiredPermission="consultations:read">
             <ConsultationsPage />
           </RoleProtectedRoute>
         }
@@ -307,7 +308,7 @@ function AppRoutes() {
       <Route
         path="/pharmacy"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']} requiredPermission="pharmacy">
             <PharmacyPage />
           </RoleProtectedRoute>
         }
@@ -317,7 +318,7 @@ function AppRoutes() {
       <Route
         path="/pharmacy/clinical"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']} requiredPermission="clinical-pharmacy">
             <ClinicalPharmacyPage />
           </RoleProtectedRoute>
         }
@@ -325,7 +326,7 @@ function AppRoutes() {
       <Route
         path="/queue"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']} requiredPermission="queue">
             <QueueManagementPage />
           </RoleProtectedRoute>
         }
@@ -333,7 +334,7 @@ function AppRoutes() {
       <Route
         path="/laboratory"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab_technician']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'lab_technician']} requiredPermission="lab:read">
             <LaboratoryPage />
           </RoleProtectedRoute>
         }
@@ -350,7 +351,7 @@ function AppRoutes() {
       <Route
         path="/billing"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'receptionist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'receptionist']} requiredPermission="billing:read">
             <BillingPage />
           </RoleProtectedRoute>
         }
@@ -358,7 +359,7 @@ function AppRoutes() {
       <Route
         path="/inventory"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']} requiredPermission="inventory:read">
             <InventoryPage />
           </RoleProtectedRoute>
         }
@@ -367,7 +368,7 @@ function AppRoutes() {
       <Route
         path="/reports"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor']} requiredPermission="reports">
             <ReportsPage />
           </RoleProtectedRoute>
         }
@@ -376,7 +377,7 @@ function AppRoutes() {
       <Route
         path="/patient/appointments"
         element={
-          <RoleProtectedRoute allowedRoles={['patient']}>
+          <RoleProtectedRoute allowedRoles={['patient']} requiredPermission="appointments:read">
             <PatientAppointmentsPage />
           </RoleProtectedRoute>
         }
@@ -384,7 +385,7 @@ function AppRoutes() {
       <Route
         path="/patient/prescriptions"
         element={
-          <RoleProtectedRoute allowedRoles={['patient']}>
+          <RoleProtectedRoute allowedRoles={['patient']} requiredPermission="prescriptions:read">
             <PatientPrescriptionsPage />
           </RoleProtectedRoute>
         }
@@ -392,7 +393,7 @@ function AppRoutes() {
       <Route
         path="/patient/lab-results"
         element={
-          <RoleProtectedRoute allowedRoles={['patient']}>
+          <RoleProtectedRoute allowedRoles={['patient']} requiredPermission="lab:read">
             <PatientLabResultsPage />
           </RoleProtectedRoute>
         }
@@ -408,7 +409,7 @@ function AppRoutes() {
       <Route
         path="/patient/portal"
         element={
-          <RoleProtectedRoute allowedRoles={['patient']}>
+          <RoleProtectedRoute allowedRoles={['patient']} requiredPermission="portal">
             <EnhancedPortalPage />
           </RoleProtectedRoute>
         }
@@ -432,7 +433,7 @@ function AppRoutes() {
       <Route
         path="/telemedicine"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse']} requiredPermission="telemedicine:read">
             <TelemedicinePage />
           </RoleProtectedRoute>
         }
@@ -440,7 +441,7 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin']} requiredPermission="settings">
             <HospitalSettingsPage />
           </RoleProtectedRoute>
         }
@@ -456,7 +457,7 @@ function AppRoutes() {
       <Route
         path="/settings/staff"
         element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin']} requiredPermission="staff-management">
             <StaffManagementPage />
           </RoleProtectedRoute>
         }
@@ -467,7 +468,7 @@ function AppRoutes() {
       <Route
         path="/settings/performance"
         element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin']} requiredPermission="staff-performance">
             <StaffPerformancePage />
           </RoleProtectedRoute>
         }
@@ -475,7 +476,7 @@ function AppRoutes() {
       <Route
         path="/settings/activity"
         element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin']} requiredPermission="activity-logs">
             <ActivityLogsPage />
           </RoleProtectedRoute>
         }
@@ -483,7 +484,7 @@ function AppRoutes() {
       <Route
         path="/settings/monitoring"
         element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin']} requiredPermission="system-monitoring">
             <SystemMonitoringPage />
           </RoleProtectedRoute>
         }
@@ -605,7 +606,7 @@ function AppRoutes() {
       <Route
         path="/integration/workflow"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']} requiredPermission="workflow-dashboard">
             <WorkflowDashboard />
           </RoleProtectedRoute>
         }

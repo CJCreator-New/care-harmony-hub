@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { usePrescriptionStats } from '@/hooks/usePrescriptions';
+import { useInventoryAutomation } from '@/hooks/useInventoryAutomation';
+import { useConsultations } from '@/hooks/useConsultations';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PrescriptionQueue } from './PrescriptionQueue';
@@ -29,6 +31,15 @@ export default function PharmacistDashboard() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('queue');
   const { data: stats, isLoading: statsLoading } = usePrescriptionStats();
+  const { stockAlerts } = useInventoryAutomation();
+  const { data: consultations } = useConsultations();
+
+  const activeConsultationCount = (consultations ?? []).filter(
+    (c) => c.status !== 'completed' && c.status !== 'cancelled'
+  ).length;
+  const inventoryAlertCount = (stockAlerts ?? []).filter(
+    (a) => a.status !== 'resolved'
+  ).length;
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -54,17 +65,17 @@ export default function PharmacistDashboard() {
     },
     {
       title: 'Active Consultations',
-      value: 8, // Mocked
+      value: activeConsultationCount,
       icon: <Zap className="h-4 w-4 text-blue-500" />,
       description: 'Requiring pharmacy review',
-      trend: 'Avg response: 4m',
+      trend: activeConsultationCount > 0 ? `${activeConsultationCount} open` : 'None pending',
     },
     {
       title: 'Inventory Alerts',
-      value: 12, // Mocked
+      value: inventoryAlertCount,
       icon: <AlertCircle className="h-4 w-4 text-red-500" />,
       description: 'Items below threshold',
-      trend: '3 critical stockouts',
+      trend: inventoryAlertCount > 0 ? `${inventoryAlertCount} unresolved` : 'Stock levels OK',
     },
   ];
 
@@ -85,7 +96,8 @@ export default function PharmacistDashboard() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
-                  <p className="text-2xl font-bold">{statsLoading ? <Skeleton className="h-8 w-16" /> : metric.value}</p>
+                  {/* div instead of p: Skeleton renders a <div> which cannot be a descendant of <p> */}
+                  <div className="text-2xl font-bold">{statsLoading ? <Skeleton className="h-8 w-16" /> : metric.value}</div>
                 </div>
                 <div className="p-2 bg-muted rounded-full">
                   {metric.icon}

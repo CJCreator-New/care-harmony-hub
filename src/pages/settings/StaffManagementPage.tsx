@@ -120,25 +120,40 @@ export default function StaffManagementPage() {
 
     setIsLoadingStaff(true);
     try {
-      // Fetch profiles for the hospital
+      // Fetch active staff profiles for the hospital.
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id);
+        .select('id, user_id, first_name, last_name, email, phone, avatar_url, created_at')
+        .eq('hospital_id', profile.hospital_id)
+        .eq('is_staff', true);
 
       if (profilesError) throw profilesError;
+      if (!profiles || profiles.length === 0) {
+        setStaffMembers([]);
+        return;
+      }
 
-      // Fetch roles for all users
-      const userIds = profiles?.map(p => p.user_id) || [];
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', userIds);
+      const userIds = profiles.map((p) => p.user_id).filter(Boolean);
+      let roles: Array<{ user_id: string; role: string }> = [];
 
-      if (rolesError) throw rolesError;
+      // Fetch roles only when we have valid user ids.
+      if (userIds.length > 0) {
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', userIds);
+
+        // Roles are additive metadata; don't block staff list when this secondary
+        // query fails due to transient/RLS issues.
+        if (rolesError) {
+          console.warn('Unable to load staff roles:', rolesError);
+        } else {
+          roles = (rolesData || []) as Array<{ user_id: string; role: string }>;
+        }
+      }
 
       // Combine profiles with roles
-      const staffWithRoles = (profiles || []).map(p => ({
+      const staffWithRoles = profiles.map((p) => ({
         id: p.id,
         user_id: p.user_id,
         first_name: p.first_name,
@@ -146,7 +161,7 @@ export default function StaffManagementPage() {
         email: p.email,
         phone: p.phone,
         avatar_url: p.avatar_url,
-        roles: (roles || [])
+        roles: roles
           .filter(r => r.user_id === p.user_id)
           .map(r => r.role as UserRole),
         created_at: p.created_at,
@@ -206,9 +221,9 @@ export default function StaffManagementPage() {
 
   const filteredStaff = staffMembers.filter(
     member =>
-      member.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase())
+      (member.first_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.last_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredInvitations = invitations.filter(

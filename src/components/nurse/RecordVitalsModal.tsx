@@ -83,7 +83,8 @@ export function RecordVitalsModal({
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const { data: queueEntries } = useActiveQueue();
-  const { data: allPatients = [] } = usePatients();
+  const { data: patientsData } = usePatients();
+  const allPatients = patientsData?.patients || [];
   
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient);
   const [isSubmitting, setIsSubmitting] = useState(false);

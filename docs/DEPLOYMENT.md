@@ -354,7 +354,146 @@ location ~* \.html$ {
 
 ---
 
-## Troubleshooting
+## First-Time Admin Setup
+
+Follow these steps **once** when deploying CareSync to a new Supabase project. Steps marked 🔐 require Supabase dashboard access.
+
+### Step 1 — Apply Database Migrations (in order)
+
+```bash
+# From the project root
+supabase db push
+
+# Or apply individually if targeting a remote project:
+supabase migration up --db-url "postgresql://postgres:<password>@db.<project-id>.supabase.co:5432/postgres"
+```
+
+Key migrations and their order:
+
+| Migration file | Purpose |
+|---------------|---------|
+| `20260209100000_m3_rls_hardening.sql` | Row Level Security policies on all 46 tables |
+| `20260223000001_perf_indexes.sql` | Performance indexes on appointments, notifications, patient_queue |
+| `20260224000001_register_patient_atomic.sql` | Atomic `register_patient()` RPC function |
+| `20260224000002_feature_flags.sql` | `feature_flags` table + per-hospital seeds |
+
+### Step 2 — Set Required Secrets 🔐
+
+In the Supabase dashboard → **Settings** → **Edge Functions** → **Secrets**, add:
+
+| Secret name | Description | Required |
+|-------------|-------------|---------|
+| `TWO_FACTOR_ENCRYPTION_KEY` | 32-byte AES-GCM key (base64-encoded) for 2FA secret storage | ✅ |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed origins (e.g., `https://yourapp.com`) | ✅ |
+| `SMTP_HOST` | SMTP server hostname for `send-email` function | Optional |
+| `SMTP_PORT` | SMTP server port | Optional |
+| `SMTP_USER` | SMTP username | Optional |
+| `SMTP_PASS` | SMTP password | Optional |
+| `OPENAI_API_KEY` | OpenAI key for `ai-clinical-support` / `symptom-analysis` | Optional |
+
+Generate the `TWO_FACTOR_ENCRYPTION_KEY`:
+```bash
+# Generate a random 32-byte key and base64-encode it
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+### Step 3 — Enable Auth Security Settings 🔐
+
+In the Supabase dashboard → **Authentication** → **Providers**:
+
+1. ✅ Enable **"Prevent use of leaked passwords"** (HaveIBeenPwned check)
+2. Set **minimum password length** to 8
+3. Enable **"Confirm email"** for new sign-ups
+4. Set **JWT expiry** to 3600 (1 hour) for production
+
+### Step 4 — Deploy Edge Functions
+
+```bash
+# Deploy all functions at once
+supabase functions deploy
+
+# Or deploy individually
+supabase functions deploy store-2fa-secret
+supabase functions deploy verify-2fa
+supabase functions deploy generate-2fa-secret
+supabase functions deploy verify-totp
+supabase functions deploy verify-backup-code
+supabase functions deploy create-hospital-admin
+supabase functions deploy accept-invitation-signup
+supabase functions deploy validate-invitation-token
+supabase functions deploy send-notification
+supabase functions deploy send-email
+supabase functions deploy appointment-reminders
+supabase functions deploy ai-clinical-support
+supabase functions deploy symptom-analysis
+supabase functions deploy predict-deterioration
+supabase functions deploy clinical-pharmacy
+supabase functions deploy lab-critical-values
+supabase functions deploy lab-automation
+supabase functions deploy optimize-queue
+supabase functions deploy workflow-automation
+supabase functions deploy analytics-engine
+supabase functions deploy fhir-integration
+supabase functions deploy insurance-integration
+supabase functions deploy telemedicine
+supabase functions deploy health-check
+supabase functions deploy monitoring
+supabase functions deploy system-monitoring
+supabase functions deploy audit-logger
+supabase functions deploy backup-manager
+supabase functions deploy check-low-stock
+```
+
+### Step 5 — Verify Security Configuration
+
+```bash
+# Run security test suite — should pass 27/27
+npm run test:security
+
+# Run accessibility tests
+npm run test:accessibility
+
+# Run RLS gate tests
+npx vitest run tests/security/p0-db-rls-gates.test.ts
+```
+
+### Step 6 — Create First Hospital & Admin
+
+Use the `create-hospital-admin` edge function (requires service role key):
+
+```bash
+curl -X POST "https://<project-id>.supabase.co/functions/v1/create-hospital-admin" \
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hospitalName": "My Hospital",
+    "adminEmail": "admin@myhospital.com",
+    "adminPassword": "SecurePassword123!",
+    "adminFirstName": "Admin",
+    "adminLastName": "User"
+  }'
+```
+
+### Step 7 — Enable Feature Flags (Optional)
+
+Feature flags are seeded as **disabled** by default. Enable them per-hospital in the `feature_flags` table:
+
+```sql
+-- Enable all v2 flows for a specific hospital
+UPDATE feature_flags
+SET enabled = true
+WHERE hospital_id = '<your-hospital-uuid>';
+
+-- Or enable one flag at a time
+UPDATE feature_flags
+SET enabled = true
+WHERE hospital_id = '<your-hospital-uuid>'
+  AND flag_name = 'patient_portal_v2';
+```
+
+See `plans/FEATURE_FLAG_ROLLBACK_PROCEDURES.md` for the full rollout and rollback playbook.
+
+---
 
 ### Common Issues
 

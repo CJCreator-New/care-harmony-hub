@@ -103,6 +103,10 @@ export function useStaffInvitations() {
   }, [profile?.hospital_id, profile?.id]);
 
   const cancelInvitation = useCallback(async (invitationId: string) => {
+    if (!profile?.hospital_id) {
+      return { error: 'Not authenticated or no hospital' };
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -110,7 +114,9 @@ export function useStaffInvitations() {
       const { error: updateError } = await supabase
         .from('staff_invitations')
         .update({ status: 'cancelled' })
-        .eq('id', invitationId);
+        .eq('id', invitationId)
+        .eq('hospital_id', profile.hospital_id)
+        .eq('status', 'pending');
 
       if (updateError) throw updateError;
 
@@ -122,9 +128,13 @@ export function useStaffInvitations() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [profile?.hospital_id]);
 
   const resendInvitation = useCallback(async (invitationId: string) => {
+    if (!profile?.hospital_id) {
+      return { error: 'Not authenticated or no hospital' };
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -136,7 +146,9 @@ export function useStaffInvitations() {
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           token: crypto.randomUUID(),
         })
-        .eq('id', invitationId);
+        .eq('id', invitationId)
+        .eq('hospital_id', profile.hospital_id)
+        .eq('status', 'pending');
 
       if (updateError) throw updateError;
 
@@ -148,7 +160,7 @@ export function useStaffInvitations() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [profile?.hospital_id]);
 
   const getInvitationByToken = useCallback(async (token: string) => {
     try {

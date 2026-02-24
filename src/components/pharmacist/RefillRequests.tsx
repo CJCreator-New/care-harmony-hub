@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export function RefillRequests() {
@@ -18,7 +18,7 @@ export function RefillRequests() {
     : pendingRefills.filter(r => r.status !== 'pending');
 
   const handleRefillAction = async (requestId: string, action: 'approved' | 'denied' | 'fulfilled') => {
-    await updateRefillMutation.mutateAsync({ requestId, status: action });
+    await updateRefillMutation.mutateAsync({ id: requestId, status: action });
   };
 
   const getRefillStatusBadge = (status: string) => {
@@ -89,7 +89,7 @@ export function RefillRequests() {
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      {request.prescription?.items?.slice(0, 2).map((item: any, idx: number) => (
+                      {((request.prescription as any)?.prescription_items || []).slice(0, 2).map((item: any, idx: number) => (
                         <p key={`item-${idx}`} className="text-xs">
                           • {item.medication_name} ({item.dosage})
                         </p>

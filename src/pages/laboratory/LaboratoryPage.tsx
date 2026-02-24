@@ -44,10 +44,10 @@ import {
 } from 'lucide-react';
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
 import { usePatient } from '@/hooks/usePatients';
-import { useNotificationTriggers } from '@/hooks/useNotificationTriggers';
-import { useWorkflowOrchestrator } from '@/hooks/useWorkflowOrchestrator';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveAuthUserIdByProfileId } from '@/services/identityResolver';
 import { format } from 'date-fns';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -97,14 +97,14 @@ export default function LaboratoryPage() {
     setStatusFilter(getInitialStatus());
   }, [initialTab]);
 
-  const { user } = useAuth();
+  const { user, hospital } = useAuth();
 
   // Debounce search term for server-side filtering
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
   // Build filters for the query
   const filters = {
-    hospital_id: user?.user_metadata?.hospital_id,
+    hospital_id: hospital?.id,
     ...(statusFilter !== 'all' && { status: statusFilter }),
   };
 
@@ -130,7 +130,6 @@ export default function LaboratoryPage() {
 
   const { data: stats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
-  const { notifyLabResults } = useNotificationTriggers();
   const { triggerWorkflow } = useWorkflowOrchestrator();
 
   const handleCollectSample = (order: LabOrder) => {
@@ -169,31 +168,37 @@ export default function LaboratoryPage() {
       },
     });
 
-    // Trigger workflow for lab results ready
-    if (selectedOrder.ordered_by) {
-      // Get patient name for workflow
-      const { data: patient } = await supabase
-        .from('patients')
-        .select('first_name, last_name')
-        .eq('id', selectedOrder.patient_id)
-        .single();
+      // Trigger workflow for lab results ready using the canonical event type
+      // constant so that workflow_rules with trigger_event='lab.results_ready'
+      // are correctly matched.
+      if (selectedOrder.ordered_by) {
+        // Get patient name for workflow
+        const { data: patient } = await supabase
+          .from('patients')
+          .select('first_name, last_name')
+          .eq('id', selectedOrder.patient_id)
+          .single();
 
-      if (patient) {
-        const patientName = `${patient.first_name} ${patient.last_name}`;
-        await triggerWorkflow({
-          type: 'lab_results_ready',
-          patientId: selectedOrder.patient_id,
-          data: {
-            patientName,
-            testName: selectedOrder.test_name,
-            labOrderId: selectedOrder.id,
-            isCritical: isCriticalValue,
-            orderedBy: selectedOrder.ordered_by
-          },
-          priority: isCriticalValue ? 'urgent' : 'normal'
-        });
+        if (patient) {
+          // ordered_by is a profile ID in lab_orders; resolve auth user for
+          // recipient-safe downstream notification routing.
+          const orderedByUserId = await resolveAuthUserIdByProfileId(selectedOrder.ordered_by);
+          const patientName = `${patient.first_name} ${patient.last_name}`;
+          await triggerWorkflow({
+            type: WORKFLOW_EVENT_TYPES.LAB_RESULTS_READY,
+            patientId: selectedOrder.patient_id,
+            data: {
+              patientName,
+              testName: selectedOrder.test_name,
+              labOrderId: selectedOrder.id,
+              isCritical: isCriticalValue,
+              orderedBy: selectedOrder.ordered_by,
+              orderedByUserId
+            },
+            priority: isCriticalValue ? 'urgent' : 'normal'
+          });
+        }
       }
-    }
 
     setResultDialogOpen(false);
     setSelectedOrder(null);

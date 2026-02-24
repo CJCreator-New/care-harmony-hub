@@ -24,7 +24,7 @@ const refillStatusColors: Record<string, string> = {
 };
 
 export default function PatientPrescriptionsPage() {
-  const { data: prescriptions = [], isLoading } = usePatientPrescriptions();
+  const { prescriptions = [], loading: isLoading } = usePatientPrescriptions();
   const { data: refillRequests = [] } = usePatientRefillRequests();
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const skeletonKeys = ['rx-1', 'rx-2', 'rx-3'];

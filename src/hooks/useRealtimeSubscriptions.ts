@@ -49,53 +49,23 @@ export function useRealtimeSubscriptions({
     config: SubscriptionConfig
   ) => {
     const { table, invalidateQueries } = config;
-    const { eventType, new: newRecord, old: oldRecord } = payload;
 
-    // Determine which queries to invalidate
+    // Determine which queries to invalidate.
+    // NOTE: We only use invalidateQueries (not setQueryData) here because the
+    // actual TanStack Query cache keys used by hooks are multi-part arrays such
+    // as ['queue', hospitalId, status]. Attempting to write via a bare
+    // single-string key like ['queue'] would write to an orphaned cache slot
+    // that no component ever reads, defeating the purpose of the optimistic
+    // update entirely.  invalidateQueries performs prefix matching, so every
+    // variant of the key (any hospitalId, any status filter) is refreshed
+    // correctly on the next render cycle.
     const queriesToInvalidate = invalidateQueries || [table];
 
-    switch (eventType) {
-      case 'INSERT':
-        // Optimistically add to cache
-        for (const queryKey of queriesToInvalidate) {
-          queryClient.setQueryData([queryKey], (old: any[] = []) => {
-            // Check if record already exists (prevent duplicates)
-            if (old.some(item => item.id === newRecord.id)) {
-              return old;
-            }
-            return [...old, newRecord];
-          });
-        }
-        break;
-
-      case 'UPDATE':
-        // Update existing record in cache
-        for (const queryKey of queriesToInvalidate) {
-          queryClient.setQueryData([queryKey], (old: any[] = []) => {
-            return old.map(item => 
-              item.id === newRecord.id ? { ...item, ...newRecord } : item
-            );
-          });
-          
-          // Also update individual record cache
-          queryClient.setQueryData([queryKey, newRecord.id], newRecord);
-        }
-        break;
-
-      case 'DELETE':
-        // Remove from cache
-        for (const queryKey of queriesToInvalidate) {
-          queryClient.setQueryData([queryKey], (old: any[] = []) => {
-            return old.filter(item => item.id !== oldRecord.id);
-          });
-          
-          // Remove individual record cache
-          queryClient.removeQueries({ queryKey: [queryKey, oldRecord.id] });
-        }
-        break;
+    for (const queryKey of queriesToInvalidate) {
+      queryClient.invalidateQueries({ queryKey: [queryKey] });
     }
 
-    // Invalidate related caches
+    // Invalidate related caches via the shared utility
     invalidateCache(table, { strategy: 'related', skipReactQuery: true });
   }, [queryClient]);
 

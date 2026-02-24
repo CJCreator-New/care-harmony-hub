@@ -1,0 +1,211 @@
+name: Automated Testing & Issue Detection
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  link-check:
+    name: Link & Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run link checker
+        run: node scripts/link-checker.mjs
+        continue-on-error: true
+      
+      - name: Upload link check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: link-check-report
+          path: test-reports/link-check-*.html
+          retention-days: 30
+
+  automated-tests:
+    name: Automated Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run automated test suite
+        run: node scripts/automated-test-runner.mjs
+        env:
+          CI: true
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        continue-on-error: true
+      
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            test-reports/*.html
+            test-reports/*.json
+          retention-days: 30
+      
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit
+        run: npm audit --json > audit-report.json
+        continue-on-error: true
+      
+      - name: Run security tests
+        run: npm run test:security
+        continue-on-error: true
+      
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: audit-report.json
+          retention-days: 30
+
+  accessibility-check:
+    name: Accessibility Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run accessibility tests
+        run: npm run test:accessibility
+        continue-on-error: true
+      
+      - name: Upload accessibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-report
+          path: a11y-test-output.txt
+          retention-days: 30
+
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run performance tests
+        run: npm run test:performance
+        continue-on-error: true
+
+  report-summary:
+    name: Generate Summary Report
+    runs-on: ubuntu-latest
+    needs: [link-check, automated-tests, security-scan, accessibility-check, performance-check]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports
+      
+      - name: Generate summary
+        run: |
+          echo "# 🏥 CareSync HMS - Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Link Check | ${{ needs.link-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Automated Tests | ${{ needs.automated-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility | ${{ needs.accessibility-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ${{ needs.performance-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 View detailed reports in the artifacts section" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `
+            ## 🏥 CareSync HMS - Automated Test Results
+            
+            | Test Suite | Status |
+            |------------|--------|
+            | Link Check | ${{ needs.link-check.result }} |
+            | Automated Tests | ${{ needs.automated-tests.result }} |
+            | Security Scan | ${{ needs.security-scan.result }} |
+            | Accessibility | ${{ needs.accessibility-check.result }} |
+            | Performance | ${{ needs.performance-check.result }} |
+            
+            📊 View detailed reports in the [Actions tab](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });

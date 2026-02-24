@@ -190,17 +190,28 @@ export const useEnhancedNotifications = () => {
   // Mark messages as read
   const markAsRead = useMutation({
     mutationFn: async (messageIds: string[]) => {
-      const { error } = await supabase
+      if (!profile?.user_id || messageIds.length === 0) return;
+
+      // Fetch current read_by arrays for targeted messages
+      const { data: msgs, error: fetchError } = await supabase
         .from('real_time_messages')
-        .update({
-          read_by: supabase.rpc('array_append', {
-            arr: supabase.raw('read_by'),
-            elem: profile?.user_id
-          })
-        })
+        .select('id, read_by')
         .in('id', messageIds);
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      // Append current user to each message's read_by array (skip if already present)
+      await Promise.all(
+        (msgs || []).map(async (msg) => {
+          const currentReadBy: string[] = Array.isArray(msg.read_by) ? msg.read_by : [];
+          if (currentReadBy.includes(profile.user_id!)) return;
+          const { error } = await supabase
+            .from('real_time_messages')
+            .update({ read_by: [...currentReadBy, profile.user_id!] })
+            .eq('id', msg.id);
+          if (error) throw error;
+        })
+      );
     },
     onSuccess: () => {
       setUnreadCount(0);
