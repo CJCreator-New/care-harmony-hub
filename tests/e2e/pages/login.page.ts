@@ -72,8 +72,8 @@ export class LoginPage extends BasePage {
   /**
    * Navigate to login page
    */
-  async navigate(): Promise<void> {
-    await super.navigate();
+  async navigate(): Promise<import('./base.page').PerformanceMetric> {
+    const metric = await super.navigate();
     await this.waitForPageLoad();
     await this.page.waitForURL(/(?:hospital\/)?login/i, { timeout: 30000 });
 
@@ -82,6 +82,7 @@ export class LoginPage extends BasePage {
     await this.emailInput.first().waitFor({ state: 'visible', timeout: 30000 });
     await this.passwordInput.first().waitFor({ state: 'visible', timeout: 30000 });
     await this.submitButton.first().waitFor({ state: 'visible', timeout: 30000 });
+    return metric;
   }
 
   /**
@@ -190,11 +191,11 @@ export class LoginPage extends BasePage {
     // Check for validation states
     const emailInvalid =
       (await this.emailInput.getAttribute('aria-invalid')) === 'true' ||
-      (await this.emailInput.evaluate((el) => !el.checkValidity()));
+      (await this.emailInput.evaluate((el) => !(el as HTMLInputElement).checkValidity()));
 
     const passwordInvalid =
       (await this.passwordInput.getAttribute('aria-invalid')) === 'true' ||
-      (await this.passwordInput.evaluate((el) => !el.checkValidity()));
+      (await this.passwordInput.evaluate((el) => !(el as HTMLInputElement).checkValidity()));
 
     return { email: emailInvalid, password: passwordInvalid };
   }

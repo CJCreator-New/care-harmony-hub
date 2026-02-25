@@ -90,7 +90,7 @@ export class PatientBuilder {
       firstName,
       lastName,
       email: faker.internet.email({ firstName, lastName }),
-      phone: faker.phone.number('555-####'),
+      phone: `555-${faker.string.numeric(4)}`,
       dateOfBirth: faker.date.birthdate({ min: 18, max: 80, mode: 'age' }).toISOString().split('T')[0],
       gender: faker.helpers.arrayElement(['male', 'female', 'other']),
       address: faker.location.streetAddress(),

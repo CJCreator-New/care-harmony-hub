@@ -188,7 +188,7 @@ test.describe('Overall App E2E Workflow', () => {
           method: 'DELETE',
         });
         return response.status;
-      });
+      }, createdEntity!.id);
       expect([200, 204]).toContain(deletedStatus);
     });
 

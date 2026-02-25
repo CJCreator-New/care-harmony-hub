@@ -102,7 +102,7 @@ test.describe('Authentication @auth', () => {
       { role: 'nurse', expectedPath: /nurse|dashboard/i },
       { role: 'receptionist', expectedPath: /reception|dashboard/i },
       { role: 'pharmacist', expectedPath: /pharmacy|dashboard/i },
-      { role: 'lab_tech', expectedPath: /lab|dashboard/i },
+      { role: 'lab_technician', expectedPath: /lab|dashboard/i },
       { role: 'patient', expectedPath: /patient|portal|dashboard/i },
     ];
 

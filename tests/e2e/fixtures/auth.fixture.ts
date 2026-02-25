@@ -176,7 +176,7 @@ export const pharmacistTest = test.extend<{ pharmacistPage: Page }>({
 export const labTechTest = test.extend<{ labTechPage: Page }>({
   labTechPage: async ({ browser }, use) => {
     const context = await browser.newContext({
-      storageState: getStorageStatePath('lab_tech'),
+      storageState: getStorageStatePath('lab_technician'),
     });
     const page = await context.newPage();
     await use(page);

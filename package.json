@@ -82,7 +82,13 @@
     "test:e2e:overall": "playwright test tests/e2e/overall-app-e2e-flow.spec.ts --headed",
     "test:e2e:report:open": "playwright show-report",
     "test:e2e:report:summary": "node scripts/playwright-report-summary.mjs",
-    "test:e2e:roles:setup:json": "playwright test tests/e2e/role-setup-coverage.spec.ts --headed --reporter=json > test-results/latest-results.json"
+    "test:e2e:roles:setup:json": "playwright test tests/e2e/role-setup-coverage.spec.ts --headed --reporter=json > test-results/latest-results.json",
+    "test:e2e:full": "npx playwright test --config=playwright.e2e-full.config.ts",
+    "test:e2e:full:headed": "npx playwright test --config=playwright.e2e-full.config.ts --headed",
+    "test:e2e:full:phase:auth": "npx playwright test --config=playwright.e2e-full.config.ts --project=auth",
+    "test:e2e:full:phase:permissions": "npx playwright test --config=playwright.e2e-full.config.ts --project=permissions",
+    "test:e2e:full:phase:workflows": "npx playwright test --config=playwright.e2e-full.config.ts --project=workflows",
+    "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
