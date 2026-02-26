@@ -127,37 +127,44 @@ export function ReceptionistDashboard() {
               Appointments, check-ins, and billing overview.
             </p>
           </div>
-          <Badge variant="secondary" className="w-fit text-sm py-1.5 px-4">
+          <Badge variant="receptionist" className="w-fit text-sm py-1.5 px-4">
             Receptionist
           </Badge>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3 mb-8">
+      <div className="flex flex-wrap items-center gap-3 mb-8">
+        {/* Primary patient flow */}
         <Button onClick={() => setCheckInOpen(true)}>
           <LogIn className="h-4 w-4 mr-2" />
           Check-In Patient
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/receptionist/smart-scheduler">
-            <Sparkles className="h-4 w-4 mr-2" />
-            Smart Scheduler
-          </Link>
         </Button>
         <Button variant="outline" onClick={() => setCheckOutOpen(true)}>
           <LogOut className="h-4 w-4 mr-2" />
           Check-Out Patient
         </Button>
-        <Button variant="outline" onClick={() => setKioskMode(true)}>
-          <Monitor className="h-4 w-4 mr-2" />
-          Kiosk Mode
+        <Button variant="outline" onClick={() => setWalkInOpen(true)}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Walk-In Registration
         </Button>
-        <Button variant="outline" asChild>
+        <Separator orientation="vertical" className="h-9 hidden sm:block" />
+        {/* Utilities */}
+        <Button variant="ghost" asChild>
+          <Link to="/receptionist/smart-scheduler">
+            <Sparkles className="h-4 w-4 mr-2" />
+            Smart Scheduler
+          </Link>
+        </Button>
+        <Button variant="ghost" asChild>
           <Link to="/appointments">
             <Calendar className="h-4 w-4 mr-2" />
             New Appointment
           </Link>
+        </Button>
+        <Button variant="ghost" onClick={() => setKioskMode(true)}>
+          <Monitor className="h-4 w-4 mr-2" />
+          Kiosk Mode
         </Button>
       </div>
 

@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   ChevronDown,
   ChevronRight,
   Home,
@@ -149,10 +155,11 @@ const navGroups: NavGroup[] = [
 interface GroupedSidebarProps {
   userRole: UserRole | null;
   testRole?: UserRole | null;
+  collapsed?: boolean;
   className?: string;
 }
 
-export function GroupedSidebar({ userRole, testRole, className }: GroupedSidebarProps) {
+export function GroupedSidebar({ userRole, testRole, collapsed = false, className }: GroupedSidebarProps) {
   const location = useLocation();
   const activeRole = testRole || userRole;
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
@@ -199,6 +206,41 @@ export function GroupedSidebar({ userRole, testRole, className }: GroupedSidebar
   const isActive = (href: string) => {
     return location.pathname === href || location.pathname.startsWith(href + '/');
   };
+
+  // ── Collapsed mode: flat icon-only list with tooltips ──────────────────────
+  if (collapsed) {
+    const allItems = navGroups
+      .filter(hasAccessToGroup)
+      .flatMap(group => group.items.filter(hasAccessToItem));
+
+    return (
+      <TooltipProvider delayDuration={0}>
+        <nav className={cn('flex flex-col items-center gap-1', className)} aria-label="Main navigation">
+          {allItems.map((item) => (
+            <Tooltip key={item.href}>
+              <TooltipTrigger asChild>
+                <Link to={item.href} aria-label={item.label}>
+                  <Button
+                    className={cn(
+                      'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
+                      isActive(item.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    )}
+                    size="icon"
+                    aria-current={isActive(item.href) ? 'page' : undefined}
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                {item.label}
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </nav>
+      </TooltipProvider>
+    );
+  }
 
   const accessibleGroups = navGroups
     .filter(hasAccessToGroup)

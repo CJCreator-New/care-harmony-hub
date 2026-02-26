@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { SkipToContent } from "@/components/ui/focus-ring"
+import { SkipNavigation } from "@/components/accessibility/SkipNavigation"
 import { InteractiveButton } from "@/components/ui/micro-interactions"
 
 interface AdminDashboardLayoutProps {
@@ -59,7 +59,7 @@ export function AdminDashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       {/* Skip to content link for accessibility */}
-      <SkipToContent targetId="admin-main-content" />
+      <SkipNavigation targetId="admin-main-content" label="Skip to admin content" />
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (

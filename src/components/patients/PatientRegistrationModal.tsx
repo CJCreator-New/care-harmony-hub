@@ -79,6 +79,16 @@ export function PatientRegistrationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
 
+  // Derive which tabs have validation errors for visual indicators
+  const { errors } = form.formState;
+  const tabHasError = {
+    personal: !!(errors.first_name || errors.last_name || errors.date_of_birth || errors.gender),
+    contact: !!(errors.address || errors.city || errors.state || errors.zip ||
+                errors.emergency_contact_name || errors.emergency_contact_phone),
+    medical: !!(errors.blood_type || errors.allergies || errors.chronic_conditions),
+    insurance: !!(errors.insurance_provider || errors.insurance_policy_number || errors.insurance_group_number),
+  };
+
   const form = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
@@ -226,28 +236,55 @@ export function PatientRegistrationModal({
           </DialogTitle>
           <DialogDescription>
             Enter patient information to create a new medical record.
+            <span className="ml-1 text-xs text-muted-foreground">Fields marked <span className="text-destructive font-semibold">*</span> are required.</span>
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
+              // Auto-navigate to the first tab containing an error
+              if (fieldErrors.first_name || fieldErrors.last_name || fieldErrors.date_of_birth || fieldErrors.gender) {
+                setActiveTab('personal');
+              } else if (fieldErrors.address || fieldErrors.city || fieldErrors.state || fieldErrors.zip) {
+                setActiveTab('contact');
+              } else if (fieldErrors.blood_type || fieldErrors.allergies) {
+                setActiveTab('medical');
+              } else if (fieldErrors.insurance_provider) {
+                setActiveTab('insurance');
+              }
+            })}
+            className="space-y-6"
+          >
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="personal" className="flex items-center gap-1">
+                <TabsTrigger value="personal" className="relative flex items-center gap-1">
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Personal</span>
+                  <span>Personal</span>
+                  {tabHasError.personal && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                  )}
                 </TabsTrigger>
-                <TabsTrigger value="contact" className="flex items-center gap-1">
+                <TabsTrigger value="contact" className="relative flex items-center gap-1">
                   <Phone className="h-4 w-4" />
-                  <span className="hidden sm:inline">Contact</span>
+                  <span>Contact</span>
+                  {tabHasError.contact && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                  )}
                 </TabsTrigger>
-                <TabsTrigger value="medical" className="flex items-center gap-1">
+                <TabsTrigger value="medical" className="relative flex items-center gap-1">
                   <Heart className="h-4 w-4" />
-                  <span className="hidden sm:inline">Medical</span>
+                  <span>Medical</span>
+                  {tabHasError.medical && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                  )}
                 </TabsTrigger>
-                <TabsTrigger value="insurance" className="flex items-center gap-1">
+                <TabsTrigger value="insurance" className="relative flex items-center gap-1">
                   <Shield className="h-4 w-4" />
-                  <span className="hidden sm:inline">Insurance</span>
+                  <span>Insurance</span>
+                  {tabHasError.insurance && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                  )}
                 </TabsTrigger>
               </TabsList>
 

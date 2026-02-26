@@ -47,13 +47,13 @@ import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  scheduled: { label: "Scheduled", color: "bg-blue-100 text-blue-800", icon: <Clock className="h-3 w-3" /> },
-  checked_in: { label: "Checked In", color: "bg-yellow-100 text-yellow-800", icon: <CheckCircle className="h-3 w-3" /> },
-  in_progress: { label: "In Progress", color: "bg-purple-100 text-purple-800", icon: <User className="h-3 w-3" /> },
-  completed: { label: "Completed", color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-3 w-3" /> },
-  cancelled: { label: "Cancelled", color: "bg-red-100 text-red-800", icon: <XCircle className="h-3 w-3" /> },
-  no_show: { label: "No Show", color: "bg-gray-100 text-gray-800", icon: <XCircle className="h-3 w-3" /> },
+const STATUS_CONFIG: Record<string, { label: string; variant: "info" | "warning" | "secondary" | "success" | "destructive" | "outline"; icon: React.FC<{ className?: string }> }> = {
+  scheduled:   { label: "Scheduled",   variant: "info",        icon: Clock        },
+  checked_in:  { label: "Checked In",  variant: "warning",     icon: CheckCircle  },
+  in_progress: { label: "In Progress", variant: "secondary",   icon: User         },
+  completed:   { label: "Completed",   variant: "success",     icon: CheckCircle  },
+  cancelled:   { label: "Cancelled",   variant: "destructive", icon: XCircle      },
+  no_show:     { label: "No Show",     variant: "outline",     icon: XCircle      },
 };
 
 export default function AppointmentsPage() {
@@ -209,7 +209,7 @@ export default function AppointmentsPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px]" aria-label="Filter by appointment status">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -257,15 +257,16 @@ export default function AppointmentsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Time</TableHead>
                       <TableHead>Patient</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Doctor</TableHead>
+                      <TableHead className="hidden md:table-cell">Type</TableHead>
+                      <TableHead className="hidden md:table-cell">Doctor</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Queue #</TableHead>
+                      <TableHead className="hidden sm:table-cell">Queue #</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -306,6 +307,7 @@ export default function AppointmentsPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
                 
                 {totalPages > 1 && (
                   <div className="mt-4">
@@ -371,8 +373,8 @@ const AppointmentRow = memo(function AppointmentRow({
           <p className="text-sm text-muted-foreground">{appointment.patient?.mrn}</p>
         </div>
       </TableCell>
-      <TableCell className="capitalize">{appointment.appointment_type}</TableCell>
-      <TableCell>
+      <TableCell className="hidden md:table-cell capitalize">{appointment.appointment_type}</TableCell>
+      <TableCell className="hidden md:table-cell">
         {appointment.doctor ? (
           `Dr. ${appointment.doctor.first_name} ${appointment.doctor.last_name}`
         ) : (
@@ -380,12 +382,12 @@ const AppointmentRow = memo(function AppointmentRow({
         )}
       </TableCell>
       <TableCell>
-        <Badge className={cn("gap-1", status.color)}>
-          {status.icon}
-          {status.label}
+        <Badge variant={status.variant} className="gap-1">
+          <status.icon className="h-3 w-3" aria-hidden="true" />
+          <span>{status.label}</span>
         </Badge>
       </TableCell>
-      <TableCell>
+      <TableCell className="hidden sm:table-cell">
         {appointment.queue_number ? (
           <Badge variant="outline">#{appointment.queue_number}</Badge>
         ) : (
@@ -499,7 +501,7 @@ function CalendarView({ selectedDate, onDateSelect, appointments }: CalendarView
                           </p>
                         </div>
                       </div>
-                      <Badge className={status?.color}>{status?.label}</Badge>
+                      <Badge variant={status?.variant ?? 'outline'}>{status?.label}</Badge>
                     </div>
                   );
                 })}

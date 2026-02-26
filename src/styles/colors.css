@@ -12,19 +12,19 @@
 
 :root {
   /* ============================================
-     PRIMARY COLOR SCALE
+     PRIMARY COLOR SCALE (Teal — matches --primary: hsl(173, 58%, 39%))
      ============================================ */
-  --primary-50: hsl(210, 100%, 97%);
-  --primary-100: hsl(210, 100%, 93%);
-  --primary-200: hsl(210, 100%, 85%);
-  --primary-300: hsl(210, 100%, 75%);
-  --primary-400: hsl(210, 100%, 60%);
-  --primary-500: hsl(210, 100%, 50%); /* Base primary */
-  --primary-600: hsl(210, 100%, 40%);
-  --primary-700: hsl(210, 100%, 32%);
-  --primary-800: hsl(210, 100%, 25%);
-  --primary-900: hsl(210, 100%, 18%);
-  --primary-950: hsl(210, 100%, 10%);
+  --primary-50: hsl(173, 58%, 97%);
+  --primary-100: hsl(173, 58%, 93%);
+  --primary-200: hsl(173, 58%, 85%);
+  --primary-300: hsl(173, 58%, 70%);
+  --primary-400: hsl(173, 58%, 55%);
+  --primary-500: hsl(173, 58%, 39%); /* Base primary — matches --primary token */
+  --primary-600: hsl(173, 58%, 32%);
+  --primary-700: hsl(173, 58%, 26%);
+  --primary-800: hsl(173, 58%, 20%);
+  --primary-900: hsl(173, 58%, 14%);
+  --primary-950: hsl(173, 58%, 8%);
   
   /* ============================================
      SECONDARY COLOR SCALE

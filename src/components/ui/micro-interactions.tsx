@@ -28,9 +28,9 @@ const InteractiveButton = React.forwardRef<HTMLButtonElement, InteractiveButtonP
     }
 
     const sizes = {
-      sm: "h-9 px-3 text-sm rounded-md",
-      md: "h-10 px-4 py-2 rounded-md",
-      lg: "h-11 px-8 rounded-md",
+      sm: "h-9 px-3 text-sm rounded-lg",
+      md: "h-10 px-4 py-2 rounded-lg",
+      lg: "h-11 px-8 rounded-lg",
     }
 
     return (

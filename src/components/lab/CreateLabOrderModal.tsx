@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -128,6 +129,10 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
       priority: (data.priority as any) || 'normal',
       sample_type: data.sample_type || null,
       status: 'pending',
+    });
+
+    toast.success('Lab order created', {
+      description: `${data.test_name} ordered for ${selectedPatient.name} (MRN: ${selectedPatient.mrn})`,
     });
 
     form.reset();

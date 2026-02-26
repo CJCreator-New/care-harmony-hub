@@ -26,6 +26,7 @@ import {
   BarChart,
   LayoutDashboard,
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaffPerformanceMetrics } from "@/components/analytics/StaffPerformanceMetrics";
 import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
@@ -35,6 +36,8 @@ import { StartConsultationModal } from '@/components/consultations/StartConsulta
 import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 import { differenceInMinutes } from 'date-fns';
 import { useAudit } from '@/hooks/useAudit';
+import { getGreeting } from '@/lib/utils/datetime';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function DoctorDashboard() {
   const { profile } = useAuth();
@@ -78,13 +81,6 @@ export function DoctorDashboard() {
     navigate(`/consultations?patientId=${patientId}`);
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  };
-
   return (
     <>
       {/* Header */}
@@ -118,68 +114,77 @@ export function DoctorDashboard() {
 
         <TabsContent value="overview" className="space-y-6">
           {/* Quick Actions */}
-          <div className="flex flex-wrap gap-3">
-        <Button onClick={() => setShowConsultationModal(true)}>
-          <Play className="h-4 w-4 mr-2" />
-          Start Consultation
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/consultations/mobile">
-            <Smartphone className="h-4 w-4 mr-2" />
-            Quick Notes
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/patients">
-            <Users className="h-4 w-4 mr-2" />
-            View Patients
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/telemedicine">
-            <Video className="h-4 w-4 mr-2" />
-            Telemedicine
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/messages">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            {`Messages ${unreadCount ?? 0}`}
-          </Link>
-        </Button>
-      </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => setShowConsultationModal(true)}>
+              <Play className="h-4 w-4 mr-2" />
+              Start Consultation
+            </Button>
+            <Separator orientation="vertical" className="h-8 hidden sm:block" />
+            <Button variant="outline" asChild>
+              <Link to="/consultations/mobile">
+                <Smartphone className="h-4 w-4 mr-2" />
+                Quick Notes
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/patients">
+                <Users className="h-4 w-4 mr-2" />
+                View Patients
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/telemedicine">
+                <Video className="h-4 w-4 mr-2" />
+                Telemedicine
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/messages">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                {`Messages${unreadCount ? ` (${unreadCount})` : ''}`}
+              </Link>
+            </Button>
+          </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard
-          title="Today's Patients"
-          value={String(statsLoading && stableStats.todaysPatients === 0 ? '--' : stableStats.todaysPatients)}
-          subtitle="Scheduled"
-          icon={Users}
-          variant="primary"
-        />
-        <StatsCard
-          title="Ready for Consult"
-          value={String(readyLoading && stableStats.readyForConsult === 0 ? '--' : stableStats.readyForConsult)}
-          subtitle="Awaiting you"
-          icon={UserCheck}
-          variant="success"
-        />
-        <StatsCard
-          title="Consultations"
-          value={String(statsLoading && stableStats.completedConsultations === 0 ? '--' : stableStats.completedConsultations)}
-          subtitle="Completed today"
-          icon={Stethoscope}
-          variant="info"
-        />
-        <StatsCard
-          title="Pending Labs"
-          value={String(statsLoading && stableStats.pendingLabs === 0 ? '--' : stableStats.pendingLabs)}
-          subtitle="Awaiting results"
-          icon={TestTube2}
-          variant="warning"
-        />
-      </div>
+      {statsLoading && stableStats.todaysPatients === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatsCard
+            title="Today's Patients"
+            value={String(stableStats.todaysPatients)}
+            subtitle="Scheduled"
+            icon={Users}
+            variant="primary"
+          />
+          <StatsCard
+            title="Ready for Consult"
+            value={String(stableStats.readyForConsult)}
+            subtitle="Awaiting you"
+            icon={UserCheck}
+            variant="success"
+          />
+          <StatsCard
+            title="Consultations"
+            value={String(stableStats.completedConsultations)}
+            subtitle="Completed today"
+            icon={Stethoscope}
+            variant="info"
+          />
+          <StatsCard
+            title="Pending Labs"
+            value={String(stableStats.pendingLabs)}
+            subtitle="Awaiting results"
+            icon={TestTube2}
+            variant="warning"
+          />
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">

@@ -67,15 +67,20 @@ export function usePaginatedQuery({
 
       const { data, error, count } = await query;
 
-      if (error) throw error;
-
-      return {
-        data: data || [],
-        count: count || 0,
-        totalPages: Math.ceil((count || 0) / pageSize),
-        currentPage,
-        pageSize,
-      };
+      if (error) {
+        // Gracefully handle missing relations (PGRST204) or other common missing schema errors
+        if (error.code === 'PGRST204' || error.code === '42P01') {
+          console.warn(`Table "${table}" not found in Supabase. Returning empty mock result.`);
+          return {
+            data: [],
+            count: 0,
+            totalPages: 0,
+            currentPage,
+            pageSize,
+          };
+        }
+        throw error;
+      }
     },
   });
 

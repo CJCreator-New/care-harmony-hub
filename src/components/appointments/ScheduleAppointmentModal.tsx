@@ -4,6 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { CalendarIcon, Search, Loader2 } from "lucide-react";
+
+/** Converts "HH:MM" to 12-hour format: "8:00 AM" */
+function formatTime12h(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const period = h < 12 ? 'AM' : 'PM';
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+}
 import {
   Dialog,
   DialogContent,
@@ -25,7 +33,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -331,13 +341,23 @@ export function ScheduleAppointmentModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-60">
-                        {TIME_SLOTS.filter(
-                          (time) => parseInt(time.split(":")[0]) >= 8 && parseInt(time.split(":")[0]) < 20
-                        ).map((time) => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
+                        {(() => {
+                          const slots = TIME_SLOTS.filter(
+                            (t) => { const h = parseInt(t); return h >= 7 && h < 20; }
+                          );
+                          const morning = slots.filter(t => { const h = parseInt(t); return h >= 7 && h < 12; });
+                          const afternoon = slots.filter(t => { const h = parseInt(t); return h >= 12 && h < 17; });
+                          const evening = slots.filter(t => { const h = parseInt(t); return h >= 17 && h < 20; });
+                          const groups = [{ label: 'Morning', items: morning }, { label: 'Afternoon', items: afternoon }, { label: 'Evening', items: evening }];
+                          return groups.filter(g => g.items.length > 0).map(group => (
+                            <SelectGroup key={group.label}>
+                              <SelectLabel>{group.label}</SelectLabel>
+                              {group.items.map(time => (
+                                <SelectItem key={time} value={time}>{formatTime12h(time)}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ));
+                        })()}
                       </SelectContent>
                     </Select>
                     <FormMessage />

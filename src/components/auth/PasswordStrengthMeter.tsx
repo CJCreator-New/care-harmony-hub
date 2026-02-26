@@ -25,9 +25,9 @@ export function PasswordStrengthMeter({ password, className }: PasswordStrengthM
     const metCount = requirements.filter(r => r.met).length;
     if (metCount === 0) return { level: 0, label: '', color: '' };
     if (metCount <= 2) return { level: 1, label: 'Weak', color: 'bg-destructive' };
-    if (metCount <= 3) return { level: 2, label: 'Fair', color: 'bg-yellow-500' };
-    if (metCount <= 4) return { level: 3, label: 'Good', color: 'bg-blue-500' };
-    return { level: 4, label: 'Strong', color: 'bg-green-500' };
+    if (metCount <= 3) return { level: 2, label: 'Fair', color: 'bg-warning' };
+    if (metCount <= 4) return { level: 3, label: 'Good', color: 'bg-info' };
+    return { level: 4, label: 'Strong', color: 'bg-success' };
   }, [requirements]);
 
   if (!password) return null;
@@ -41,9 +41,9 @@ export function PasswordStrengthMeter({ password, className }: PasswordStrengthM
           <span className={cn(
             'font-medium',
             strength.level <= 1 && 'text-destructive',
-            strength.level === 2 && 'text-yellow-600',
-            strength.level === 3 && 'text-blue-600',
-            strength.level === 4 && 'text-green-600',
+          strength.level === 2 && 'text-warning',
+          strength.level === 3 && 'text-info',
+          strength.level === 4 && 'text-success',
           )}>
             {strength.label}
           </span>
@@ -63,7 +63,7 @@ export function PasswordStrengthMeter({ password, className }: PasswordStrengthM
             key={req.label}
             className={cn(
               'flex items-center gap-2 text-xs transition-colors',
-              req.met ? 'text-green-600' : 'text-muted-foreground'
+              req.met ? 'text-success' : 'text-muted-foreground'
             )}
           >
             {req.met ? (

@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -73,20 +75,24 @@ export function EnhancedBillingQueue() {
       </CardHeader>
       <CardContent>
         <div className="flex gap-2 mb-4">
-          {['pending', 'billed'].map((status) => (
-            <Button
-              key={status}
-              variant={selectedStatus === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedStatus(status)}
-            >
-              {status}
-            </Button>
-          ))}
+          <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="w-full">
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="billed">Billed</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {isLoading ? (
-          <div className="text-center py-8">Loading consultations...</div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-4 border rounded-lg space-y-2">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+            ))}
+          </div>
         ) : !consultations || consultations.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-50" />

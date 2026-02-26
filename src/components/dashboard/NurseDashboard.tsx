@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { getGreeting } from '@/lib/utils/datetime';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,13 +41,6 @@ export function NurseDashboard() {
   const { handovers: pendingHandovers = [] } = usePendingHandovers(profile?.id);
   const { checklists = [] } = usePatientChecklists();
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  };
-
   // Count ALL active queue entries (waiting, called, in_service) for the KPI
   const waitingPatients = activeQueue || [];
   const readyForDoctor = checklists.filter(c => c.ready_for_doctor).length;
@@ -64,7 +58,7 @@ export function NurseDashboard() {
               Patient queue and vitals management.
             </p>
           </div>
-          <Badge variant="secondary" className="w-fit text-sm py-1.5 px-4">
+          <Badge variant="nurse" className="w-fit text-sm py-1.5 px-4">
             Nurse
           </Badge>
         </div>
@@ -72,19 +66,19 @@ export function NurseDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button variant="outline" onClick={() => setIsVitalsModalOpen(true)}>
+        <Button onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
           Record Vitals
+        </Button>
+        <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
+          <Pill className="h-4 w-4 mr-2" />
+          Administer Medication
         </Button>
         <Button variant="outline" asChild>
           <Link to="/nurse/protocols">
             <ListChecks className="h-4 w-4 mr-2" />
             Care Protocols
           </Link>
-        </Button>
-        <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
-          <Pill className="h-4 w-4 mr-2" />
-          Administer Medication
         </Button>
         <Button variant="outline" onClick={() => setHandoverMode('create')}>
           <ClipboardList className="h-4 w-4 mr-2" />

@@ -62,13 +62,18 @@
     font-size: 1rem;
     line-height: 1.35;
     margin-bottom: 0.625rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    /* uppercase/tracking moved to .eyebrow — h6 is plain body-weight heading */
   }
 
   /* Paragraph and text elements */
   p {
     margin-bottom: 1rem;
+    /* max-width intentionally NOT set globally — scoped to .prose below to avoid
+       breaking card descriptions, table cells, and form field helper text. */
+  }
+
+  /* Prose context: long-form readable content (articles, help text, onboarding) */
+  .prose p {
     max-width: 65ch;
   }
 
@@ -194,6 +199,20 @@
   .prose-sm {
     font-size: 0.875rem;
     max-width: 60ch;
+  }
+
+  /**
+   * Eyebrow label: uppercase + wide-tracking for section headers,
+   * caption labels, and stat-card category tags.
+   * Use instead of h6 when the uppercase treatment is purely decorative.
+   */
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: hsl(var(--muted-foreground));
   }
 
   /* Text truncation */

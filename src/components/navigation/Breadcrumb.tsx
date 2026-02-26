@@ -3,6 +3,7 @@ import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BreadcrumbItem {
   label: string;
@@ -58,13 +59,15 @@ const routeLabels: Record<string, string> = {
 
 export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
   const location = useLocation();
+  const { hospital } = useAuth();
+  const hospitalId = hospital?.id;
 
   // Detect if we're on a patient profile page and fetch the patient name
   const patientIdMatch = location.pathname.match(/^\/patients\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
   const patientId = patientIdMatch ? patientIdMatch[1] : null;
 
   const { data: patientName } = useQuery({
-    queryKey: ['breadcrumb-patient', patientId],
+    queryKey: ['breadcrumb-patient', hospitalId, patientId],
     queryFn: async () => {
       const { data } = await supabase
         .from('patients')

@@ -5,22 +5,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
+import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
+import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
+import { toast } from 'sonner';
 
 interface FormErrors {
   [key: string]: string;
 }
-
-const passwordRequirements = [
-  { regex: /.{8,}/, label: 'At least 8 characters' },
-  { regex: /[A-Z]/, label: 'One uppercase letter' },
-  { regex: /[a-z]/, label: 'One lowercase letter' },
-  { regex: /[0-9]/, label: 'One number' },
-  { regex: /[!@#$%^&*]/, label: 'One special character (!@#$%^&*)' },
-];
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
@@ -106,7 +99,6 @@ export default function SignupPage() {
 
   const { signup, createHospitalAndProfile } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     // Ensure signup starts from a clean role state and does not inherit
@@ -120,10 +112,7 @@ export default function SignupPage() {
       window.localStorage.removeItem('preferredRole');
     }
     if (hadDevOverride) {
-      toast({
-        title: 'Dev role override cleared',
-        description: 'Signup flow is using authenticated roles only.',
-      });
+      toast.info('Dev role override cleared — signup flow uses authenticated roles only.');
     }
   }, [toast]);
 
@@ -191,10 +180,8 @@ export default function SignupPage() {
       const { error: signupError } = await signup(adminEmail, password, firstName, lastName);
 
       if (signupError) {
-        toast({
-          title: 'Registration Failed',
+        toast.error('Registration Failed', {
           description: signupError.message || 'Could not create account. Please try again.',
-          variant: 'destructive',
         });
         setIsLoading(false);
         return;
@@ -213,27 +200,20 @@ export default function SignupPage() {
       });
 
       if (hospitalError) {
-        toast({
-          title: 'Setup Failed',
+        toast.error('Setup Failed', {
           description: 'Account created but hospital setup failed. Please contact support.',
-          variant: 'destructive',
         });
         setIsLoading(false);
         return;
       }
 
-      toast({
-        title: 'Registration Successful!',
-        description: 'Welcome to AROCORD-HIMS. Now let\'s set up your team...',
+      toast.success('Registration Successful!', {
+        description: "Welcome to AROCORD-HIMS. Now let's set up your team...",
       });
       clearDevTestRole();
       navigate('/hospital/role-setup');
     } catch (error) {
-      toast({
-        title: 'Registration Failed',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('Registration Failed', { description: 'Something went wrong. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -531,35 +511,15 @@ export default function SignupPage() {
                     />
                     <button
                       type="button"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
 
-                  {/* Password requirements */}
-                  <div className="mt-2 space-y-1">
-                    {passwordRequirements.map((req) => {
-                      const isMet = req.regex.test(password);
-                      return (
-                        <div
-                          key={req.label}
-                          className={cn(
-                            'flex items-center gap-2 text-sm',
-                            isMet ? 'text-success' : 'text-muted-foreground'
-                          )}
-                        >
-                          {isMet ? (
-                            <Check className="w-4 h-4" />
-                          ) : (
-                            <X className="w-4 h-4" />
-                          )}
-                          <span>{req.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <PasswordStrengthMeter password={password} className="mt-2" />
                 </div>
 
                 <div className="space-y-2">

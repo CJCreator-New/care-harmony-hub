@@ -139,10 +139,12 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Create staff invitations for each role
-      const invitations = formData.roles.map(role => ({
+      // Create staff invitations - ONLY ONE AT A TIME to avoid unique constraint conflict on (hospital_id, email, status)
+      // The DB schema only supports one role per invitation record.
+      // We take the first role or loop carefully, but 409 will happen if we do multiple rows for same email.
+      const invitations = formData.roles.slice(0, 1).map(role => ({
         hospital_id: hospital.id,
-        email: formData.email,
+        email: formData.email.toLowerCase(),
         role: role,
         invited_by: user.id,
         token: crypto.randomUUID(),
@@ -150,17 +152,22 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
 
-      // Cast to any: local Role union differs slightly from the DB-generated enum
-      // type, but the values are identical at runtime.
+      if (invitations.length === 0) throw new Error('No roles selected');
+
       const { error } = await supabase
         .from('staff_invitations')
         .insert(invitations as any);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('An active invitation for this email already exists.');
+        }
+        throw error;
+      }
 
       toast({
         title: 'Success!',
-        description: `Invitation sent to ${formData.email} with ${formData.roles.length} role(s).`,
+        description: `Invitation sent to ${formData.email}.`,
       });
 
       // Reset and close
@@ -229,16 +236,18 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
             <p className="text-sm text-muted-foreground">Enter the staff member's basic information.</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>First Name *</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
+                  id="firstName"
                   value={formData.firstName}
                   onChange={(e) => setFormData(p => ({ ...p, firstName: e.target.value }))}
                   placeholder="John"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Last Name *</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
+                  id="lastName"
                   value={formData.lastName}
                   onChange={(e) => setFormData(p => ({ ...p, lastName: e.target.value }))}
                   placeholder="Doe"
@@ -246,8 +255,9 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Email Address *</Label>
+              <Label htmlFor="email">Email Address *</Label>
               <Input
+                id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}

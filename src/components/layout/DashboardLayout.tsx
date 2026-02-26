@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { GroupedSidebar } from './GroupedSidebar';
 import { Breadcrumb } from '@/components/navigation/Breadcrumb';
 import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
+import { SkipNavigation } from '@/components/accessibility/SkipNavigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ import {
   X,
   Activity,
   ChevronDown,
+  ChevronLeft,
   Search,
   Brain,
   Target,
@@ -68,6 +70,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, roles, user, logout, isAuthenticated } = useAuth();
   const { logActivity } = useActivityLog();
@@ -157,13 +160,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Skip Navigation Link */}
-      <a
-        href="#main-content"
-        aria-label="Skip to main content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg"
-      >
-        Skip to main content
-      </a>
+      <SkipNavigation targetId="main-content" />
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
@@ -176,62 +173,93 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-64 bg-sidebar transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out lg:translate-x-0",
+          sidebarCollapsed ? "w-16" : "w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        aria-label="Main navigation"
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-6 h-16 border-b border-sidebar-border">
+          <div className="flex items-center gap-2 px-3 h-16 border-b border-sidebar-border">
             <Link to="/dashboard" className="flex items-center gap-3 flex-1 min-w-0">
               <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary shrink-0">
                 <Activity className="w-5 h-5 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-sidebar-primary-foreground">AROCORD</h1>
-                <p className="text-xs text-sidebar-foreground/60">HIMS</p>
-              </div>
+              {!sidebarCollapsed && (
+                <div className="min-w-0">
+                  <h1 className="text-lg font-bold text-sidebar-primary-foreground">AROCORD</h1>
+                  <p className="text-xs text-sidebar-foreground/60">HIMS</p>
+                </div>
+              )}
             </Link>
+            {/* Desktop collapse toggle */}
             <button
-              className="ml-auto lg:hidden text-sidebar-foreground hover:text-sidebar-primary-foreground"
+              className="hidden lg:flex shrink-0 items-center justify-center w-8 h-8 rounded-md text-sidebar-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-accent transition-colors"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <ChevronLeft className={cn("w-4 h-4 transition-transform duration-300", sidebarCollapsed && "rotate-180")} />
+            </button>
+            {/* Mobile close */}
+            <button
+              className="lg:hidden shrink-0 text-sidebar-foreground hover:text-sidebar-primary-foreground"
               onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation menu"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3">
+          <nav className={cn("flex-1 overflow-y-auto py-4", sidebarCollapsed ? "px-2" : "px-3")}>
               <GroupedSidebar
                 userRole={activeRole}
                 testRole={persistedTestRole}
+                collapsed={sidebarCollapsed}
               />
           </nav>
 
           {/* User card */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent">
-              <Avatar className="h-10 w-10 border-2 border-sidebar-primary">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
-                  {profile ? getInitials(profile.first_name, profile.last_name) : 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-sidebar-accent-foreground truncate">
-                  {profile?.first_name} {profile?.last_name}
-                </p>
-                <p className="text-xs text-sidebar-foreground/60 truncate">
-                  {hospital?.name}
-                </p>
+          <div className="p-3 border-t border-sidebar-border">
+            {sidebarCollapsed ? (
+              <div className="flex justify-center">
+                <Avatar className="h-9 w-9 border-2 border-sidebar-primary">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
+                    {profile ? getInitials(profile.first_name, profile.last_name) : 'U'}
+                  </AvatarFallback>
+                </Avatar>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent">
+                <Avatar className="h-10 w-10 border-2 border-sidebar-primary">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
+                    {profile ? getInitials(profile.first_name, profile.last_name) : 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-sidebar-accent-foreground truncate">
+                    {profile?.first_name} {profile?.last_name}
+                  </p>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">
+                    {hospital?.name}
+                  </p>
+                  {activeRole && (
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 mt-1 text-[10px] font-semibold bg-sidebar-primary/20 text-sidebar-primary-foreground">
+                      {getRoleLabel(activeRole)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className={cn("transition-all duration-300", sidebarCollapsed ? "lg:pl-16" : "lg:pl-64")}>
         {/* Header */}
         <header className="sticky top-0 z-30 h-16 bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">
@@ -243,8 +271,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <Menu className="w-5 h-5" />
             </button>
+
+              {/* Mobile search icon — visible only on small screens */}
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="md:hidden p-2 rounded-lg hover:bg-accent"
+                aria-label="Open search dialog"
+              >
+                <Search className="w-5 h-5 text-muted-foreground" />
+              </button>
               
-              {/* Search */}
+              {/* Search — full bar visible on md+ */}
               <button
                 onClick={() => setSearchOpen(true)}
                 className="hidden md:flex items-center gap-2 px-4 py-2 bg-muted rounded-lg w-80 hover:bg-muted/80 transition-colors"
