@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/react';
-import { BrowserTracing } from '@sentry/tracing';
 
 export const initSentry = () => {
   if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
@@ -10,7 +9,7 @@ export const initSentry = () => {
       // Performance monitoring
       tracesSampleRate: 0.2, // Increased for better visibility
       integrations: [
-        new BrowserTracing({
+        Sentry.browserTracingIntegration({
           tracePropagationTargets: [
             'localhost',
             /^https:\/\/.*\.supabase\.co/,
