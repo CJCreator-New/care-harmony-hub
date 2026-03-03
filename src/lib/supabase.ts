@@ -1,6 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// DEPRECATED: This module is kept for backward compatibility only.
+// All new code should import from '@/integrations/supabase/client' directly,
+// which is the canonical typed client with proper auth config and type safety.
+export { supabase } from '@/integrations/supabase/client';

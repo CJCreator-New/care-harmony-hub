@@ -17,15 +17,17 @@ class RateLimiter {
 
     recentRequests.push(now);
     this.requests.set(key, recentRequests);
-    
-    this.cleanup();
+
+    // Pass the actual configured window so long-window limits are not
+    // prematurely flushed (was hardcoded to 60 s regardless of windowMs).
+    this.cleanup(config.windowMs);
     return true;
   }
 
-  private cleanup() {
+  private cleanup(windowMs: number) {
     const now = Date.now();
     for (const [key, times] of this.requests.entries()) {
-      const validTimes = times.filter(time => now - time < 60000);
+      const validTimes = times.filter(time => now - time < windowMs);
       if (validTimes.length === 0) {
         this.requests.delete(key);
       } else {

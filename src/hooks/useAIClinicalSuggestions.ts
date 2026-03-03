@@ -198,7 +198,7 @@ async function analyzeDrugInteractions(medications: string[], allergies: string[
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify({
         medications,
@@ -243,7 +243,7 @@ async function analyzeClinicalGuidelines(age: number, chiefComplaint: string, me
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify({
         age,
@@ -288,7 +288,7 @@ async function assessPatientRisks(patientData: any): Promise<AIInsight[]> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify({
         patient_data: patientData,

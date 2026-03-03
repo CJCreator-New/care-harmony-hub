@@ -5,6 +5,15 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Fail fast when required env vars are absent so mis-configured deployments
+// surface immediately rather than failing later with cryptic network errors.
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    'Missing required environment variables: VITE_SUPABASE_URL and ' +
+    'VITE_SUPABASE_PUBLISHABLE_KEY must be set in your .env file.'
+  );
+}
+
 // Provide a guarded fetch wrapper to give clearer errors for network failures
 const safeFetch = async (input: RequestInfo, init?: RequestInit): Promise<Response> => {
   const controller = new AbortController();

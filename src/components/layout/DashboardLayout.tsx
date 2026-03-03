@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
-import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { NotificationsSystem } from '@/components/common/NotificationsSystem';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { GroupedSidebar } from './GroupedSidebar';
@@ -74,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
   });
   const [searchOpen, setSearchOpen] = useState(false);
-  const { profile, hospital, primaryRole, roles, user, logout, isAuthenticated } = useAuth();
+  const { profile, hospital, primaryRole, roles, user, logout } = useAuth();
   const { logActivity } = useActivityLog();
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,10 +83,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Detect macOS for keyboard shortcut display
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
-  // HIPAA-compliant session timeout - 30 min inactivity auto-logout
-  useSessionTimeout({
-    enabled: isAuthenticated,
-  });
+  // Session timeout is handled centrally in AuthContext — no duplicate here.
 
   // Keyboard shortcut for search
   useEffect(() => {

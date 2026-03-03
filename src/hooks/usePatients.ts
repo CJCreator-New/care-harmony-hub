@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { sanitizeForLog } from '@/utils/sanitize';
+import { sanitizeForLog, sanitizePostgrestFilterValue } from '@/utils/sanitize';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -53,7 +53,7 @@ export function usePatients(options?: { page?: number; limit?: number }) {
       if (!hospital?.id) return { patients: [], total: 0 };
 
       // Get total count for pagination
-      const { count, countError } = await supabase
+      const { count, error: countError } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospital.id)
@@ -111,10 +111,11 @@ export function usePatients(options?: { page?: number; limit?: number }) {
 }
 
 export function usePatient(patientId: string | undefined) {
+  const { hospital } = useAuth();
   const { decryptPHI } = useHIPAACompliance();
 
   return useQuery({
-    queryKey: ['patient', patientId],
+    queryKey: ['patient', patientId, hospital?.id],
     queryFn: async () => {
       if (!patientId) return null;
 
@@ -278,12 +279,16 @@ export function useSearchPatients(searchTerm: string) {
     queryFn: async () => {
       if (!hospital?.id || !searchTerm) return [];
 
+      // Sanitize search term to prevent PostgREST filter injection
+      const safeTerm = sanitizePostgrestFilterValue(searchTerm);
+      if (!safeTerm) return [];
+
       const { data, error } = await supabase
         .from('patients')
         .select('*')
         .eq('hospital_id', hospital.id)
         .eq('is_active', true)
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,mrn.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+        .or(`first_name.ilike.%${safeTerm}%,last_name.ilike.%${safeTerm}%,mrn.ilike.%${safeTerm}%,phone.ilike.%${safeTerm}%`)
         .order('last_name', { ascending: true })
         .limit(20);
 

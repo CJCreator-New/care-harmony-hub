@@ -10,12 +10,14 @@ export async function authorize(req: Request, allowedRoles: string[]) {
   }
 
   const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey = (globalThis as any).Deno.env.get("SUPABASE_ANON_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  // Use the service role key for server-side JWT verification.
+  // The user's bearer token is verified via getUser(); never used as auth key.
+  const serviceRoleKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // Verify the caller's JWT using the admin client.
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error } = await adminClient.auth.getUser(token);
   if (error || !user) {
     return new Response(
       JSON.stringify({ error: "Unauthorized" }),
@@ -23,13 +25,14 @@ export async function authorize(req: Request, allowedRoles: string[]) {
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
+  // Roles live in user_roles (keyed by user_id), not in the profiles table.
+  const { data: roleRow } = await adminClient
+    .from("user_roles")
     .select("role")
-    .eq("id", user.id)
-    .single();
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (!profile || !allowedRoles.includes(profile.role)) {
+  if (!roleRow || !allowedRoles.includes(roleRow.role)) {
     return new Response(
       JSON.stringify({ error: "Forbidden - insufficient permissions" }),
       { status: 403, headers: { "Content-Type": "application/json" } }

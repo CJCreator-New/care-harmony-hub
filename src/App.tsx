@@ -8,7 +8,6 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { TestingProvider } from "@/contexts/TestingContext";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { lazy, Suspense } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -134,9 +133,6 @@ const queryClient = new QueryClient({
 // Protected Route Component - redirects to setup if account incomplete
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles } = useAuth();
-  
-  // Enable session timeout for authenticated users
-  useSessionTimeout({ enabled: isAuthenticated });
 
   if (isLoading) {
     if (isAuthenticated) {
@@ -654,14 +650,6 @@ function AppRoutes() {
           <RoleProtectedRoute allowedRoles={['admin', 'nurse']}>
             <NurseCareProtocolsPage />
           </RoleProtectedRoute>
-        }
-      />
-      <Route
-        path="/notifications"
-        element={
-          <ProtectedRoute>
-            <NotificationsPage />
-          </ProtectedRoute>
         }
       />
       <Route

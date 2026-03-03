@@ -13,6 +13,10 @@ export default defineConfig({
       '**/node_modules/**',
       '**/.git/**',
       'services/**',
+      // Playwright spec files must not be picked up by Vitest — they use the
+      // Playwright test() API which conflicts with Vitest globals.
+      'tests/e2e/**',
+      '**/*.spec.ts',
     ],
     coverage: {
       provider: 'v8',
