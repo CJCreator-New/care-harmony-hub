@@ -1,13 +1,29 @@
 ﻿# Comprehensive File Cleanup Analysis
 
-Date: 2026-03-03  
-Project: `care-harmony-hub`
+**Date:** 2026-03-03  
+**Project:** `care-harmony-hub`  
+**Scope:** Full repository tree — all source, config, migrations, services, tests, scripts, and infra files.  
+Excludes `node_modules/`, `.git/`, `.venv/` internals.
 
-## 1) Audit Coverage
-This analysis traversed the full repository tree (all project directories), excluding only `.git` internals for safety.
+> **Status key:** ✅ Completed | 🔴 Critical/Pending | ⚠️ Review needed
 
-Scan baseline:
-- Total files: `86,886`
+---
+
+## Audit Baseline
+
+| Area | Count | Size |
+|------|------:|-----:|
+| `src/` | 1,565 files | 11.43 MB |
+| `services/*/dist/` artifacts | 140 files | ~605 KB |
+| `supabase/migrations/` | 30 files | ~700 KB |
+| `docs/` | 20 files | ~560 KB |
+| `monitoring/` | 14 files | ~40 KB |
+| `scripts/` | 17 files | ~90 KB |
+| `mobile/` + `mobile-app/` | 14 files | ~30 KB |
+
+---
+
+## Section 1 — CRITICAL Issues
 - Total size: `~870.77 MB`
 - Largest footprint areas:
   - `node_modules`: `~521.76 MB`
