@@ -18,8 +18,6 @@ import {
   Search,
   Mic,
   FileText,
-  ChevronDown,
-  CheckSquare,
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -87,6 +85,7 @@ export function RecordVitalsModal({
   const allPatients = patientsData?.patients || [];
   
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient);
+  const [patientSelectionError, setPatientSelectionError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [vitals, setVitals] = useState<VitalsData>({
@@ -119,6 +118,7 @@ export function RecordVitalsModal({
   useEffect(() => {
     if (initialPatient) {
       setSelectedPatient(initialPatient);
+      setPatientSelectionError(false);
     }
   }, [initialPatient]);
 
@@ -150,7 +150,7 @@ export function RecordVitalsModal({
       )
     : availablePatients;
 
-  const handleChange = (field: keyof VitalsData, value: string) => {
+  const handleChange = (field: keyof VitalsData, value: string | boolean) => {
     setVitals(prev => ({ ...prev, [field]: value }));
   };
 
@@ -166,9 +166,11 @@ export function RecordVitalsModal({
 
   const handleSubmit = async () => {
     if (!selectedPatient) {
+      setPatientSelectionError(true);
       toast.error('Please select a patient');
       return;
     }
+    setPatientSelectionError(false);
 
     if (!vitals.chief_complaint.trim()) {
       toast.error('Chief complaint is required');
@@ -215,7 +217,7 @@ export function RecordVitalsModal({
         throw new Error(errorMessage);
       }
 
-      toast.success('✅ Vitals recorded successfully');
+      toast.success('Vitals recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['vital-signs'] });
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       
@@ -345,9 +347,10 @@ export function RecordVitalsModal({
                     onValueChange={(value) => {
                       const patient = availablePatients.find(p => p.id === value);
                       setSelectedPatient(patient || null);
+                      setPatientSelectionError(false);
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={patientSelectionError ? 'border-destructive focus-visible:ring-destructive' : undefined}>
                       <SelectValue placeholder="Select a patient..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -364,6 +367,9 @@ export function RecordVitalsModal({
                       )}
                     </SelectContent>
                   </Select>
+                  {patientSelectionError && (
+                    <p className="text-sm text-destructive">Please select a patient before submitting.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -597,7 +603,7 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="patient_anxious"
                       checked={vitals.patient_anxious}
-                      onChange={(e) => handleChange('patient_anxious', e.target.checked.toString())}
+                      onChange={(e) => handleChange('patient_anxious', e.target.checked)}
                       className="rounded"
                     />
                     <Label htmlFor="patient_anxious" className="text-sm">Patient anxious/nervous</Label>
@@ -607,7 +613,7 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="language_barrier"
                       checked={vitals.language_barrier}
-                      onChange={(e) => handleChange('language_barrier', e.target.checked.toString())}
+                      onChange={(e) => handleChange('language_barrier', e.target.checked)}
                       className="rounded"
                     />
                     <Label htmlFor="language_barrier" className="text-sm">Language barrier present</Label>
@@ -617,7 +623,7 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="family_present"
                       checked={vitals.family_present}
-                      onChange={(e) => handleChange('family_present', e.target.checked.toString())}
+                      onChange={(e) => handleChange('family_present', e.target.checked)}
                       className="rounded"
                     />
                     <Label htmlFor="family_present" className="text-sm">Family member present</Label>
@@ -627,7 +633,7 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="requires_assistance"
                       checked={vitals.requires_assistance}
-                      onChange={(e) => handleChange('requires_assistance', e.target.checked.toString())}
+                      onChange={(e) => handleChange('requires_assistance', e.target.checked)}
                       className="rounded"
                     />
                     <Label htmlFor="requires_assistance" className="text-sm">Requires special assistance</Label>
@@ -637,7 +643,7 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="pain_management_needed"
                       checked={vitals.pain_management_needed}
-                      onChange={(e) => handleChange('pain_management_needed', e.target.checked.toString())}
+                      onChange={(e) => handleChange('pain_management_needed', e.target.checked)}
                       className="rounded"
                     />
                     <Label htmlFor="pain_management_needed" className="text-sm">Pain management needed</Label>
@@ -647,7 +653,7 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="mobility_concerns"
                       checked={vitals.mobility_concerns}
-                      onChange={(e) => handleChange('mobility_concerns', e.target.checked.toString())}
+                      onChange={(e) => handleChange('mobility_concerns', e.target.checked)}
                       className="rounded"
                     />
                     <Label htmlFor="mobility_concerns" className="text-sm">Mobility concerns</Label>
@@ -664,20 +670,20 @@ export function RecordVitalsModal({
                       type="checkbox"
                       id="mark_critical"
                       checked={vitals.mark_critical}
-                      onChange={(e) => handleChange('mark_critical', e.target.checked.toString())}
+                      onChange={(e) => handleChange('mark_critical', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="mark_critical" className="text-sm text-orange-700">☐ Mark as critical for doctor review</Label>
+                    <Label htmlFor="mark_critical" className="text-sm text-orange-700">Mark as critical for doctor review</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       id="requires_followup"
                       checked={vitals.requires_followup}
-                      onChange={(e) => handleChange('requires_followup', e.target.checked.toString())}
+                      onChange={(e) => handleChange('requires_followup', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="requires_followup" className="text-sm text-blue-700">☐ Requires follow-up documentation</Label>
+                    <Label htmlFor="requires_followup" className="text-sm text-blue-700">Requires follow-up documentation</Label>
                   </div>
                 </div>
               </div>
@@ -716,17 +722,6 @@ export function RecordVitalsModal({
               </div>
             </CardContent>
           </Card>
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label>Notes</Label>
-            <Textarea
-              placeholder="Additional observations..."
-              value={vitals.notes}
-              onChange={(e) => handleChange('notes', e.target.value)}
-              rows={3}
-            />
-          </div>
         </div>
 
         <DialogFooter>
@@ -741,3 +736,4 @@ export function RecordVitalsModal({
     </Dialog>
   );
 }
+

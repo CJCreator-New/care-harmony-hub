@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { Badge } from '@/components/ui/badge';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -138,7 +139,7 @@ export function BusinessIntelligenceDashboard() {
                   <Recharts.CartesianGrid strokeDasharray="3 3" />
                   <Recharts.XAxis dataKey="service" />
                   <Recharts.YAxis />
-                  <Recharts.Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+                  <Recharts.Tooltip formatter={(value) => [`${CURRENCY_SYMBOL}${value}`, 'Revenue']} />
                   <Recharts.Bar
                     dataKey="revenue"
                     fill="#8884d8"

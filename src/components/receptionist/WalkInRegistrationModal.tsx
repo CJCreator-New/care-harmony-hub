@@ -262,7 +262,7 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
                         <p className="font-medium">
                           {selectedPatient.first_name} {selectedPatient.last_name}
                         </p>
-                        <p className="text-sm text-muted-foreground">MRN: {selectedPatient.mrn}</p>
+                        <p className="text-sm text-muted-foreground font-mono">MRN: {selectedPatient.mrn}</p>
                       </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => setSelectedPatient(null)}>
@@ -273,36 +273,39 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
               </Card>
 
               {/* Priority Selection */}
-              <div className="space-y-2">
-                <Label>Priority Level</Label>
-                <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                    <SelectItem value="emergency">Emergency</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Priority Level</Label>
+                  <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[200]">
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="emergency">Emergency</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Department */}
-              <div className="space-y-2">
-                <Label>Department</Label>
-                <Select value={department} onValueChange={setDepartment}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="General">General</SelectItem>
-                    <SelectItem value="Emergency">Emergency</SelectItem>
-                    <SelectItem value="Outpatient">Outpatient</SelectItem>
-                    <SelectItem value="Pediatrics">Pediatrics</SelectItem>
-                    <SelectItem value="Cardiology">Cardiology</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Department */}
+                <div className="space-y-2">
+                  <Label>Department</Label>
+                  <Select value={department} onValueChange={setDepartment}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[200]">
+                      <SelectItem value="General">General</SelectItem>
+                      <SelectItem value="Emergency">Emergency</SelectItem>
+                      <SelectItem value="Outpatient">Outpatient</SelectItem>
+                      <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                      <SelectItem value="Cardiology">Cardiology</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Reason */}
@@ -319,18 +322,28 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="sm:justify-between border-t pt-4">
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground mr-auto">
             Cancel
           </Button>
           {selectedPatient && (
-            <Button
-              onClick={handleRegister}
-              disabled={addToQueue.isPending}
-            >
-              {addToQueue.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add to Queue
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSelectedPatient(null)}>
+                Back
+              </Button>
+              <Button
+                onClick={handleRegister}
+                disabled={addToQueue.isPending}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {addToQueue.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Confirm Registration
+              </Button>
+            </div>
           )}
         </DialogFooter>
       </DialogContent>

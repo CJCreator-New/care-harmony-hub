@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertTriangle, Plus, Search, Clock, Activity, Heart, Thermometer, Weight, Droplets, Moon, Flame } from 'lucide-react';
 import { useSymptomAnalysis } from '@/hooks/useSymptomAnalysis';
 import { Symptom, SymptomAnalysis, PossibleCondition } from '@/hooks/useSymptomAnalysis';
+import { toast } from 'sonner';
 
 const SYMPTOM_CATEGORIES = [
   { id: 'general', name: 'General', icon: Activity },
@@ -108,6 +109,9 @@ export function SymptomChecker() {
       };
       setSelectedSymptoms(prev => [...prev, newSymptom]);
       setCustomSymptom('');
+      toast.success('Custom symptom added');
+    } else {
+      toast.error('Enter a symptom name first');
     }
   };
 
@@ -171,9 +175,21 @@ export function SymptomChecker() {
         </CardHeader>
         <CardContent>
           <Tabs value={currentCategory} onValueChange={setCurrentCategory}>
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+            {/* stopPropagation prevents inner tab arrow-key presses from bubbling to the parent Tabs (PAT-007) */}
+            <TabsList
+              className="grid w-full grid-cols-4 lg:grid-cols-8"
+              onKeyDown={(e) => e.stopPropagation()}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onClickCapture={(e) => e.stopPropagation()}
+            >
               {SYMPTOM_CATEGORIES.map((category) => (
-                <TabsTrigger key={category.id} value={category.id} className="text-xs">
+                <TabsTrigger
+                  key={category.id}
+                  value={category.id}
+                  className="text-xs"
+                  onPointerDownCapture={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {category.name}
                 </TabsTrigger>
               ))}
@@ -203,19 +219,25 @@ export function SymptomChecker() {
               </div>
 
               <TabsContent value={currentCategory} className="mt-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {filteredSymptoms.map((symptom) => (
-                    <Button
-                      key={symptom.id}
-                      variant={selectedSymptoms.find(s => s.name === symptom.name) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleSymptomSelect(symptom.name)}
-                      className="text-left justify-start h-auto py-2 px-3"
-                    >
-                      {symptom.name}
-                    </Button>
-                  ))}
-                </div>
+                {filteredSymptoms.length === 0 ? (
+                  <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                    No symptoms match "{searchTerm}" in this category.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {filteredSymptoms.map((symptom) => (
+                      <Button
+                        key={symptom.id}
+                        variant={selectedSymptoms.find(s => s.name === symptom.name) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleSymptomSelect(symptom.name)}
+                        className="text-left justify-start h-auto py-2 px-3"
+                      >
+                        {symptom.name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </div>
           </Tabs>

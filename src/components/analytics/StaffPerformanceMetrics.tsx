@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -211,12 +212,16 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
             <div className="p-3 rounded-lg border-l-4 border-amber-500 bg-amber-50">
               <p className="font-medium text-amber-900">Documentation Lag</p>
               <p className="text-sm text-amber-700">Average time to finalize notes is 15% slower than peers.</p>
-              <Button variant="link" size="sm" className="px-0 h-auto text-amber-900 font-bold">Improve Now →</Button>
+              <Button variant="link" size="sm" className="px-0 h-auto text-amber-900 font-bold" asChild>
+                <Link to="/voice-clinical-notes">Improve Now →</Link>
+              </Button>
             </div>
             <div className="p-3 rounded-lg border-l-4 border-blue-500 bg-blue-50">
               <p className="font-medium text-blue-900">CE Credits</p>
               <p className="text-sm text-blue-700">3 required continuing education modules are due next week.</p>
-              <Button variant="link" size="sm" className="px-0 h-auto text-blue-900 font-bold">View Modules →</Button>
+              <Button variant="link" size="sm" className="px-0 h-auto text-blue-900 font-bold" asChild>
+                <Link to="/consultations">View Modules →</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

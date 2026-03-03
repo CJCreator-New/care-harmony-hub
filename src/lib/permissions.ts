@@ -34,7 +34,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'queue', 'queue:read', 'queue:write',
     'vitals', 'vitals:read', 'vitals:write',
     'medications', 'medications:read', 'medications:write',
-    'inventory:read',
     'consultations:read',
     'telemedicine:read',
     'lab:read',

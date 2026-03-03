@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -65,10 +71,11 @@ const navGroups: NavGroup[] = [
     roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
     defaultExpanded: true,
     items: [
-    { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'] },
+      { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'] },
       { label: 'Patients', href: '/patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'patients' },
       { label: 'Appointments', href: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'appointments' },
-      { label: 'Queue Management', href: '/queue', icon: ClipboardList, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'queue' },
+      { label: 'Smart Scheduler', href: '/scheduler', icon: Clock, roles: ['admin', 'receptionist'], permission: 'appointments' },
+      { label: 'Queue Management', href: '/queue', icon: ClipboardList, roles: ['admin', 'doctor', 'nurse', 'receptionist'], permission: 'queue:read' },
     ]
   },
   {
@@ -89,7 +96,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Pharmacy', href: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'], permission: 'pharmacy' },
       { label: 'Clinical Pharmacy', href: '/pharmacy/clinical', icon: Stethoscope, roles: ['admin', 'pharmacist'], permission: 'clinical-pharmacy' },
-      { label: 'Inventory', href: '/inventory', icon: Package, roles: ['admin', 'pharmacist', 'nurse'], permission: 'inventory:read' },
+      { label: 'Inventory', href: '/inventory', icon: Package, roles: ['admin', 'pharmacist'], permission: 'inventory:read' },
     ]
   },
   {
@@ -97,7 +104,7 @@ const navGroups: NavGroup[] = [
     icon: TestTube2,
     roles: ['admin', 'lab_technician', 'doctor', 'nurse'],
     items: [
-      { label: 'Laboratory', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'], permission: 'lab:read' },
+      { label: 'Lab Orders', href: '/laboratory', icon: TestTube2, roles: ['admin', 'lab_technician', 'doctor', 'nurse'], permission: 'lab:read' },
       { label: 'Lab Automation', href: '/laboratory/automation', icon: Activity, roles: ['admin', 'lab_technician'], permission: 'laboratory' },
     ]
   },
@@ -133,6 +140,7 @@ const navGroups: NavGroup[] = [
     roles: ['admin', 'receptionist'],
     items: [
       { label: 'Billing', href: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'], permission: 'billing:read' },
+      { label: 'Kiosk', href: '/kiosk', icon: Building, roles: ['admin', 'receptionist'], permission: 'patients' },
       { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin'], permission: 'reports' },
       { label: 'Workflow Dashboard', href: '/integration/workflow', icon: Zap, roles: ['admin'], permission: 'workflow-dashboard' },
     ]
@@ -203,40 +211,93 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
            (!item.permission || hasPermission(activeRole, item.permission))) : false;
   };
 
+  const allNavHrefs = navGroups.flatMap(g => g.items.map(i => i.href));
+
   const isActive = (href: string) => {
-    return location.pathname === href || location.pathname.startsWith(href + '/');
+    if (location.pathname === href) return true;
+    if (!location.pathname.startsWith(href + '/')) return false;
+    // Don't highlight parent when a more-specific sibling nav item matches exactly
+    return !allNavHrefs.some(
+      other => other !== href && other.startsWith(href + '/') && location.pathname === other
+    );
   };
 
   // ── Collapsed mode: flat icon-only list with tooltips ──────────────────────
   if (collapsed) {
-    const allItems = navGroups
+    const collapsedGroups = navGroups
       .filter(hasAccessToGroup)
-      .flatMap(group => group.items.filter(hasAccessToItem));
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(hasAccessToItem),
+      }))
+      .filter((group) => group.items.length > 0);
 
     return (
       <TooltipProvider delayDuration={0}>
         <nav className={cn('flex flex-col items-center gap-1', className)} aria-label="Main navigation">
-          {allItems.map((item) => (
-            <Tooltip key={item.href}>
-              <TooltipTrigger asChild>
-                <Link to={item.href} aria-label={item.label}>
-                  <Button
-                    className={cn(
-                      'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
-                      isActive(item.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    )}
-                    size="icon"
-                    aria-current={isActive(item.href) ? 'page' : undefined}
-                  >
-                    <item.icon className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="font-medium">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {collapsedGroups.map((group) => {
+            const groupActive = group.items.some((item) => isActive(item.href));
+            const firstItem = group.items[0];
+
+            if (group.items.length === 1) {
+              return (
+                <Tooltip key={group.label}>
+                  <TooltipTrigger asChild>
+                    <Link to={firstItem.href} aria-label={firstItem.label}>
+                      <Button
+                        className={cn(
+                          'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
+                          isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        )}
+                        size="icon"
+                        aria-current={isActive(firstItem.href) ? 'page' : undefined}
+                      >
+                        <firstItem.icon className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    {firstItem.label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return (
+              <DropdownMenu key={group.label}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        className={cn(
+                          'relative w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
+                          groupActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        )}
+                        size="icon"
+                        aria-label={`${group.label} menu`}
+                      >
+                        <group.icon className="h-4 w-4" />
+                        <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    {group.label}
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent side="right" align="start" className="w-56">
+                  {group.items.map((item) => (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link to={item.href} className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })}
         </nav>
       </TooltipProvider>
     );

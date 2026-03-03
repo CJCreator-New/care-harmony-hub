@@ -61,7 +61,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
 const formSchema = z.object({
-  patient_id: z.string().min(1, "Please select a patient"),
+  patient_id: z.string().min(1, "Patient is required"),
   doctor_id: z.string().optional(),
   scheduled_date: z.date({ required_error: "Please select a date" }),
   scheduled_time: z.string().min(1, "Please select a time"),
@@ -162,7 +162,7 @@ export function ScheduleAppointmentModal({
       name: `${patient.first_name} ${patient.last_name}`,
       mrn: patient.mrn,
     });
-    form.setValue("patient_id", patient.id);
+    form.setValue("patient_id", patient.id, { shouldValidate: true });
     setPatientSearch("");
   };
 

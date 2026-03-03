@@ -87,11 +87,15 @@ export function WorkflowDashboard() {
       new Date(task.created_at) >= startDate
     ).length || 0;
 
-    const avgCompletionTime = myTasks?.filter(task => task.completed_at).reduce((acc, task) => {
+    const completedTasksWithTime = myTasks?.filter(task => task.completed_at) ?? [];
+    const totalCompletionMs = completedTasksWithTime.reduce((acc, task) => {
       const created = new Date(task.created_at);
       const completed = new Date(task.completed_at!);
       return acc + (completed.getTime() - created.getTime());
-    }, 0) / (myTasks?.filter(task => task.completed_at).length || 1) / (1000 * 60 * 60); // hours
+    }, 0);
+    const avgCompletionTime = completedTasksWithTime.length > 0
+      ? totalCompletionMs / completedTasksWithTime.length / (1000 * 60 * 60)
+      : 0;
 
     return {
       completedTasks,

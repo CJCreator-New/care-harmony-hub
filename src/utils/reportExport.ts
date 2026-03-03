@@ -1,6 +1,7 @@
 import { DailySummary, ReportStats } from '@/hooks/useReports';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/currency';
 
 interface ExportData {
   stats: ReportStats | undefined;
@@ -12,7 +13,6 @@ interface ExportData {
 export function exportToCSV({ stats, dailyData, period, hospitalName }: ExportData): void {
   if (!dailyData) return;
 
-  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
   const today = format(new Date(), 'yyyy-MM-dd');
   
   let csv = `Hospital Report - ${hospitalName}\n`;
@@ -62,7 +62,6 @@ export function exportToCSV({ stats, dailyData, period, hospitalName }: ExportDa
 export function exportToPDF({ stats, dailyData, period, hospitalName }: ExportData): void {
   if (!dailyData) return;
 
-  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
   const today = format(new Date(), 'yyyy-MM-dd');
 
   // Generate HTML for print-to-PDF
@@ -177,7 +176,6 @@ export async function sendReportByEmail({
 }: ExportData & { recipientEmail: string }): Promise<void> {
   if (!dailyData) return;
 
-  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
   const today = format(new Date(), 'yyyy-MM-dd');
   
   let reportContent = `Hospital Report - ${hospitalName}\n`;

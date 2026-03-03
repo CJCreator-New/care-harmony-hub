@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getGreeting } from '@/lib/utils/datetime';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -58,9 +57,6 @@ export function NurseDashboard() {
               Patient queue and vitals management.
             </p>
           </div>
-          <Badge variant="nurse" className="w-fit text-sm py-1.5 px-4">
-            Nurse
-          </Badge>
         </div>
       </div>
 

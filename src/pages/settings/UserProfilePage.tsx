@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTwoFactorAuth } from '@/hooks/useTwoFactorAuth';
 import { TwoFactorSetupModal } from '@/components/auth/TwoFactorSetupModal';
@@ -55,6 +56,7 @@ export function UserProfilePage() {
   }
 
   return (
+    <DashboardLayout>
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <h1 className="text-3xl font-bold">Profile Settings</h1>
@@ -203,6 +205,7 @@ export function UserProfilePage() {
         }}
       />
     </div>
+    </DashboardLayout>
   );
 }
 

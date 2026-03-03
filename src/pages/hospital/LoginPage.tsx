@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +16,7 @@ import { TwoFactorVerifyModal } from '@/components/auth/TwoFactorVerifyModal';
 import { BackupCodeVerifyModal } from '@/components/auth/BackupCodeVerifyModal';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
 
-// ── Validation schema ─────────────────────────────────────────────────────────
+// â”€â”€ Validation schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -26,12 +26,12 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
-  // 2FA state — separate from form state (flow concern, not input concern)
+  // 2FA state â€” separate from form state (flow concern, not input concern)
   const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
   const [showBackupCodeModal, setShowBackupCodeModal] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export default function LoginPage() {
     clearDevTestRole();
     if (typeof window !== 'undefined') window.localStorage.removeItem('preferredRole');
     if (hadDevOverride) {
-      toast.info('Dev role override cleared — login flow uses authenticated roles only.');
+      toast.info('Dev role override cleared â€” login flow uses authenticated roles only.');
     }
   }, []);
 
@@ -75,35 +75,50 @@ export default function LoginPage() {
   };
 
   const onSubmit = async (data: LoginFormData) => {
-    const { error } = await login(data.email, data.password);
+    try {
+      const { error } = await login(data.email, data.password);
 
-    if (error) {
-      toast.error('Login Failed', {
-        description: error.message || 'Invalid email or password. Please try again.',
-      });
-      return;
-    }
+      if (error) {
+        form.setError('root', { message: error.message || 'Invalid email or password.' });
+        toast.error('Login Failed', {
+          description: error.message || 'Invalid email or password. Please try again.',
+        });
+        return;
+      }
 
-    if (isE2EMockAuthEnabled) {
-      logActivity({ actionType: 'login', details: { email: data.email } });
-      clearDevTestRole();
-      toast.success('Welcome back!', { description: 'You have successfully logged in.' });
-      navigate('/dashboard');
-      return;
-    }
+      if (isE2EMockAuthEnabled) {
+        logActivity({ actionType: 'login', details: { email: data.email } });
+        clearDevTestRole();
+        toast.success('Welcome back!', { description: 'You have successfully logged in.' });
+        navigate('/dashboard');
+        return;
+      }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        // Auth succeeded but session couldn't be read — sign out cleanly and ask user to retry
+        await supabase.auth.signOut();
+        form.setError('root', { message: 'Session could not be established. Please try again.' });
+        toast.error('Login Failed', { description: 'Session could not be established. Please try again.' });
+        return;
+      }
+
       const requires2FA = await checkTwoFactorRequired(user.id);
       if (requires2FA) {
         setPendingUserId(user.id);
         setShowTwoFactorModal(true);
         return;
       }
+
       logActivity({ actionType: 'login', details: { email: data.email } });
       clearDevTestRole();
       toast.success('Welcome back!', { description: 'You have successfully logged in.' });
       navigate('/dashboard');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      form.setError('root', { message });
+      toast.error('Login Failed', { description: message });
     }
   };
 
@@ -160,7 +175,7 @@ export default function LoginPage() {
         </div>
 
         <div className="text-sm text-white/60">
-          © {new Date().getFullYear()} AROCORD Healthcare Solutions
+          Â© {new Date().getFullYear()} AROCORD Healthcare Solutions
         </div>
       </div>
 
@@ -235,7 +250,7 @@ export default function LoginPage() {
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="••••••••"
+                          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                           autoComplete="current-password"
                           className="h-12 pr-12"
                           aria-required="true"
@@ -266,7 +281,7 @@ export default function LoginPage() {
                       <Checkbox
                         id="remember"
                         checked={field.value}
-                        onCheckedChange={field.onChange}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
                       />
                     </FormControl>
                     <FormLabel htmlFor="remember" className="text-sm font-normal cursor-pointer">
@@ -275,6 +290,12 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+
+              {form.formState.errors.root && (
+                <p className="text-sm font-medium text-destructive">
+                  {form.formState.errors.root.message}
+                </p>
+              )}
 
               <Button type="submit" size="xl" className="w-full" disabled={isLoading}>
                 {isLoading ? (
@@ -297,6 +318,38 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
+
+          {/* Dev / mock-auth credential hint — only visible when VITE_E2E_MOCK_AUTH=true */}
+          {import.meta.env.VITE_E2E_MOCK_AUTH === 'true' && (
+            <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 space-y-3">
+              <p className="text-xs font-semibold text-warning uppercase tracking-wide">Mock Auth Mode — Test Credentials</p>
+              <p className="text-xs text-muted-foreground">All accounts share password: <code className="font-mono font-bold">TestPass123!</code></p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                {[
+                  { role: 'Admin', email: 'admin@testgeneral.com' },
+                  { role: 'Doctor', email: 'doctor@testgeneral.com' },
+                  { role: 'Nurse', email: 'nurse@testgeneral.com' },
+                  { role: 'Receptionist', email: 'reception@testgeneral.com' },
+                  { role: 'Pharmacist', email: 'pharmacy@testgeneral.com' },
+                  { role: 'Lab Tech', email: 'lab@testgeneral.com' },
+                  { role: 'Patient', email: 'patient@testgeneral.com' },
+                ].map(({ role, email }) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className="text-left hover:text-primary transition-colors py-0.5"
+                    onClick={() => {
+                      form.setValue('email', email);
+                      form.setValue('password', 'TestPass123!');
+                    }}
+                  >
+                    <span className="font-medium">{role}:</span>{' '}
+                    <span className="text-muted-foreground">{email}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -316,335 +369,6 @@ export default function LoginPage() {
           <BackupCodeVerifyModal
             open={showBackupCodeModal}
             onOpenChange={(open) => { if (!open) handleCancelTwoFactor(); }}
-            onVerified={handleTwoFactorVerified}
-            onBack={() => {
-              setShowBackupCodeModal(false);
-              setShowTwoFactorModal(true);
-            }}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // 2FA state
-  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
-  const [showBackupCodeModal, setShowBackupCodeModal] = useState(false);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-
-  const { login } = useAuth();
-  const isE2EMockAuthEnabled = import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
-  const { logActivity } = useActivityLog();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    // Prevent stale dev role overrides from forcing unexpected role switches
-    // when users enter the real login flow.
-    const hadDevOverride =
-      import.meta.env.DEV &&
-      typeof window !== 'undefined' &&
-      !!window.localStorage.getItem('testRole');
-    clearDevTestRole();
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('preferredRole');
-    }
-    if (hadDevOverride) {
-      toast({
-        title: 'Dev role override cleared',
-        description: 'Login flow is using authenticated roles only.',
-      });
-    }
-  }, [toast]);
-
-  const checkTwoFactorRequired = async (userId: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('two_factor_enabled')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error checking 2FA status:', error);
-        return false;
-      }
-
-      return data?.two_factor_enabled === true;
-    } catch (error) {
-      console.error('Error checking 2FA:', error);
-      return false;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const { error } = await login(email, password);
-      
-      if (error) {
-        toast({
-          title: 'Login Failed',
-          description: error.message || 'Invalid email or password. Please try again.',
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // In E2E mock mode, Supabase has no real session — navigate directly
-      if (isE2EMockAuthEnabled) {
-        logActivity({ actionType: 'login', details: { email } });
-        clearDevTestRole();
-        toast({
-          title: 'Welcome back!',
-          description: 'You have successfully logged in.',
-        });
-        navigate('/dashboard');
-        return;
-      }
-
-      // Get current user to check 2FA
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const requires2FA = await checkTwoFactorRequired(user.id);
-        
-        if (requires2FA) {
-          setPendingUserId(user.id);
-          setShowTwoFactorModal(true);
-          setIsLoading(false);
-          return;
-        }
-
-        // No 2FA required, proceed to dashboard
-        logActivity({ actionType: 'login', details: { email } });
-        clearDevTestRole();
-        toast({
-          title: 'Welcome back!',
-          description: 'You have successfully logged in.',
-        });
-        navigate('/dashboard');
-      }
-    } catch (error) {
-      toast({
-        title: 'Login Failed',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTwoFactorVerified = () => {
-    setShowTwoFactorModal(false);
-    setShowBackupCodeModal(false);
-    setPendingUserId(null);
-    
-    logActivity({ actionType: 'login', details: { email, twoFactorUsed: true } });
-    clearDevTestRole();
-    toast({
-      title: 'Welcome back!',
-      description: 'You have successfully logged in with 2FA.',
-    });
-    navigate('/dashboard');
-  };
-
-  const handleCancelTwoFactor = async () => {
-    // Sign out since 2FA wasn't verified
-    await supabase.auth.signOut();
-    setShowTwoFactorModal(false);
-    setShowBackupCodeModal(false);
-    setPendingUserId(null);
-    toast({
-      title: 'Login Cancelled',
-      description: 'Two-factor authentication is required for this account.',
-      variant: 'destructive',
-    });
-  };
-
-  return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero p-12 flex-col justify-between text-white">
-        <div>
-          <Link to="/hospital" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
-              <Activity className="w-6 h-6" />
-            </div>
-            <span className="text-2xl font-bold">AROCORD-HIMS</span>
-          </Link>
-        </div>
-
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight">
-            Secure Healthcare
-            <br />
-            Information Management
-          </h1>
-          <p className="text-lg text-white/80 max-w-md">
-            Access your hospital's complete healthcare management system. 
-            Manage patients, appointments, prescriptions, and more.
-          </p>
-
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-white/10 backdrop-blur max-w-md">
-            <Shield className="w-8 h-8 text-white/80" />
-            <div>
-              <p className="font-semibold">HIPAA Compliant</p>
-              <p className="text-sm text-white/70">Your data is protected with enterprise-grade security</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-sm text-white/60">
-          © {new Date().getFullYear()} AROCORD Healthcare Solutions
-        </div>
-      </div>
-
-      {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="lg:hidden flex items-center justify-center mb-8">
-            <Link to="/hospital" className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
-                <Activity className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-bold">AROCORD-HIMS</span>
-            </Link>
-          </div>
-
-          <div>
-            <Link
-              to="/hospital"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Home
-            </Link>
-            <h2 className="text-3xl font-bold">Welcome Back</h2>
-            <p className="text-muted-foreground mt-2">
-              Sign in to access your hospital dashboard
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@hospital.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  to="/hospital/forgot-password"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-12 pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="remember"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-                Remember me for 30 days
-              </Label>
-            </div>
-
-            <Button type="submit" size="xl" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
-
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
-              <Link to="/hospital/signup" className="text-primary font-medium hover:underline">
-                Register your hospital
-              </Link>
-            </p>
-          </div>
-
-          {/* Note about demo */}
-          <div className="p-4 rounded-xl bg-muted border border-border">
-            <p className="text-sm font-medium mb-2">Getting Started:</p>
-            <p className="text-sm text-muted-foreground">
-              Create a new account via the signup page to get started with your hospital.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 2FA Modals */}
-      {pendingUserId && (
-        <>
-          <TwoFactorVerifyModal
-            open={showTwoFactorModal}
-            onOpenChange={(open) => {
-              if (!open) handleCancelTwoFactor();
-            }}
-            userId={pendingUserId}
-            onVerified={handleTwoFactorVerified}
-            onUseBackupCode={() => {
-              setShowTwoFactorModal(false);
-              setShowBackupCodeModal(true);
-            }}
-          />
-
-          <BackupCodeVerifyModal
-            open={showBackupCodeModal}
-            onOpenChange={(open) => {
-              if (!open) handleCancelTwoFactor();
-            }}
             onVerified={handleTwoFactorVerified}
             onBack={() => {
               setShowBackupCodeModal(false);

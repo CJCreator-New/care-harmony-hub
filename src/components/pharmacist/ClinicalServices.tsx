@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClinicalPharmacy } from '@/hooks/useClinicalPharmacy';
 import { useDrugUtilizationReview } from '@/hooks/useDrugUtilizationReview';
+import { formatCurrency } from '@/lib/currency';
 import {
   Stethoscope,
   AlertTriangle,
@@ -152,7 +153,7 @@ export function ClinicalServices({ className }: ClinicalServicesProps) {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${durStats?.cost_savings || 0}</div>
+            <div className="text-2xl font-bold">{formatCurrency(durStats?.cost_savings || 0)}</div>
             <p className="text-xs text-muted-foreground">
               This month
             </p>

@@ -219,7 +219,7 @@ export default function ConsultationsPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : filteredConsultations?.length === 0 ? (
+                ) : !filteredConsultations?.length ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No consultations found

@@ -371,6 +371,7 @@ export interface CreateConsultation {
   clinical_notes?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface UpdateConsultation extends Partial<CreateConsultation> {}
 
 export interface ClinicalWorkflow {

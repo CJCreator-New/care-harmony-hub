@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Form,
   FormControl,
@@ -81,6 +92,8 @@ interface CreateLabOrderModalProps {
 export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalProps) {
   const { hospital, profile } = useAuth();
   const [patientSearch, setPatientSearch] = useState('');
+  const [patientError, setPatientError] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<{
     id: string;
     name: string;
@@ -107,7 +120,29 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
     },
   });
 
+  const resetAndClose = () => {
+    form.reset();
+    setSelectedPatient(null);
+    setPatientSearch('');
+    setPatientError(false);
+    setShowDiscardConfirm(false);
+    onOpenChange(false);
+  };
+
+  /** Intercept close events to show a discard-changes warning when the form is dirty */
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      const isDirty = form.formState.isDirty || !!selectedPatient || patientSearch.length > 0;
+      if (isDirty) {
+        setShowDiscardConfirm(true);
+        return;
+      }
+    }
+    onOpenChange(nextOpen);
+  };
+
   const handlePatientSelect = (patient: (typeof filteredPatients)[number]) => {
+    setPatientError(false);
     setSelectedPatient({
       id: patient.id,
       name: `${patient.first_name} ${patient.last_name}`,
@@ -117,7 +152,11 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
   };
 
   const onSubmit = async (data: FormData) => {
-    if (!selectedPatient || !hospital?.id || !profile?.id) return;
+    if (!selectedPatient) {
+      setPatientError(true);
+      return;
+    }
+    if (!hospital?.id || !profile?.id) return;
 
     await createOrder.mutateAsync({
       hospital_id: hospital.id,
@@ -135,14 +174,12 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
       description: `${data.test_name} ordered for ${selectedPatient.name} (MRN: ${selectedPatient.mrn})`,
     });
 
-    form.reset();
-    setSelectedPatient(null);
-    setPatientSearch('');
-    onOpenChange(false);
+    resetAndClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Lab Order</DialogTitle>
@@ -164,8 +201,7 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedPatient(null)}
-                  >
+                    onClick={() => { setSelectedPatient(null); setPatientError(false); }}>
                     Change
                   </Button>
                 </div>
@@ -175,12 +211,12 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Search patient by name or MRN…"
-                      className="pl-9"
+                      className={cn("pl-9", patientError && "border-destructive")}
                       value={patientSearch}
                       onChange={(e) => setPatientSearch(e.target.value)}
                     />
                   </div>
-                  <div className="border rounded-md max-h-40 overflow-auto">
+                  <div className={cn("border rounded-md max-h-40 overflow-auto", patientError && "border-destructive")}>
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -219,6 +255,9 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
                     </Table>
                   </div>
                 </div>
+              )}
+              {patientError && (
+                <p className="text-sm text-destructive">Please select a patient before submitting.</p>
               )}
             </div>
 
@@ -334,12 +373,12 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={!selectedPatient || createOrder.isPending}
+                disabled={createOrder.isPending}
               >
                 {createOrder.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Create Lab Order
@@ -349,5 +388,25 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
         </Form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved information in this form. If you close now, your changes will be lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep editing</AlertDialogCancel>
+          <AlertDialogAction onClick={resetAndClose}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Discard &amp; close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

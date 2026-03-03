@@ -83,61 +83,60 @@ const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateA
     className="cursor-pointer hover:bg-muted/50 transition-colors"
     onClick={() => onViewProfile(patient)}
   >
-    <TableCell>
+    <TableCell className="text-left">
       <Badge variant="outline" className="font-mono">
         {patient.mrn}
       </Badge>
     </TableCell>
-    <TableCell className="font-medium">
+    <TableCell className="font-medium text-left">
       {patient.first_name} {patient.last_name}
     </TableCell>
-    <TableCell>
+    <TableCell className="text-left">
       <div className="flex items-center gap-2">
-        <span>{calculateAge(patient.date_of_birth)}</span>
-        <Badge variant="secondary" className="text-xs">
+        <span className="font-medium">{calculateAge(patient.date_of_birth)}y</span>
+        <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
           {genderLabels[patient.gender] || patient.gender}
         </Badge>
       </div>
     </TableCell>
-    <TableCell>
+    <TableCell className="text-left">
       <div className="space-y-1">
-        {patient.phone && (
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Phone className="h-3 w-3" />
-            {patient.phone}
+        {patient.phone ? (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Phone className="h-3.5 w-3.5" />
+            <span>{patient.phone}</span>
           </div>
+        ) : (
+          <span className="text-sm text-muted-foreground italic">No phone</span>
         )}
         {patient.email && (
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Mail className="h-3 w-3" />
-            {patient.email}
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Mail className="h-3.5 w-3.5" />
+            <span className="truncate max-w-[150px]">{patient.email}</span>
           </div>
-        )}
-        {!patient.phone && !patient.email && (
-          <span className="text-sm text-muted-foreground">—</span>
         )}
       </div>
     </TableCell>
-    <TableCell>
+    <TableCell className="text-left">
       {patient.blood_type ? (
-        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
+        <Badge variant="outline" className="bg-destructive/5 text-destructive border-destructive/20 font-bold">
           {patient.blood_type}
         </Badge>
       ) : (
         <span className="text-muted-foreground">—</span>
       )}
     </TableCell>
-    <TableCell className="text-muted-foreground">
+    <TableCell className="text-left text-muted-foreground">
       {format(new Date(patient.created_at), 'MMM d, yyyy')}
     </TableCell>
-    <TableCell>
+    <TableCell className="text-right">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Patient options" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" aria-label="Patient options" onClick={(e) => e.stopPropagation()} className="h-8 w-8 hover:bg-primary/10">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-[180px]">
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewProfile(patient); }}>
             <Eye className="h-4 w-4 mr-2" />
             View Profile
@@ -146,9 +145,13 @@ const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateA
             <Calendar className="h-4 w-4 mr-2" />
             Book Appointment
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewProfile(patient); }}>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for billing */ }}>
+            <CreditCard className="h-4 w-4 mr-2" />
+            Generate Invoice
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for history */ }}>
             <FileText className="h-4 w-4 mr-2" />
-            Medical Records
+            Record History
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -369,13 +372,13 @@ export default function PatientsPage() {
               <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>MRN</TableHead>
-                  <TableHead>Patient Name</TableHead>
-                  <TableHead>Age / Gender</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Blood Type</TableHead>
-                  <TableHead>Registered</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="text-left font-bold text-foreground">MRN</TableHead>
+                  <TableHead className="text-left font-bold text-foreground">Patient Name</TableHead>
+                  <TableHead className="text-left font-bold text-foreground">Age / Gender</TableHead>
+                  <TableHead className="text-left font-bold text-foreground">Contact</TableHead>
+                  <TableHead className="text-left font-bold text-foreground">Blood Type</TableHead>
+                  <TableHead className="text-left font-bold text-foreground">Registered</TableHead>
+                  <TableHead className="text-right font-bold text-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

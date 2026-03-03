@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,9 +18,8 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { useRecordMedicationAdministration, useMedicationAdministrations } from '@/hooks/useNurseWorkflow';
+import { useRecordMedicationAdministration } from '@/hooks/useNurseWorkflow';
 import { useSearchPatients } from '@/hooks/usePatients';
-import { format } from 'date-fns';
 
 interface MedicationAdministrationModalProps {
   open: boolean;
@@ -70,8 +68,18 @@ export function MedicationAdministrationModal({
   }, [open, initialPatient]);
 
   const handleSubmit = async () => {
-    if (!selectedPatient || !medicationName || !dosage) {
-      toast.error('Please fill in all required fields');
+    if (!selectedPatient) {
+      toast.error('Please select a patient before recording administration.');
+      return;
+    }
+
+    if (!medicationName.trim()) {
+      toast.error('Medication name is required.');
+      return;
+    }
+
+    if (!dosage.trim()) {
+      toast.error('Dosage is required.');
       return;
     }
 
@@ -288,10 +296,7 @@ export function MedicationAdministrationModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedPatient || !medicationName || !dosage || recordAdministration.isPending}
-          >
+          <Button onClick={handleSubmit} disabled={recordAdministration.isPending}>
             {recordAdministration.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Record Administration
           </Button>

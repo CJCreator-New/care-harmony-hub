@@ -12,12 +12,14 @@ interface State {
   hasError: boolean;
   error?: Error;
   errorInfo?: ErrorInfo;
+  /** Incremented on every reset so that React remounts the full child tree (PAT-011) */
+  resetKey: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, resetKey: 0 };
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -74,7 +76,12 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   handleReset = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+    this.setState((prev) => ({
+      hasError: false,
+      error: undefined,
+      errorInfo: undefined,
+      resetKey: prev.resetKey + 1,
+    }));
   };
 
   render() {
@@ -94,7 +101,7 @@ export class ErrorBoundary extends Component<Props, State> {
               We're sorry, but something unexpected happened. Please try refreshing the page or contact support if the problem persists.
             </p>
 
-            {import.meta.env.DEV && this.state.error && (
+            {import.meta.env.DEV && this.state.error && !window.location.pathname.startsWith('/patient') && (
               <div className="mb-6 p-4 bg-red-50 rounded-lg text-left">
                 <h3 className="font-medium text-red-800 mb-2">Error Details (Development)</h3>
                 <p className="text-sm text-red-700 font-mono break-all">
@@ -125,6 +132,11 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    return (
+      // key forces a full child remount after every reset, preventing stale error state
+      <React.Fragment key={this.state.resetKey}>
+        {this.props.children}
+      </React.Fragment>
+    );
   }
 }

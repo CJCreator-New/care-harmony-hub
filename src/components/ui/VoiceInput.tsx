@@ -64,6 +64,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [selectedICD10Codes, setSelectedICD10Codes] = useState<ICD10Suggestion[]>([]);
   const [selectedCPTCodes, setSelectedCPTCodes] = useState<CPTSuggestion[]>([]);
+  const [hasSessionStarted, setHasSessionStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const latencyRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
@@ -187,6 +189,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         language: selectedLanguage,
         medicalMode: true,
       });
+      setHasSessionStarted(true);
+      setIsPaused(false);
 
       toast({
         title: "Voice Input Started",
@@ -205,6 +209,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   const handleStopListening = useCallback(async () => {
     try {
       await stopListening();
+      setIsPaused(false);
 
       toast({
         title: "Voice Input Stopped",
@@ -224,12 +229,14 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
     try {
       if (isListening) {
         await pauseListening();
+        setIsPaused(true);
         toast({
           title: "Voice Input Paused",
           description: "Click resume to continue",
         });
       } else {
         await resumeListening();
+        setIsPaused(false);
         toast({
           title: "Voice Input Resumed",
           description: "Listening again",
@@ -397,14 +404,16 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             </Button>
           )}
 
-          <Button
-            onClick={handlePauseResume}
-            disabled={disabled || !isListening}
-            variant="outline"
-            size="sm"
-          >
-            {isListening ? 'Pause' : 'Resume'}
-          </Button>
+          {(isListening || (hasSessionStarted && isPaused)) && (
+            <Button
+              onClick={handlePauseResume}
+              disabled={disabled || (!isListening && !isPaused)}
+              variant="outline"
+              size="sm"
+            >
+              {isListening ? 'Pause' : 'Resume'}
+            </Button>
+          )}
 
           <Button
             onClick={handleClearTranscript}
@@ -430,8 +439,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
           </Label>
         </div>
 
-        {/* Real-time Metrics */}
-        {showLatency && (
+        {/* Real-time Metrics — only shown when actively recording */}
+        {showLatency && isListening && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg">
             <div className="text-center">
               <div className="text-lg font-semibold text-blue-600">
@@ -453,10 +462,24 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-orange-600">
-                {currentProvider || 'None'}
+                {currentProvider || 'Web API'}
               </div>
               <div className="text-xs text-muted-foreground">Provider</div>
             </div>
+          </div>
+        )}
+
+        {/* Status indicator when metrics are enabled but not yet recording */}
+        {showLatency && !isListening && (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 text-sm text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-muted-foreground/40 inline-block" />
+            No active session — press <strong>Start Recording</strong> to begin transcription
+          </div>
+        )}
+
+        {connectionStatus === 'disconnected' && !isListening && (
+          <div className="text-xs text-muted-foreground rounded-md border border-border p-2">
+            Voice input is disconnected. Click <strong>Start Recording</strong> to connect your microphone.
           </div>
         )}
 

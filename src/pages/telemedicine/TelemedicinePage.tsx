@@ -28,6 +28,7 @@ import { VideoCallModal } from '@/components/telemedicine/VideoCallModal';
 import { useAppointments } from '@/hooks/useAppointments';
 import { usePatients } from '@/hooks/usePatients';
 import { format, parseISO, isToday } from 'date-fns';
+import { toast } from 'sonner';
 
 export default function TelemedicinePage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,7 +70,10 @@ export default function TelemedicinePage() {
 
   const handleConfirmPatientPick = () => {
     const patient = patients.find((p: any) => p.id === pickerPatientId);
-    if (!patient) return;
+    if (!patient) {
+      toast.error('Please select a patient to start the call.');
+      return;
+    }
     setSelectedPatient(patient);
     setIsPatientPickerOpen(false);
     setIsVideoModalOpen(true);
@@ -295,7 +299,7 @@ export default function TelemedicinePage() {
             <Button variant="outline" onClick={() => setIsPatientPickerOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={!pickerPatientId} onClick={handleConfirmPatientPick}>
+            <Button onClick={handleConfirmPatientPick} title={!pickerPatientId ? 'Please select a patient first' : 'Start the video call'}>
               <Video className="h-4 w-4 mr-2" />
               Start Call
             </Button>

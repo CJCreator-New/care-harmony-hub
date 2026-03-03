@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import { formatDistanceToNow, differenceInYears } from 'date-fns';
 export function LabTechDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: stats, isLoading: statsLoading } = useLabTechStats();
   const { data: pendingOrders, isLoading: ordersLoading } = usePendingLabOrders();
   const updateLabOrder = useUpdateLabOrder();
@@ -62,9 +63,10 @@ export function LabTechDashboard() {
   };
 
   const getDisplayName = () => {
-    const name = profile?.first_name?.trim();
+    const name = profile?.first_name?.trim() || '';
     if (!name) return 'Lab Technician';
-    return name.replace(/'s$/i, '');
+    // Use the first word as the first name (BUG-008)
+    return name.split(' ')[0].replace(/'s$/i, '');
   };
 
   const getStatusBadge = (status: string) => {
@@ -124,19 +126,28 @@ export function LabTechDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button asChild>
+        <Button 
+          variant={location.search.includes('tab=pending') || location.pathname === '/laboratory' && !location.search ? "default" : "outline"}
+          asChild
+        >
           <Link to="/laboratory">
             <TestTube2 className="h-4 w-4 mr-2" />
             Pending Orders
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button 
+          variant={location.search.includes('tab=collected') ? "default" : "outline"}
+          asChild
+        >
           <Link to="/laboratory?tab=collected">
             <Syringe className="h-4 w-4 mr-2" />
             Sample Collection
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button 
+          variant={location.search.includes('tab=results') ? "default" : "outline"}
+          asChild
+        >
           <Link to="/laboratory?tab=results">
             <Upload className="h-4 w-4 mr-2" />
             Enter Results
@@ -148,31 +159,35 @@ export function LabTechDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Orders"
-          value={statsLoading ? '--' : String(stats?.pending || 0)}
+          value={statsLoading ? '...' : (stats?.pending || 0)}
           subtitle="Awaiting collection"
           icon={FileText}
           variant="warning"
+          className="border-warning/20 shadow-sm"
         />
         <StatsCard
           title="In Progress"
-          value={statsLoading ? '--' : String((stats?.collected || 0) + (stats?.inProgress || 0))}
+          value={statsLoading ? '...' : ((stats?.collected || 0) + (stats?.inProgress || 0))}
           subtitle="Being processed"
           icon={TestTube2}
           variant="primary"
+          className="border-primary/20 shadow-sm"
         />
         <StatsCard
           title="Completed Today"
-          value={statsLoading ? '--' : String(stats?.completedToday || 0)}
+          value={statsLoading ? '...' : (stats?.completedToday || 0)}
           subtitle="Results uploaded"
           icon={CheckCircle2}
           variant="success"
+          className="border-success/20 shadow-sm"
         />
         <StatsCard
           title="Critical Values"
-          value={statsLoading ? '--' : String(stats?.critical || 0)}
+          value={statsLoading ? '...' : (stats?.critical || 0)}
           subtitle="Need notification"
           icon={AlertTriangle}
           variant="danger"
+          className="border-destructive/20 shadow-sm"
         />
       </div>
 
@@ -199,12 +214,15 @@ export function LabTechDashboard() {
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <TestTube2 className="h-5 w-5 text-primary" />
-                    Lab Order Queue
-                  </CardTitle>
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <TestTube2 className="h-5 w-5 text-primary" />
+                      Active Lab Orders
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pending &amp; in-progress for today</p>
+                  </div>
                   <Button variant="ghost" size="sm" asChild>
-                    <Link to="/laboratory">View All</Link>
+                    <Link to="/laboratory">View All Orders</Link>
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -301,8 +319,12 @@ export function LabTechDashboard() {
                     </div>
                   ) : (stats?.urgent || 0) === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
-                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No urgent orders</p>
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-70" />
+                      <p className="text-sm font-medium">No urgent orders</p>
+                      <p className="text-xs mt-0.5">All orders are normal priority</p>
+                      <Button variant="outline" size="sm" className="mt-3" asChild>
+                        <Link to="/laboratory">View All Orders</Link>
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -345,10 +367,6 @@ export function LabTechDashboard() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Urine Analysis</span>
                     <span className="font-medium">{statsLoading ? '--' : stats?.urineAnalysis || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Imaging</span>
-                    <span className="font-medium">{statsLoading ? '--' : stats?.imaging || 0}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Other</span>

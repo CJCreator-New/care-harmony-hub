@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -458,10 +459,10 @@ export function ReceptionistAnalytics({ compact = false }: ReceptionistAnalytics
                     <div>
                       <div className="flex justify-between text-sm mb-2">
                         <span>Revenue per Hour</span>
-                        <span className="font-medium">$1,240</span>
+                        <span className="font-medium">{CURRENCY_SYMBOL}1,240</span>
                       </div>
                       <Progress value={78} className="h-2" />
-                      <p className="text-xs text-muted-foreground mt-1">+$180 from last week</p>
+                      <p className="text-xs text-muted-foreground mt-1">+{CURRENCY_SYMBOL}180 from last week</p>
                     </div>
                   </div>
                 </CardContent>

@@ -25,6 +25,7 @@ import { useTodayAppointments, Appointment } from '@/hooks/useAppointments';
 import { PriorityLevel } from '@/hooks/useQueue';
 import { useUnifiedCheckIn } from '@/hooks/useUnifiedCheckIn';
 import { format } from 'date-fns';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { toast } from 'sonner';
 
 interface PatientCheckInModalProps {
@@ -472,7 +473,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           <li>• Patient: {selectedPatient?.first_name} {selectedPatient?.last_name}</li>
           <li>• {selectedAppointment ? `Appointment: ${selectedAppointment.scheduled_time}` : 'Walk-In Registration'}</li>
           <li>• Insurance: {insuranceVerified ? 'Verified' : 'Not Verified'}</li>
-          <li>• Co-Pay: {copayCollected ? `$${copayAmount}` : 'None'}</li>
+          <li>• Co-Pay: {copayCollected ? `${CURRENCY_SYMBOL}${copayAmount}` : 'None'}</li>
         </ul>
       </div>
     </div>
@@ -623,50 +624,64 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         {step === 'complete' && renderCompleteStep()}
 
         <DialogFooter>
-          {step !== 'search' && step !== 'complete' && step !== 'express' && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                const steps: CheckInStep[] = ['search', 'verify', 'insurance', 'copay'];
-                const currentIndex = steps.indexOf(step);
-                if (currentIndex > 0) {
-                  setStep(steps[currentIndex - 1]);
-                }
-              }}
-            >
-              Back
+          {step === 'search' && (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
             </Button>
           )}
-          {step === 'verify' && (
-            <Button onClick={handleVerifyIdentity} disabled={!identityVerified}>
-              Continue
-            </Button>
-          )}
-          {step === 'insurance' && (
-            <Button onClick={handleVerifyInsurance}>
-              Continue
-            </Button>
-          )}
-          {step === 'copay' && (
-            <Button
-              onClick={handleCompleteCheckIn}
-              disabled={isPending}
-            >
-              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Complete Check-In
-            </Button>
-          )}
-          {step === 'express' && (
-            <Button
-              onClick={handleCompleteCheckIn}
-              disabled={isPending}
-            >
-              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirm Express Check-In
-            </Button>
+          {step !== 'search' && step !== 'complete' && (
+            <div className="flex w-full justify-between items-center">
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground">
+                Cancel
+              </Button>
+              <div className="flex gap-2">
+                {step !== 'express' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const steps: CheckInStep[] = ['search', 'verify', 'insurance', 'copay'];
+                      const currentIndex = steps.indexOf(step);
+                      if (currentIndex > 0) {
+                        setStep(steps[currentIndex - 1]);
+                      }
+                    }}
+                  >
+                    Back
+                  </Button>
+                )}
+                {step === 'verify' && (
+                  <Button onClick={handleVerifyIdentity} disabled={!identityVerified}>
+                    Continue
+                  </Button>
+                )}
+                {step === 'insurance' && (
+                  <Button onClick={handleVerifyInsurance}>
+                    Continue
+                  </Button>
+                )}
+                {step === 'copay' && (
+                  <Button
+                    onClick={handleCompleteCheckIn}
+                    disabled={isPending}
+                  >
+                    {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Complete Check-In
+                  </Button>
+                )}
+                {step === 'express' && (
+                  <Button
+                    onClick={handleCompleteCheckIn}
+                    disabled={isPending}
+                  >
+                    {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Confirm Express Check-In
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
           {step === 'complete' && (
-            <Button onClick={() => onOpenChange(false)}>
+            <Button onClick={() => onOpenChange(false)} className="w-full">
               Done
             </Button>
           )}

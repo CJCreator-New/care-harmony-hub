@@ -359,3 +359,65 @@ export function useYearOverYearMetrics(range?: { start: Date; end: Date }) {
     enabled: !!hospital?.id && !!range?.start && !!range?.end,
   });
 }
+
+export interface MonthlyTrend {
+  month: string;
+  appointments: number;
+  consultations: number;
+  patients: number;
+}
+
+export function useMonthlyTrends() {
+  const { hospital } = useAuth();
+
+  return useQuery({
+    queryKey: ['monthly-trends', hospital?.id],
+    queryFn: async (): Promise<MonthlyTrend[]> => {
+      if (!hospital?.id) throw new Error('No hospital context');
+
+      const today = new Date();
+      const months: MonthlyTrend[] = [];
+
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString();
+        const monthLabel = format(d, 'MMM yyyy');
+
+        const [appts, consultations, patients] = await Promise.all([
+          supabase
+            .from('appointments')
+            .select('id', { count: 'exact', head: true })
+            .eq('hospital_id', hospital.id)
+            .gte('scheduled_date', format(d, 'yyyy-MM-01'))
+            .lte('scheduled_date', format(new Date(d.getFullYear(), d.getMonth() + 1, 0), 'yyyy-MM-dd')),
+          supabase
+            .from('consultations')
+            .select('id', { count: 'exact', head: true })
+            .eq('hospital_id', hospital.id)
+            .gte('created_at', start)
+            .lte('created_at', end),
+          supabase
+            .from('appointments')
+            .select('patient_id')
+            .eq('hospital_id', hospital.id)
+            .gte('scheduled_date', format(d, 'yyyy-MM-01'))
+            .lte('scheduled_date', format(new Date(d.getFullYear(), d.getMonth() + 1, 0), 'yyyy-MM-dd')),
+        ]);
+
+        const uniquePatients = new Set(patients.data?.map((r) => r.patient_id) ?? []).size;
+
+        months.push({
+          month: monthLabel,
+          appointments: appts.count ?? 0,
+          consultations: consultations.count ?? 0,
+          patients: uniquePatients,
+        });
+      }
+
+      return months;
+    },
+    enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+}

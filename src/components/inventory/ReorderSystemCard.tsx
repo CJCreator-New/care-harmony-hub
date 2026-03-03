@@ -130,16 +130,16 @@ export function ReorderSystemCard() {
             <div className="text-2xl font-bold">{stats?.total || 0}</div>
             <div className="text-xs text-muted-foreground">Total Items</div>
           </div>
-          <div className="text-center p-3 bg-destructive/10 rounded-lg">
-            <div className="text-2xl font-bold text-destructive">{outOfStock.length}</div>
+          <div className={`text-center p-3 rounded-lg ${outOfStock.length > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
+            <div className={`text-2xl font-bold ${outOfStock.length > 0 ? 'text-destructive' : 'text-foreground'}`}>{outOfStock.length}</div>
             <div className="text-xs text-muted-foreground">Out of Stock</div>
           </div>
-          <div className="text-center p-3 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">{criticalStock.length}</div>
+          <div className={`text-center p-3 rounded-lg ${criticalStock.length > 0 ? 'bg-orange-100 dark:bg-orange-900/20' : 'bg-muted'}`}>
+            <div className={`text-2xl font-bold ${criticalStock.length > 0 ? 'text-orange-600' : 'text-foreground'}`}>{criticalStock.length}</div>
             <div className="text-xs text-muted-foreground">Critical</div>
           </div>
-          <div className="text-center p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-yellow-600">{lowStock.length}</div>
+          <div className={`text-center p-3 rounded-lg ${lowStock.length > 0 ? 'bg-yellow-100 dark:bg-yellow-900/20' : 'bg-muted'}`}>
+            <div className={`text-2xl font-bold ${lowStock.length > 0 ? 'text-yellow-600' : 'text-foreground'}`}>{lowStock.length}</div>
             <div className="text-xs text-muted-foreground">Low</div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { useAdminStats, useStaffOverview, useDepartmentPerformance, useWeeklyAppointmentTrend } from '@/hooks/useAdminStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,10 +74,10 @@ export function AdminAnalytics() {
     },
     {
       title: 'Monthly Revenue',
-      value: `$${((stats?.monthlyRevenue || 0) / 1000).toFixed(1)}K`,
+      value: `${CURRENCY_SYMBOL}${((stats?.monthlyRevenue || 0) / 1000).toFixed(1)}K`,
       icon: DollarSign,
       color: 'bg-warning/10 text-warning',
-      subtitle: `$${((stats?.pendingAmount || 0) / 1000).toFixed(1)}K pending`,
+      subtitle: `${CURRENCY_SYMBOL}${((stats?.pendingAmount || 0) / 1000).toFixed(1)}K pending`,
     },
   ]), [stats]);
 

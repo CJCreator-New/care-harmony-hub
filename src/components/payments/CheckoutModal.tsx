@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCapturePayment } from '@/hooks/usePayments';
+import { formatCurrency } from '@/lib/currency';
 
 interface CheckoutModalProps {
   open: boolean;
@@ -48,7 +49,7 @@ export function CheckoutModal({ open, onOpenChange, amount, invoiceId, onSuccess
         <div className="space-y-3">
           <div>
             <Label>Amount</Label>
-            <div className="font-medium">${amount.toFixed(2)}</div>
+            <div className="font-medium">{formatCurrency(amount)}</div>
           </div>
 
           <div>
@@ -76,7 +77,7 @@ export function CheckoutModal({ open, onOpenChange, amount, invoiceId, onSuccess
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handlePay} disabled={!cardNumber || !name || !expiry || !cvv || capture.isLoading}>
-            Pay ${amount.toFixed(2)}
+            Pay {formatCurrency(amount)}
           </Button>
         </DialogFooter>
       </DialogContent>

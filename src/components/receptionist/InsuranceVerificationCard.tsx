@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { InsuranceVerification } from '@/types/scheduling';
+import { formatCurrency } from '@/lib/currency';
 
 interface InsuranceVerificationCardProps {
   patientId: string;
@@ -199,7 +200,7 @@ export const InsuranceVerificationCard: React.FC<InsuranceVerificationCardProps>
                       <span className="font-medium">Copay</span>
                     </div>
                     <p className="text-2xl font-bold text-green-900">
-                      ${verification.copay_amount?.toFixed(2) || '0.00'}
+                      {formatCurrency(verification.copay_amount ?? 0)}
                     </p>
                   </div>
 
@@ -220,16 +221,16 @@ export const InsuranceVerificationCard: React.FC<InsuranceVerificationCardProps>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
                       <Label>Annual Deductible</Label>
-                      <p className="font-medium">${verification.deductible_amount?.toFixed(2) || '0.00'}</p>
+                      <p className="font-medium">{formatCurrency(verification.deductible_amount ?? 0)}</p>
                     </div>
                     <div>
                       <Label>Deductible Met</Label>
-                      <p className="font-medium">${verification.deductible_met?.toFixed(2) || '0.00'}</p>
+                      <p className="font-medium">{formatCurrency(verification.deductible_met ?? 0)}</p>
                     </div>
                     <div>
                       <Label>Remaining</Label>
                       <p className="font-medium">
-                        ${((verification.deductible_amount || 0) - (verification.deductible_met || 0)).toFixed(2)}
+                        {formatCurrency((verification.deductible_amount || 0) - (verification.deductible_met || 0))}
                       </p>
                     </div>
                   </div>

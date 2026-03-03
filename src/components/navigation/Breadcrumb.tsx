@@ -30,8 +30,10 @@ const routeLabels: Record<string, string> = {
   '/pharmacy': 'Pharmacy',
   '/pharmacy/clinical': 'Clinical Pharmacy',
   '/inventory': 'Inventory',
-  '/laboratory': 'Laboratory',
+  '/laboratory': 'Laboratory Queue',
   '/laboratory/automation': 'Lab Automation',
+  '/laboratory/analysis': 'Hematology Analysis',
+  '/laboratory/qc': 'Quality Control',
   '/reports': 'Reports',
   '/billing': 'Billing',
   '/settings': 'Settings',
@@ -39,6 +41,8 @@ const routeLabels: Record<string, string> = {
   '/settings/performance': 'Staff Performance',
   '/settings/activity': 'Activity Logs',
   '/settings/monitoring': 'System Monitoring',
+  '/profile': 'Profile Settings',
+  '/messages': 'Messages',
   '/ai-demo': 'AI Demo',
   '/differential-diagnosis': 'Differential Diagnosis',
   '/treatment-recommendations': 'Treatment Recommendations',
@@ -47,7 +51,9 @@ const routeLabels: Record<string, string> = {
   '/length-of-stay-forecasting': 'Length of Stay Forecasting',
   '/resource-utilization-optimization': 'Resource Utilization',
   '/voice-clinical-notes': 'Voice Clinical Notes',
+  '/nurse/protocols': 'Care Protocols',
   '/documents': 'Documents',
+  '/notifications': 'Notifications',
   '/integration/workflow': 'Workflow Dashboard',
   // Patient portal routes
   '/patient/portal': 'My Health Portal',
@@ -56,6 +62,20 @@ const routeLabels: Record<string, string> = {
   '/patient/lab-results': 'Lab Results',
   '/patient/medical-history': 'Medical History',
 };
+
+// Routes that belong to a logical parent group not represented by a URL segment
+const AI_ANALYTICS_ROUTES = new Set([
+  '/ai-demo',
+  '/differential-diagnosis',
+  '/treatment-recommendations',
+  '/treatment-plan-optimization',
+  '/predictive-analytics',
+  '/length-of-stay-forecasting',
+  '/resource-utilization-optimization',
+]);
+const PHARMACY_INVENTORY_ROUTES = new Set([
+  '/inventory',
+]);
 
 export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
   const location = useLocation();
@@ -113,7 +133,23 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
     return breadcrumbs;
   };
 
-  const breadcrumbs = generateBreadcrumbs();
+  let breadcrumbs = generateBreadcrumbs();
+
+  // Inject "AI & Analytics" parent for AI sub-pages — moved inside function scope for consistency
+  if (AI_ANALYTICS_ROUTES.has(location.pathname) && !breadcrumbs.some(b => b.label === 'AI & Analytics')) {
+    breadcrumbs = [
+      breadcrumbs[0],
+      { label: 'AI & Analytics', href: '/ai-demo' },
+      ...breadcrumbs.slice(1),
+    ];
+  }
+  if (PHARMACY_INVENTORY_ROUTES.has(location.pathname) && !breadcrumbs.some(b => b.label === 'Pharmacy & Inventory')) {
+    breadcrumbs = [
+      breadcrumbs[0],
+      { label: 'Pharmacy & Inventory', href: '/pharmacy' },
+      ...breadcrumbs.slice(1),
+    ];
+  }
 
   if (breadcrumbs.length <= 1) {
     return null; // Don't show breadcrumbs if we're only at home

@@ -9,11 +9,12 @@ import { Search, User, Calendar, Pill, Loader2, FileText, TestTube2 } from 'luci
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/permissions';
+import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
 interface SearchResult {
   id: string;
-  type: 'patient' | 'appointment' | 'prescription' | 'lab' | 'document';
+  type: 'patient' | 'appointment' | 'prescription' | 'lab' | 'document' | 'inventory';
   title: string;
   subtitle: string;
   badge?: string;
@@ -165,6 +166,32 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         }
       }
 
+      // Search inventory medications (if has permission)
+      if (hasPermission(primaryRole, 'inventory:read') || hasPermission(primaryRole, 'inventory')) {
+        const { data: meds } = await supabase
+          .from('medications')
+          .select('id, name, generic_name, current_stock, minimum_stock')
+          .eq('is_active', true)
+          .limit(10);
+
+        if (meds) {
+          meds
+            .filter((m) =>
+              m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (m.generic_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .forEach((m) => {
+              searchResults.push({
+                id: m.id,
+                type: 'inventory',
+                title: m.name,
+                subtitle: `${m.generic_name || 'Generic N/A'} • Stock: ${m.current_stock}/${m.minimum_stock}`,
+                badge: m.current_stock <= m.minimum_stock ? 'low stock' : 'in stock',
+              });
+            });
+        }
+      }
+
       setResults(searchResults);
     } catch (error) {
       console.error('Search error:', error);
@@ -210,6 +237,9 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
       case 'document':
         navigate(`/documents?id=${result.id}`);
         break;
+      case 'inventory':
+        navigate(`/inventory`);
+        break;
     }
   };
 
@@ -225,6 +255,8 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         return <TestTube2 className="h-4 w-4" />;
       case 'document':
         return <FileText className="h-4 w-4" />;
+      case 'inventory':
+        return <Pill className="h-4 w-4" />;
     }
   };
 
@@ -236,7 +268,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
           <div className="flex items-center gap-3 border-b pb-4">
             <Search className="h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search patients, appointments, prescriptions..."
+              placeholder="Search patients, appointments, Rx, labs..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -257,12 +289,16 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="px-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className={cn(
+            "grid w-full",
+            primaryRole === 'lab_technician' ? "grid-cols-5" : "grid-cols-6"
+          )}>
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="patient">Patients</TabsTrigger>
             <TabsTrigger value="appointment">Appointments</TabsTrigger>
             <TabsTrigger value="prescription">Rx</TabsTrigger>
             <TabsTrigger value="lab">Labs</TabsTrigger>
+            {primaryRole !== 'lab_technician' && <TabsTrigger value="inventory">Inventory</TabsTrigger>}
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-4">

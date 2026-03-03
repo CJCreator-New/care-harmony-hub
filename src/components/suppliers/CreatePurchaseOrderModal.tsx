@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '@/lib/currency';
 import {
   Dialog,
   DialogContent,
@@ -201,7 +202,7 @@ export function CreatePurchaseOrderModal({ open, onOpenChange }: CreatePurchaseO
                   </div>
                   <div className="text-right">
                     <Label className="text-xs">Total</Label>
-                    <div className="font-medium">${item.total.toFixed(2)}</div>
+                    <div className="font-medium">{formatCurrency(item.total)}</div>
                   </div>
                   <Button
                     type="button"
@@ -232,7 +233,7 @@ export function CreatePurchaseOrderModal({ open, onOpenChange }: CreatePurchaseO
           {/* Total and Submit */}
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-lg font-semibold" aria-live="polite">
-              Total: ${totalAmount.toFixed(2)}
+              Total: {formatCurrency(totalAmount)}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>

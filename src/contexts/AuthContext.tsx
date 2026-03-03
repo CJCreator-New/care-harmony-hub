@@ -92,74 +92,74 @@ type E2EMockUserConfig = {
 
 const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = {
   'admin@testgeneral.com': {
-    id: 'e2e-admin-001',
+    id: '00000000-0000-0000-0000-000000000010',
     firstName: 'Admin',
     lastName: 'User',
     role: 'admin',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'doctor@testgeneral.com': {
-    id: 'e2e-doctor-001',
+    id: '00000000-0000-0000-0000-000000000011',
     firstName: 'Doctor',
     lastName: 'User',
     role: 'doctor',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'nurse@testgeneral.com': {
-    id: 'e2e-nurse-001',
+    id: '00000000-0000-0000-0000-000000000012',
     firstName: 'Nurse',
     lastName: 'User',
     role: 'nurse',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'reception@testgeneral.com': {
-    id: 'e2e-reception-001',
+    id: '00000000-0000-0000-0000-000000000013',
     firstName: 'Reception',
     lastName: 'User',
     role: 'receptionist',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'receptionist@testgeneral.com': {
-    id: 'e2e-reception-001',
+    id: '00000000-0000-0000-0000-000000000013',
     firstName: 'Reception',
     lastName: 'User',
     role: 'receptionist',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'pharmacy@testgeneral.com': {
-    id: 'e2e-pharmacy-001',
+    id: '00000000-0000-0000-0000-000000000014',
     firstName: 'Pharmacy',
     lastName: 'User',
     role: 'pharmacist',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'pharmacist@testgeneral.com': {
-    id: 'e2e-pharmacy-001',
+    id: '00000000-0000-0000-0000-000000000014',
     firstName: 'Pharmacy',
     lastName: 'User',
     role: 'pharmacist',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'lab@testgeneral.com': {
-    id: 'e2e-lab-001',
+    id: '00000000-0000-0000-0000-000000000015',
     firstName: 'Lab',
     lastName: 'User',
     role: 'lab_technician',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'labtech@testgeneral.com': {
-    id: 'e2e-lab-001',
+    id: '00000000-0000-0000-0000-000000000015',
     firstName: 'Lab',
     lastName: 'User',
     role: 'lab_technician',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
   'patient@testgeneral.com': {
-    id: 'e2e-patient-001',
+    id: '00000000-0000-0000-0000-000000000016',
     firstName: 'Patient',
     lastName: 'User',
     role: 'patient',
-    hospitalId: 'e2e-hospital-001',
+    hospitalId: '00000000-0000-0000-0000-000000000001',
   },
 };
 
@@ -437,7 +437,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isE2EMockAuthEnabled) {
       const mockUser = getE2EMockUser(email);
       if (!mockUser || password !== E2E_MOCK_PASSWORD) {
-        return { error: new Error('Invalid login credentials') };
+        return {
+          error: new Error(
+            !mockUser
+              ? `Mock auth: no account for "${email}". Use one of the test emails (e.g. admin@testgeneral.com).`
+              : `Mock auth: wrong password. Use "${E2E_MOCK_PASSWORD}" for all test accounts.`
+          ),
+        };
       }
       applyE2EMockAuthState(email, mockUser);
       return { error: null };
@@ -525,7 +531,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile({
         id: `profile-${mockUserId}`,
         user_id: mockUserId,
-        hospital_id: 'e2e-hospital-001',
+        hospital_id: '00000000-0000-0000-0000-000000000001',
         first_name: firstName,
         last_name: lastName,
         email,
@@ -534,7 +540,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         two_factor_enabled: false,
       });
       setHospital({
-        id: 'e2e-hospital-001',
+        id: '00000000-0000-0000-0000-000000000001',
         name: 'Test General Hospital',
         address: '123 Test Street',
         city: 'Test City',
@@ -625,7 +631,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isE2EMockAuthEnabled) {
         const adminRole: UserRole = 'admin';
         setHospital({
-          id: hospital?.id || 'e2e-hospital-001',
+          id: hospital?.id || '00000000-0000-0000-0000-000000000001',
           name: hospitalData.name || hospital?.name || 'My Hospital',
           address: hospitalData.address || hospital?.address || null,
           city: hospitalData.city || hospital?.city || null,

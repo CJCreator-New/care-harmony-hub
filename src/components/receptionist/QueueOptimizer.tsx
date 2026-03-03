@@ -118,6 +118,10 @@ export function QueueOptimizer() {
 
   const optimizeMutation = useMutation({
     mutationFn: async () => {
+      if (queue.length === 0) {
+        toast.info('No patients in queue to optimize');
+        return;
+      }
       setIsOptimizing(true);
       // Simulate AI processing time
       await new Promise(resolve => setTimeout(resolve, 2500));

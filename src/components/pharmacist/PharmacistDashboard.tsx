@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePrescriptionStats } from '@/hooks/usePrescriptions';
 import { useInventoryAutomation } from '@/hooks/useInventoryAutomation';
 import { useConsultations } from '@/hooks/useConsultations';
@@ -40,6 +40,12 @@ export default function PharmacistDashboard() {
   const inventoryAlertCount = (stockAlerts ?? []).filter(
     (a) => a.status !== 'resolved'
   ).length;
+  const analyticsSummary = useMemo(() => ({
+    pending: stats?.pending || 0,
+    dispensed: stats?.dispensed || 0,
+    activeConsultations: activeConsultationCount,
+    inventoryAlerts: inventoryAlertCount,
+  }), [stats?.pending, stats?.dispensed, activeConsultationCount, inventoryAlertCount]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -54,14 +60,14 @@ export default function PharmacistDashboard() {
       value: stats?.pending || 0,
       icon: <Clock className="h-4 w-4 text-yellow-500" />,
       description: 'Waiting for dispensing',
-      trend: '+2 from last hour',
+      trend: stats?.pending ? `${stats.pending} awaiting` : 'Up to date',
     },
     {
       title: 'Dispensed Today',
       value: stats?.dispensed || 0,
       icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
       description: 'Completed orders',
-      trend: '94% pharmacy efficiency',
+      trend: stats?.dispensed ? `${stats.dispensed} total today` : 'None today',
     },
     {
       title: 'Active Consultations',
@@ -113,7 +119,8 @@ export default function PharmacistDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <div className="overflow-x-auto">
+        <TabsList className="grid min-w-[980px] w-full grid-cols-6">
           <TabsTrigger value="queue" className="flex gap-2">
             <ClipboardList className="h-4 w-4" />
             Prescription Queue
@@ -144,6 +151,7 @@ export default function PharmacistDashboard() {
             Pharmacy Insights
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="queue" className="space-y-4">
           <PrescriptionQueue />
@@ -172,8 +180,23 @@ export default function PharmacistDashboard() {
               <CardDescription>Performance metrics and medication utilization trends</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] flex items-center justify-center border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground">Generating real-time usage reports...</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg border bg-muted/20">
+                  <p className="text-sm text-muted-foreground">Pending Prescriptions</p>
+                  <p className="text-2xl font-bold">{analyticsSummary.pending}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-muted/20">
+                  <p className="text-sm text-muted-foreground">Dispensed Today</p>
+                  <p className="text-2xl font-bold">{analyticsSummary.dispensed}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-muted/20">
+                  <p className="text-sm text-muted-foreground">Active Consultations</p>
+                  <p className="text-2xl font-bold">{analyticsSummary.activeConsultations}</p>
+                </div>
+                <div className="p-4 rounded-lg border bg-muted/20">
+                  <p className="text-sm text-muted-foreground">Inventory Alerts</p>
+                  <p className="text-2xl font-bold">{analyticsSummary.inventoryAlerts}</p>
+                </div>
               </div>
             </CardContent>
           </Card>

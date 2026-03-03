@@ -91,7 +91,7 @@ export function LabAutomationPanel() {
 
       // Simulate sensor fluctuations
       setActiveSensors(prev => ({
-        temperature: +(prev.temperature + (Math.random() - 0.5) * 0.1).toFixed(1),
+        temperature: +(prev.temperature + (Math.random() - 0.5) * 0.1).toFixed(2),
         purity: +(prev.purity + (Math.random() - 0.5) * 0.05).toFixed(2),
         throughput: prev.throughput
       }));
@@ -160,7 +160,8 @@ export function LabAutomationPanel() {
             </CardTitle>
             <CardDescription>Real-time status of high-throughput laboratory automation</CardDescription>
           </div>
-          <Badge variant="outline" className="animate-pulse bg-green-50 text-green-700 border-green-200">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5" />
             System Online
           </Badge>
         </CardHeader>

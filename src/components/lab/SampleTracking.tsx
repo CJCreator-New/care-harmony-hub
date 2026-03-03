@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSampleTracking } from '@/hooks/useSampleTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePatients } from '@/hooks/usePatients';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Search, Plus, Clock, AlertTriangle, CheckCircle, XCircle, Thermometer, MapPin, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -40,12 +41,31 @@ export function SampleTracking({ className }: SampleTrackingProps) {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedSample, setSelectedSample] = useState<any>(null);
   const [errors, setErrors] = useState<{ sample_id?: string; patient_id?: string; test_type?: string }>({});
+
+  // Generate Sample ID when modal opens (BUG-009)
+  useEffect(() => {
+    if (isCreateDialogOpen) {
+      setNewSample(prev => ({
+        ...prev,
+        sample_id: `LAB-${new Date().getFullYear()}-${String((samples?.length || 0) + 1).padStart(3, '0')}`,
+        patient_id: '',
+        test_type: '',
+        priority: 'routine',
+        location: '',
+        temperature: '',
+        volume: '',
+        notes: '',
+      }));
+      setErrors({});
+    }
+  }, [isCreateDialogOpen, samples?.length]);
+
   const { data: patientsData } = usePatients({ limit: 100 });
   const patients = patientsData?.patients || [];
 
   // Form states
   const [newSample, setNewSample] = useState({
-    sample_id: `LAB-${new Date().getFullYear()}-${String((samples?.length || 0) + 1).padStart(3, '0')}`,
+    sample_id: '', // Will be auto-populated on open (BUG-009)
     patient_id: '',
     test_type: '',
     priority: 'routine' as const,
@@ -221,10 +241,31 @@ export function SampleTracking({ className }: SampleTrackingProps) {
                       if (errors.patient_id) setErrors(prev => ({ ...prev, patient_id: undefined }));
                     }}
                   >
-                    <SelectTrigger id="patient_id" className={errors.patient_id ? 'border-destructive' : ''}>
+                    <SelectTrigger id="patient_id" className={cn("w-full", errors.patient_id ? 'border-destructive' : '')}>
                       <SelectValue placeholder="Select patient" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px] z-[200]">
+                      <div className="p-2 border-b bg-muted/30 sticky top-0 bg-popover z-10">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Type to filter..." 
+                            className="pl-8 h-8 text-xs" 
+                            onChange={(e) => {
+                              const val = e.target.value.toLowerCase();
+                              const items = document.querySelectorAll('[role="option"]');
+                              items.forEach(item => {
+                                const text = item.textContent?.toLowerCase() || '';
+                                if (text.includes(val)) {
+                                  (item as HTMLElement).style.display = 'flex';
+                                } else {
+                                  (item as HTMLElement).style.display = 'none';
+                                }
+                              });
+                            }}
+                          />
+                        </div>
+                      </div>
                       {patients.map((patient) => (
                         <SelectItem key={patient.id} value={patient.id}>
                           {patient.first_name} {patient.last_name} - MRN: {patient.mrn}

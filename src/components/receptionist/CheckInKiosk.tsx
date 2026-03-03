@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Printer,
   Home,
+  Hospital,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
   PageTransition,
   Toast,
 } from "@/components/ui/micro-interactions"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface Patient {
   id: string
@@ -42,11 +44,14 @@ interface CheckInKioskProps {
 type Step = "search" | "verify" | "confirm" | "complete"
 
 export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps) {
+  const { hospital } = useAuth()
   const [currentStep, setCurrentStep] = useState<Step>("search")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [showToast, setShowToast] = useState(false)
   const shouldReduceMotion = useReducedMotion()
+
+  const hospitalName = hospital?.name || "CareSync Healthcare"
 
   // Mock patient data
   const mockPatients: Patient[] = [
@@ -55,7 +60,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
       firstName: "John",
       lastName: "Smith",
       dateOfBirth: new Date("1985-03-15"),
-      phone: "(555) 123-4567",
+      phone: "+91 98765 43210",
       mrn: "MRN001234",
     },
     {
@@ -63,7 +68,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
       firstName: "Sarah",
       lastName: "Johnson",
       dateOfBirth: new Date("1990-07-22"),
-      phone: "(555) 987-6543",
+      phone: "+91 91234 56789",
       mrn: "MRN005678",
     },
     {
@@ -71,7 +76,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
       firstName: "Michael",
       lastName: "Brown",
       dateOfBirth: new Date("1978-11-08"),
-      phone: "(555) 456-7890",
+      phone: "+91 99887 76655",
       mrn: "MRN009012",
     },
   ]
@@ -112,9 +117,9 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
           <div className="space-y-6" style={{ gap: "var(--space-6)" }}>
             <div className="text-center">
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-receptionist/10 flex items-center justify-center">
-                <User className="w-10 h-10 text-receptionist" />
+                <Hospital className="w-10 h-10 text-receptionist" />
               </div>
-              <h2 className="text-3xl font-bold mb-2">Welcome</h2>
+              <h2 className="text-3xl font-bold mb-2">Welcome to {hospitalName}</h2>
               <p className="text-lg text-muted-foreground">
                 Please search for your appointment
               </p>
@@ -154,7 +159,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
                             {patient.firstName} {patient.lastName}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            DOB: {patient.dateOfBirth.toLocaleDateString()} •{" "}
+                            DOB: {format(patient.dateOfBirth, "PPP")} •{" "}
                             {patient.mrn}
                           </p>
                         </div>

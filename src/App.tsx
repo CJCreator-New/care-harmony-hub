@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { TestingProvider } from "@/contexts/TestingContext";
@@ -11,8 +11,49 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { lazy, Suspense } from "react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 // Loading component
+// BUG-32: Full-screen layout-aware skeleton shown while lazy page chunks download,
+// instead of a plain spinner that hides the app shell for 3-4 seconds.
+const DashboardLoadingFallback = () => (
+  <div className="min-h-screen bg-background flex">
+    {/* Sidebar skeleton */}
+    <div className="hidden lg:flex flex-col w-64 border-r border-border shrink-0">
+      <div className="h-16 border-b border-border flex items-center px-4 gap-3">
+        <div className="h-9 w-9 rounded-lg bg-primary/20 animate-pulse" />
+        <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+      </div>
+      <div className="p-3 space-y-1 flex-1">
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="h-9 rounded-md bg-muted animate-pulse"
+            style={{ animationDelay: `${i * 80}ms`, opacity: 1 - i * 0.08 }}
+          />
+        ))}
+      </div>
+    </div>
+    {/* Content area skeleton */}
+    <div className="flex-1 min-w-0 flex flex-col">
+      <div className="h-16 bg-card border-b border-border shrink-0" />
+      <div className="flex-1 p-4 lg:p-6 space-y-4">
+        <div className="h-7 w-48 bg-muted rounded animate-pulse" />
+        <div className="h-4 w-64 bg-muted rounded animate-pulse" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-28 rounded-xl bg-muted animate-pulse"
+              style={{ animationDelay: `${i * 80}ms` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -98,6 +139,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   useSessionTimeout({ enabled: isAuthenticated });
 
   if (isLoading) {
+    if (isAuthenticated) {
+      return (
+        <DashboardLayout>
+          <div className="min-h-[70vh] flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        </DashboardLayout>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -113,6 +163,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // This prevents a race condition where isLoading=false but fetchUserData
   // hasn't resolved yet, causing a spurious redirect to account-setup.
   if (!isProfileReady) {
+    if (isAuthenticated) {
+      return (
+        <DashboardLayout>
+          <div className="min-h-[70vh] flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        </DashboardLayout>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -142,7 +201,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   return (
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<DashboardLoadingFallback />}>
       <Routes>
       {/* Redirect root to hospital landing */}
       <Route path="/" element={<Navigate to="/hospital" replace />} />
@@ -326,7 +385,7 @@ function AppRoutes() {
       <Route
         path="/queue"
         element={
-          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']} requiredPermission="queue">
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist']} requiredPermission="queue:read">
             <QueueManagementPage />
           </RoleProtectedRoute>
         }
@@ -455,11 +514,11 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/settings/staff"
+        path="/notifications"
         element={
-          <RoleProtectedRoute allowedRoles={['admin']} requiredPermission="staff-management">
-            <StaffManagementPage />
-          </RoleProtectedRoute>
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
         }
       />
       <Route path="/staff" element={<Navigate to="/settings/staff" replace />} />
@@ -539,6 +598,8 @@ function AppRoutes() {
         }
       />
       <Route path="/length-of-stay-forecast" element={<Navigate to="/length-of-stay-forecasting" replace />} />
+      <Route path="/resource-utilization" element={<Navigate to="/resource-utilization-optimization" replace />} />
+      <Route path="/analytics" element={<Navigate to="/reports" replace />} />
       <Route
         path="/resource-utilization-optimization"
         element={
@@ -637,7 +698,6 @@ function AppRoutes() {
 
 const App = () => {
   return (
-    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system">
         <AuthProvider>
@@ -651,15 +711,21 @@ const App = () => {
                   v7_relativeSplatPath: true,
                 }}
               >
-                <AppContent />
+                <RouteAwareErrorBoundary>
+                  <AppContent />
+                </RouteAwareErrorBoundary>
               </BrowserRouter>
             </TooltipProvider>
           </TestingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
-  </ErrorBoundary>
 );
+};
+
+const RouteAwareErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
 };
 
 // AppContent component that uses hooks requiring AuthProvider

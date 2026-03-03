@@ -84,7 +84,9 @@ export function AdminDashboardComponent() {
 
       {/* Tabbed Management Section */}
       <Tabs defaultValue="overview" className="mb-8">
-        <TabsList>
+        {/* BUG-30: flex-wrap + h-auto let tabs wrap to a second line on narrow viewports,
+            ensuring every tab's clickable hit-target matches its visual area. */}
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="monitoring" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />

@@ -278,6 +278,7 @@ export function useQualityControl() {
     const pendingTests = qcResults.filter(qc => qc.result === 'pending').length;
 
     const passRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
+    const failRate = totalTests > 0 ? (failedTests / totalTests) * 100 : 0;
 
     // Group by test type
     const byTestType = qcResults.reduce((acc, qc) => {
@@ -296,6 +297,7 @@ export function useQualityControl() {
       failedTests,
       pendingTests,
       passRate,
+      failRate,
       byTestType,
     };
   };

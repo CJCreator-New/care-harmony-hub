@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecharts, ChartSkeleton } from '@/components/ui/lazy-chart';
+import { useMonthlyTrends } from '@/hooks/useReports';
+
 export function MonthlyTrendsChart() {
   const { data: trends, isLoading } = useMonthlyTrends();
   const { components: Recharts, loading: chartsLoading } = useRecharts();

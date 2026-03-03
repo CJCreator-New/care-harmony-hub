@@ -47,6 +47,7 @@ import {
 } from "@/hooks/useBilling";
 import { usePatients } from "@/hooks/usePatients";
 import { CreateInvoiceModal } from "@/components/billing/CreateInvoiceModal";
+import { formatCurrency } from "@/lib/currency";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pending", variant: "destructive" },
@@ -145,7 +146,7 @@ export default function BillingPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stats?.totalOutstanding ? `$${stats.totalOutstanding.toFixed(2)}` : '$0.00'}
+                {stats?.totalOutstanding ? formatCurrency(stats.totalOutstanding) : formatCurrency(0)}
               </div>
             </CardContent>
           </Card>
@@ -231,10 +232,10 @@ export default function BillingPage() {
                         <TableCell>
                           {format(new Date(invoice.created_at), "MMM d, yyyy")}
                         </TableCell>
-                        <TableCell>${invoice.total.toFixed(2)}</TableCell>
-                        <TableCell>${invoice.paid_amount.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(invoice.total)}</TableCell>
+                        <TableCell>{formatCurrency(invoice.paid_amount)}</TableCell>
                         <TableCell className={balance > 0 ? "text-destructive font-medium" : ""}>
-                          ${balance.toFixed(2)}
+                          {formatCurrency(balance)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={status.variant}>{status.label}</Badge>
@@ -330,69 +331,81 @@ function PaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Process Payment
+          </DialogTitle>
         </DialogHeader>
 
         {invoice && (
-          <div className="space-y-4">
-            <div className="flex justify-between p-3 bg-muted rounded-lg">
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg border">
               <div>
-                <p className="font-medium">{invoice.invoice_number}</p>
+                <p className="font-semibold text-sm">{invoice.invoice_number}</p>
                 <p className="text-sm text-muted-foreground">
                   {invoice.patient?.first_name} {invoice.patient?.last_name}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Balance Due</p>
-                <p className="text-lg font-bold text-destructive">
-                  ${balance.toFixed(2)}
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Balance Due</p>
+                <p className="text-xl font-bold text-destructive">
+                  {formatCurrency(balance)}
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0.01"
-                max={balance}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={`Max: $${balance.toFixed(2)}`}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="method">Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger id="method">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="z-[200]">
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="upi">UPI / Digital</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="insurance">Insurance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount (₹)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground font-medium text-sm">₹</span>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="1"
+                    min="1"
+                    className="pl-7"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0"
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="check">Check</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="insurance">Insurance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Reference Number (Optional)</Label>
+              <Label htmlFor="ref">Reference Number / Transaction ID</Label>
               <Input
+                id="ref"
+                placeholder="Transaction ID, Check #, etc."
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder="Transaction ID, Check #, etc."
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Notes (Optional)</Label>
+              <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
+                id="notes"
+                placeholder="Add any internal payment notes..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
@@ -401,15 +414,23 @@ function PaymentModal({
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 border-t pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={recordPayment.isPending || !amount}
+            disabled={recordPayment.isPending || !amount || parseFloat(amount) <= 0}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
           >
-            {recordPayment.isPending ? "Processing..." : "Record Payment"}
+            {recordPayment.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Confirm Payment"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

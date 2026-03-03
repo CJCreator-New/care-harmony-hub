@@ -225,7 +225,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[80vh]" onEscapeKeyDown={() => onOpenChange(false)}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Play className="h-5 w-5 text-primary" />

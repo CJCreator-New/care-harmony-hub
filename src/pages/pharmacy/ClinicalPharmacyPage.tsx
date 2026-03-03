@@ -4,27 +4,53 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClinicalServices } from '@/components/pharmacist/ClinicalServices';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import {
   Stethoscope,
-  Pill,
   Target,
   TrendingUp,
   Users,
   Activity,
   FileText,
   AlertTriangle,
-  ArrowRight,
 } from 'lucide-react';
 import { useClinicalPharmacy } from '@/hooks/useClinicalPharmacy';
 import { useDrugUtilizationReview } from '@/hooks/useDrugUtilizationReview';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/currency';
 
 export default function ClinicalPharmacyPage() {
   const [activeTab, setActiveTab] = useState('overview');
-  const { interventions, therapyReviews, pendingReviews, clinicalStats } = useClinicalPharmacy();
-  const { durFindings, unresolvedFindings, durStats } = useDrugUtilizationReview();
+  const [interventionDialogOpen, setInterventionDialogOpen] = useState(false);
+  const [interventionForm, setInterventionForm] = useState({
+    intervention_type: 'drug_interaction',
+    severity: 'medium',
+    description: '',
+    recommendation: '',
+  });
+
+  const {
+    interventions,
+    therapyReviews,
+    pendingReviews,
+    clinicalStats,
+    createIntervention,
+    creatingIntervention,
+  } = useClinicalPharmacy();
+
+  const {
+    durFindings,
+    unresolvedFindings,
+    durStats,
+    runDURAnalysis,
+    runningAnalysis,
+  } = useDrugUtilizationReview();
 
   const totalInterventions = clinicalStats?.total_interventions || interventions?.length || 0;
   const totalReviews = clinicalStats?.therapy_reviews || therapyReviews?.length || 0;
@@ -34,28 +60,67 @@ export default function ClinicalPharmacyPage() {
 
   const runQuickAction = (action: 'intervention' | 'review' | 'dur' | 'report') => {
     if (action === 'intervention') {
-      setActiveTab('services');
-      toast.info('Open Clinical Interventions below to add and resolve interventions.');
+      setInterventionDialogOpen(true);
       return;
     }
+
     if (action === 'review') {
       setActiveTab('services');
-      toast.info('Open Therapy Reviews below to review medication plans.');
+      toast.success('Clinical Services opened at Therapy Reviews.');
       return;
     }
+
     if (action === 'dur') {
-      setActiveTab('services');
-      toast.info('Open Drug Utilization tab below and run DUR for a pending review.');
+      const firstPending = pendingReviews?.[0];
+      if (!firstPending?.id) {
+        toast.info('No pending prescriptions available for DUR analysis.');
+        return;
+      }
+      runDURAnalysis(firstPending.id);
+      toast.success('DUR analysis started.');
       return;
     }
+
     setActiveTab('analytics');
-    toast.info('Analytics tab opened.');
+    toast.success('Analytics tab opened.');
+  };
+
+  const handleCreateIntervention = () => {
+    const firstPending = pendingReviews?.[0];
+    if (!firstPending?.id || !firstPending?.patient_id) {
+      toast.error('No pending prescription available to attach intervention.');
+      return;
+    }
+
+    if (!interventionForm.description.trim() || !interventionForm.recommendation.trim()) {
+      toast.error('Description and recommendation are required.');
+      return;
+    }
+
+    createIntervention({
+      prescription_id: firstPending.id,
+      patient_id: firstPending.patient_id,
+      intervention_type: interventionForm.intervention_type as any,
+      severity: interventionForm.severity as any,
+      description: interventionForm.description.trim(),
+      recommendation: interventionForm.recommendation.trim(),
+      resolved: false,
+      pharmacist_notes: '',
+    });
+
+    setInterventionDialogOpen(false);
+    setActiveTab('services');
+    setInterventionForm({
+      intervention_type: 'drug_interaction',
+      severity: 'medium',
+      description: '',
+      recommendation: '',
+    });
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Clinical Pharmacy Services</h1>
@@ -65,11 +130,9 @@ export default function ClinicalPharmacyPage() {
           </div>
           <Button variant="outline" onClick={() => setActiveTab('services')}>
             Clinical Services
-            <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </div>
 
-        {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Clinical Interventions"
@@ -94,14 +157,13 @@ export default function ClinicalPharmacyPage() {
           />
           <StatsCard
             title="Cost Savings"
-            value={`₹${Number(costSavings).toLocaleString()}`}
+            value={formatCurrency(Number(costSavings))}
             subtitle="This month"
             icon={TrendingUp}
             trend={{ value: totalFindings > 0 ? Math.round((unresolved / totalFindings) * 100) : 0, isPositive: true }}
           />
         </div>
 
-        {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -109,10 +171,8 @@ export default function ClinicalPharmacyPage() {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Quick Actions */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -129,9 +189,9 @@ export default function ClinicalPharmacyPage() {
                     <Users className="h-4 w-4 mr-2" />
                     Start Therapy Review
                   </Button>
-                  <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('dur')}>
+                  <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('dur')} disabled={runningAnalysis}>
                     <Target className="h-4 w-4 mr-2" />
-                    Run DUR Analysis
+                    {runningAnalysis ? 'Running DUR...' : 'Run DUR Analysis'}
                   </Button>
                   <Button className="w-full justify-start" variant="outline" onClick={() => runQuickAction('report')}>
                     <FileText className="h-4 w-4 mr-2" />
@@ -140,7 +200,6 @@ export default function ClinicalPharmacyPage() {
                 </CardContent>
               </Card>
 
-              {/* Recent Activity */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -181,7 +240,6 @@ export default function ClinicalPharmacyPage() {
               </Card>
             </div>
 
-            {/* Clinical Impact Summary */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -206,7 +264,7 @@ export default function ClinicalPharmacyPage() {
                     <p className="text-xs text-blue-600 mt-1">Derived from pending review backlog</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">₹{Number(costSavings).toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-purple-600">{formatCurrency(Number(costSavings))}</div>
                     <p className="text-sm text-muted-foreground">Annual Cost Savings</p>
                     <p className="text-xs text-purple-600 mt-1">From DUR impact data</p>
                   </div>
@@ -215,15 +273,12 @@ export default function ClinicalPharmacyPage() {
             </Card>
           </TabsContent>
 
-          {/* Clinical Services Tab */}
           <TabsContent value="services">
             <ClinicalServices />
           </TabsContent>
 
-          {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Intervention Trends */}
               <Card>
                 <CardHeader>
                   <CardTitle>Intervention Trends</CardTitle>
@@ -249,7 +304,6 @@ export default function ClinicalPharmacyPage() {
                 </CardContent>
               </Card>
 
-              {/* DUR Impact */}
               <Card>
                 <CardHeader>
                   <CardTitle>DUR Impact Analysis</CardTitle>
@@ -266,7 +320,7 @@ export default function ClinicalPharmacyPage() {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span>Estimated cost savings</span>
-                      <span className="font-medium">₹{Number(costSavings).toLocaleString()}</span>
+                      <span className="font-medium">{formatCurrency(Number(costSavings))}</span>
                     </div>
                     <div className="pt-4 text-xs text-muted-foreground">
                       Impact summary reflects live DUR statistics for this hospital.
@@ -275,7 +329,6 @@ export default function ClinicalPharmacyPage() {
                 </CardContent>
               </Card>
 
-              {/* Therapy Review Outcomes */}
               <Card>
                 <CardHeader>
                   <CardTitle>Therapy Review Outcomes</CardTitle>
@@ -304,7 +357,6 @@ export default function ClinicalPharmacyPage() {
                 </CardContent>
               </Card>
 
-              {/* Quality Metrics */}
               <Card>
                 <CardHeader>
                   <CardTitle>Quality Metrics</CardTitle>
@@ -332,6 +384,69 @@ export default function ClinicalPharmacyPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={interventionDialogOpen} onOpenChange={setInterventionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Clinical Intervention</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select
+                  value={interventionForm.intervention_type}
+                  onValueChange={(value) => setInterventionForm((prev) => ({ ...prev, intervention_type: value }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="drug_interaction">Drug interaction</SelectItem>
+                    <SelectItem value="dosage_adjustment">Dosage adjustment</SelectItem>
+                    <SelectItem value="allergy_alert">Allergy alert</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Severity</Label>
+                <Select
+                  value={interventionForm.severity}
+                  onValueChange={(value) => setInterventionForm((prev) => ({ ...prev, severity: value }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input
+                value={interventionForm.description}
+                onChange={(e) => setInterventionForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Brief clinical issue"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Recommendation</Label>
+              <Textarea
+                value={interventionForm.recommendation}
+                onChange={(e) => setInterventionForm((prev) => ({ ...prev, recommendation: e.target.value }))}
+                placeholder="Suggested intervention"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInterventionDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateIntervention} disabled={creatingIntervention}>
+              {creatingIntervention ? 'Saving...' : 'Create Intervention'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

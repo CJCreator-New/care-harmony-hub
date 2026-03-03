@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -63,6 +62,10 @@ export function PharmacistDashboard() {
            (rx.allergy_alerts && rx.allergy_alerts.length > 0);
   };
 
+  const preloadPharmacy = () => {
+    void import('@/pages/pharmacy/PharmacyPage');
+  };
+
   return (
     <>
       {/* Header */}
@@ -76,16 +79,13 @@ export function PharmacistDashboard() {
               Prescriptions and medication management.
             </p>
           </div>
-          <Badge variant="pharmacy" className="w-fit text-sm py-1.5 px-4 self-start md:self-auto">
-            Pharmacist
-          </Badge>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button asChild>
-          <Link to="/pharmacy">
+          <Link to="/pharmacy" onMouseEnter={preloadPharmacy} onFocus={preloadPharmacy}>
             <Pill className="h-4 w-4 mr-2" />
             Pending Prescriptions
           </Link>
@@ -251,6 +251,11 @@ export function PharmacistDashboard() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Expiring Soon</span>
                 <span className="font-medium text-orange-500">{inventoryStats?.expiringSoon ?? '--'}</span>
+              </div>
+              <div className="pt-2 border-t">
+                <Button variant="ghost" size="sm" asChild className="w-full justify-start px-0">
+                  <Link to="/inventory">Manage Inventory</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

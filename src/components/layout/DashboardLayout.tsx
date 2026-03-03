@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
@@ -70,11 +70,14 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  });
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, roles, user, logout, isAuthenticated } = useAuth();
   const { logActivity } = useActivityLog();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const persistedTestRole = getDevTestRole(roles);
 
@@ -100,6 +103,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Use test role for navigation if provided, otherwise use actual role
   const activeRole = persistedTestRole || primaryRole;
+
+  useEffect(() => {
+    // Reset modal states on route change (BUG-002)
+    setSidebarOpen(false);
+    setSearchOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    // Keep authenticated-app title stable across dashboard interactions (PAT-022).
+    document.title = 'CareSync HIMS | Modern Hospital Management System';
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     logActivity({ actionType: 'logout' });
@@ -196,7 +210,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Desktop collapse toggle */}
             <button
               className="hidden lg:flex shrink-0 items-center justify-center w-8 h-8 rounded-md text-sidebar-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-accent transition-colors"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              onClick={(e) => {
+                const next = !sidebarCollapsed;
+                setSidebarCollapsed(next);
+                try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+                // BUG-24: Blur the button after collapse so focus doesn't accidentally
+                // remain on it — preventing scroll/keyboard events from re-triggering shortcuts.
+                (e.currentTarget as HTMLButtonElement).blur();
+              }}
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <ChevronLeft className={cn("w-4 h-4 transition-transform duration-300", sidebarCollapsed && "rotate-180")} />
@@ -259,7 +280,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Main content */}
-      <div className={cn("transition-all duration-300", sidebarCollapsed ? "lg:pl-16" : "lg:pl-64")}>
+      {/* BUG-37: Use transition-[padding-left] instead of transition-all to avoid creating a GPU
+           compositing layer that can trap position:fixed overlay children (dialog backdrops). */}
+      <div className={cn("transition-[padding-left] duration-300 min-h-screen", sidebarCollapsed ? "lg:pl-16" : "lg:pl-64")}>
         {/* Header */}
         <header className="sticky top-0 z-30 h-16 bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">
@@ -370,7 +393,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main id="main-content" className="p-4 lg:p-6" role="main">
+        <main id="main-content" className={cn("p-4 lg:p-6", import.meta.env.DEV && "pb-24")} role="main">
           <div className="mb-4">
             <Breadcrumb />
           </div>

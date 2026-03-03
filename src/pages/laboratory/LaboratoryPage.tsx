@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,7 +82,9 @@ export default function LaboratoryPage() {
   const initialTab = searchParams.get('tab');
   const getInitialStatus = () => {
     if (initialTab === 'collected') return 'sample_collected';
-    if (initialTab === 'results') return 'in_progress';
+    // 'results' tab shows collected samples — they're ready to process/enter results
+    if (initialTab === 'results') return 'sample_collected';
+    if (initialTab === 'in_progress') return 'in_progress';
     return 'all';
   };
   const [statusFilter, setStatusFilter] = useState('all');
@@ -112,6 +115,7 @@ export default function LaboratoryPage() {
     data: orders,
     isLoading,
     isSearching,
+    error: ordersError,
     currentPage,
     totalPages,
     count: totalCount,
@@ -131,6 +135,7 @@ export default function LaboratoryPage() {
   const { data: stats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const queryClient = useQueryClient();
 
   const handleCollectSample = (order: LabOrder) => {
     updateOrder.mutate({
@@ -236,7 +241,7 @@ export default function LaboratoryPage() {
                   <FileText className="h-6 w-6 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.pending ?? '--'}</p>
+                  <p className="text-2xl font-bold">{stats?.pending ?? 0}</p>
                   <p className="text-sm text-muted-foreground">Pending Orders</p>
                 </div>
               </div>
@@ -249,7 +254,7 @@ export default function LaboratoryPage() {
                   <TestTube2 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.inProgress ?? '--'}</p>
+                  <p className="text-2xl font-bold">{stats?.inProgress ?? 0}</p>
                   <p className="text-sm text-muted-foreground">In Progress</p>
                 </div>
               </div>
@@ -262,7 +267,7 @@ export default function LaboratoryPage() {
                   <CheckCircle2 className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.completedToday ?? '--'}</p>
+                  <p className="text-2xl font-bold">{stats?.completedToday ?? 0}</p>
                   <p className="text-sm text-muted-foreground">Completed Today</p>
                 </div>
               </div>
@@ -309,6 +314,18 @@ export default function LaboratoryPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>{isSearching ? "Searching..." : "Loading lab orders..."}</span>
                 </div>
+              </div>
+            ) : ordersError ? (
+              <div className="text-center py-12">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
+                <p className="text-lg font-medium text-destructive mb-1">Failed to load lab orders</p>
+                <p className="text-sm text-muted-foreground mb-4">There was a problem contacting the server. Please try again.</p>
+                <Button
+                  variant="outline"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['lab_orders'] })}
+                >
+                  Retry
+                </Button>
               </div>
             ) : orders?.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">

@@ -12,7 +12,7 @@ export function SkipNavigation({
   return (
     <a 
       href={`#${targetId}`}
-      className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none transition-all"
+      className="absolute left-4 top-4 z-[100] -translate-y-20 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg ring-2 ring-ring ring-offset-2 transition-transform focus:translate-y-0 focus:outline-none"
       aria-label={label}
     >
       {label}
@@ -31,7 +31,7 @@ export function SkipToSection({
   return (
     <a
       href={`#${targetId}`}
-      className="sr-only focus:not-sr-only focus:absolute focus:top-14 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-secondary focus:text-secondary-foreground focus:rounded-md focus:shadow-lg focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none transition-all"
+      className="absolute left-4 top-14 z-[100] -translate-y-20 rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground shadow-lg ring-2 ring-ring ring-offset-2 transition-transform focus:translate-y-0 focus:outline-none"
       aria-label={label}
     >
       {label}

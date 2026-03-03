@@ -97,28 +97,43 @@ export function EnhancedCheckIn() {
                 Walk-In
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Register Walk-In Patient</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Register Walk-In Patient
+                </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>First Name</Label>
-                  <Input value={walkInData.firstName} onChange={(e) => setWalkInData({...walkInData, firstName: e.target.value})} />
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input id="firstName" value={walkInData.firstName} onChange={(e) => setWalkInData({...walkInData, firstName: e.target.value})} placeholder="e.g. Rajesh" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input id="lastName" value={walkInData.lastName} onChange={(e) => setWalkInData({...walkInData, lastName: e.target.value})} placeholder="e.g. Kumar" />
+                  </div>
                 </div>
-                <div>
-                  <Label>Last Name</Label>
-                  <Input value={walkInData.lastName} onChange={(e) => setWalkInData({...walkInData, lastName: e.target.value})} />
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input id="phone" value={walkInData.phone} onChange={(e) => setWalkInData({...walkInData, phone: e.target.value})} placeholder="+91 98765 43210" />
                 </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input value={walkInData.phone} onChange={(e) => setWalkInData({...walkInData, phone: e.target.value})} />
+                <div className="space-y-2">
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input id="dob" type="date" value={walkInData.dob} onChange={(e) => setWalkInData({...walkInData, dob: e.target.value})} />
                 </div>
-                <div>
-                  <Label>Date of Birth</Label>
-                  <Input type="date" value={walkInData.dob} onChange={(e) => setWalkInData({...walkInData, dob: e.target.value})} />
-                </div>
-                <Button onClick={() => createWalkInMutation.mutate()} disabled={createWalkInMutation.isPending} className="w-full">
+              </div>
+              <div className="flex gap-3 mt-4 border-t pt-4">
+                <Button variant="outline" onClick={() => setWalkInOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => createWalkInMutation.mutate()} 
+                  disabled={createWalkInMutation.isPending || !walkInData.firstName || !walkInData.lastName} 
+                  className="flex-1"
+                >
+                  {createWalkInMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Register & Check In
                 </Button>
               </div>

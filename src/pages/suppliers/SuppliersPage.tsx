@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '@/lib/currency';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -337,7 +338,7 @@ export default function SuppliersPage() {
                             <TableCell className="font-medium">{order.order_number}</TableCell>
                             <TableCell>{order.supplier?.name || 'Unknown'}</TableCell>
                             <TableCell>{format(new Date(order.ordered_at), 'MMM d, yyyy')}</TableCell>
-                            <TableCell>${order.total_amount?.toFixed(2) || '0.00'}</TableCell>
+                            <TableCell>{formatCurrency(order.total_amount ?? 0)}</TableCell>
                             <TableCell>
                               <Badge className={`gap-1 ${status.color}`}>
                                 {status.icon}

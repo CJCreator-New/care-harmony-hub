@@ -15,8 +15,9 @@ export default function MobileConsultationPage() {
   return (
     <div className="container max-w-4xl mx-auto py-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Consultations
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Mobile Consultation</h1>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import QRCode from 'qrcode';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -51,8 +52,8 @@ export const useTwoFactorAuth = () => {
       const account = profile?.email || user.email || 'user';
       const totpUri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 
-      // Generate QR code URL using a public API
-      const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpUri)}`;
+      // Generate QR code as data URL using client-side library (no external dependency)
+      const qrCode = await QRCode.toDataURL(totpUri, { errorCorrectionLevel: 'M', width: 200 });
 
       const data: TwoFactorSetup = { secret, qrCode, backupCodes };
       setSetupData(data);

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { useState } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import {
@@ -96,6 +97,7 @@ function EligibilityCard({
   onVerify: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const shouldReduceMotion = useReducedMotion()
   const status = statusConfig[eligibility.status]
   const StatusIcon = status.icon
 
@@ -149,12 +151,12 @@ function EligibilityCard({
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-background rounded-lg p-3">
               <p className="text-xs text-muted-foreground">Copay</p>
-              <p className="text-xl font-bold">${eligibility.copay}</p>
+              <p className="text-xl font-bold">{CURRENCY_SYMBOL}{eligibility.copay}</p>
             </div>
             <div className="bg-background rounded-lg p-3">
               <p className="text-xs text-muted-foreground">Deductible</p>
               <p className="text-xl font-bold">
-                ${eligibility.deductibleMet}/${eligibility.deductible}
+                {CURRENCY_SYMBOL}{eligibility.deductibleMet}/{CURRENCY_SYMBOL}{eligibility.deductible}
               </p>
               <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
@@ -168,7 +170,7 @@ function EligibilityCard({
             <div className="bg-background rounded-lg p-3">
               <p className="text-xs text-muted-foreground">Out of Pocket</p>
               <p className="text-xl font-bold">
-                ${eligibility.outOfPocketMet}/${eligibility.outOfPocketMax}
+                {CURRENCY_SYMBOL}{eligibility.outOfPocketMet}/{CURRENCY_SYMBOL}{eligibility.outOfPocketMax}
               </p>
               <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
@@ -209,7 +211,7 @@ function EligibilityCard({
 
           {expanded && (
             <motion.div
-              initial={useReducedMotion() ? {} : { opacity: 0, height: 0 }}
+              initial={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               className="mt-3 space-y-2"
             >
@@ -227,7 +229,7 @@ function EligibilityCard({
                     <span className="text-sm">{benefit.category}</span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {benefit.copay !== undefined && `$${benefit.copay} copay`}
+                    {benefit.copay !== undefined && `${CURRENCY_SYMBOL}${benefit.copay} copay`}
                     {benefit.coinsurance !== undefined && `${benefit.coinsurance}% coinsurance`}
                     {benefit.limit && benefit.limit}
                   </div>
@@ -323,15 +325,15 @@ export function InsurancePanel({
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Office Visit</span>
-                <span className="font-medium">${eligibility.copay}</span>
+                <span className="font-medium">{CURRENCY_SYMBOL}{eligibility.copay}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Specialist</span>
-                <span className="font-medium">${eligibility.copay * 2}</span>
+                <span className="font-medium">{CURRENCY_SYMBOL}{eligibility.copay * 2}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Emergency</span>
-                <span className="font-medium">${eligibility.copay * 5}</span>
+                <span className="font-medium">{CURRENCY_SYMBOL}{eligibility.copay * 5}</span>
               </div>
             </div>
           </CardContent>

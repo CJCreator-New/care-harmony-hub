@@ -26,6 +26,7 @@ import { useInvoices, useRecordPayment } from '@/hooks/useBilling';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 
 interface PatientCheckOutModalProps {
   open: boolean;
@@ -200,7 +201,7 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
         <CardContent className="space-y-4">
           <div className="p-4 bg-muted/50 rounded-lg text-center">
             <p className="text-sm text-muted-foreground mb-1">Estimated Charges</p>
-            <p className="text-2xl font-bold">$0.00</p>
+            <p className="text-2xl font-bold">{CURRENCY_SYMBOL}0.00</p>
             <p className="text-xs text-muted-foreground mt-1">
               Invoice will be generated after consultation notes are finalized
             </p>
@@ -242,7 +243,7 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Payment Amount ($)</Label>
+            <Label>Payment Amount ({CURRENCY_SYMBOL})</Label>
             <Input
               type="number"
               placeholder="0.00"
@@ -433,46 +434,60 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
         )}
 
         <DialogFooter>
-          {selectedEntry && step !== 'summary' && step !== 'complete' && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                const steps: CheckOutStep[] = ['summary', 'billing', 'payment', 'followup'];
-                const currentIndex = steps.indexOf(step);
-                if (currentIndex > 0) {
-                  setStep(steps[currentIndex - 1]);
-                }
-              }}
-            >
-              Back
+          {!selectedEntry && step !== 'complete' && (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
             </Button>
           )}
-          {selectedEntry && step === 'summary' && (
-            <Button onClick={() => setStep('billing')}>
-              Continue
-            </Button>
-          )}
-          {step === 'billing' && (
-            <Button onClick={() => setStep('payment')}>
-              Continue
-            </Button>
-          )}
-          {step === 'payment' && (
-            <Button onClick={() => setStep('followup')}>
-              Continue
-            </Button>
-          )}
-          {step === 'followup' && (
-            <Button
-              onClick={handleCompleteCheckOut}
-              disabled={completeService.isPending}
-            >
-              {completeService.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Complete Check-Out
-            </Button>
+          {selectedEntry && step !== 'complete' && (
+            <div className="flex w-full justify-between items-center">
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground">
+                Cancel
+              </Button>
+              <div className="flex gap-2">
+                {step !== 'summary' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const steps: CheckOutStep[] = ['summary', 'billing', 'payment', 'followup'];
+                      const currentIndex = steps.indexOf(step);
+                      if (currentIndex > 0) {
+                        setStep(steps[currentIndex - 1]);
+                      }
+                    }}
+                  >
+                    Back
+                  </Button>
+                )}
+                {step === 'summary' && (
+                  <Button onClick={() => setStep('billing')}>
+                    Continue
+                  </Button>
+                )}
+                {step === 'billing' && (
+                  <Button onClick={() => setStep('payment')}>
+                    Continue
+                  </Button>
+                )}
+                {step === 'payment' && (
+                  <Button onClick={() => setStep('followup')}>
+                    Continue
+                  </Button>
+                )}
+                {step === 'followup' && (
+                  <Button
+                    onClick={handleCompleteCheckOut}
+                    disabled={completeService.isPending}
+                  >
+                    {completeService.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Complete Check-Out
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
           {step === 'complete' && (
-            <Button onClick={() => onOpenChange(false)}>
+            <Button onClick={() => onOpenChange(false)} className="w-full">
               Done
             </Button>
           )}

@@ -190,6 +190,9 @@ export function ResourceManagement() {
                       onChange={(e) => setNewResource(p => ({ ...p, name: e.target.value }))}
                       placeholder="e.g., Bed 101"
                     />
+                    {!newResource.name.trim() && (
+                      <p className="text-xs text-destructive">Resource name is required.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Code</Label>

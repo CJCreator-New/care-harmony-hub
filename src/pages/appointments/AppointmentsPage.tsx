@@ -183,9 +183,10 @@ export default function AppointmentsPage() {
           </Card>
         </div>
 
-        {/* View Toggle and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "calendar")}>
+        {/* View Toggle, Filters and Content */}
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "calendar")} className="space-y-4">
+          {/* Tab headers + search/filter row */}
+          <div className="flex flex-col sm:flex-row gap-4">
             <TabsList>
               <TabsTrigger value="list" className="gap-2">
                 <List className="h-4 w-4" />
@@ -196,37 +197,36 @@ export default function AppointmentsPage() {
                 Calendar
               </TabsTrigger>
             </TabsList>
-          </Tabs>
 
-          <div className="flex flex-1 gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by patient name or MRN..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-1 gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by patient name or MRN..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]" aria-label="Filter by appointment status">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      {config.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]" aria-label="Filter by appointment status">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>
-                    {config.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-        </div>
 
-        {/* Content */}
-        {viewMode === "list" ? (
-          <div className="flex gap-6">
+          {/* List View */}
+          <TabsContent value="list" className="m-0">
+            <div className="flex gap-6">
             {/* Calendar Sidebar */}
             <Card className="hidden lg:block">
               <CardContent className="p-4">
@@ -325,13 +325,17 @@ export default function AppointmentsPage() {
               </CardContent>
             </Card>
           </div>
-        ) : (
-          <CalendarView
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-            appointments={appointments || []}
-          />
-        )}
+          </TabsContent>
+
+          {/* Calendar View */}
+          <TabsContent value="calendar" className="m-0">
+            <CalendarView
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              appointments={appointments || []}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <ScheduleAppointmentModal

@@ -137,7 +137,7 @@ export class DashboardErrorBoundary extends Component<Props, State> {
                 </Button>
               </div>
 
-              {import.meta.env.DEV && error && (
+              {import.meta.env.DEV && error && this.props.roleName !== 'patient' && (
                 <details className="mt-4">
                   <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
                     Show Error Details (Development)

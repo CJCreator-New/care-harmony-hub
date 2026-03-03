@@ -46,7 +46,7 @@ export function NotificationsSystem() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [open, setOpen] = useState(false);
 
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications', user?.id],
@@ -97,9 +97,8 @@ export function NotificationsSystem() {
     }
   });
 
-  useEffect(() => {
-    setUnreadCount(notifications.filter(n => !n.is_read).length);
-  }, [notifications]);
+  // Derive unreadCount directly from notifications to ensure immediate render on data load
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
     if (!user) return;
@@ -137,6 +136,20 @@ export function NotificationsSystem() {
     };
   }, [user, queryClient]);
 
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      const isAltT = e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 't';
+      const isF8 = e.key === 'F8';
+      if (!isAltT && !isF8) return;
+
+      e.preventDefault();
+      setOpen((prev) => !prev);
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
+
   const getPriorityBadgeClass = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'bg-red-100 text-red-700 border-red-200';
@@ -158,9 +171,14 @@ export function NotificationsSystem() {
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative group overflow-visible">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative group overflow-visible"
+          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''} (Alt+T, F8)`}
+        >
           <Bell className="h-5 w-5 transition-transform group-hover:scale-110" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-in zoom-in duration-300">
@@ -172,7 +190,7 @@ export function NotificationsSystem() {
       <DropdownMenuContent align="end" className="w-[380px] p-0 shadow-xl border-border/50 backdrop-blur-sm">
         <DropdownMenuLabel className="flex items-center justify-between p-4 bg-muted/30">
           <div className="flex flex-col">
-            <span className="text-sm font-bold">Clinical Alerts</span>
+            <span className="text-sm font-bold">Notifications</span>
             <span className="text-[10px] font-normal text-muted-foreground">Real-time status updates</span>
           </div>
           {unreadCount > 0 && (

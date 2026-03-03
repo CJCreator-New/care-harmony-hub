@@ -183,6 +183,9 @@ export function DepartmentManagement() {
                     onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
                     placeholder="e.g., Emergency Department"
                   />
+                  {!formData.name.trim() && (
+                    <p className="text-xs text-destructive">Department name is required.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Department Code</Label>

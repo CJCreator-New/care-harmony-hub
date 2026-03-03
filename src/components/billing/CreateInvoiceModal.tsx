@@ -31,6 +31,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { usePatients } from "@/hooks/usePatients";
 import { useCreateInvoice } from "@/hooks/useBilling";
 import { toast } from "sonner";
+import { formatCurrency, CURRENCY_SYMBOL } from "@/lib/currency";
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 
@@ -260,7 +261,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                             <FormControl>
                               <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                  $
+                                  {CURRENCY_SYMBOL}
                                 </span>
                                 <Input
                                   type="number"
@@ -281,10 +282,10 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
 
                       {/* Line total */}
                       <div className="w-24 text-right font-medium pt-2">
-                        ${(
+                        {formatCurrency(
                           (Number(watchedItems[index]?.quantity) || 0) *
                           (Number(watchedItems[index]?.unit_price) || 0)
-                        ).toFixed(2)}
+                        )}
                       </div>
                     </div>
                   </div>
@@ -308,7 +309,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
             <div className="flex justify-end p-3 bg-muted rounded-lg">
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">${subtotal.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(subtotal)}</p>
               </div>
             </div>
 

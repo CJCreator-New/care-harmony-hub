@@ -6,6 +6,7 @@ import { hasAnyRole } from '@/hooks/usePermissions';
 import { hasPermission, Permission } from '@/lib/permissions';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -26,6 +27,18 @@ export function RoleProtectedRoute({
   const location = useLocation();
 
   if (isLoading || (isAuthenticated && roles.length === 0)) {
+    if (isAuthenticated) {
+      return (
+        <DashboardLayout>
+          <div className="min-h-[70vh] flex items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -48,20 +61,22 @@ export function RoleProtectedRoute({
   if (!hasRoleAccess || !hasRequiredPermission) {
     if (showUnauthorized) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center max-w-md mx-auto px-4">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
-              <ShieldAlert className="h-8 w-8 text-destructive" />
+        <DashboardLayout>
+          <div className="min-h-[70vh] flex items-center justify-center bg-background">
+            <div className="text-center max-w-md mx-auto px-4">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+                <ShieldAlert className="h-8 w-8 text-destructive" />
+              </div>
+              <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+              <p className="text-muted-foreground mb-6">
+                You don't have permission to access this page. Please contact your administrator if you believe this is an error.
+              </p>
+              <Button onClick={() => window.history.back()}>
+                Go Back
+              </Button>
             </div>
-            <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-            <p className="text-muted-foreground mb-6">
-              You don't have permission to access this page. Please contact your administrator if you believe this is an error.
-            </p>
-            <Button onClick={() => window.history.back()}>
-              Go Back
-            </Button>
           </div>
-        </div>
+        </DashboardLayout>
       );
     }
     return <Navigate to={redirectTo} replace />;

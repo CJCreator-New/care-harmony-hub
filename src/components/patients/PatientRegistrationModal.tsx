@@ -37,10 +37,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, UserPlus, User, Phone, Heart, Shield } from 'lucide-react';
 
 const patientSchema = z.object({
-  first_name: z.string().min(2, 'First name must be at least 2 characters'),
-  last_name: z.string().min(2, 'Last name must be at least 2 characters'),
+  first_name: z.string().trim().min(1, 'First name is required').min(2, 'First name must be at least 2 characters'),
+  last_name: z.string().trim().min(1, 'Last name is required').min(2, 'Last name must be at least 2 characters'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
-  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']),
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say'], {
+    required_error: "Gender is required",
+  }),
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   address: z.string().optional(),
@@ -79,18 +81,9 @@ export function PatientRegistrationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
 
-  // Derive which tabs have validation errors for visual indicators
-  const { errors } = form.formState;
-  const tabHasError = {
-    personal: !!(errors.first_name || errors.last_name || errors.date_of_birth || errors.gender),
-    contact: !!(errors.address || errors.city || errors.state || errors.zip ||
-                errors.emergency_contact_name || errors.emergency_contact_phone),
-    medical: !!(errors.blood_type || errors.allergies || errors.chronic_conditions),
-    insurance: !!(errors.insurance_provider || errors.insurance_policy_number || errors.insurance_group_number),
-  };
-
   const form = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
+    mode: 'onChange',
     defaultValues: {
       first_name: '',
       last_name: '',
@@ -114,6 +107,44 @@ export function PatientRegistrationModal({
       notes: '',
     },
   });
+
+  // Tab order for forward-navigation guard (BUG-15)
+  const TAB_ORDER = ['personal', 'contact', 'medical', 'insurance'] as const;
+  const PERSONAL_REQUIRED_FIELDS: Array<keyof PatientFormData> = [
+    'first_name',
+    'last_name',
+    'date_of_birth',
+    'gender',
+  ];
+
+  // Guard forward tab navigation: validate Personal required fields before advancing.
+  const handleTabChange = async (newTab: string) => {
+    const currentIndex = TAB_ORDER.indexOf(activeTab as typeof TAB_ORDER[number]);
+    const newIndex = TAB_ORDER.indexOf(newTab as typeof TAB_ORDER[number]);
+
+    if (newIndex > currentIndex && activeTab === 'personal') {
+      const isValid = await form.trigger(PERSONAL_REQUIRED_FIELDS);
+      if (!isValid) {
+        toast({
+          title: 'Required fields incomplete',
+          description: 'Please fill in all required Personal fields before continuing.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    setActiveTab(newTab);
+  };
+
+  // Derive which tabs have validation errors for visual indicators
+  const { errors } = form.formState;
+  const tabHasError = {
+    personal: !!(errors.first_name || errors.last_name || errors.date_of_birth || errors.gender),
+    contact: !!(errors.address || errors.city || errors.state || errors.zip ||
+                errors.emergency_contact_name || errors.emergency_contact_phone),
+    medical: !!(errors.blood_type || errors.allergies || errors.chronic_conditions),
+    insurance: !!(errors.insurance_provider || errors.insurance_policy_number || errors.insurance_group_number),
+  };
 
   // Reset form when modal closes
   const handleOpenChange = (isOpen: boolean) => {
@@ -228,7 +259,7 @@ export function PatientRegistrationModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onEscapeKeyDown={() => handleOpenChange(false)}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
@@ -256,7 +287,7 @@ export function PatientRegistrationModal({
             })}
             className="space-y-6"
           >
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="personal" className="relative flex items-center gap-1">
                   <User className="h-4 w-4" />
@@ -365,7 +396,7 @@ export function PatientRegistrationModal({
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="+1 (555) 123-4567" {...field} />
+                          <Input type="tel" placeholder="+91 98765 43210" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -422,9 +453,51 @@ export function PatientRegistrationModal({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>State</FormLabel>
-                        <FormControl>
-                          <Input placeholder="State" {...field} />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select state" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
+                            <SelectItem value="Arunachal Pradesh">Arunachal Pradesh</SelectItem>
+                            <SelectItem value="Assam">Assam</SelectItem>
+                            <SelectItem value="Bihar">Bihar</SelectItem>
+                            <SelectItem value="Chhattisgarh">Chhattisgarh</SelectItem>
+                            <SelectItem value="Goa">Goa</SelectItem>
+                            <SelectItem value="Gujarat">Gujarat</SelectItem>
+                            <SelectItem value="Haryana">Haryana</SelectItem>
+                            <SelectItem value="Himachal Pradesh">Himachal Pradesh</SelectItem>
+                            <SelectItem value="Jharkhand">Jharkhand</SelectItem>
+                            <SelectItem value="Karnataka">Karnataka</SelectItem>
+                            <SelectItem value="Kerala">Kerala</SelectItem>
+                            <SelectItem value="Madhya Pradesh">Madhya Pradesh</SelectItem>
+                            <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                            <SelectItem value="Manipur">Manipur</SelectItem>
+                            <SelectItem value="Meghalaya">Meghalaya</SelectItem>
+                            <SelectItem value="Mizoram">Mizoram</SelectItem>
+                            <SelectItem value="Nagaland">Nagaland</SelectItem>
+                            <SelectItem value="Odisha">Odisha</SelectItem>
+                            <SelectItem value="Punjab">Punjab</SelectItem>
+                            <SelectItem value="Rajasthan">Rajasthan</SelectItem>
+                            <SelectItem value="Sikkim">Sikkim</SelectItem>
+                            <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
+                            <SelectItem value="Telangana">Telangana</SelectItem>
+                            <SelectItem value="Tripura">Tripura</SelectItem>
+                            <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
+                            <SelectItem value="Uttarakhand">Uttarakhand</SelectItem>
+                            <SelectItem value="West Bengal">West Bengal</SelectItem>
+                            <SelectItem value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</SelectItem>
+                            <SelectItem value="Chandigarh">Chandigarh</SelectItem>
+                            <SelectItem value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</SelectItem>
+                            <SelectItem value="Delhi">Delhi</SelectItem>
+                            <SelectItem value="Jammu and Kashmir">Jammu and Kashmir</SelectItem>
+                            <SelectItem value="Ladakh">Ladakh</SelectItem>
+                            <SelectItem value="Lakshadweep">Lakshadweep</SelectItem>
+                            <SelectItem value="Puducherry">Puducherry</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -434,9 +507,9 @@ export function PatientRegistrationModal({
                     name="zip"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ZIP Code</FormLabel>
+                        <FormLabel>PIN Code</FormLabel>
                         <FormControl>
-                          <Input placeholder="12345" {...field} />
+                          <Input placeholder="110001" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -467,7 +540,7 @@ export function PatientRegistrationModal({
                         <FormItem>
                           <FormLabel>Contact Phone</FormLabel>
                           <FormControl>
-                            <Input type="tel" placeholder="+1 (555) 987-6543" {...field} />
+                            <Input type="tel" placeholder="+91 98765 43210" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

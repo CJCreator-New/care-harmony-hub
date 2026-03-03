@@ -7,9 +7,10 @@
 
 import { Command } from 'commander';
 import { CodeReviewer } from './codeReviewer';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { CodeReviewConfig } from '../types/code-review';
+import { HEALTHCARE_RULES } from './codeReviewerRules';
 
 const program = new Command();
 
@@ -47,7 +48,7 @@ program
       const output = reviewer.exportResults(options.output as any);
 
       if (options.outputFile) {
-        require('fs').writeFileSync(options.outputFile, output);
+        writeFileSync(options.outputFile, output);
         console.log(`✅ Results saved to ${options.outputFile}`);
       } else {
         console.log(output);
@@ -114,7 +115,7 @@ program
   .action((options) => {
     const configPath = '.code-reviewer.json';
 
-    if (!options.force && require('fs').existsSync(configPath)) {
+    if (!options.force && existsSync(configPath)) {
       console.error('❌ Config file already exists. Use --force to overwrite.');
       process.exit(1);
     }
@@ -175,7 +176,7 @@ program
       },
     };
 
-    require('fs').writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+    writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
     console.log('✅ Configuration initialized at .code-reviewer.json');
   });
 
@@ -197,14 +198,6 @@ program
   .description('List available rules for a category')
   .argument('<category>', 'Category to list rules for')
   .action((category) => {
-    const { HEALTHCARE_RULES } = require('./codeReviewerRules');
-
-    if (!HEALTHCARE_RULES[category]) {
-      console.error(`❌ Unknown category: ${category}`);
-      console.log('Use "categories" command to see available categories');
-      process.exit(1);
-    }
-
     console.log(`Rules for ${category}:`);
     HEALTHCARE_RULES[category].forEach(rule => {
       console.log(`  • ${rule.id} (${rule.severity}) - ${rule.message}`);

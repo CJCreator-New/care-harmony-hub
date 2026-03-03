@@ -275,59 +275,65 @@ export function ReceptionistMessaging({ compact = false }: ReceptionistMessaging
             </div>
 
             {/* Send Message */}
-            <div className="space-y-4">
-              <h3 className="font-medium">Send Message</h3>
+            <div className="space-y-4 flex flex-col">
+              <h3 className="font-medium">New Message</h3>
 
-              <div>
-                <label className="text-sm font-medium">Send to</label>
+              <div className="space-y-2">
+                <Label htmlFor="recipient" className="text-sm font-medium">Recipient Role</Label>
                 <Select value={recipientRole} onValueChange={(v: any) => setRecipientRole(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger id="recipient">
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[200]">
                     <SelectItem value="doctor">All Doctors</SelectItem>
                     <SelectItem value="nurse">All Nurses</SelectItem>
+                    <SelectItem value="pharmacist">Pharmacy Team</SelectItem>
+                    <SelectItem value="lab_technician">Laboratory Team</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Priority</label>
+              <div className="space-y-2">
+                <Label htmlFor="priority" className="text-sm font-medium">Urgency Level</Label>
                 <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger id="priority">
+                    <SelectValue placeholder="Select urgency" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectContent className="z-[200]">
+                    <SelectItem value="low">Standard / FYI</SelectItem>
+                    <SelectItem value="medium">Medium Priority</SelectItem>
+                    <SelectItem value="high">High Priority</SelectItem>
+                    <SelectItem value="urgent">Urgent / Emergency Alert</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Message</label>
+              <div className="space-y-2 flex-grow">
+                <Label htmlFor="message-body" className="text-sm font-medium">Message Content</Label>
                 <textarea
-                  className="w-full p-2 border rounded-md resize-none"
-                  rows={4}
-                  placeholder="Type your message..."
+                  id="message-body"
+                  className="w-full p-3 border rounded-md resize-none shadow-sm focus:ring-1 focus:ring-primary focus:border-primary min-h-[120px]"
+                  placeholder="Type your message to clinical staff..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
+                  required
                 />
               </div>
 
               <Button
                 onClick={sendMessage}
                 disabled={!newMessage.trim() || loading}
-                className="w-full"
+                className="w-full mt-auto bg-primary hover:bg-primary/90 shadow-sm"
               >
                 {loading ? (
-                  <>Sending...</>
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
-                    Send Message
+                    Send Broadcast
                   </>
                 )}
               </Button>

@@ -26,6 +26,7 @@ import { useTelemetry } from '@/hooks/useTelemetry';
 import { paymentService } from '@/utils/paymentService';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/currency';
 
 interface PatientBillingProps {
   patientId: string;
@@ -101,7 +102,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
 
       // In a real implementation, this would redirect to a payment form
       // For now, we'll simulate a successful payment
-      toast.success(`Payment of $${amount.toFixed(2)} processed successfully!`);
+      toast.success(`Payment of ${formatCurrency(amount)} processed successfully!`);
       setPaymentDialogOpen(false);
       refetch(); // Refresh billing data
 
@@ -163,7 +164,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
               <div>
                 <p className="text-sm font-medium text-gray-600">Outstanding Balance</p>
                 <p className="text-2xl font-bold text-red-600">
-                  ${billingDataToUse.outstandingBalance.toFixed(2)}
+                  {formatCurrency(billingDataToUse.outstandingBalance)}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-red-500" />
@@ -177,7 +178,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Paid</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ${billingDataToUse.totalPaid.toFixed(2)}
+                  {formatCurrency(billingDataToUse.totalPaid)}
                 </p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500" />
@@ -191,7 +192,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Billed</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${billingDataToUse.totalBilled.toFixed(2)}
+                  {formatCurrency(billingDataToUse.totalBilled)}
                 </p>
               </div>
               <Receipt className="h-8 w-8 text-gray-500" />
@@ -262,7 +263,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                         <TableCell className="font-medium">{invoice.id}</TableCell>
                         <TableCell>{format(new Date(invoice.date), 'MMM dd, yyyy')}</TableCell>
                         <TableCell>{format(new Date(invoice.dueDate), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell>${invoice.amount.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(invoice.amount)}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(invoice.status)}>
                             <span className="flex items-center">
@@ -304,7 +305,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                                   <DialogHeader>
                                     <DialogTitle>Make Payment</DialogTitle>
                                     <DialogDescription>
-                                      Pay invoice {selectedInvoice?.id} - ${selectedInvoice?.amount.toFixed(2)}
+                                      Pay invoice {selectedInvoice?.id} - {formatCurrency(selectedInvoice?.amount)}
                                     </DialogDescription>
                                   </DialogHeader>
                                 <div className="space-y-4">
@@ -312,7 +313,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                                     <h4 className="font-medium mb-2">Invoice Details</h4>
                                     <p className="text-sm text-gray-600">{selectedInvoice?.description}</p>
                                     <p className="text-lg font-bold mt-2">
-                                      Amount Due: ${(selectedInvoice?.amount - (selectedInvoice?.paid || 0)).toFixed(2)}
+                                      Amount Due: {formatCurrency((selectedInvoice?.amount ?? 0) - (selectedInvoice?.paid || 0))}
                                     </p>
                                   </div>
 
@@ -393,7 +394,7 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                       <TableRow key={payment.id}>
                         <TableCell className="font-medium">{payment.id}</TableCell>
                         <TableCell>{format(new Date(payment.date), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell>${payment.amount.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(payment.amount)}</TableCell>
                         <TableCell>{payment.method}</TableCell>
                         <TableCell>
                           <Badge className={payment.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
@@ -450,13 +451,13 @@ export function PatientBilling({ patientId }: PatientBillingProps) {
                       <TableRow key={claim.id}>
                         <TableCell className="font-medium">{claim.id}</TableCell>
                         <TableCell>{format(new Date(claim.date), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell>${claim.amount.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(claim.amount)}</TableCell>
                         <TableCell>
                           <Badge className={claim.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
                             {claim.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>${claim.approvedAmount?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>{formatCurrency(claim.approvedAmount ?? 0)}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm">
                             <Eye className="w-4 h-4 mr-1" />

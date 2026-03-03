@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, FileText, Settings, AlertTriangle } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
+import { cn } from '@/lib/utils';
 
 // Mock Data Generation for Levey-Jennings Chart
 const generateQCData = (mean: number, sd: number, points: number) => {
@@ -83,7 +84,13 @@ export function QCDashboard() {
                 <CardTitle>Levey-Jennings Chart</CardTitle>
                 <CardDescription>Last 30 days performance</CardDescription>
               </div>
-              <Badge variant={status === 'accepted' ? 'outline' : 'destructive'} className="gap-1">
+              <Badge 
+                variant={status === 'accepted' ? 'outline' : 'destructive'} 
+                className={cn(
+                  "gap-1",
+                  status === 'accepted' && "bg-slate-50 text-slate-600 border-slate-200"
+                )}
+              >
                 {status === 'accepted' ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
                 {status === 'accepted' ? 'Control In Range' : 'Control Failed'}
               </Badge>
@@ -121,11 +128,12 @@ export function QCDashboard() {
                       dataKey="value" 
                       stroke="#0f172a" 
                       strokeWidth={2}
-                      dot={(props) => {
+                      dot={(props: any) => {
                          const { cx, cy, payload } = props;
                          const isViolation = Math.abs(payload.value - payload.mean) > (3 * payload.sd);
                          return (
                            <circle 
+                             key={`dot-${payload.date}`}
                              cx={cx} 
                              cy={cy} 
                              r={isViolation ? 6 : 4} 
@@ -170,13 +178,13 @@ export function QCDashboard() {
                <h4 className="font-semibold text-sm mb-2">Westgard Violations</h4>
                {violation ? (
                  <div className="bg-red-50 text-red-700 p-2 rounded text-sm flex items-center gap-2">
-                   <AlertTriangle className="h-3 w-3" />
-                   {violation} - Run Rejected
+                   <AlertTriangle className="h-4 w-4 shrink-0" />
+                   <span>{violation} - Run Rejected</span>
                  </div>
                ) : (
-                 <div className="bg-green-50 text-green-700 p-2 rounded text-sm flex items-center gap-2">
-                   <CheckCircle className="h-3 w-3" />
-                   No Violations
+                 <div className="bg-slate-50 text-slate-600 p-2 rounded text-sm flex items-center gap-2">
+                   <CheckCircle className="h-4 w-4 shrink-0" />
+                   <span>No Violations</span>
                  </div>
                )}
                <Button variant="outline" className="w-full mt-4 text-xs gap-2">

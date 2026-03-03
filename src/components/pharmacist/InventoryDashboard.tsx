@@ -19,11 +19,12 @@ import {
   ArrowUpDown,
   MoreHorizontal,
   Package,
-  History,
-  TrendingDown
+  Truck,
+  Clock3
 } from 'lucide-react';
 import { useMedications, useMedicationStats } from '@/hooks/useMedications';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/lib/currency';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ export function InventoryDashboard() {
     med.generic_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     med.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const pendingShipments = 0;
 
   return (
     <div className="space-y-4">
@@ -67,12 +69,12 @@ export function InventoryDashboard() {
         <Card className="border-yellow-200 bg-yellow-50/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-yellow-600" />
+              <Clock3 className="h-4 w-4 text-yellow-600" />
               Expiring Soon
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-700">8</div>
+            <div className="text-2xl font-bold text-yellow-700">{stats?.expiringSoon || 0}</div>
             <p className="text-xs text-yellow-600 mt-1">Within next 30 days</p>
           </CardContent>
         </Card>
@@ -80,13 +82,13 @@ export function InventoryDashboard() {
         <Card className="border-blue-200 bg-blue-50/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <History className="h-4 w-4 text-blue-600" />
+              <Truck className="h-4 w-4 text-blue-600" />
               Pending Shipments
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700">3</div>
-            <p className="text-xs text-blue-600 mt-1">Expected this week</p>
+            <div className="text-2xl font-bold text-blue-700">{pendingShipments}</div>
+            <p className="text-xs text-blue-600 mt-1">No active inbound shipments</p>
           </CardContent>
         </Card>
       </div>
@@ -178,7 +180,7 @@ export function InventoryDashboard() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>${med.unit_price?.toFixed(2)}</TableCell>
+                      <TableCell>{med.unit_price != null ? formatCurrency(med.unit_price) : '—'}</TableCell>
                       <TableCell>
                         {med.current_stock <= med.minimum_stock ? (
                           <Badge variant="destructive">Low Stock</Badge>

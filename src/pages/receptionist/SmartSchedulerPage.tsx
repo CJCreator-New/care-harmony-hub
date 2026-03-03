@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { usePatients } from '@/hooks/usePatients';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 export default function SmartSchedulerPage() {
   const navigate = useNavigate();
@@ -14,40 +15,48 @@ export default function SmartSchedulerPage() {
   const patients = patientsData?.patients || [];
 
   return (
-    <div className="container max-w-4xl mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Smart Appointment Scheduler</h1>
-          <p className="text-muted-foreground">AI-powered appointment optimization</p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Smart Appointment Scheduler</h1>
+            <p className="text-muted-foreground">AI-powered appointment optimization</p>
+          </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Patient</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedPatient} onValueChange={setSelectedPatient}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a patient..." />
+              </SelectTrigger>
+              <SelectContent>
+                {patients.length > 0 ? (
+                  patients.map((patient) => (
+                    <SelectItem key={patient.id} value={patient.id}>
+                      {patient.first_name} {patient.last_name} - MRN: {patient.mrn}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="p-2 text-sm text-center text-muted-foreground">
+                    No patients available
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        {selectedPatient && (
+          <SmartScheduler patientId={selectedPatient} />
+        )}
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Patient</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a patient..." />
-            </SelectTrigger>
-            <SelectContent>
-              {patients.map((patient) => (
-                <SelectItem key={patient.id} value={patient.id}>
-                  {patient.first_name} {patient.last_name} - MRN: {patient.mrn}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {selectedPatient && (
-        <SmartScheduler patientId={selectedPatient} />
-      )}
-    </div>
+    </DashboardLayout>
   );
 }

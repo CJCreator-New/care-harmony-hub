@@ -116,28 +116,29 @@ export function LabAutomationPage() {
           <StatsCard
             title="Today's Samples"
             value={totalSamples}
-            description={`${completedSamples} completed`}
+            subtitle={`${completedSamples} completed`}
             icon={TestTube2}
             trend={totalSamples > 0 ? { value: 12, isPositive: true } : undefined}
           />
           <StatsCard
             title="QC Pass Rate"
             value={`${qcStatistics?.passRate.toFixed(1) || 0}%`}
-            description={`${qcStatistics?.passedTests || 0} of ${qcStatistics?.totalTests || 0} tests`}
+            subtitle={`${qcStatistics?.passedTests || 0} of ${qcStatistics?.totalTests || 0} tests`}
             icon={CheckCircle}
             trend={(qcStatistics?.totalTests ?? 0) > 0 ? { value: 2.1, isPositive: true } : undefined}
           />
           <StatsCard
             title="Critical Results"
             value={pendingCriticalResults.length}
-            description={`${acknowledgedCriticalResults.length} acknowledged`}
+            subtitle={`${acknowledgedCriticalResults.length} acknowledged`}
             icon={AlertTriangle}
+            variant={pendingCriticalResults.length > 0 ? 'danger' : 'default'}
             trend={pendingCriticalResults.length > 0 ? { value: -5, isPositive: false } : undefined}
           />
           <StatsCard
             title="Processing Rate"
             value={`${completionRate.toFixed(1)}%`}
-            description={`${processingSamples} in progress`}
+            subtitle={`${processingSamples} in progress`}
             icon={TrendingUp}
             trend={totalSamples > 0 ? { value: 8.2, isPositive: true } : undefined}
           />
@@ -301,15 +302,21 @@ export function LabAutomationPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Passed</span>
-                      <span className="font-medium text-green-600">{qcStatistics?.passedTests || 0}</span>
+                      <span className={(qcStatistics?.passedTests || 0) > 0 ? 'font-medium text-green-600' : 'font-medium text-muted-foreground'}>
+                        {qcStatistics?.passedTests || 0}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Failed</span>
-                      <span className="font-medium text-red-600">{qcStatistics?.failedTests || 0}</span>
+                      <span className={(qcStatistics?.failedTests || 0) > 0 ? 'font-medium text-red-600' : 'font-medium text-muted-foreground'}>
+                        {qcStatistics?.failedTests || 0}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Pending</span>
-                      <span className="font-medium text-yellow-600">{qcStatistics?.pendingTests || 0}</span>
+                      <span className={(qcStatistics?.pendingTests || 0) > 0 ? 'font-medium text-yellow-600' : 'font-medium text-muted-foreground'}>
+                        {qcStatistics?.pendingTests || 0}
+                      </span>
                     </div>
                   </div>
                 </CardContent>

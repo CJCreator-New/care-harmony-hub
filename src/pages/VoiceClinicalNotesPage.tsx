@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mic, FileText, Save, Download, Upload } from 'lucide-react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -123,6 +124,7 @@ const VoiceClinicalNotesPage: React.FC = () => {
   };
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
@@ -210,7 +212,7 @@ const VoiceClinicalNotesPage: React.FC = () => {
                   Clinical Note Editor
                 </CardTitle>
                 <Badge variant="outline">
-                  {currentNote.type || 'progress'}
+                  {(currentNote.type || 'progress').charAt(0).toUpperCase() + (currentNote.type || 'progress').slice(1)}
                 </Badge>
               </div>
             </CardHeader>
@@ -291,7 +293,7 @@ const VoiceClinicalNotesPage: React.FC = () => {
                 <div key={note.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{note.type}</Badge>
+                      <Badge variant="outline">{note.type.charAt(0).toUpperCase() + note.type.slice(1)}</Badge>
                       <span className="text-sm text-muted-foreground">
                         {note.date.toLocaleDateString()} {note.date.toLocaleTimeString()}
                       </span>
@@ -345,6 +347,7 @@ const VoiceClinicalNotesPage: React.FC = () => {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 };
 

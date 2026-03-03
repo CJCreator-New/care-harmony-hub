@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useICD10Service, ICD10Suggestion } from './ICD10Service';
+import { icd10Service, useICD10Service, ICD10Suggestion } from './ICD10Service';
 import { cptService, CPTSuggestion } from './CPTService';
 
 export interface ClinicalCodeMapping {
@@ -27,7 +27,7 @@ export interface ClinicalCodingService {
 }
 
 class ClinicalCodingServiceImpl implements ClinicalCodingService {
-  private icd10Service = useICD10Service();
+  private icd10Service = icd10Service;
 
   async analyzeClinicalText(text: string): Promise<ClinicalCodeMapping> {
     const normalizedText = text.toLowerCase();

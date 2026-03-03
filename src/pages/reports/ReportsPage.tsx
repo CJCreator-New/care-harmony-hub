@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -402,7 +403,7 @@ export default function ReportsPage() {
                   <Recharts.LineChart data={chartData}>
                     <Recharts.CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <Recharts.XAxis dataKey="date" className="text-xs" />
-                    <Recharts.YAxis className="text-xs" tickFormatter={(value) => `$${value}`} />
+                    <Recharts.YAxis className="text-xs" tickFormatter={(value) => `${CURRENCY_SYMBOL}${value}`} />
                     <Recharts.Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',

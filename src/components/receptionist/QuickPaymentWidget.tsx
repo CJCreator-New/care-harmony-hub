@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, DollarSign, Receipt, AlertCircle, CheckCircle, Printer } from 'lucide-react';
+import { CreditCard, DollarSign, CheckCircle, Printer, Loader2 } from 'lucide-react';
 import { usePatients } from '@/hooks/usePatients';
 import { useInvoices, useRecordPayment } from '@/hooks/useBilling';
 import { CheckoutModal } from '@/components/payments/CheckoutModal';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/currency';
 
 interface QuickPaymentWidgetProps {
   onPaymentComplete?: () => void;
@@ -21,8 +22,14 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
   const [open, setOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'insurance'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'insurance' | 'upi'>('cash');
   const [processing, setProcessing] = useState(false);
+  const [lastPayment, setLastPayment] = useState<{
+    patientId: string;
+    amount: number;
+    method: string;
+    date: string;
+  } | null>(null);
 
   const { data: patientsData } = usePatients();
   const patients = patientsData?.patients || [];
@@ -40,8 +47,13 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
   const totalOutstanding = patientInvoices.reduce((sum, inv) => sum + (inv.total - inv.paid_amount), 0);
 
   const handlePayment = async () => {
-    if (!selectedPatient || !paymentAmount) {
-      toast.error('Please select a patient and enter payment amount');
+    if (!selectedPatient) {
+      toast.error('Please select a patient');
+      return;
+    }
+
+    if (!paymentAmount) {
+      toast.error('Please enter payment amount');
       return;
     }
 
@@ -95,9 +107,16 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
           };
           await recordPayment.mutateAsync(payload);
         }
+
+        setLastPayment({
+          patientId: selectedPatient,
+          amount: boundedAmount,
+          method: paymentMethod,
+          date: new Date().toLocaleString(),
+        });
       }
 
-      toast.success(`Payment of $${boundedAmount.toFixed(2)} recorded successfully`);
+      toast.success(`Payment of ${formatCurrency(boundedAmount)} recorded successfully`);
       setOpen(false);
       setSelectedPatient('');
       setPaymentAmount('');
@@ -122,17 +141,28 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
       };
       await recordPayment.mutateAsync(payload);
     }
+    setLastPayment({
+      patientId: selectedPatient,
+      amount: pendingAmount,
+      method: 'card',
+      date: new Date().toLocaleString(),
+    });
     setPendingPayments([]);
     setPendingAmount(0);
   };
 
   const printReceipt = () => {
+    if (!lastPayment) {
+      toast.error('Complete a payment before printing a receipt');
+      return;
+    }
+
     // Simple receipt printing simulation
     const receiptData = {
-      patient: patients.find(p => p.id === selectedPatient),
-      amount: paymentAmount,
-      method: paymentMethod,
-      date: new Date().toLocaleString()
+      patient: patients.find(p => p.id === lastPayment.patientId),
+      amount: lastPayment.amount,
+      method: lastPayment.method,
+      date: lastPayment.date
     };
 
     console.log('Printing receipt:', receiptData);
@@ -192,7 +222,7 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
                 <div className="flex items-center justify-between text-sm">
                   <span>Outstanding Balance:</span>
                   <Badge variant={totalOutstanding > 0 ? "destructive" : "secondary"}>
-                    ${totalOutstanding.toFixed(2)}
+                    {formatCurrency(totalOutstanding)}
                   </Badge>
                 </div>
                 {patientInvoices.length > 0 && (
@@ -205,59 +235,64 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
 
             <Separator />
 
-            {/* Payment Details */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label>Payment Method</Label>
                 <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[200]">
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="card">Card</SelectItem>
                     <SelectItem value="insurance">Insurance</SelectItem>
+                    <SelectItem value="upi">UPI / Digital</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Amount</Label>
+              <div className="space-y-2">
+                <Label>Amount (₹)</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <span className="absolute left-3 top-2.5 text-muted-foreground font-medium text-sm">₹</span>
                   <Input
                     type="number"
-                    step="0.01"
-                    placeholder="0.00"
+                    step="1"
+                    min="1"
+                    placeholder="0"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="pl-10"
+                    className="pl-7"
+                    required
                   />
                 </div>
               </div>
             </div>
 
             {/* Payment Summary */}
-            {paymentAmount && (
+            {paymentAmount && parseFloat(paymentAmount) > 0 && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <span className="font-medium text-green-900">
-                    Payment: ${parseFloat(paymentAmount || '0').toFixed(2)}
+                    Payment: {formatCurrency(parseFloat(paymentAmount || '0'))}
                   </span>
                 </div>
                 {totalOutstanding > 0 && (
                   <div className="text-xs text-green-700 mt-1">
-                    Remaining balance: ${Math.max(0, totalOutstanding - parseFloat(paymentAmount || '0')).toFixed(2)}
+                    Remaining balance: {formatCurrency(Math.max(0, totalOutstanding - parseFloat(paymentAmount || '0')))}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={printReceipt} disabled={!selectedPatient}>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setOpen(false)} className="sm:mr-auto">
+              Cancel
+            </Button>
+            <Button variant="secondary" onClick={printReceipt} disabled={!lastPayment}>
               <Printer className="h-4 w-4 mr-2" />
-              Print Receipt
+              Print
             </Button>
             <CheckoutModal
               open={cardModalOpen}
@@ -268,14 +303,18 @@ export function QuickPaymentWidget({ onPaymentComplete }: QuickPaymentWidgetProp
             />
             <Button
               onClick={handlePayment}
-              disabled={!selectedPatient || !paymentAmount || processing}
+              disabled={!selectedPatient || !paymentAmount || parseFloat(paymentAmount) <= 0 || processing}
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {processing ? (
-                <>Processing...</>
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
               ) : (
                 <>
                   <CreditCard className="h-4 w-4 mr-2" />
-                  Process Payment
+                  Confirm Payment
                 </>
               )}
             </Button>

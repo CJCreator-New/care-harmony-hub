@@ -125,8 +125,8 @@ export default function AIDemoComponent() {
           </p>
         </div>
 
-        {/* Compliance Status */}
-        {complianceStatus && (
+        {/* Compliance Status — only shown after user interaction */}
+        {hasAttemptedOperation && complianceStatus && (
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-green-600" />
             <Badge variant={getComplianceBadgeVariant(complianceStatus.status)}>

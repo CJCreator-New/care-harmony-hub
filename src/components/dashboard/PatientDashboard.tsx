@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ const skeletonKeys = ['skeleton-1', 'skeleton-2', 'skeleton-3'];
 
 export function PatientDashboard() {
   const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
   const { profile: patientProfile, loading: profileLoading } = usePatientProfile();
   const { appointments = [], loading: appointmentsLoading } = usePatientAppointments();
   const { prescriptions = [], loading: prescriptionsLoading } = usePatientPrescriptions();
@@ -54,13 +56,15 @@ export function PatientDashboard() {
   const activePrescriptions = prescriptions.filter((p) => p.status === 'pending').slice(0, 3);
   const recentLabResults = labResults.filter((l) => l.status === 'completed').slice(0, 3);
 
+  const firstName = (profile?.first_name || 'Patient').trim().replace(/^Dr\.?\s+/i, '');
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Welcome back, {profile?.first_name}!
+            Welcome back, {firstName}!
           </h1>
           <p className="text-muted-foreground">
             Manage your health records and appointments
@@ -74,7 +78,7 @@ export function PatientDashboard() {
         )}
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'insights')} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="overview" className="gap-2">
             <LayoutDashboard className="h-4 w-4" />
@@ -89,7 +93,8 @@ export function PatientDashboard() {
         <TabsContent value="overview" className="space-y-6">
           {/* Quick Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Link to="/patient/appointments" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -105,8 +110,10 @@ export function PatientDashboard() {
             )}
           </CardContent>
         </Card>
+        </Link>
 
-        <Card>
+        <Link to="/patient/prescriptions" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Prescriptions</CardTitle>
             <Pill className="h-4 w-4 text-muted-foreground" />
@@ -122,8 +129,10 @@ export function PatientDashboard() {
             )}
           </CardContent>
         </Card>
+        </Link>
 
-        <Card>
+        <Link to="/patient/lab-results" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lab Results</CardTitle>
             <TestTube2 className="h-4 w-4 text-muted-foreground" />
@@ -139,8 +148,10 @@ export function PatientDashboard() {
             )}
           </CardContent>
         </Card>
+        </Link>
 
-        <Card>
+        <Link to="/patient/portal" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Health Status</CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
@@ -153,6 +164,7 @@ export function PatientDashboard() {
             <p className="text-xs text-muted-foreground mt-1">All records up to date</p>
           </CardContent>
         </Card>
+        </Link>
       </div>
 
       {/* Main Content Grid */}

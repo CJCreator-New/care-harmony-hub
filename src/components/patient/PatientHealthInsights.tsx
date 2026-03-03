@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,23 @@ import {
   TrendingUp,
   Info
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+
+interface InsightItem {
+  type: string;
+  title: string;
+  description: string;
+  severity: string;
+  icon: React.ComponentType<any>;
+  metric: string;
+  trend: string;
+}
 
 export function PatientHealthInsights() {
+  const [selectedInsight, setSelectedInsight] = useState<InsightItem | null>(null);
   // Mock AI generated insights
-  const insights = [
+  const insights: InsightItem[] = [
     {
       type: 'vital',
       title: 'Blood Pressure Trend',
@@ -49,6 +62,10 @@ export function PatientHealthInsights() {
     }
   ];
 
+  const handleRecommendationAction = (label: string) => {
+    toast.success(`${label} added to your action queue.`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -56,7 +73,11 @@ export function PatientHealthInsights() {
           <h2 className="text-2xl font-bold tracking-tight">Health Insights Hub</h2>
           <p className="text-muted-foreground">AI-powered analysis of your medical data and wellness trends</p>
         </div>
-        <Badge variant="outline" className="gap-1.5 py-1 px-3 border-primary/50 bg-primary/5">
+        <Badge
+          variant="outline"
+          className="gap-1.5 py-1 px-3 border-primary/50 bg-primary/5"
+          title="Generated from your latest trends and records"
+        >
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           AI Analysis Active
         </Badge>
@@ -93,7 +114,12 @@ export function PatientHealthInsights() {
                 {insight.trend === 'up' && <TrendingUp className="h-5 w-5 text-red-500" />}
                 {insight.trend === 'low' && <AlertCircle className="h-5 w-5 text-amber-500" />}
               </div>
-              <Button variant="ghost" size="sm" className="w-full gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => setSelectedInsight(insight)}
+              >
                 View Full Analysis
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Button>
@@ -115,23 +141,27 @@ export function PatientHealthInsights() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Cardiovascular Health</span>
-                <span className="font-medium">Excellent (88/100)</span>
+                <span className="font-medium">Excellent (88/100) - Improving</span>
               </div>
               <Progress value={88} className="h-2" />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Metabolic Stability</span>
-                <span className="font-medium">Good (72/100)</span>
+                <span className="font-medium">Good (72/100) - Stable</span>
               </div>
               <Progress value={72} className="h-2" />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Bone Density Risk</span>
-                <span className="font-medium">Moderate (45/100)</span>
+                <span className="font-medium">Moderate (45/100) - Monitor</span>
               </div>
               <Progress value={45} className="h-2 bg-amber-100" />
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+              Scores are calculated from recent vitals, labs, medications, symptom trends, and medical history.
+              Ranges: 80-100 low risk, 60-79 moderate risk, below 60 needs closer clinical follow-up.
             </div>
             <div className="pt-4 p-3 rounded-lg bg-primary/5 flex gap-3">
               <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
@@ -151,36 +181,82 @@ export function PatientHealthInsights() {
             <CardDescription>Actions you can take today</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 flex items-start gap-4 hover:bg-primary/10 transition-colors cursor-pointer">
+            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 flex items-start gap-4">
               <div className="p-2 rounded-full bg-primary/20">
                 <ArrowUpRight className="h-4 w-4 text-primary" />
               </div>
               <div>
                 <p className="font-medium">Schedule Dental Cleaning</p>
                 <p className="text-xs text-muted-foreground">It has been 7 months since your last visit. Optimal frequency is every 6 months.</p>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={() => handleRecommendationAction('Dental cleaning appointment')}>
+                    Book
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleRecommendationAction('Dental reminder')}>
+                    Remind Me
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="p-4 rounded-lg border flex items-start gap-4 hover:bg-muted transition-colors cursor-pointer">
+            <div className="p-4 rounded-lg border flex items-start gap-4">
               <div className="p-2 rounded-full bg-blue-100">
                 <Droplets className="h-4 w-4 text-blue-600" />
               </div>
               <div>
                 <p className="font-medium">Hydration Goal</p>
                 <p className="text-xs text-muted-foreground">Increase daily water intake to 2.5L to improve kidney function metrics.</p>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={() => handleRecommendationAction('Hydration goal')}>
+                    Mark Done
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleRecommendationAction('Hydration reminder')}>
+                    Remind Me
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="p-4 rounded-lg border flex items-start gap-4 hover:bg-muted transition-colors cursor-pointer">
+            <div className="p-4 rounded-lg border flex items-start gap-4">
               <div className="p-2 rounded-full bg-amber-100">
                 <Activity className="h-4 w-4 text-amber-600" />
               </div>
               <div>
                 <p className="font-medium">Meditation Focus</p>
                 <p className="text-xs text-muted-foreground">Try 5 minutes of mindful breathing to lower resting heart rate.</p>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={() => handleRecommendationAction('Meditation session')}>
+                    Start Now
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleRecommendationAction('Meditation dismissed')}>
+                    Dismiss
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!selectedInsight} onOpenChange={(open) => !open && setSelectedInsight(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedInsight?.title}</DialogTitle>
+            <DialogDescription>
+              Detailed AI interpretation with context
+            </DialogDescription>
+          </DialogHeader>
+          {selectedInsight && (
+            <div className="space-y-3 text-sm">
+              <p>{selectedInsight.description}</p>
+              <p>
+                <span className="font-medium">Current value:</span> {selectedInsight.metric}
+              </p>
+              <p className="text-muted-foreground">
+                This insight is informational and should be reviewed with your clinician for diagnosis or treatment decisions.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

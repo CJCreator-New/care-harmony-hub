@@ -71,6 +71,7 @@ export function WorkflowOrchestrationPanel() {
   const hospitalId = hospital?.id;
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
+  const [nameError, setNameError] = useState(false);
   const [newRule, setNewRule] = useState<Partial<WorkflowRule>>({
     name: '',
     description: '',
@@ -120,6 +121,7 @@ export function WorkflowOrchestrationPanel() {
       queryClient.invalidateQueries({ queryKey: ['workflow-rules'] });
       toast.success('Workflow rule created');
       setIsCreating(false);
+      setNameError(false);
     }
   });
 
@@ -259,9 +261,12 @@ export function WorkflowOrchestrationPanel() {
                 <Input 
                   placeholder="e.g. Critical Lab Alert" 
                   value={newRule.name} 
-                  onChange={(e) => setNewRule({...newRule, name: e.target.value})}
-                  className="font-medium"
+                  onChange={(e) => { setNewRule({...newRule, name: e.target.value}); setNameError(false); }}
+                  className={`font-medium ${nameError ? 'border-destructive' : ''}`}
                 />
+                {nameError && (
+                  <p className="text-xs text-destructive">Rule name is required.</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -299,10 +304,13 @@ export function WorkflowOrchestrationPanel() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-end gap-3 bg-muted/30">
-              <Button variant="ghost" onClick={() => setIsCreating(false)} className="font-bold">Cancel</Button>
+              <Button variant="ghost" onClick={() => { setIsCreating(false); setNameError(false); }} className="font-bold">Cancel</Button>
               <Button 
-                onClick={() => createRuleMutation.mutate(newRule)}
-                disabled={!newRule.name}
+                onClick={() => {
+                  if (!newRule.name?.trim()) { setNameError(true); return; }
+                  createRuleMutation.mutate(newRule);
+                }}
+                disabled={createRuleMutation.isPending}
                 className="font-bold bg-primary px-8"
               >
                 <Save className="h-4 w-4 mr-2" />
