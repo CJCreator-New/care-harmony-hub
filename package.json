@@ -90,6 +90,9 @@
     "test:e2e:full:phase:workflows": "npx playwright test --config=playwright.e2e-full.config.ts --project=workflows",
     "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.4"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@hookform/resolvers": "^3.10.0",
@@ -158,7 +161,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "vite-plugin-pwa": "^0.19.8",
+    "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.16",
     "zod": "^3.25.76"
   },
@@ -189,6 +192,8 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^7.3.0",
-    "web-vitals": "^5.1.0"
+    "web-vitals": "^5.1.0",
+    "workbox-build": "^7.4.0",
+    "workbox-window": "^7.4.0"
   }
 }
