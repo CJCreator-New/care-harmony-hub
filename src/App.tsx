@@ -119,6 +119,7 @@ const LengthOfStayForecastingPage = lazy(() => import("./pages/LengthOfStayForec
 const ResourceUtilizationOptimizationPage = lazy(() => import("./pages/ResourceUtilizationOptimizationPage"));
 const VoiceClinicalNotesPage = lazy(() => import("./pages/VoiceClinicalNotesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const RoleSelectionPage = lazy(() => import("./pages/hospital/RoleSelectionPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,7 +133,7 @@ const queryClient = new QueryClient({
 
 // Protected Route Component - redirects to setup if account incomplete
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles } = useAuth();
+  const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles, pendingRoleSelection } = useAuth();
 
   if (isLoading) {
     if (isAuthenticated) {
@@ -181,15 +182,47 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/hospital/account-setup" replace />;
   }
 
+  // Multi-role users must explicitly pick a role before entering the app.
+  // Single-role users (or users with a stored preference) skip this gate.
+  if (pendingRoleSelection) {
+    return <Navigate to="/hospital/select-role" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// RoleSelectionRoute — only accessible when pendingRoleSelection is true.
+// Redirects away if the user isn't authenticated or has already picked a role.
+function RoleSelectionRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, isProfileReady, pendingRoleSelection } = useAuth();
+
+  if (isLoading || !isProfileReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/hospital/login" replace />;
+  }
+
+  // Role already confirmed — send to dashboard
+  if (!pendingRoleSelection) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 }
 
 // Public Route Component (redirect to dashboard if authenticated)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, pendingRoleSelection } = useAuth();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    // Multi-role users who haven't picked yet go straight to the selector.
+    return <Navigate to={pendingRoleSelection ? '/hospital/select-role' : '/dashboard'} replace />;
   }
 
   return <>{children}</>;
@@ -246,8 +279,14 @@ function AppRoutes() {
       <Route
         path="/hospital/reset-password"
         element={<ResetPasswordPage />}
-      />
-      <Route
+      />      <Route
+        path="/hospital/select-role"
+        element={
+          <RoleSelectionRoute>
+            <RoleSelectionPage />
+          </RoleSelectionRoute>
+        }
+      />      <Route
         path="/hospital/join/:token"
         element={
           <PublicRoute>
@@ -692,7 +731,7 @@ const App = () => {
           <TestingProvider>
             <TooltipProvider>
               <Toaster />
-              <Sonner />
+              <Sonner position="top-right" />
               <BrowserRouter
                 future={{
                   v7_startTransition: true,

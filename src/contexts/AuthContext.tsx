@@ -54,6 +54,8 @@ interface AuthContextType {
   createHospitalAndProfile: (
     hospitalData: Partial<Hospital>
   ) => Promise<{ error: Error | null }>;
+  pendingRoleSelection: boolean;
+  confirmRoleSelection: (targetRole: UserRole) => void;
   switchRole: (targetRole: UserRole) => Promise<{ error: Error | null }>;
   // Biometric authentication methods
   isBiometricAvailable: () => boolean;
@@ -189,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [preferredRole, setPreferredRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileReady, setIsProfileReady] = useState(false);
+  const [pendingRoleSelection, setPendingRoleSelection] = useState(false);
   const isE2EMockAuthEnabled =
     typeof window !== 'undefined' && import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
 
@@ -270,6 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // Ignore storage errors
       }
+      setPendingRoleSelection(false);
       clearSentryUser();
       return;
     }
@@ -294,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles([]);
       setPreferredRole(null);
       setIsProfileReady(false);
+      setPendingRoleSelection(false);
       try {
         window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
         window.localStorage.removeItem('testRole');
@@ -344,6 +349,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (rolesData) {
         const userRoles = rolesData.map(r => r.role as UserRole);
         setRoles(userRoles);
+
+        // If user has multiple roles and hasn't picked one this session,
+        // gate them at the role-selection screen (mirrors mock auth behaviour).
+        const stored = getStoredPreferredRole();
+        const storedIsValid = stored && userRoles.includes(stored);
+        if (userRoles.length > 1 && !storedIsValid) {
+          setPendingRoleSelection(true);
+        } else {
+          setPendingRoleSelection(false);
+        }
       }
     } catch (error) {
       console.error('Error fetching user data:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
@@ -363,6 +378,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (storedMockUser) {
             applyE2EMockAuthState(storedEmail, storedMockUser);
           }
+        } else {
+          // No mock session stored — profile will never arrive, mark ready now
+          // so ProtectedRoute never spins forever on a normal browser visit.
+          if (isMounted) setIsProfileReady(true);
         }
       } finally {
         if (isMounted) {
@@ -409,6 +428,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setIsProfileReady(true);
       }
+      setIsLoading(false);
+    }).catch((err) => {
+      // Network or SDK failure — unblock the UI so routes can render
+      if (!isMounted) return;
+      console.error('getSession failed:', sanitizeLogMessage(err instanceof Error ? err.message : String(err)));
+      setIsProfileReady(true);
       setIsLoading(false);
     });
 
@@ -697,6 +722,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles[0] ?? null;
   }, [preferredRole, roles]);
 
+  // Lightweight synchronous confirm — used by RoleSelectionPage after the user
+  // taps a role card. It sets preferredRole + persists it, then clears the gate.
+  const confirmRoleSelection = useCallback((targetRole: UserRole) => {
+    if (!roles.includes(targetRole)) return;
+    setPreferredRole(targetRole);
+    setPendingRoleSelection(false);
+    try {
+      window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, targetRole);
+    } catch {
+      // ignore storage errors
+    }
+  }, [roles]);
+
   const switchRole = useCallback(async (targetRole: UserRole) => {
     if (!roles.includes(targetRole)) {
       return { error: new Error('Role not assigned to user') };
@@ -784,6 +822,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!session,
         isLoading,
         isProfileReady,
+        pendingRoleSelection,
+        confirmRoleSelection,
         login,
         signup,
         logout,

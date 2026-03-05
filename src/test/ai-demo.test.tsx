@@ -4,7 +4,47 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import AIDemoPage from '@/pages/AIDemoPage';
 
-// Mock the AI hooks
+// Mock AuthContext so DashboardLayout works without a real provider
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 'test-user-id', email: 'admin@test.com' },
+    profile: { id: 'profile-1', first_name: 'Test', last_name: 'User', role: 'admin', hospital_id: 'hosp-1' },
+    hospital: { id: 'hosp-1', name: 'Test Hospital' },
+    primaryRole: 'admin',
+    roles: ['admin'],
+    loading: false,
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock supabase (used by DashboardLayout for realtime subscriptions)
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    })),
+    channel: vi.fn(() => ({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+    })),
+    removeChannel: vi.fn(),
+  },
+}));
+
+// Mock activity log hook used in DashboardLayout
+vi.mock('@/hooks/useActivityLog', () => ({
+  useActivityLog: () => ({ logActivity: vi.fn() }),
+}));
+
+// Mock ThemeContext so ThemeToggle works without a ThemeProvider
+vi.mock('@/contexts/ThemeContext', () => ({
+  useTheme: () => ({ theme: 'light', setTheme: vi.fn() }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 vi.mock('@/hooks/useAI', () => ({
   useAI: () => ({
     diagnosePatient: vi.fn(),

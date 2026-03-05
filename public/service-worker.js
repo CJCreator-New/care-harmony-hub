@@ -1,86 +1,27 @@
-const CACHE_NAME = 'caresync-v1';
-const STATIC_CACHE = 'caresync-static-v1';
-const API_CACHE = 'caresync-api-v1';
+// ─── SELF-UNREGISTERING STUB ────────────────────────────────────────────────
+// This legacy service-worker.js previously competed with the VitePWA Workbox
+// SW (sw.js), causing stale-cache empty-page issues after every new build.
+// It now unregisters itself, purges all old caches, and reloads open tabs so
+// the Workbox SW takes sole control cleanly.
 
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
+self.addEventListener('install', () => {
+  // Activate immediately — skip the "waiting" phase.
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== STATIC_CACHE && name !== API_CACHE)
-          .map((name) => caches.delete(name))
-      );
-    })
+    (async () => {
+      // Purge every cache this SW ever created so no stale assets remain.
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+
+      // Unregister this SW — the VitePWA Workbox sw.js will take over.
+      // NOTE: Do NOT call client.navigate() here. Forcing a reload mid-session
+      // interrupts lazy-module fetches and React navigation, causing blank pages
+      // and "failed to fetch dynamically imported module" errors. The cache purge
+      // + unregistration is sufficient; main.tsx handles the rest via getRegistrations().
+      await self.registration.unregister();
+    })()
   );
-  self.clients.claim();
 });
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  if (request.method !== 'GET') return;
-
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(request));
-  } else if (STATIC_ASSETS.some(asset => url.pathname === asset)) {
-    event.respondWith(cacheFirstStrategy(request));
-  } else {
-    event.respondWith(staleWhileRevalidateStrategy(request));
-  }
-});
-
-async function cacheFirstStrategy(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-
-  try {
-    const response = await fetch(request);
-    const cache = await caches.open(STATIC_CACHE);
-    cache.put(request, response.clone());
-    return response;
-  } catch {
-    return new Response('Offline', { status: 503 });
-  }
-}
-
-async function networkFirstStrategy(request) {
-  try {
-    const response = await fetch(request);
-    const cache = await caches.open(API_CACHE);
-    cache.put(request, response.clone());
-    return response;
-  } catch {
-    const cached = await caches.match(request);
-    return cached || new Response('Offline', { status: 503 });
-  }
-}
-
-async function staleWhileRevalidateStrategy(request) {
-  const cached = await caches.match(request);
-  
-  const fetchPromise = fetch(request).then((response) => {
-    const cache = caches.open(CACHE_NAME);
-    cache.then((c) => c.put(request, response.clone()));
-    return response;
-  });
-
-  return cached || fetchPromise;
-}

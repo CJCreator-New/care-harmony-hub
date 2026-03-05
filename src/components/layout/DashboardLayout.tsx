@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { NotificationsSystem } from '@/components/common/NotificationsSystem';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { GroupedSidebar } from './GroupedSidebar';
@@ -75,6 +76,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, roles, user, logout } = useAuth();
   const { logActivity } = useActivityLog();
+  // Dynamic page title from route map; each page can override by calling
+  // usePageTitle('Custom Title') directly in the page component.
+  usePageTitle();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -92,10 +96,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         e.preventDefault();
         setSearchOpen(true);
       }
+      // Escape closes the mobile sidebar
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [sidebarOpen]);
 
   // Use test role for navigation if provided, otherwise use actual role
   const activeRole = persistedTestRole || primaryRole;
@@ -104,11 +112,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     // Reset modal states on route change (BUG-002)
     setSidebarOpen(false);
     setSearchOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    // Keep authenticated-app title stable across dashboard interactions (PAT-022).
-    document.title = 'CareSync HIMS | Modern Hospital Management System';
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -177,6 +180,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div
           className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
@@ -188,6 +192,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
         aria-label="Main navigation"
+        aria-hidden={!sidebarOpen && typeof window !== 'undefined' && window.innerWidth < 1024 ? 'true' : undefined}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}

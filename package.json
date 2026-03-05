@@ -92,7 +92,9 @@
     "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.4"
+    "serialize-javascript": "^7.0.4",
+    "tar": "^7.5.10",
+    "dompurify": "^3.3.1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -144,7 +146,7 @@
     "idb": "^8.0.0",
     "input-otp": "^1.4.2",
     "jsdom": "^27.4.0",
-    "jspdf": "^4.0.0",
+    "jspdf": "^4.2.0",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "openai": "^6.16.0",

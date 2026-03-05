@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield } from 'lucide-react';
+import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { TwoFactorVerifyModal } from '@/components/auth/TwoFactorVerifyModal';
 import { BackupCodeVerifyModal } from '@/components/auth/BackupCodeVerifyModal';
@@ -292,9 +293,12 @@ export default function LoginPage() {
               />
 
               {form.formState.errors.root && (
-                <p className="text-sm font-medium text-destructive">
-                  {form.formState.errors.root.message}
-                </p>
+                <Alert variant="destructive" role="alert" aria-live="assertive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {form.formState.errors.root.message}
+                  </AlertDescription>
+                </Alert>
               )}
 
               <Button type="submit" size="xl" className="w-full" disabled={isLoading}>

@@ -81,6 +81,14 @@ export function usePaginatedQuery({
         }
         throw error;
       }
+
+      return {
+        data: data ?? [],
+        count: count ?? 0,
+        totalPages: count !== null && count !== undefined ? Math.ceil(count / pageSize) : 0,
+        currentPage,
+        pageSize,
+      };
     },
   });
 

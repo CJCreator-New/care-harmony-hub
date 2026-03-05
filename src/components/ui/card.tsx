@@ -18,8 +18,15 @@ const CardTitle = React.forwardRef<
   HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement> & { as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' }
 >(
-  ({ className, as: Comp = 'h3', ...props }, ref) => (
-    <Comp ref={ref} className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
+  ({ className, style, as: Comp = 'h3', ...props }, ref) => (
+    <Comp
+      ref={ref}
+      // --card-title-size can be set on any ancestor element to override the title size
+      // without needing a className override. Default matches Tailwind's text-2xl (1.5rem).
+      style={{ fontSize: 'var(--card-title-size, 1.5rem)', ...style }}
+      className={cn("font-semibold leading-none tracking-tight", className)}
+      {...props}
+    />
   ),
 );
 CardTitle.displayName = "CardTitle";

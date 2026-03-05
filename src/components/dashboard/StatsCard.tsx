@@ -1,6 +1,17 @@
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
+/**
+ * Compact-formats a numeric value for display in a stats card.
+ * Examples: 1234 -> "1.2k", 1500000 -> "1.5M", 42 -> "42"
+ */
+export function formatStatValue(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 10_000) return `${Math.round(value / 1_000)}k`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  return value.toLocaleString();
+}
+
 interface StatsCardProps {
   title: string;
   value: string | number;
@@ -11,6 +22,8 @@ interface StatsCardProps {
     isPositive: boolean;
   };
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  /** When true, numeric values are compact-formatted (e.g. 1200 -> "1.2k"). */
+  formatNumbers?: boolean;
   className?: string;
 }
 
@@ -48,9 +61,12 @@ export function StatsCard({
   icon: Icon,
   trend,
   variant = 'default',
+  formatNumbers = false,
   className,
 }: StatsCardProps) {
   const styles = variantStyles[variant];
+  const displayValue =
+    formatNumbers && typeof value === 'number' ? formatStatValue(value) : value;
 
   return (
     <div
@@ -64,7 +80,7 @@ export function StatsCard({
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold tracking-tight">{value}</h3>
+            <h3 className="text-3xl font-bold tracking-tight">{displayValue}</h3>
             {trend && (
               <span
                 className={cn(

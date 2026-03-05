@@ -11,6 +11,14 @@ import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, U
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { toast } from 'sonner';
 
+const passwordRequirements = [
+  { regex: /.{8,}/, label: 'At least 8 characters' },
+  { regex: /[A-Z]/, label: 'One uppercase letter' },
+  { regex: /[a-z]/, label: 'One lowercase letter' },
+  { regex: /[0-9]/, label: 'One number' },
+  { regex: /[!@#$%^&*]/, label: 'One symbol (!@#$%^&*)' },
+];
+
 interface FormErrors {
   [key: string]: string;
 }
@@ -305,6 +313,35 @@ export default function SignupPage() {
               </div>
               <span className="text-2xl font-bold">AROCORD-HIMS</span>
             </Link>
+          </div>
+
+          {/* Mobile step progress — mirrors the left panel on small screens */}
+          <div className="lg:hidden" aria-label={`Step ${step} of 2`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={cn(
+                  'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors',
+                  step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                )}>
+                  {step > 1 ? <Check className="w-4 h-4" /> : '1'}
+                </div>
+                <span className={cn('text-sm font-medium', step >= 1 ? 'text-foreground' : 'text-muted-foreground')}>
+                  Hospital Info
+                </span>
+              </div>
+              <div className={cn('h-0.5 flex-1 rounded transition-colors', step > 1 ? 'bg-primary' : 'bg-border')} />
+              <div className="flex items-center gap-2 flex-1 justify-end">
+                <span className={cn('text-sm font-medium', step >= 2 ? 'text-foreground' : 'text-muted-foreground')}>
+                  Admin Account
+                </span>
+                <div className={cn(
+                  'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors',
+                  step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                )}>
+                  2
+                </div>
+              </div>
+            </div>
           </div>
 
           <div>

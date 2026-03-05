@@ -99,6 +99,9 @@
     --background: 222 47% 6%;
     --foreground: 215 20% 95%;
 
+    /* Dark-mode gradient uses lighter teal so text stays readable on the hero panel */
+    --gradient-hero: linear-gradient(135deg, hsl(173, 58%, 32%) 0%, hsl(173, 58%, 22%) 100%);
+
     --card: 222 47% 9%;
     --card-foreground: 215 20% 95%;
 

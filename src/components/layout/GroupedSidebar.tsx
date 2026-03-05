@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -233,69 +233,79 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
       .filter((group) => group.items.length > 0);
 
     return (
-      <TooltipProvider delayDuration={0}>
+      <TooltipProvider delayDuration={150}>
         <nav className={cn('flex flex-col items-center gap-1', className)} aria-label="Main navigation">
-          {collapsedGroups.map((group) => {
+          {collapsedGroups.map((group, idx) => {
+            const isLast = idx === collapsedGroups.length - 1;
             const groupActive = group.items.some((item) => isActive(item.href));
             const firstItem = group.items[0];
+            const sep = !isLast && (
+              <hr className="w-6 border-sidebar-border my-0.5" aria-hidden="true" />
+            );
 
             if (group.items.length === 1) {
               return (
-                <Tooltip key={group.label}>
-                  <TooltipTrigger asChild>
-                    <Link to={firstItem.href} aria-label={firstItem.label}>
-                      <Button
-                        className={cn(
-                          'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
-                          isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
-                        )}
-                        size="icon"
-                        aria-current={isActive(firstItem.href) ? 'page' : undefined}
-                      >
-                        <firstItem.icon className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {firstItem.label}
-                  </TooltipContent>
-                </Tooltip>
+                <React.Fragment key={group.label}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link to={firstItem.href} aria-label={firstItem.label}>
+                        <Button
+                          className={cn(
+                            'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
+                            isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          )}
+                          size="icon"
+                          aria-current={isActive(firstItem.href) ? 'page' : undefined}
+                        >
+                          <firstItem.icon className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      {firstItem.label}
+                    </TooltipContent>
+                  </Tooltip>
+                  {sep}
+                </React.Fragment>
               );
             }
 
             return (
-              <DropdownMenu key={group.label}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        className={cn(
-                          'relative w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
-                          groupActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
-                        )}
-                        size="icon"
-                        aria-label={`${group.label} menu`}
-                      >
-                        <group.icon className="h-4 w-4" />
-                        <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {group.label}
-                  </TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent side="right" align="start" className="w-56">
-                  {group.items.map((item) => (
-                    <DropdownMenuItem key={item.href} asChild>
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <React.Fragment key={group.label}>
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          className={cn(
+                            'relative w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
+                            groupActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          )}
+                          size="icon"
+                          aria-label={`${group.label} menu`}
+                        >
+                          <group.icon className="h-4 w-4" />
+                          <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      {group.label}
+                    </TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    {group.items.map((item) => (
+                      <DropdownMenuItem key={item.href} asChild>
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {sep}
+              </React.Fragment>
             );
           })}
         </nav>
