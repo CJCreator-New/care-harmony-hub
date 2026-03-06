@@ -138,7 +138,7 @@ export function ReceptionistDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Quick Actions */}}
+      {/* Quick Actions */}
       <div className="flex flex-wrap items-center gap-3 mb-8">
         {/* Primary patient flow */}
         <Button onClick={() => setCheckInOpen(true)}>
@@ -599,7 +599,7 @@ export function ReceptionistDashboard() {
       </Tabs>
       </DashboardSection>
 
-      {/* Modals */}}
+      {/* Modals */}
       <PatientCheckInModal open={checkInOpen} onOpenChange={setCheckInOpen} />
       <PatientCheckOutModal open={checkOutOpen} onOpenChange={setCheckOutOpen} />
       <WalkInRegistrationModal open={walkInOpen} onOpenChange={setWalkInOpen} />

@@ -64,7 +64,7 @@ export function NurseDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Quick Actions */}}
+      {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
@@ -95,7 +95,7 @@ export function NurseDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Stats Grid */}}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Patients in Queue"
@@ -193,7 +193,7 @@ export function NurseDashboard() {
       </Tabs>
       </DashboardSection>
 
-      {/* Modals */}}
+      {/* Modals */}
       <RecordVitalsModal
         open={isVitalsModalOpen}
         onOpenChange={setIsVitalsModalOpen}

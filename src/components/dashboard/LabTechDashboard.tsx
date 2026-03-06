@@ -110,7 +110,7 @@ export function LabTechDashboard() {
       <CriticalValueAlert />
 
       <DashboardSection>
-      {/* Header */}}
+      {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -129,7 +129,7 @@ export function LabTechDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Quick Actions */}}
+      {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button 
           variant={location.search.includes('tab=pending') || location.pathname === '/laboratory' && !location.search ? "default" : "outline"}
@@ -162,7 +162,7 @@ export function LabTechDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Stats Grid */}}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Orders"

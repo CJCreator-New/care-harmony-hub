@@ -87,7 +87,7 @@ export function PharmacistDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Quick Actions */}}
+      {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button asChild>
           <Link to="/pharmacy" onMouseEnter={preloadPharmacy} onFocus={preloadPharmacy}>
@@ -114,7 +114,7 @@ export function PharmacistDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Stats Grid */}}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Rx"
@@ -148,7 +148,7 @@ export function PharmacistDashboard() {
       </DashboardSection>
 
       <DashboardSection>
-      {/* Main Content Grid */}}
+      {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card>
