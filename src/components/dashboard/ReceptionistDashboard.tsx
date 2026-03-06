@@ -52,6 +52,7 @@ import { EnhancedCheckIn } from '@/components/receptionist/EnhancedCheckIn';
 import { QueueOptimizer } from '@/components/receptionist/QueueOptimizer';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
+import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
 
 export function ReceptionistDashboard() {
   const { profile } = useAuth();
@@ -116,7 +117,8 @@ export function ReceptionistDashboard() {
   }, []);
 
   return (
-    <>
+    <DashboardPageTransition className="space-y-8">
+      <DashboardSection>
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -133,8 +135,10 @@ export function ReceptionistDashboard() {
           </Badge>
         </div>
       </div>
+      </DashboardSection>
 
-      {/* Quick Actions */}
+      <DashboardSection>
+      {/* Quick Actions */}}
       <div className="flex flex-wrap items-center gap-3 mb-8">
         {/* Primary patient flow */}
         <Button onClick={() => setCheckInOpen(true)}>
@@ -168,7 +172,9 @@ export function ReceptionistDashboard() {
           Kiosk Mode
         </Button>
       </div>
+      </DashboardSection>
 
+      <DashboardSection>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -591,8 +597,9 @@ export function ReceptionistDashboard() {
           <ReceptionistAnalytics />
         </TabsContent>
       </Tabs>
+      </DashboardSection>
 
-      {/* Modals */}
+      {/* Modals */}}
       <PatientCheckInModal open={checkInOpen} onOpenChange={setCheckInOpen} />
       <PatientCheckOutModal open={checkOutOpen} onOpenChange={setCheckOutOpen} />
       <WalkInRegistrationModal open={walkInOpen} onOpenChange={setWalkInOpen} />
@@ -621,6 +628,6 @@ export function ReceptionistDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </DashboardPageTransition>
   );
 }

@@ -14,13 +14,15 @@
   }
 
   body {
-    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     font-size: 1rem;
     line-height: 1.6;
     color: hsl(var(--foreground));
   }
 
   /* Heading hierarchy with improved spacing */
+  /* h1–h3 use the display typeface (DM Serif Display) for editorial impact */
+  /* h4–h6 use the sans typeface (Outfit) for UI-level hierarchy */
   h1, h2, h3, h4, h5, h6 {
     font-weight: 700;
     line-height: 1.2;
@@ -29,36 +31,53 @@
   }
 
   h1 {
+    font-family: var(--font-display);
+    font-weight: 400; /* DM Serif Display reads best at regular weight */
     font-size: 3.052rem;
     line-height: 1.1;
+    letter-spacing: -0.01em;
     margin-bottom: 1.5rem;
   }
 
   h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
     font-size: 2.441rem;
     line-height: 1.15;
+    letter-spacing: -0.01em;
     margin-bottom: 1.25rem;
   }
 
   h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
     font-size: 1.953rem;
     line-height: 1.2;
+    letter-spacing: -0.01em;
     margin-bottom: 1rem;
   }
 
   h4 {
+    font-family: var(--font-sans);
+    font-weight: 600;
     font-size: 1.563rem;
     line-height: 1.25;
+    letter-spacing: -0.015em;
     margin-bottom: 0.875rem;
   }
 
   h5 {
+    font-family: var(--font-sans);
+    font-weight: 600;
     font-size: 1.25rem;
     line-height: 1.3;
+    letter-spacing: -0.01em;
     margin-bottom: 0.75rem;
   }
 
   h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
     font-size: 1rem;
     line-height: 1.35;
     margin-bottom: 0.625rem;

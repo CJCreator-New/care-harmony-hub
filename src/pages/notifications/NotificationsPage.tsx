@@ -247,7 +247,7 @@ export default function NotificationsPage() {
                               {notification.title}
                             </p>
                             {!notification.is_read && (
-                              <span className="w-2 h-2 rounded-full bg-primary" />
+                              <span className="w-2 h-2 rounded-full bg-[hsl(var(--accent-vivid))]" />
                             )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">

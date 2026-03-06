@@ -37,6 +37,8 @@ const statusColors: Record<string, string> = {
   dispensed: 'bg-success/10 text-success border-success/20',
 };
 
+import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+
 const skeletonKeys = ['skeleton-1', 'skeleton-2', 'skeleton-3'];
 
 export function PatientDashboard() {
@@ -59,8 +61,9 @@ export function PatientDashboard() {
   const firstName = (profile?.first_name || 'Patient').trim().replace(/^Dr\.?\s+/i, '');
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
+    <DashboardPageTransition className="space-y-6">
+      <DashboardSection>
+      {/* Welcome Header */}}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -77,7 +80,9 @@ export function PatientDashboard() {
           </div>
         )}
       </div>
+      </DashboardSection>
 
+      <DashboardSection>
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'insights')} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="overview" className="gap-2">
@@ -353,6 +358,7 @@ export function PatientDashboard() {
           <PatientHealthInsights />
         </TabsContent>
       </Tabs>
-    </div>
+      </DashboardSection>
+    </DashboardPageTransition>
   );
 }

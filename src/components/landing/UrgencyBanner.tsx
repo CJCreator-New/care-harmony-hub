@@ -80,7 +80,7 @@ export function UrgencyBanner() {
             damping: prefersReducedMotion ? undefined : 30,
             duration: prefersReducedMotion ? 0.2 : undefined
           }}
-          className="fixed top-16 left-0 right-0 z-40 bg-gradient-to-r from-primary via-primary/90 to-info"
+          className="fixed top-16 left-0 right-0 z-40 bg-gradient-to-r from-primary via-[hsl(var(--accent-vivid)/0.85)] to-info"
         >
           <div className="container mx-auto px-4 py-2">
             <div className="flex items-center justify-between gap-4">

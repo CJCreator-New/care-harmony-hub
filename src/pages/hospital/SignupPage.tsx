@@ -230,8 +230,8 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-2/5 gradient-hero p-12 flex-col justify-between text-white">
-        <div>
+      <div className="hidden lg:flex lg:w-2/5 gradient-hero hero-panel-grid hero-panel-circle-br hero-panel-line surface-noise relative overflow-hidden p-12 flex-col justify-between text-white">
+        <div className="relative z-10">
           <Link to="/hospital" className="flex items-center gap-2">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
               <Activity className="w-6 h-6" />
@@ -240,8 +240,8 @@ export default function SignupPage() {
           </Link>
         </div>
 
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight">
+        <div className="space-y-6 relative z-10">
+          <h1 className="font-display font-normal italic text-4xl leading-tight">
             Register Your
             <br />
             Healthcare Facility
@@ -298,7 +298,7 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <div className="text-sm text-white/60">
+        <div className="text-sm text-white/60 relative z-10">
           © {new Date().getFullYear()} AROCORD Healthcare Solutions
         </div>
       </div>

@@ -153,7 +153,7 @@ export function UnifiedCommunicationHub() {
                                 {msg.priority}
                               </Badge>
                             )}
-                            {!msg.read && <Badge>New</Badge>}
+                            {!msg.read && <Badge className="bg-[hsl(var(--accent-vivid))] text-[hsl(220_35%_8%)] border-none hover:bg-[hsl(var(--accent-vivid)/0.9)]">New</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{msg.message}</p>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">

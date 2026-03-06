@@ -26,6 +26,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { memo, useMemo } from 'react';
+import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
 
 export function AdminDashboardComponent() {
   const { profile, hospital, roles } = useAuth();
@@ -38,9 +39,9 @@ export function AdminDashboardComponent() {
   }, []);
 
   return (
-    <>
+    <DashboardPageTransition className="space-y-8">
       {/* Header */}
-      <div className="mb-8">
+      <DashboardSection className="mb-0">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
@@ -51,39 +52,42 @@ export function AdminDashboardComponent() {
             </p>
           </div>
         </div>
-      </div>
+      </DashboardSection>
 
       {/* Account Repair Tool (shown if setup incomplete) */}
       {needsRepair && (
-        <div className="mb-8">
+        <DashboardSection>
           <AdminRepairTool />
-        </div>
+        </DashboardSection>
       )}
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3 mb-8">
-        <StaffOnboardingWizard />
-        <Button variant="outline" asChild>
-          <Link to="/reports">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            View Reports
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/settings">
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Link>
-        </Button>
-      </div>
+      <DashboardSection>
+        <div className="flex flex-wrap gap-3">
+          <StaffOnboardingWizard />
+          <Button variant="outline" asChild>
+            <Link to="/reports">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              View Reports
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/settings">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Link>
+          </Button>
+        </div>
+      </DashboardSection>
 
       {/* Analytics */}
-      <div className="mb-8">
+      <DashboardSection>
         <AdminAnalytics />
-      </div>
+      </DashboardSection>
 
       {/* Tabbed Management Section */}
-      <Tabs defaultValue="overview" className="mb-8">
+      <DashboardSection>
+        <Tabs defaultValue="overview">
         {/* BUG-30: flex-wrap + h-auto let tabs wrap to a second line on narrow viewports,
             ensuring every tab's clickable hit-target matches its visual area. */}
         <TabsList className="flex-wrap h-auto gap-1">
@@ -148,7 +152,8 @@ export function AdminDashboardComponent() {
           <StaffPerformanceMetrics role="admin" />
         </TabsContent>
       </Tabs>
-    </>
+      </DashboardSection>
+    </DashboardPageTransition>
   );
 }
 

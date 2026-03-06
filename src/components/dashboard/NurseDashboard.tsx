@@ -27,6 +27,7 @@ import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { usePendingHandovers, usePatientChecklists } from '@/hooks/useNurseWorkflow';
 import { NurseTaskPanel } from '@/components/nurse/NurseTaskPanel';
+import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
 
 export function NurseDashboard() {
   const { profile } = useAuth();
@@ -45,7 +46,8 @@ export function NurseDashboard() {
   const readyForDoctor = checklists.filter(c => c.ready_for_doctor).length;
 
   return (
-    <>
+    <DashboardPageTransition className="space-y-8">
+      <DashboardSection>
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -59,8 +61,10 @@ export function NurseDashboard() {
           </div>
         </div>
       </div>
+      </DashboardSection>
 
-      {/* Quick Actions */}
+      <DashboardSection>
+      {/* Quick Actions */}}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
@@ -88,8 +92,10 @@ export function NurseDashboard() {
           </Button>
         )}
       </div>
+      </DashboardSection>
 
-      {/* Stats Grid */}
+      <DashboardSection>
+      {/* Stats Grid */}}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Patients in Queue"
@@ -120,7 +126,9 @@ export function NurseDashboard() {
           variant="info"
         />
       </div>
+      </DashboardSection>
 
+      <DashboardSection>
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:w-[450px]">
           <TabsTrigger value="overview" className="flex items-center gap-2">
@@ -183,8 +191,9 @@ export function NurseDashboard() {
           <PatientPrepStation />
         </TabsContent>
       </Tabs>
+      </DashboardSection>
 
-      {/* Modals */}
+      {/* Modals */}}
       <RecordVitalsModal
         open={isVitalsModalOpen}
         onOpenChange={setIsVitalsModalOpen}
@@ -200,6 +209,6 @@ export function NurseDashboard() {
         open={isMedModalOpen}
         onOpenChange={setIsMedModalOpen}
       />
-    </>
+    </DashboardPageTransition>
   );
 }

@@ -252,7 +252,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
                         <Button
                           className={cn(
                             'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
-                            isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                            isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_12px_hsl(var(--sidebar-ring)/0.15)]'
                           )}
                           size="icon"
                           aria-current={isActive(firstItem.href) ? 'page' : undefined}
@@ -333,7 +333,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
             >
               <div className="flex items-center gap-3">
                 <group.icon className="h-4 w-4 text-sidebar-foreground" />
-                <span className="font-medium text-sm text-sidebar-foreground">{group.label}</span>
+                  <span className="font-sans font-semibold text-[0.65rem] tracking-[0.1em] uppercase text-sidebar-foreground/50">{group.label}</span>
               </div>
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4 text-sidebar-foreground" />
@@ -348,7 +348,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
                 <Button
                   className={cn(
                     "w-full justify-start h-auto p-2 text-sm text-sidebar-foreground bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none",
-                    isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground"
+                    isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground border-l-2 border-l-[hsl(var(--sidebar-ring))] rounded-l-none shadow-[inset_0_0_16px_hsl(var(--sidebar-ring)/0.12)]"
                   )}
                   size="sm"
                   title={item.label}

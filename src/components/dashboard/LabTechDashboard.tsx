@@ -26,6 +26,8 @@ import { CriticalValueAlert } from '@/components/lab/CriticalValueAlert';
 import { LabAutomationPanel } from '@/components/laboratory/LabAutomationPanel';
 import { toast } from 'sonner';
 import { formatDistanceToNow, differenceInYears } from 'date-fns';
+import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function LabTechDashboard() {
   const { profile } = useAuth();
@@ -103,11 +105,12 @@ export function LabTechDashboard() {
   };
 
   return (
-    <>
+    <DashboardPageTransition className="space-y-8">
       {/* Critical Value Alert Background Component */}
       <CriticalValueAlert />
 
-      {/* Header */}
+      <DashboardSection>
+      {/* Header */}}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -123,8 +126,10 @@ export function LabTechDashboard() {
           </Badge>
         </div>
       </div>
+      </DashboardSection>
 
-      {/* Quick Actions */}
+      <DashboardSection>
+      {/* Quick Actions */}}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button 
           variant={location.search.includes('tab=pending') || location.pathname === '/laboratory' && !location.search ? "default" : "outline"}
@@ -154,8 +159,10 @@ export function LabTechDashboard() {
           </Link>
         </Button>
       </div>
+      </DashboardSection>
 
-      {/* Stats Grid */}
+      <DashboardSection>
+      {/* Stats Grid */}}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Orders"
@@ -190,7 +197,9 @@ export function LabTechDashboard() {
           className="border-destructive/20 shadow-sm"
         />
       </div>
+      </DashboardSection>
 
+      <DashboardSection>
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:w-[450px]">
           <TabsTrigger value="overview" className="flex items-center gap-2">
@@ -294,11 +303,11 @@ export function LabTechDashboard() {
                       </div>
                     </ScrollArea>
                   ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium mb-1">All caught up!</p>
-                      <p className="text-sm">No pending lab orders</p>
-                    </div>
+                    <EmptyState
+                      icon={CheckCircle2}
+                      title="All caught up!"
+                      description="No pending lab orders"
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -382,6 +391,7 @@ export function LabTechDashboard() {
           <LabAutomationPanel />
         </TabsContent>
       </Tabs>
-    </>
+      </DashboardSection>
+    </DashboardPageTransition>
   );
 }

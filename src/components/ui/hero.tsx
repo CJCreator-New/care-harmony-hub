@@ -131,7 +131,7 @@ const Hero = React.forwardRef<HTMLDivElement, HeroProps>(
           >
             <motion.h1
               className={cn(
-                "text-4xl md:text-6xl font-bold tracking-tight mb-6",
+                "font-display font-normal text-4xl md:text-6xl leading-tight tracking-tight mb-6",
                 titleClassName
               )}
               initial={{ opacity: 0, y: 20 }}

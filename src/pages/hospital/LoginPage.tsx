@@ -146,28 +146,29 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero p-12 flex-col justify-between text-white">
-        <div>
+      <div className="hidden lg:flex lg:w-1/2 gradient-hero hero-panel-grid hero-panel-circle-br hero-panel-line surface-noise p-12 flex-col justify-between text-white relative overflow-hidden">
+        {/* Inner content sits above pseudo-element overlays */}
+        <div className="relative z-10">
           <Link to="/hospital" className="flex items-center gap-2">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
               <Activity className="w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold">AROCORD-HIMS</span>
+            <span className="text-2xl font-bold tracking-tight">AROCORD-HIMS</span>
           </Link>
         </div>
 
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold leading-tight">
+        <div className="space-y-6 relative z-10">
+          <h1 className="font-display font-normal italic text-5xl leading-tight">
             Secure Healthcare
             <br />
-            Information Management
+            <em className="not-italic font-normal">Information</em> Management
           </h1>
-          <p className="text-lg text-white/80 max-w-md">
+          <p className="text-lg text-white/75 max-w-md font-light leading-relaxed">
             Access your hospital's complete healthcare management system.
             Manage patients, appointments, prescriptions, and more.
           </p>
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-white/10 backdrop-blur max-w-md">
-            <Shield className="w-8 h-8 text-white/80" />
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 max-w-md">
+            <Shield className="w-8 h-8 text-white/80 shrink-0" />
             <div>
               <p className="font-semibold">HIPAA Compliant</p>
               <p className="text-sm text-white/70">Your data is protected with enterprise-grade security</p>
@@ -175,8 +176,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="text-sm text-white/60">
-          Â© {new Date().getFullYear()} AROCORD Healthcare Solutions
+        <div className="text-sm text-white/50 relative z-10">
+          © {new Date().getFullYear()} AROCORD Healthcare Solutions
         </div>
       </div>
 

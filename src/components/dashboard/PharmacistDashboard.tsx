@@ -22,6 +22,8 @@ import { useMedicationStats } from '@/hooks/useMedications';
 import { usePharmacyStats, usePendingPrescriptions } from '@/hooks/usePharmacyLabStats';
 import { LowStockAlert } from '@/components/inventory/LowStockAlert';
 import { format, formatDistanceToNow } from 'date-fns';
+import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function PharmacistDashboard() {
   const { profile } = useAuth();
@@ -67,7 +69,8 @@ export function PharmacistDashboard() {
   };
 
   return (
-    <>
+    <DashboardPageTransition className="space-y-8">
+      <DashboardSection>
       {/* Header */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -81,8 +84,10 @@ export function PharmacistDashboard() {
           </div>
         </div>
       </div>
+      </DashboardSection>
 
-      {/* Quick Actions */}
+      <DashboardSection>
+      {/* Quick Actions */}}
       <div className="flex flex-wrap gap-3 mb-8">
         <Button asChild>
           <Link to="/pharmacy" onMouseEnter={preloadPharmacy} onFocus={preloadPharmacy}>
@@ -106,8 +111,10 @@ export function PharmacistDashboard() {
           </Link>
         </Button>
       </div>
+      </DashboardSection>
 
-      {/* Stats Grid */}
+      <DashboardSection>
+      {/* Stats Grid */}}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Rx"
@@ -138,8 +145,10 @@ export function PharmacistDashboard() {
           variant="danger"
         />
       </div>
+      </DashboardSection>
 
-      {/* Main Content Grid */}
+      <DashboardSection>
+      {/* Main Content Grid */}}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card>
@@ -215,11 +224,11 @@ export function PharmacistDashboard() {
                   </div>
                 </ScrollArea>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium mb-1">All caught up!</p>
-                  <p className="text-sm">No pending prescriptions</p>
-                </div>
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="All caught up!"
+                  description="No pending prescriptions"
+                />
               )}
             </CardContent>
           </Card>
@@ -261,6 +270,7 @@ export function PharmacistDashboard() {
           </Card>
         </div>
       </div>
-    </>
+      </DashboardSection>
+    </DashboardPageTransition>
   );
 }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { format, parseISO } from 'date-fns';
 
 export function RefillRequests() {
@@ -59,11 +60,11 @@ export function RefillRequests() {
         {isLoading ? (
           <div className="text-center py-12">Loading refill requests...</div>
         ) : refillsToShow.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p className="text-lg font-medium mb-1">No {refillTab} refill requests</p>
-            <p className="text-sm">Refill requests from patients will appear here</p>
-          </div>
+          <EmptyState
+            icon={RefreshCw}
+            title={`No ${refillTab} refill requests`}
+            description="Refill requests from patients will appear here"
+          />
         ) : (
           <Table>
             <TableHeader>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Fonts loaded via <link> in index.html for better performance */
 @import './styles/typography.css';
 @import './styles/spacing.css';
 @import './styles/colors.css';
@@ -9,6 +9,11 @@
 
 @layer base {
   :root {
+    /* Font Families */
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-sans: 'Outfit', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
     /* Healthcare Primary - Teal */
     --background: 0 0% 98%;
     --foreground: 222 47% 11%;
@@ -20,7 +25,8 @@
     --popover-foreground: 222 47% 11%;
 
     /* Primary - Teal Healthcare */
-    --primary: 173 58% 39%;
+    --primary: 173 65% 42%;
+    --primary-vivid: 173 75% 48%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Slate Blue */
@@ -38,7 +44,16 @@
 
     --border: 215 20% 88%;
     --input: 215 20% 88%;
-    --ring: 173 58% 39%;
+    --ring: 173 65% 42%;
+
+    /* Vivid accent - warm amber for CTAs, highlights, notifications */
+    --accent-vivid: 38 95% 52%;
+
+    /* Surface hierarchy */
+    --surface-0: 0 0% 100%;
+    --surface-1: 215 30% 98%;
+    --surface-2: 215 25% 95%;
+    --surface-3: 215 20% 90%;
 
     --radius: 0.625rem;
 
@@ -73,34 +88,42 @@
     --priority-low: 215 16% 47%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(173, 58%, 39%) 0%, hsl(199, 89%, 48%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(173, 58%, 39%) 0%, hsl(173, 58%, 29%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(215, 25%, 98%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(173, 65%, 42%) 0%, hsl(199, 89%, 48%) 100%);
+    --gradient-hero:
+      radial-gradient(ellipse 120% 80% at 20% 50%, hsl(173 65% 42% / 0.9) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 80% 20%, hsl(199 89% 48% / 0.6) 0%, transparent 50%),
+      linear-gradient(160deg, hsl(220 35% 8%) 0%, hsl(173 45% 15%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(215, 30%, 98%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(215 30% 98%) 0%, hsl(0 0% 100%) 100%);
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(215 20% 11% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(215 20% 11% / 0.1), 0 2px 4px -2px hsl(215 20% 11% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(215 20% 11% / 0.1), 0 4px 6px -4px hsl(215 20% 11% / 0.1);
     --shadow-xl: 0 20px 25px -5px hsl(215 20% 11% / 0.1), 0 8px 10px -6px hsl(215 20% 11% / 0.1);
-    --shadow-glow: 0 0 20px hsl(173 58% 39% / 0.3);
+    --shadow-glow: 0 0 20px hsl(173 65% 42% / 0.35);
+    --shadow-glow-vivid: 0 8px 24px hsl(173 65% 42% / 0.4);
 
     /* Sidebar */
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 220 35% 8%;
     --sidebar-foreground: 215 20% 85%;
-    --sidebar-primary: 173 58% 39%;
+    --sidebar-primary: 173 65% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 16%;
-    --sidebar-accent-foreground: 215 20% 90%;
-    --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 173 58% 39%;
+    --sidebar-accent: 220 35% 14%;
+    --sidebar-accent-foreground: 215 20% 92%;
+    --sidebar-border: 220 35% 16%;
+    --sidebar-ring: 173 65% 42%;
   }
 
   .dark {
     --background: 222 47% 6%;
     --foreground: 215 20% 95%;
 
-    /* Dark-mode gradient uses lighter teal so text stays readable on the hero panel */
-    --gradient-hero: linear-gradient(135deg, hsl(173, 58%, 32%) 0%, hsl(173, 58%, 22%) 100%);
+    /* Dark-mode gradient — 3-layer mesh, dimmed for readability */
+    --gradient-hero:
+      radial-gradient(ellipse 120% 80% at 20% 50%, hsl(173 65% 30% / 0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 80% 20%, hsl(199 89% 35% / 0.5) 0%, transparent 50%),
+      linear-gradient(160deg, hsl(220 35% 5%) 0%, hsl(173 45% 10%) 100%);
 
     --card: 222 47% 9%;
     --card-foreground: 215 20% 95%;
@@ -145,7 +168,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -177,6 +200,84 @@
 
   .animate-slide-up {
     animation: slideUp 0.5s ease-out forwards;
+  }
+
+  /* ─── Surface Depth System ─────────────────────────────────── */
+
+  /* Noise texture overlay — adds tactile grain to hero/sidebar surfaces */
+  .surface-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 0;
+  }
+
+  /* Dot-grid overlay — subtle geometric pattern for hero panels */
+  .hero-panel-grid {
+    background-image: radial-gradient(circle, hsl(0 0% 100% / 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Floating decorative circle — bottom-right ambient glow */
+  .hero-panel-circle-br::after {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    right: -80px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, hsl(199 89% 60% / 0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Floating decorative vertical line — top-right accent */
+  .hero-panel-line::before {
+    content: '';
+    position: absolute;
+    top: 8%;
+    right: 18%;
+    width: 1px;
+    height: 140px;
+    background: linear-gradient(to bottom, transparent, hsl(0 0% 100% / 0.25), transparent);
+    pointer-events: none;
+  }
+
+  /* Card elevation variants */
+  .card-flat {
+    box-shadow: 0 1px 3px hsl(215 20% 11% / 0.06);
+  }
+
+  .card-raised {
+    box-shadow: 0 4px 12px hsl(215 20% 11% / 0.08), 0 1px 3px hsl(215 20% 11% / 0.06);
+  }
+
+  .card-float {
+    box-shadow: 0 16px 40px hsl(215 20% 11% / 0.12), 0 4px 12px hsl(215 20% 11% / 0.08);
+  }
+
+  /* Card hover lift — apply with card-raised or card-float */
+  .card-interactive {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    cursor: pointer;
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 48px hsl(215 20% 11% / 0.14), 0 6px 16px hsl(215 20% 11% / 0.10);
+  }
+
+  /* Enhanced focus ring for inputs */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15), 0 1px 4px hsl(var(--primary) / 0.1) !important;
+    outline: none !important;
+    transition: box-shadow 150ms ease, border-color 150ms ease;
   }
 
   .animate-pulse-slow {

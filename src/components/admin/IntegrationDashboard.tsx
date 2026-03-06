@@ -1,16 +1,153 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { useFHIRIntegration } from '@/hooks/useFHIRIntegration';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Share2, Download, Upload, CheckCircle, 
   AlertCircle, Clock, ExternalLink 
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import type { FHIRPatient } from '@/hooks/useFHIRIntegration';
+
+interface OperationOutcomeIssue {
+  severity?: string;
+  code?: string;
+  diagnostics?: string;
+}
+
+interface OperationOutcomeResource {
+  resourceType: 'OperationOutcome';
+  issue?: OperationOutcomeIssue[];
+}
+
+interface ImportFeedback {
+  tone: 'success' | 'error' | 'info';
+  title: string;
+  details: string[];
+}
+
+interface ImportValidationResult {
+  isValid: boolean;
+  parsedPatient: FHIRPatient | null;
+  errors: string[];
+  warnings: string[];
+}
+
+const DEFAULT_FHIR_PATIENT_JSON = `{
+  "resourceType": "Patient",
+  "name": [
+    {
+      "family": "Doe",
+      "given": ["Jane"]
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1990-01-01",
+  "telecom": [
+    { "system": "phone", "value": "+15551234567" },
+    { "system": "email", "value": "jane.doe@example.com" }
+  ]
+}`;
+
+function getOperationOutcome(payload: unknown): OperationOutcomeResource | null {
+  if (!payload || typeof payload !== 'object') return null;
+  if ((payload as { resourceType?: string }).resourceType !== 'OperationOutcome') return null;
+  return payload as OperationOutcomeResource;
+}
+
+function lineColumnAtPosition(source: string, index: number): { line: number; column: number } {
+  const safeIndex = Math.max(0, Math.min(index, source.length));
+  const linesUntilIndex = source.slice(0, safeIndex).split('\n');
+  const line = linesUntilIndex.length;
+  const column = linesUntilIndex[linesUntilIndex.length - 1].length + 1;
+  return { line, column };
+}
+
+function validateImportJsonPayload(rawJson: string): ImportValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!rawJson.trim()) {
+    return {
+      isValid: false,
+      parsedPatient: null,
+      errors: ['FHIR JSON payload is required.'],
+      warnings,
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid JSON.';
+    const match = message.match(/position\s+(\d+)/i);
+    if (match) {
+      const position = Number(match[1]);
+      if (Number.isFinite(position)) {
+        const { line, column } = lineColumnAtPosition(rawJson, position);
+        errors.push(`Invalid JSON at line ${line}, column ${column}.`);
+      } else {
+        errors.push('Invalid JSON syntax.');
+      }
+    } else {
+      errors.push('Invalid JSON syntax.');
+    }
+
+    return {
+      isValid: false,
+      parsedPatient: null,
+      errors,
+      warnings,
+    };
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {
+      isValid: false,
+      parsedPatient: null,
+      errors: ['FHIR payload must be a JSON object.'],
+      warnings,
+    };
+  }
+
+  const candidate = parsed as FHIRPatient;
+  if (candidate.resourceType !== 'Patient') {
+    errors.push("FHIR payload must have resourceType set to 'Patient'.");
+  }
+
+  const hasName = Array.isArray(candidate.name) && candidate.name.length > 0;
+  if (!hasName) {
+    warnings.push('Patient.name is missing. Server will use fallback name values.');
+  }
+
+  if (!candidate.birthDate) {
+    warnings.push('Patient.birthDate is missing and import will fail on submit.');
+  }
+
+  if (candidate.gender && !['male', 'female', 'other', 'unknown'].includes(candidate.gender)) {
+    warnings.push(`Patient.gender '${candidate.gender}' is non-standard for FHIR R4.`);
+  }
+
+  return {
+    isValid: errors.length === 0,
+    parsedPatient: errors.length === 0 ? candidate : null,
+    errors,
+    warnings,
+  };
+}
 
 export function IntegrationDashboard() {
-  const { exportPatient, importPatient, exportEncounter, isExporting } = useFHIRIntegration();
+  const { profile, hospital } = useAuth();
+  const { exportPatient, importPatient, exportEncounter, isExporting, isImporting } = useFHIRIntegration();
+  const hospitalId = hospital?.id || profile?.hospital_id || '';
   const [selectedPatient, setSelectedPatient] = useState<string>('');
+  const [importJson, setImportJson] = useState<string>(DEFAULT_FHIR_PATIENT_JSON);
+  const [importFeedback, setImportFeedback] = useState<ImportFeedback | null>(null);
+  const importValidation = useMemo(() => validateImportJsonPayload(importJson), [importJson]);
 
   const integrations = [
     {
@@ -60,6 +197,111 @@ export function IntegrationDashboard() {
       default: return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
+
+  const handleImportPatient = () => {
+    if (!hospitalId) {
+      const message = 'No active hospital context found. Re-authenticate and try again.';
+      setImportFeedback({
+        tone: 'error',
+        title: 'Import failed',
+        details: [message],
+      });
+      toast.error(message);
+      return;
+    }
+
+    if (!importValidation.isValid || !importValidation.parsedPatient) {
+      const message = importValidation.errors[0] || 'Invalid FHIR payload.';
+      setImportFeedback({
+        tone: 'error',
+        title: 'Import failed',
+        details: [message],
+      });
+      toast.error(message);
+      return;
+    }
+
+    if (importValidation.warnings.length > 0) {
+      const message = importValidation.warnings[0];
+      setImportFeedback({
+        tone: 'info',
+        title: 'Validation warning',
+        details: [message],
+      });
+      toast.warning(message);
+    }
+
+    setImportFeedback({
+      tone: 'info',
+      title: 'Import in progress',
+      details: [`Submitting Patient resource for hospital ${hospitalId}`],
+    });
+
+    importPatient(
+      {
+        fhirPatient: importValidation.parsedPatient,
+        hospitalId,
+      },
+      {
+        onSuccess: (result) => {
+          const operationOutcome = getOperationOutcome(result);
+          if (operationOutcome) {
+            const details = (operationOutcome.issue || [])
+              .map((issue) => issue.diagnostics?.trim())
+              .filter((line): line is string => Boolean(line));
+
+            setImportFeedback({
+              tone: 'info',
+              title: 'FHIR OperationOutcome',
+              details: details.length > 0 ? details : ['Import returned OperationOutcome with no diagnostics.'],
+            });
+            toast.info('FHIR import returned OperationOutcome');
+            return;
+          }
+
+          const importedPatient = result as { id?: string; identifier?: Array<{ value?: string }> };
+          const mrn = importedPatient.identifier?.find((entry) => entry?.value)?.value;
+          const details = [
+            importedPatient.id ? `Patient ID: ${importedPatient.id}` : 'Patient imported successfully.',
+            mrn ? `MRN: ${mrn}` : '',
+          ].filter(Boolean);
+
+          setImportFeedback({
+            tone: 'success',
+            title: 'Patient import successful',
+            details,
+          });
+          toast.success('FHIR patient imported successfully');
+        },
+        onError: (error) => {
+          const message = error instanceof Error ? error.message : 'FHIR import failed.';
+          setImportFeedback({
+            tone: 'error',
+            title: 'Import failed',
+            details: [message],
+          });
+          toast.error(message);
+        },
+      },
+    );
+  };
+
+  const handleFormatImportJson = () => {
+    if (!importValidation.parsedPatient) {
+      const message = 'Fix JSON errors before formatting.';
+      toast.error(message);
+      return;
+    }
+    setImportJson(JSON.stringify(importValidation.parsedPatient, null, 2));
+    toast.success('FHIR JSON formatted');
+  };
+
+  const importFeedbackStyles =
+    importFeedback?.tone === 'error'
+      ? 'border-red-300 bg-red-50 text-red-800'
+      : importFeedback?.tone === 'success'
+      ? 'border-green-300 bg-green-50 text-green-800'
+      : 'border-blue-300 bg-blue-50 text-blue-800';
 
   return (
     <div className="space-y-6">
@@ -137,10 +379,75 @@ export function IntegrationDashboard() {
 
             <div className="border-t pt-4">
               <h4 className="font-medium mb-2">Import FHIR Data</h4>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Import Patient Data
-              </Button>
+              <p className="text-xs text-muted-foreground mb-2">
+                Hospital context: {hospitalId || 'Unavailable'}
+              </p>
+              <Textarea
+                value={importJson}
+                onChange={(e) => {
+                  setImportJson(e.target.value);
+                  if (importFeedback) setImportFeedback(null);
+                }}
+                rows={12}
+                className={`font-mono text-xs ${
+                  importValidation.errors.length > 0
+                    ? 'border-red-500 focus-visible:ring-red-400'
+                    : 'border-green-500'
+                }`}
+                placeholder="Paste FHIR Patient JSON"
+              />
+              <div className="mt-2 space-y-1">
+                {importValidation.errors.map((error, index) => (
+                  <p key={`import-error-${index}`} className="text-xs text-red-600">
+                    {error}
+                  </p>
+                ))}
+                {importValidation.warnings.map((warning, index) => (
+                  <p key={`import-warning-${index}`} className="text-xs text-amber-700">
+                    {warning}
+                  </p>
+                ))}
+                {importValidation.errors.length === 0 && (
+                  <p className="text-xs text-green-700">FHIR payload syntax is valid.</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFormatImportJson}
+                    disabled={importValidation.errors.length > 0}
+                  >
+                    Format JSON
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleImportPatient}
+                    disabled={
+                      isImporting ||
+                      !hospitalId ||
+                      importValidation.errors.length > 0
+                    }
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {isImporting ? 'Importing...' : 'Import Patient Data'}
+                  </Button>
+                </div>
+              </div>
+              {importFeedback && (
+                <div className={`mt-3 rounded-md border p-3 ${importFeedbackStyles}`}>
+                  <p className="text-sm font-semibold">{importFeedback.title}</p>
+                  <div className="mt-1 space-y-1">
+                    {importFeedback.details.map((detail, idx) => (
+                      <p key={`${detail}-${idx}`} className="text-xs">
+                        {detail}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

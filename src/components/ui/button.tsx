@@ -9,13 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+        default:
+          "bg-gradient-to-b from-[hsl(var(--primary-vivid))] to-[hsl(var(--primary))] text-primary-foreground shadow-[0_2px_8px_hsl(var(--primary)/0.3),inset_0_1px_0_hsl(0_0%_100%/0.15)] hover:shadow-[0_6px_18px_hsl(var(--primary)/0.4),inset_0_1px_0_hsl(0_0%_100%/0.2)] hover:-translate-y-px active:translate-y-0 active:shadow-[0_1px_4px_hsl(var(--primary)/0.3)]",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
         outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl active:scale-[0.98]",
+        hero: "bg-gradient-to-b from-[hsl(var(--primary-vivid))] to-[hsl(var(--primary))] text-primary-foreground shadow-[0_4px_16px_hsl(var(--primary)/0.35),inset_0_1px_0_hsl(0_0%_100%/0.2)] hover:shadow-[0_8px_28px_hsl(var(--primary)/0.45),inset_0_1px_0_hsl(0_0%_100%/0.25)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]",
       },
       size: {
         default: "h-10 px-4 py-2",

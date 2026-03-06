@@ -160,7 +160,13 @@ export default function LandingPage() {
       </Suspense>
 
       {/* Hero Section with Dashboard Mockup */}
-      <div className="pt-10">
+      <div className="pt-10" style={{
+        background: [
+          'radial-gradient(ellipse 90% 60% at 20% 0%, hsl(173 65% 42% / 0.1) 0%, transparent 70%)',
+          'radial-gradient(ellipse 60% 40% at 80% 80%, hsl(199 89% 48% / 0.07) 0%, transparent 60%)',
+          'hsl(215 30% 98%)'
+        ].join(', ')
+      }}>
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Hero Content */}
@@ -248,7 +254,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
           >
             <Badge variant="secondary" className="mb-4">Features</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="font-display font-normal text-3xl md:text-4xl mb-4">
               Everything You Need to Manage Healthcare
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -317,7 +323,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
           >
             <Badge variant="secondary" className="mb-4">Trusted by Healthcare Leaders</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="font-display font-normal text-3xl md:text-4xl mb-4">
               What Our Clients Say
             </h2>
           </motion.div>
@@ -340,7 +346,7 @@ export default function LandingPage() {
               viewport={{ once: true }}
             >
               <Badge variant="secondary" className="mb-4">Security & Compliance</Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              <h2 className="font-display font-normal text-3xl md:text-4xl mb-6">
                 Enterprise-Grade Security for Healthcare
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
@@ -471,7 +477,7 @@ export default function LandingPage() {
         
         <div className="container mx-auto px-4 text-center relative z-10">
           <motion.h2 
-            className="text-3xl md:text-4xl font-bold mb-4 text-sidebar-primary-foreground"
+            className="font-display font-normal text-3xl md:text-4xl mb-4 text-sidebar-primary-foreground"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

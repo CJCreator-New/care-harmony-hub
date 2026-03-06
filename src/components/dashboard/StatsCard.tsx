@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
+import { useCountUp } from '@/hooks/useCountUp';
 
 /**
  * Compact-formats a numeric value for display in a stats card.
@@ -65,22 +66,33 @@ export function StatsCard({
   className,
 }: StatsCardProps) {
   const styles = variantStyles[variant];
+
+  // Count-up animation for numeric values
+  const numericTarget = typeof value === 'number' ? value : 0;
+  const countedValue = useCountUp(numericTarget);
+
   const displayValue =
-    formatNumbers && typeof value === 'number' ? formatStatValue(value) : value;
+    typeof value === 'number'
+      ? formatNumbers
+        ? formatStatValue(countedValue)
+        : countedValue.toLocaleString()
+      : value;
 
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border p-6 shadow-card transition-all hover:shadow-card-hover',
+        'relative overflow-hidden rounded-xl border border-border p-6 card-raised card-interactive transition-all',
         styles.container,
         className
       )}
     >
+      {/* Accent gradient line at top — colour matches variant icon */}
+      <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-primary/70 via-primary/40 to-transparent" aria-hidden="true" />
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold tracking-tight">{displayValue}</h3>
+            <h3 className="font-display text-3xl font-normal tracking-tight tabular-nums">{displayValue}</h3>
             {trend && (
               <span
                 className={cn(

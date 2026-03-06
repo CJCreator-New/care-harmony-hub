@@ -326,7 +326,7 @@ export function WorkflowDashboard() {
                           From {message.sender_name} • {format(new Date(message.created_at), 'MMM d, h:mm a')}
                         </p>
                       </div>
-                      {!message.read && <Badge variant="destructive">New</Badge>}
+                      {!message.read && <Badge className="bg-[hsl(var(--accent-vivid))] text-[hsl(220_35%_8%)] border-none hover:bg-[hsl(var(--accent-vivid)/0.9)]">New</Badge>}
                     </div>
                   ))}
 

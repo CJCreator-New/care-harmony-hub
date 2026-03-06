@@ -84,7 +84,7 @@ export function CommunicationHub() {
                             <Badge variant={msg.priority === 'urgent' ? 'destructive' : 'secondary'}>
                               {msg.priority}
                             </Badge>
-                            {!msg.read && <Badge variant="default">New</Badge>}
+                            {!msg.read && <Badge className="bg-[hsl(var(--accent-vivid))] text-[hsl(220_35%_8%)] border-none hover:bg-[hsl(var(--accent-vivid)/0.9)]">New</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{msg.message}</p>
                           <p className="text-xs text-muted-foreground mt-1">
