@@ -1,5 +1,6 @@
 // Receptionist AI Scheduling and Biometric Check-in Service
 import { ReceptionistUser } from '../types/receptionist';
+import { logAudit } from './auditLogQueue';
 
 export interface OptimizedSchedule {
   appointmentId: string;
@@ -41,9 +42,11 @@ export interface MultilingualMessage {
 
 export class ReceptionistAISchedulingService {
   private receptionistId: string;
+  private hospitalId: string;
 
-  constructor(receptionistId: string) {
+  constructor(receptionistId: string, hospitalId = '') {
     this.receptionistId = receptionistId;
+    this.hospitalId = hospitalId;
   }
 
   async optimizeAppointmentScheduling(
@@ -73,7 +76,7 @@ export class ReceptionistAISchedulingService {
       sessionId: `session_${Date.now()}`,
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} processed biometric check-in for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'biometric_check_in', entity_type: 'patient', entity_id: patientId, details: { method } });
     return checkIn;
   }
 
@@ -108,7 +111,7 @@ export class ReceptionistAISchedulingService {
       sentAt: new Date(),
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} sent multilingual message to patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'send_multilingual_message', entity_type: 'patient', entity_id: patientId, details: { language, messageType } });
     return message;
   }
 

@@ -11,14 +11,17 @@ import {
   NurseDashboard,
 } from '../types/nurse';
 import { NurseRBACManager } from './nurseRBACManager';
+import { logAudit } from './auditLogQueue';
 
 export class NurseClinicalService {
   private rbacManager: NurseRBACManager;
   private nurseId: string;
+  private hospitalId: string;
 
-  constructor(rbacManager: NurseRBACManager, nurseId: string) {
+  constructor(rbacManager: NurseRBACManager, nurseId: string, hospitalId = '') {
     this.rbacManager = rbacManager;
     this.nurseId = nurseId;
+    this.hospitalId = hospitalId;
   }
 
   // Patient Assessment
@@ -47,8 +50,7 @@ export class NurseClinicalService {
       alerts: assessmentData.alerts || [],
     };
 
-    // Audit log
-    console.log(`[AUDIT] Nurse ${this.nurseId} assessed patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'assess_patient', entity_type: 'patient', entity_id: patientId });
 
     return assessment;
   }
@@ -73,7 +75,7 @@ export class NurseClinicalService {
       status: this.determineVitalStatus(vitals),
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} recorded vitals for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'record_vitals', entity_type: 'patient', entity_id: patientId });
 
     return vitalSigns;
   }
@@ -106,7 +108,7 @@ export class NurseClinicalService {
       patientResponse: medicationData.patientResponse,
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} administered medication to patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'administer_medication', entity_type: 'patient', entity_id: patientId });
 
     return medication;
   }
@@ -128,7 +130,7 @@ export class NurseClinicalService {
       status: carePlanData.status || 'active',
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} updated care plan for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'update_care_plan', entity_type: 'patient', entity_id: patientId });
 
     return carePlan;
   }
@@ -150,7 +152,7 @@ export class NurseClinicalService {
       notes,
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} completed task ${taskId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'complete_task', entity_type: 'task', entity_id: taskId, details: { patient_id: patientId, notes } });
 
     return task;
   }
@@ -173,7 +175,7 @@ export class NurseClinicalService {
       acknowledgedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} acknowledged alert ${alertId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'acknowledge_alert', entity_type: 'alert', entity_id: alertId, details: { patient_id: patientId } });
 
     return alert;
   }
@@ -192,7 +194,7 @@ export class NurseClinicalService {
       timestamp: new Date(),
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} created clinical note for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'create_clinical_note', entity_type: 'patient', entity_id: patientId });
 
     return { id: note.id, timestamp: note.timestamp };
   }
@@ -212,7 +214,7 @@ export class NurseClinicalService {
       verifiedBy: this.nurseId,
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} created shift handoff`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'create_shift_handoff', entity_type: 'handoff', entity_id: handoff.id });
 
     return handoff;
   }

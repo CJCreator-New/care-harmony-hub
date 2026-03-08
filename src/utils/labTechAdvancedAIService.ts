@@ -60,9 +60,11 @@ export interface DigitalPathologyImage {
 
 export class LabTechAdvancedAIService {
   private labTechId: string;
+  private hospitalId: string;
 
-  constructor(labTechId: string) {
+  constructor(labTechId: string, hospitalId = '') {
     this.labTechId = labTechId;
+    this.hospitalId = hospitalId;
   }
 
   async correlateComplexResults(testId: string, results: Record<string, string>): Promise<AIResultCorrelation> {
@@ -139,7 +141,7 @@ export class LabTechAdvancedAIService {
       lastSync: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} connected to external reference lab`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'connect_external_reference_lab', entity_type: 'reference_lab', entity_id: connection.id });
     return connection;
   }
 
@@ -153,7 +155,7 @@ export class LabTechAdvancedAIService {
       uploadedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} uploaded digital pathology image`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'upload_pathology_image', entity_type: 'specimen', entity_id: specimenId });
     return image;
   }
 

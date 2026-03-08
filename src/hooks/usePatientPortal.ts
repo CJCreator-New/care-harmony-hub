@@ -19,14 +19,15 @@ import {
 const resolveEffectivePatientId = async (explicitPatientId?: string): Promise<string | null> => {
   if (explicitPatientId) return explicitPatientId;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
 
-  return resolvePatientIdByAuthUserId(user.id);
+  return resolvePatientIdByAuthUserId(session.user.id);
 };
 
 // Hook for patient profile management
 export const usePatientProfile = (patientId?: string) => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +54,6 @@ export const usePatientProfile = (patientId?: string) => {
     }
 
     // If no patientId provided, get patient profile for current authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setError('No authenticated user found');
       return;

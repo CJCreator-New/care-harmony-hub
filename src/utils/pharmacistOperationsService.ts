@@ -14,14 +14,17 @@ import {
   DosageVerification,
 } from '../types/pharmacist';
 import { PharmacistRBACManager } from './pharmacistRBACManager';
+import { logAudit } from './auditLogQueue';
 
 export class PharmacistOperationsService {
   private rbacManager: PharmacistRBACManager;
   private pharmacistId: string;
+  private hospitalId: string;
 
-  constructor(rbacManager: PharmacistRBACManager, pharmacistId: string) {
+  constructor(rbacManager: PharmacistRBACManager, pharmacistId: string, hospitalId = '') {
     this.rbacManager = rbacManager;
     this.pharmacistId = pharmacistId;
+    this.hospitalId = hospitalId;
   }
 
   // Receive Prescription
@@ -51,7 +54,7 @@ export class PharmacistOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} received prescription ${prescription.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'receive_prescription', entity_type: 'prescription', entity_id: prescription.id });
 
     return prescription;
   }
@@ -76,7 +79,7 @@ export class PharmacistOperationsService {
       issues: [],
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} verified prescription ${prescriptionId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'verify_prescription', entity_type: 'prescription', entity_id: prescriptionId });
 
     return verification;
   }
@@ -94,7 +97,7 @@ export class PharmacistOperationsService {
       recommendations: [],
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} checked interactions for ${medicationName}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'check_drug_interactions', entity_type: 'medication', entity_id: medicationName });
 
     return check;
   }
@@ -113,7 +116,7 @@ export class PharmacistOperationsService {
       recommendations: [],
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} checked allergies for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'check_patient_allergies', entity_type: 'patient', entity_id: patientId });
 
     return check;
   }
@@ -138,7 +141,7 @@ export class PharmacistOperationsService {
       recommendations: [],
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} verified dosage for ${medicationName}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'verify_dosage', entity_type: 'medication', entity_id: medicationName });
 
     return verification;
   }
@@ -169,7 +172,7 @@ export class PharmacistOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} filled prescription ${prescriptionId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'fill_prescription', entity_type: 'prescription', entity_id: prescriptionId });
 
     return filled;
   }
@@ -201,7 +204,7 @@ export class PharmacistOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} rejected prescription ${prescriptionId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'reject_prescription', entity_type: 'prescription', entity_id: prescriptionId });
 
     return rejected;
   }
@@ -228,7 +231,7 @@ export class PharmacistOperationsService {
       status: 'pending',
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} processed dispensing for prescription ${prescriptionId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'process_dispensing', entity_type: 'prescription', entity_id: prescriptionId });
 
     return dispensing;
   }
@@ -255,7 +258,7 @@ export class PharmacistOperationsService {
       status: 'verified',
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} verified dispensing ${dispensingId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'verify_dispensing', entity_type: 'dispensing', entity_id: dispensingId });
 
     return verified;
   }
@@ -266,7 +269,7 @@ export class PharmacistOperationsService {
       throw new Error('Insufficient permissions to generate label');
     }
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} generated label for dispensing ${dispensingId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'generate_dispensing_label', entity_type: 'dispensing', entity_id: dispensingId });
 
     return {
       labelId: `label_${Date.now()}`,
@@ -305,7 +308,7 @@ export class PharmacistOperationsService {
       updatedBy: this.pharmacistId,
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} updated inventory item ${itemId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'update_inventory', entity_type: 'inventory', entity_id: itemId });
 
     return updated;
   }
@@ -328,7 +331,7 @@ export class PharmacistOperationsService {
       status: 'pending',
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} requested reorder for ${medicationName}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'request_reorder', entity_type: 'medication', entity_id: medicationName });
 
     return request;
   }
@@ -356,7 +359,7 @@ export class PharmacistOperationsService {
       notes: counselingData.notes,
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} counseled patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'counsel_patient', entity_type: 'patient', entity_id: patientId });
 
     return counseling;
   }
@@ -376,7 +379,7 @@ export class PharmacistOperationsService {
       status: 'pending',
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} created intervention for prescription ${prescriptionId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'create_clinical_intervention', entity_type: 'prescription', entity_id: prescriptionId });
 
     return intervention;
   }

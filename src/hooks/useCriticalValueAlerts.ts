@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export function useCriticalValueAlerts() {
-  const { hospital } = useAuth();
+  const { hospital, user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: alerts, isLoading } = useQuery({
@@ -35,7 +35,7 @@ export function useCriticalValueAlerts() {
         .from('critical_value_alerts')
         .update({
           acknowledged_at: new Date().toISOString(),
-          acknowledged_by: (await supabase.auth.getUser()).data.user?.id,
+          acknowledged_by: user?.id,
         })
         .eq('id', alertId);
 

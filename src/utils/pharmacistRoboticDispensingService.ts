@@ -1,5 +1,6 @@
 // Pharmacist Robotic Dispensing and Safety Analytics Service
 import { PharmacistUser } from '../types/pharmacist';
+import { logAudit } from './auditLogQueue';
 
 export interface RoboticDispenser {
   id: string;
@@ -61,9 +62,11 @@ export interface ExternalPharmacyNetwork {
 
 export class PharmacistRoboticDispensingService {
   private pharmacistId: string;
+  private hospitalId: string;
 
-  constructor(pharmacistId: string) {
+  constructor(pharmacistId: string, hospitalId = '') {
     this.pharmacistId = pharmacistId;
+    this.hospitalId = hospitalId;
   }
 
   async getRoboticDispenserStatus(dispenserId: string): Promise<RoboticDispenser> {
@@ -93,7 +96,7 @@ export class PharmacistRoboticDispensingService {
       qualityChecked: false,
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} initiated automated dispensing ${dispensing.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'initiate_automated_dispensing', entity_type: 'dispensing', entity_id: dispensing.id });
     return dispensing;
   }
 
@@ -126,7 +129,7 @@ export class PharmacistRoboticDispensingService {
       completedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} initiated counseling session for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'initiate_counseling_session', entity_type: 'patient', entity_id: patientId });
     return session;
   }
 
@@ -141,7 +144,7 @@ export class PharmacistRoboticDispensingService {
       transferCapability: true,
     };
 
-    console.log(`[AUDIT] Pharmacist ${this.pharmacistId} connected to external pharmacy network`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.pharmacistId, action_type: 'connect_external_pharmacy', entity_type: 'pharmacy_network', entity_id: 'external' });
     return network;
   }
 

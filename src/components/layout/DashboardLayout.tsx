@@ -187,13 +187,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out lg:translate-x-0",
+          "fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out lg:translate-x-0 overflow-hidden",
           sidebarCollapsed ? "w-16" : "w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
         aria-label="Main navigation"
         aria-hidden={!sidebarOpen && typeof window !== 'undefined' && window.innerWidth < 1024 ? 'true' : undefined}
       >
+        {/* Ambient vertical accent line — right edge glow */}
+        <div className="absolute top-0 right-0 w-px h-full bg-gradient-to-b from-transparent via-primary/30 to-transparent pointer-events-none" aria-hidden="true" />
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-2 px-3 h-16 border-b border-sidebar-border">

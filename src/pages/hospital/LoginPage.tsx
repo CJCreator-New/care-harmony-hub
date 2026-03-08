@@ -95,7 +95,8 @@ export default function LoginPage() {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
 
       if (!user) {
         // Auth succeeded but session couldn't be read — sign out cleanly and ask user to retry
@@ -201,7 +202,7 @@ export default function LoginPage() {
               <ArrowLeft className="w-4 h-4 mr-1" />
               Back to Home
             </Link>
-            <h2 className="text-3xl font-bold">Welcome Back</h2>
+            <h2 className="font-display font-normal italic text-4xl leading-tight">Welcome Back</h2>
             <p className="text-muted-foreground mt-2">
               Sign in to access your hospital dashboard
             </p>

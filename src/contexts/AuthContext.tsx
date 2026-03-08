@@ -82,7 +82,7 @@ const ROLE_PRIORITY: UserRole[] = [
 ];
 
 const E2E_MOCK_AUTH_STORAGE_KEY = 'e2e-mock-auth-user';
-const E2E_MOCK_PASSWORD = 'TestPass123!';
+const E2E_MOCK_PASSWORD = import.meta.env.DEV ? 'TestPass123!' : '';
 
 type E2EMockUserConfig = {
   id: string;
@@ -92,7 +92,7 @@ type E2EMockUserConfig = {
   hospitalId: string;
 };
 
-const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = {
+const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = import.meta.env.DEV ? {
   'admin@testgeneral.com': {
     id: '00000000-0000-0000-0000-000000000010',
     firstName: 'Admin',
@@ -163,7 +163,7 @@ const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = {
     role: 'patient',
     hospitalId: '00000000-0000-0000-0000-000000000001',
   },
-};
+} : {};
 
 const getE2EMockUser = (email: string): E2EMockUserConfig | null => {
   const normalizedEmail = email.trim().toLowerCase();

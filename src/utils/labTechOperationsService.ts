@@ -13,14 +13,17 @@ import {
   AnalyzerStatus,
 } from '../types/labtech';
 import { LabTechRBACManager } from './labTechRBACManager';
+import { logAudit } from './auditLogQueue';
 
 export class LabTechOperationsService {
   private rbacManager: LabTechRBACManager;
   private labTechId: string;
+  private hospitalId: string;
 
-  constructor(rbacManager: LabTechRBACManager, labTechId: string) {
+  constructor(rbacManager: LabTechRBACManager, labTechId: string, hospitalId = '') {
     this.rbacManager = rbacManager;
     this.labTechId = labTechId;
+    this.hospitalId = hospitalId;
   }
 
   // Receive Specimen
@@ -46,7 +49,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} received specimen ${specimen.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'receive_specimen', entity_type: 'specimen', entity_id: specimen.id });
 
     return specimen;
   }
@@ -66,7 +69,7 @@ export class LabTechOperationsService {
       validatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} validated specimen ${specimenId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'validate_specimen', entity_type: 'specimen', entity_id: specimenId });
 
     return validation;
   }
@@ -94,7 +97,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} processed specimen ${specimenId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'process_specimen', entity_type: 'specimen', entity_id: specimenId });
 
     return processed;
   }
@@ -122,7 +125,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} rejected specimen ${specimenId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'reject_specimen', entity_type: 'specimen', entity_id: specimenId, details: { reason } });
 
     return rejected;
   }
@@ -147,7 +150,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} performed test ${test.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'perform_test', entity_type: 'test', entity_id: test.id, details: { specimenId, testCode } });
 
     return test;
   }
@@ -172,7 +175,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} verified test ${testId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'verify_test', entity_type: 'test', entity_id: testId });
 
     return verified;
   }
@@ -203,7 +206,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} reviewed result ${result.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'review_result', entity_type: 'result', entity_id: result.id });
 
     return result;
   }
@@ -232,7 +235,7 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} approved result ${resultId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'approve_result', entity_type: 'result', entity_id: resultId });
 
     return approved;
   }
@@ -257,7 +260,7 @@ export class LabTechOperationsService {
       createdAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} performed QC for analyzer ${analyzerId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'perform_qc', entity_type: 'analyzer', entity_id: analyzerId, details: { testCode, qcLevel } });
 
     return qc;
   }
@@ -268,7 +271,7 @@ export class LabTechOperationsService {
       throw new Error('Insufficient permissions to operate analyzer');
     }
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} operated analyzer ${analyzerId}: ${operation}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'operate_analyzer', entity_type: 'analyzer', entity_id: analyzerId, details: { operation } });
 
     return { success: true, message: `Analyzer operation completed: ${operation}` };
   }
@@ -291,7 +294,7 @@ export class LabTechOperationsService {
       createdAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} calibrated analyzer ${analyzerId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'calibrate_analyzer', entity_type: 'analyzer', entity_id: analyzerId });
 
     return maintenance;
   }
@@ -315,7 +318,7 @@ export class LabTechOperationsService {
       createdAt: new Date(),
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} logged maintenance for analyzer ${analyzerId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'log_maintenance', entity_type: 'analyzer', entity_id: analyzerId });
 
     return maintenance;
   }
@@ -341,7 +344,7 @@ export class LabTechOperationsService {
       acknowledged: false,
     };
 
-    console.log(`[AUDIT] Lab Tech ${this.labTechId} detected critical result ${critical.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'detect_critical_result', entity_type: 'result', entity_id: critical.id, details: { testId } });
 
     return critical;
   }

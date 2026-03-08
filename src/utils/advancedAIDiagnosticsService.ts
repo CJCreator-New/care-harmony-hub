@@ -1,5 +1,6 @@
 // Advanced AI Diagnostics Service for Doctors
 import { DoctorUser } from '../types/doctor';
+import { logAudit } from './auditLogQueue';
 
 export interface ComplexCase {
   id: string;
@@ -50,9 +51,11 @@ export interface BiometricAuth {
 
 export class AdvancedAIDiagnosticsService {
   private doctorId: string;
+  private hospitalId: string;
 
-  constructor(doctorId: string) {
+  constructor(doctorId: string, hospitalId = '') {
     this.doctorId = doctorId;
+    this.hospitalId = hospitalId;
   }
 
   async analyzeComplexCase(caseData: Partial<ComplexCase>): Promise<ComplexCase> {
@@ -69,7 +72,7 @@ export class AdvancedAIDiagnosticsService {
       createdAt: new Date(),
     };
 
-    console.log(`[AUDIT] Doctor ${this.doctorId} analyzed complex case ${complexCase.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.doctorId, action_type: 'analyze_complex_case', entity_type: 'case', entity_id: complexCase.id });
     return complexCase;
   }
 

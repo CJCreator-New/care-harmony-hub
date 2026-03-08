@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Activity, Users, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SystemMetrics {
   activeUsers: number;
@@ -15,6 +16,7 @@ interface SystemMetrics {
 }
 
 export const RealTimeMonitoringDashboard = () => {
+  const { hospital } = useAuth();
   const [metrics, setMetrics] = useState<SystemMetrics>({
     activeUsers: 0,
     systemLoad: 0,
@@ -27,28 +29,33 @@ export const RealTimeMonitoringDashboard = () => {
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
+    if (!hospital?.id) return;
+
     const fetchMetrics = async () => {
       // Real-time system metrics using existing tables
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { count: activeUsers } = await (supabase.from('profiles') as any)
         .select('*', { count: 'exact', head: true })
+        .eq('hospital_id', hospital.id)
         .not('last_login', 'is', null);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { count: patientFlow } = await (supabase.from('appointments') as any)
         .select('*', { count: 'exact', head: true })
+        .eq('hospital_id', hospital.id)
         .eq('status', 'in_progress');
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: staffData } = await (supabase.from('profiles') as any)
         .select('id, is_staff')
+        .eq('hospital_id', hospital.id)
         .eq('is_staff', true);
 
       setMetrics({
         activeUsers: activeUsers || 0,
-        systemLoad: Math.random() * 100, // Mock system load
-        responseTime: Math.random() * 500 + 100,
-        errorRate: Math.random() * 5,
+        systemLoad: 0,       // Not measurable via client — requires server-side monitoring
+        responseTime: 0,     // Not measurable via client — requires APM tooling
+        errorRate: 0,        // Not measurable via client — requires server-side monitoring
         patientFlow: patientFlow || 0,
         staffUtilization: calculateStaffUtilization(staffData || [])
       });
@@ -58,7 +65,7 @@ export const RealTimeMonitoringDashboard = () => {
     const interval = setInterval(fetchMetrics, 5000); // Update every 5 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [hospital?.id]);
 
   const calculateStaffUtilization = (staff: any[]) => {
     if (!staff.length) return 0;

@@ -3,18 +3,22 @@ import { supabase } from '@/integrations/supabase/client';
 // AI Service Configuration
 const AI_CONFIG = {
   openai: {
-    apiKey: process.env.VITE_OPENAI_API_KEY,
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY as string | undefined,
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4' // Using GPT-4 for superior clinical reasoning
   },
   anthropic: {
-    apiKey: process.env.VITE_ANTHROPIC_API_KEY,
+    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined,
     baseUrl: 'https://api.anthropic.com/v1',
     model: 'claude-3-sonnet-20240229'
   },
   // Fallback to mock responses if no API keys
-  useMock: !process.env.VITE_OPENAI_API_KEY && !process.env.VITE_ANTHROPIC_API_KEY
+  useMock: !import.meta.env.VITE_OPENAI_API_KEY && !import.meta.env.VITE_ANTHROPIC_API_KEY
 };
+
+if (AI_CONFIG.useMock) {
+  console.warn('[ClinicalAI] No AI API keys configured — running in mock mode. Set VITE_OPENAI_API_KEY or VITE_ANTHROPIC_API_KEY in .env to enable real AI.');
+}
 
 // AI Service Interface
 export interface AIServiceResponse<T = any> {

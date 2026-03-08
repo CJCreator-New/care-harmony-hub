@@ -28,7 +28,7 @@ export interface VoiceCommand {
 }
 
 export function useMobileWorkflow() {
-  const { profile } = useAuth();
+  const { profile, primaryRole, roles } = useAuth();
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [offlineData, setOfflineData] = useState<OfflineData | null>(null);
@@ -86,7 +86,7 @@ export function useMobileWorkflow() {
         }
       };
 
-      return configs[profile.role] || configs.doctor;
+      return configs[primaryRole ?? roles[0] ?? 'doctor'] || configs.doctor;
     },
     enabled: !!profile?.role
   });

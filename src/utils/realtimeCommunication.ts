@@ -93,7 +93,7 @@ class RealtimeCommunication {
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        const userId = (await supabase.auth.getUser()).data.user?.id;
+        const userId = (await supabase.auth.getSession()).data.session?.user?.id;
         if (userId) {
           channel.track({
             user_id: userId,

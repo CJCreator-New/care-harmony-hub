@@ -572,22 +572,13 @@ async function authorizeFhirAction(
     });
   }
 
-  let profileHospitalId = profileByUserId?.hospital_id ?? null;
+  const profileHospitalId = profileByUserId?.hospital_id ?? null;
   if (!profileHospitalId) {
-    const { data: profileById, error: profileByIdError } = await supabase
-      .from("profiles")
-      .select("hospital_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileByIdError) {
-      throw new HttpError({
-        status: 500,
-        code: "exception",
-        diagnostics: `Failed to resolve caller profile by id: ${profileByIdError.message}`,
-      });
-    }
-    profileHospitalId = profileById?.hospital_id ?? null;
+    throw new HttpError({
+      status: 403,
+      code: "forbidden",
+      diagnostics: "Caller profile not found or has no associated hospital.",
+    });
   }
 
   const { data: roleRows, error: roleError } = await supabase

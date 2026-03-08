@@ -3,12 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 // Predictive Analytics Service Configuration
 const PREDICTIVE_CONFIG = {
   openai: {
-    apiKey: process.env.VITE_OPENAI_API_KEY,
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY as string | undefined,
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4'
   },
-  useMock: !process.env.VITE_OPENAI_API_KEY
+  useMock: !import.meta.env.VITE_OPENAI_API_KEY
 };
+
+if (PREDICTIVE_CONFIG.useMock) {
+  console.warn('[PredictiveAnalytics] No OpenAI API key configured — running in mock mode. Set VITE_OPENAI_API_KEY in .env to enable real predictions.');
+}
 
 // Predictive Analytics Interfaces
 export interface PatientOutcomePrediction {

@@ -11,14 +11,17 @@ import {
   NoShowPrediction,
 } from '../types/receptionist';
 import { ReceptionistRBACManager } from './receptionistRBACManager';
+import { logAudit } from './auditLogQueue';
 
 export class ReceptionistOperationsService {
   private rbacManager: ReceptionistRBACManager;
   private receptionistId: string;
+  private hospitalId: string;
 
-  constructor(rbacManager: ReceptionistRBACManager, receptionistId: string) {
+  constructor(rbacManager: ReceptionistRBACManager, receptionistId: string, hospitalId = '') {
     this.rbacManager = rbacManager;
     this.receptionistId = receptionistId;
+    this.hospitalId = hospitalId;
   }
 
   // Patient Registration
@@ -57,7 +60,7 @@ export class ReceptionistOperationsService {
       status: 'active',
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} registered patient ${registration.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'register_patient', entity_type: 'patient', entity_id: registration.id });
 
     return registration;
   }
@@ -98,7 +101,7 @@ export class ReceptionistOperationsService {
       status: 'active',
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} updated patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'update_patient', entity_type: 'patient', entity_id: patientId });
 
     return updated;
   }
@@ -109,7 +112,7 @@ export class ReceptionistOperationsService {
       throw new Error('Insufficient permissions to verify patient');
     }
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} verified patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'verify_patient', entity_type: 'patient', entity_id: patientId });
 
     return {
       verified: true,
@@ -140,7 +143,7 @@ export class ReceptionistOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} created appointment ${appointment.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'create_appointment', entity_type: 'appointment', entity_id: appointment.id });
 
     return appointment;
   }
@@ -168,7 +171,7 @@ export class ReceptionistOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} modified appointment ${appointmentId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'modify_appointment', entity_type: 'appointment', entity_id: appointmentId });
 
     return modified;
   }
@@ -195,7 +198,7 @@ export class ReceptionistOperationsService {
       updatedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} cancelled appointment ${appointmentId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'cancel_appointment', entity_type: 'appointment', entity_id: appointmentId });
 
     return cancelled;
   }
@@ -219,7 +222,7 @@ export class ReceptionistOperationsService {
       status: 'checked_in',
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} checked in patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'check_in_patient', entity_type: 'patient', entity_id: patientId });
 
     return checkIn;
   }
@@ -242,7 +245,7 @@ export class ReceptionistOperationsService {
       status: 'completed',
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} checked out patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'check_out_patient', entity_type: 'patient', entity_id: patientId });
 
     return checkOut;
   }
@@ -253,7 +256,7 @@ export class ReceptionistOperationsService {
       throw new Error('Insufficient permissions to verify insurance');
     }
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} verified insurance for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'verify_insurance', entity_type: 'patient', entity_id: patientId });
 
     return {
       verified: true,
@@ -282,7 +285,7 @@ export class ReceptionistOperationsService {
       throw new Error('Insufficient permissions to manage queue');
     }
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} updated queue priority for appointment ${appointmentId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'update_queue_priority', entity_type: 'appointment', entity_id: appointmentId });
   }
 
   // Send Patient Communication
@@ -306,7 +309,7 @@ export class ReceptionistOperationsService {
       status: 'sent',
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} sent ${communicationType} to patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'send_patient_communication', entity_type: 'patient', entity_id: patientId, details: { communicationType } });
 
     return communication;
   }
@@ -318,7 +321,7 @@ export class ReceptionistOperationsService {
     // Check for provider overlap
     if (appointmentData.providerId) {
       // Simulate conflict detection
-      console.log(`[AUDIT] Receptionist ${this.receptionistId} checked for scheduling conflicts`);
+      logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'check_scheduling_conflicts', entity_type: 'appointment', entity_id: 'batch' });
     }
 
     return conflicts;
@@ -335,7 +338,7 @@ export class ReceptionistOperationsService {
       recommendedAction: 'Send reminder 24 hours before',
     };
 
-    console.log(`[AUDIT] Receptionist ${this.receptionistId} predicted no-show risk for appointment ${appointmentId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.receptionistId, action_type: 'predict_no_show', entity_type: 'appointment', entity_id: appointmentId });
 
     return prediction;
   }

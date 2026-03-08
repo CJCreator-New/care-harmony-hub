@@ -52,7 +52,7 @@ export interface NotificationSettings {
 }
 
 export function useCrossRoleCommunication() {
-  const { profile, hospital } = useAuth();
+  const { profile, hospital, primaryRole } = useAuth();
   const queryClient = useQueryClient();
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
 
@@ -69,7 +69,7 @@ export function useCrossRoleCommunication() {
           sender:sender_id(name, role),
           recipient:recipient_id(name, role)
         `)
-        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
+        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? profile?.role}`)
         .eq('hospital_id', hospital?.id)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -89,7 +89,7 @@ export function useCrossRoleCommunication() {
       const { count, error } = await supabase
         .from('communication_messages')
         .select('*', { count: 'exact', head: true })
-        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
+        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? profile?.role}`)
         .eq('read', false)
         .eq('hospital_id', hospital?.id);
 
@@ -147,7 +147,7 @@ export function useCrossRoleCommunication() {
       const messageData = {
         ...message,
         sender_id: profile.id,
-        sender_role: profile.role,
+        sender_role: primaryRole ?? profile?.role,
         sender_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
         hospital_id: hospital.id,
         read: false,
@@ -239,7 +239,7 @@ export function useCrossRoleCommunication() {
       const messages = recipientRoles.map(role => ({
         ...message,
         sender_id: profile.id,
-        sender_role: profile.role,
+        sender_role: primaryRole ?? profile?.role,
         sender_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
         recipient_role: role,
         hospital_id: hospital.id,
@@ -283,7 +283,7 @@ export function useCrossRoleCommunication() {
           // Check if message is for current user
           const message = payload.new as CommunicationMessage;
           const isForMe = message.recipient_id === profile.id ||
-                         message.recipient_role === profile.role;
+                         message.recipient_role === (primaryRole ?? profile?.role);
 
           if (isForMe) {
             queryClient.invalidateQueries({ queryKey: ['communication-messages'] });

@@ -76,38 +76,39 @@ export interface WorkflowMetrics {
 }
 
 export function useWorkflowAutomation() {
-  const { profile, hospital } = useAuth();
+  const { profile, hospital, primaryRole } = useAuth();
   const queryClient = useQueryClient();
 
   // Get workflow tasks for current user
   const { data: myTasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ['workflow-tasks', profile?.id],
+    queryKey: ['workflow-tasks', profile?.id, hospital?.id],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      if (!profile?.id || !hospital?.id) return [];
 
       const { data, error } = await supabase
         .from('workflow_tasks')
         .select('*')
         .eq('assigned_to', profile.id)
+        .eq('hospital_id', hospital.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
       return data as WorkflowTask[];
     },
-    enabled: !!profile?.id,
+    enabled: !!profile?.id && !!hospital?.id,
   });
 
   // Get workflow tasks by role (for managers)
   const { data: roleTasks, isLoading: roleTasksLoading } = useQuery({
-    queryKey: ['workflow-tasks-role', profile?.role, hospital?.id],
+    queryKey: ['workflow-tasks-role', primaryRole, hospital?.id],
     queryFn: async () => {
-      if (!profile?.role || !hospital?.id) return [];
+      if (!primaryRole || !hospital?.id) return [];
 
       const { data, error } = await supabase
         .from('workflow_tasks')
         .select('*')
-        .eq('assigned_role', profile.role)
+        .eq('assigned_role', primaryRole)
         .eq('hospital_id', hospital.id)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -115,7 +116,7 @@ export function useWorkflowAutomation() {
       if (error) throw error;
       return data as WorkflowTask[];
     },
-    enabled: !!profile?.role && !!hospital?.id,
+    enabled: !!primaryRole && !!hospital?.id,
   });
 
   // Get workflow rules

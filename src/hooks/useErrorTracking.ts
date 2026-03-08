@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeLogMessage, sanitizeForLog } from '@/utils/sanitize';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ErrorLog {
   id: string;
@@ -15,6 +16,7 @@ export interface ErrorLog {
 }
 
 export function useErrorTracking() {
+  const { user } = useAuth();
   const logError = useCallback(async (error: Error | string, context?: {
     severity?: 'low' | 'medium' | 'high' | 'critical';
     userId?: string;
@@ -53,7 +55,7 @@ export function useErrorTracking() {
             context: context?.additionalContext || {},
           },
           user_agent: navigator.userAgent,
-          user_id: context?.userId || (await supabase.auth.getUser()).data.user?.id || '',
+          user_id: context?.userId || user?.id || '',,
         });
 
       if (dbError) {
@@ -73,10 +75,10 @@ export function useErrorTracking() {
       await supabase.from('activity_logs').insert({
         action_type: action,
         details,
-        user_id: (await supabase.auth.getUser()).data.user?.id || '',
+        user_id: user?.id || '',
         user_agent: navigator.userAgent,
         entity_type: 'user',
-        entity_id: (await supabase.auth.getUser()).data.user?.id || '',
+        entity_id: user?.id || '',
       });
     } catch (error) {
       console.error('Failed to log user action:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));

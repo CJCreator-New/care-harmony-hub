@@ -73,7 +73,7 @@ interface StaffOnboardingWizardProps {
 }
 
 export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps) {
-  const { hospital } = useAuth();
+  const { hospital, user } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
@@ -136,7 +136,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
 
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       // Create staff invitations - ONLY ONE AT A TIME to avoid unique constraint conflict on (hospital_id, email, status)

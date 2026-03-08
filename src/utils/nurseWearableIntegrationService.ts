@@ -1,5 +1,6 @@
 // Nurse Wearable Integration and Predictive Analytics Service
 import { NurseUser } from '../types/nurse';
+import { logAudit } from './auditLogQueue';
 
 export interface WearableDevice {
   id: string;
@@ -57,9 +58,11 @@ export interface PatientEducationModule {
 
 export class NurseWearableIntegrationService {
   private nurseId: string;
+  private hospitalId: string;
 
-  constructor(nurseId: string) {
+  constructor(nurseId: string, hospitalId = '') {
     this.nurseId = nurseId;
+    this.hospitalId = hospitalId;
   }
 
   async connectWearableDevice(patientId: string, deviceData: Partial<WearableDevice>): Promise<WearableDevice> {
@@ -74,7 +77,7 @@ export class NurseWearableIntegrationService {
       batteryLevel: 100,
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} connected wearable device ${device.id}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'connect_wearable_device', entity_type: 'device', entity_id: device.id, details: { patient_id: patientId } });
     return device;
   }
 
@@ -116,7 +119,7 @@ export class NurseWearableIntegrationService {
       completedAt: new Date(),
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} automated medication for patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'automate_medication', entity_type: 'patient', entity_id: patientId });
     return automation;
   }
 
@@ -130,7 +133,7 @@ export class NurseWearableIntegrationService {
       completionStatus: 'not_started',
     };
 
-    console.log(`[AUDIT] Nurse ${this.nurseId} assigned education module to patient ${patientId}`);
+    logAudit({ hospital_id: this.hospitalId, user_id: this.nurseId, action_type: 'assign_patient_education', entity_type: 'patient', entity_id: patientId });
     return module;
   }
 

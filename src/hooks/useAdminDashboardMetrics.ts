@@ -53,8 +53,8 @@ export function useAdminDashboardMetrics() {
           realTimeMetrics: {
             activeUsers: activeUsers?.length || 0,
             patientThroughput: patients?.length || 0,
-            systemLoad: Math.random() * 100,
-            errorRate: Math.random() * 5,
+            systemLoad: 0,    // Requires server-side APM — not available via client
+            errorRate: 0,     // Requires server-side monitoring — not available via client
           },
           financialMetrics: {
             dailyRevenue,
@@ -63,13 +63,13 @@ export function useAdminDashboardMetrics() {
           },
           operationalMetrics: {
             bedOccupancy,
-            staffUtilization: Math.random() * 100,
-            avgWaitTime: Math.random() * 30,
+            staffUtilization: 0,  // Requires workload tracking — not available via client
+            avgWaitTime: 0,       // Requires queue analytics — not available via client
           },
           qualityMetrics: {
             patientSatisfaction: avgSatisfaction,
-            errorRate: Math.random() * 2,
-            complianceScore: 95 + Math.random() * 5,
+            errorRate: 0,         // Requires server-side monitoring — not available via client
+            complianceScore: 0,   // Requires compliance audit system — not available via client
           },
         });
       } catch (err) {

@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Shield, Copy, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function TwoFactorSetup() {
+  const { user } = useAuth();
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [secret, setSecret] = useState('');
@@ -75,8 +77,7 @@ export function TwoFactorSetup() {
   const disable2FA = async () => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.id) {
+    if (!user?.id) {
         toast.error('User not authenticated');
         return;
       }

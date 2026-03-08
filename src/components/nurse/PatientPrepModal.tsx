@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VitalsData {
   temperature: number | '';
@@ -43,6 +44,7 @@ interface PatientPrepModalProps {
 }
 
 export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplete }: PatientPrepModalProps) {
+  const { user } = useAuth();
   const [vitals, setVitals] = useState<VitalsData>({
     temperature: '',
     blood_pressure_systolic: '',
@@ -116,12 +118,11 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
 
     setIsSubmitting(true);
     try {
-      const authUser = await supabase.auth.getUser();
       const payload = {
         ...vitals,
         bmi: calculateBMI() ? Number(calculateBMI()) : null,
         recorded_at: new Date().toISOString(),
-        recorded_by: authUser.data.user?.id,
+        recorded_by: user?.id,
       };
 
       // Prefer RPC flow, but gracefully fallback when the function is not deployed.

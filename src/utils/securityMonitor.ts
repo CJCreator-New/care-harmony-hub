@@ -83,7 +83,7 @@ class SecurityMonitor {
       id: crypto.randomUUID(),
       event_type: eventType,
       severity,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
+      user_id: (await supabase.auth.getSession()).data.session?.user?.id,
       ip_address: metadata.ip_address as string,
       description,
       metadata,

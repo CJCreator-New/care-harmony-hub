@@ -32,26 +32,32 @@ const variantStyles = {
   default: {
     container: 'bg-card',
     icon: 'bg-muted text-muted-foreground',
+    accent: 'from-primary/70 via-primary/40 to-transparent',
   },
   primary: {
     container: 'bg-card',
     icon: 'bg-primary/10 text-primary',
+    accent: 'from-primary/70 via-primary/40 to-transparent',
   },
   success: {
     container: 'bg-card',
     icon: 'bg-success/10 text-success',
+    accent: 'from-success/70 via-success/40 to-transparent',
   },
   warning: {
     container: 'bg-card',
     icon: 'bg-warning/10 text-warning',
+    accent: 'from-warning/70 via-warning/40 to-transparent',
   },
   danger: {
     container: 'bg-card',
     icon: 'bg-destructive/10 text-destructive',
+    accent: 'from-destructive/70 via-destructive/40 to-transparent',
   },
   info: {
     container: 'bg-card',
     icon: 'bg-info/10 text-info',
+    accent: 'from-info/70 via-info/40 to-transparent',
   },
 };
 
@@ -86,8 +92,8 @@ export function StatsCard({
         className
       )}
     >
-      {/* Accent gradient line at top — colour matches variant icon */}
-      <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-primary/70 via-primary/40 to-transparent" aria-hidden="true" />
+      {/* Accent gradient line at top — colour matches variant */}
+      <div className={cn('absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r', styles.accent)} aria-hidden="true" />
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
