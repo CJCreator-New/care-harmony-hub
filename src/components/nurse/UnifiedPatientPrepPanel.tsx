@@ -472,7 +472,7 @@ export function UnifiedPatientPrepPanel({ patient, queueEntry, onComplete }: Uni
             patient={patient}
             queueEntry={queueEntry}
             prepData={{
-              vitals,
+              vitals: vitals as any,
               chiefComplaint,
               allergies,
               medications: currentMedications,

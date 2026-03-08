@@ -145,7 +145,7 @@ export function MedicationReminders() {
               Today
             </Button>
             <Button 
-              variant={filter === 'history' ? 'white' : 'ghost'} 
+               variant={filter === 'history' ? 'ghost' : 'ghost'} 
               size="sm" 
               className="h-7 text-[10px] uppercase font-bold px-3 shadow-none bg-transparent data-[variant=white]:bg-white data-[variant=white]:shadow-sm"
               onClick={() => setFilter('history')}

@@ -66,9 +66,9 @@ export function EnhancedTriagePanel({ patientId, queueId }: { patientId: string;
     try {
       await recordVitals({
         patient_id: patientId,
-        ...vitals,
-        blood_pressure: `${vitals.systolic}/${vitals.diastolic}`,
-      });
+        blood_pressure_systolic: Number(vitals.systolic) || undefined,
+        blood_pressure_diastolic: Number(vitals.diastolic) || undefined,
+      } as any);
 
       setChecklist(prev => prev.map(item =>
         item.id === 'vitals' ? { ...item, completed: true } : item

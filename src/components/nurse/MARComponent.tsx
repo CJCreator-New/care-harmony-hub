@@ -155,7 +155,7 @@ export const MARComponent: React.FC<MARComponentProps> = ({
                                     {administration.status === 'given' ? '✓' : 
                                      administration.status === 'refused' ? 'R' :
                                      administration.status === 'held' ? 'H' :
-                                     administration.status === 'missed' ? 'M' : '○'}
+                                     (administration.status as string) === 'missed' ? 'M' : '○'}
                                   </span>
                                 </div>
                               ) : (
