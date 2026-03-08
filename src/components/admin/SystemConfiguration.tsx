@@ -65,8 +65,8 @@ export function SystemConfiguration() {
       const { data, error } = await (supabase
         .from('hospitals')
         .select('settings')
-        .eq('id', hospitalId)
-        .single() as any) as Promise<{ data: { settings: Record<string, unknown> } | null; error: unknown }>;
+        .eq('id', hospitalId as any)
+        .single() as any);
 
       if (error) throw error;
       if (data?.settings) {

@@ -183,7 +183,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
       urgent: 'destructive',
       stat: 'destructive',
     };
-    return <Badge variant={variants[priority as keyof typeof variants] || 'secondary'}>{priority.toUpperCase()}</Badge>;
+    return <Badge variant={(variants[priority as keyof typeof variants] || 'secondary') as any}>{priority.toUpperCase()}</Badge>;
   };
 
   if (isLoading) {

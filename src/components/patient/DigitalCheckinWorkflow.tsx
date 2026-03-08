@@ -381,7 +381,7 @@ const DemographicsConfirmationStep: React.FC<{ onComplete: (data: any) => void }
       <div className="flex items-center space-x-2">
         <Checkbox
           checked={confirmed}
-          onCheckedChange={setConfirmed}
+          onCheckedChange={(checked) => setConfirmed(checked === true)}
         />
         <Label>I confirm this information is accurate</Label>
       </div>

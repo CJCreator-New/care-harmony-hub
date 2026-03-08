@@ -50,7 +50,7 @@ export function LabTechDashboard() {
   const handleStart = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation();
     try {
-      await updateLabOrder.mutateAsync({ id: orderId, status: 'in_progress' });
+      await updateLabOrder.mutateAsync({ id: orderId, updates: { status: 'in_progress' } });
       toast.success('Processing started');
     } catch (err) {
       toast.error('Failed to update status');

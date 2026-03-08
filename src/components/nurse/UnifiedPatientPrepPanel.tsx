@@ -20,7 +20,7 @@ import {
   Loader2,
   CheckCircle,
   Clock,
-  HandOff
+  ArrowRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
