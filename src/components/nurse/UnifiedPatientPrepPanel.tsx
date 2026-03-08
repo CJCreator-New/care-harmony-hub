@@ -446,7 +446,7 @@ export function UnifiedPatientPrepPanel({ patient, queueEntry, onComplete }: Uni
             onClick={() => setShowHandoff(true)}
             className="bg-primary hover:bg-primary/90"
           >
-            <HandOff className="mr-2 h-4 w-4" />
+            <ArrowRight className="mr-2 h-4 w-4" />
             Handoff to Doctor
           </Button>
         ) : (
