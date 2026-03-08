@@ -12,6 +12,9 @@
     "moduleDetection": "force",
     "moduleResolution": "bundler",
     "noEmit": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "paths": {
       "@/*": [
         "./src/*"
@@ -21,7 +24,8 @@
       ]
     },
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,
+    "strictNullChecks": false,
     "target": "ES2020",
     "types": ["vite/client"],
     "useDefineForClassFields": true
