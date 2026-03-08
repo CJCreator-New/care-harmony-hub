@@ -549,7 +549,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <Checkbox
               id="sms-confirmation"
               checked={sendSmsConfirmation}
-              onCheckedChange={setSendSmsConfirmation}
+              onCheckedChange={(c) => setSendSmsConfirmation(c === true)}
             />
             <Label htmlFor="sms-confirmation" className="text-sm">
               SMS ({selectedPatient?.phone})
