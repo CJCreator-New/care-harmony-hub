@@ -55,7 +55,7 @@ export function useErrorTracking() {
             context: context?.additionalContext || {},
           },
           user_agent: navigator.userAgent,
-          user_id: context?.userId || user?.id || '',,
+          user_id: context?.userId || user?.id || '',
         });
 
       if (dbError) {
