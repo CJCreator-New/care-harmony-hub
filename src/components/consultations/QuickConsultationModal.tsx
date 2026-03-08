@@ -78,14 +78,10 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       // Update consultation with minimal data
       await updateConsultation.mutateAsync({
         id: consultation.id,
-        diagnosis_codes: diagnosis ? [diagnosis] : [],
-        procedure_codes: cptCodes,
-        medications_prescribed: prescriptions,
-        lab_orders: labOrders,
         clinical_notes: notes,
         status: 'completed',
         completed_at: new Date().toISOString(),
-      });
+      } as any);
 
       const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
 
