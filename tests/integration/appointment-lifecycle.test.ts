@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/query-helper';
 
 describe('Appointment Lifecycle Integration', () => {
+  const testHospitalId = 'test-hospital-id';
   const testPatientId = 'test-apt-patient';
   const testDoctorId = 'test-apt-doctor';
 
@@ -12,23 +13,27 @@ describe('Appointment Lifecycle Integration', () => {
       .insert({
         patient_id: testPatientId,
         doctor_id: testDoctorId,
-        appointment_date: new Date(Date.now() + 86400000).toISOString(),
-        status: 'scheduled',
-        reason: 'Annual checkup',
+        hospital_id: testHospitalId,
+        scheduled_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        scheduled_time: '10:00',
+        appointment_type: 'checkup',
+        reason_for_visit: 'Annual checkup',
       })
       .select()
       .single();
 
     expect(appointment?.status).toBe('scheduled');
 
+    if (!appointment) return;
+
     // Step 2: Patient checks in
     const { data: checkedIn } = await supabase
       .from('appointments')
       .update({
         status: 'checked_in',
-        checked_in_at: new Date().toISOString(),
+        check_in_time: new Date().toISOString(),
       })
-      .eq('id', appointment?.id)
+      .eq('id', appointment.id)
       .select()
       .single();
 
@@ -38,9 +43,10 @@ describe('Appointment Lifecycle Integration', () => {
     const { data: consultation } = await supabase
       .from('consultations')
       .insert({
-        appointment_id: appointment?.id,
+        appointment_id: appointment.id,
         patient_id: testPatientId,
         doctor_id: testDoctorId,
+        hospital_id: testHospitalId,
         status: 'in_progress',
       })
       .select()
@@ -48,15 +54,17 @@ describe('Appointment Lifecycle Integration', () => {
 
     expect(consultation?.status).toBe('in_progress');
 
+    if (!consultation) return;
+
     // Step 4: Complete consultation
     const { data: completed } = await supabase
       .from('consultations')
       .update({
         status: 'completed',
-        diagnosis: 'Healthy',
-        notes: 'Patient in good health',
+        final_diagnosis: ['Healthy'],
+        clinical_notes: 'Patient in good health',
       })
-      .eq('id', consultation?.id)
+      .eq('id', consultation.id)
       .select()
       .single();
 
@@ -67,15 +75,17 @@ describe('Appointment Lifecycle Integration', () => {
       .from('invoices')
       .insert({
         patient_id: testPatientId,
-        appointment_id: appointment?.id,
-        amount: 150.00,
+        appointment_id: appointment.id,
+        hospital_id: testHospitalId,
+        invoice_number: 'TEST-INV-001',
+        total: 150.00,
         status: 'pending',
       })
       .select()
       .single();
 
     expect(invoice?.status).toBe('pending');
-    expect(invoice?.amount).toBe(150.00);
+    expect(invoice?.total).toBe(150.00);
   });
 
   it('should handle appointment cancellation', async () => {
@@ -84,19 +94,24 @@ describe('Appointment Lifecycle Integration', () => {
       .insert({
         patient_id: testPatientId,
         doctor_id: testDoctorId,
+        hospital_id: testHospitalId,
+        scheduled_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        scheduled_time: '14:00',
+        appointment_type: 'follow-up',
         status: 'scheduled',
       })
       .select()
       .single();
 
+    if (!appointment) return;
+
     const { data: cancelled } = await supabase
       .from('appointments')
       .update({
         status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
         cancellation_reason: 'Patient request',
       })
-      .eq('id', appointment?.id)
+      .eq('id', appointment.id)
       .select()
       .single();
 

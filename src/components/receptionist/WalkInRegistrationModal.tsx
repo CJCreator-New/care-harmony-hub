@@ -76,7 +76,7 @@ export function WalkInRegistrationModal({ open, onOpenChange }: WalkInRegistrati
         date_of_birth: newPatient.dob || new Date('1990-01-01').toISOString().split('T')[0],
         phone: newPatient.phone || null,
         gender: (newPatient.gender as 'male' | 'female' | 'other') || 'other',
-      });
+      } as any);
       setSelectedPatient({ id: created.id, first_name: created.first_name, last_name: created.last_name, mrn: created.mrn });
       setRegisterMode(false);
     } catch {

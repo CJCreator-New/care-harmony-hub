@@ -26,7 +26,7 @@ export function WorkflowTasks() {
 
   const handleTaskAction = async (taskId: string, action: 'approve' | 'reject' | 'complete') => {
     try {
-      await updateTaskStatus.mutateAsync({
+      await (updateTaskStatus as any).mutateAsync({
         taskId,
         status: action === 'complete' ? 'completed' : action === 'approve' ? 'in_progress' : 'cancelled'
       });

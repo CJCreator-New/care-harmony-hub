@@ -143,7 +143,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
     trackSampleMovement({
       sample_id: selectedSample.id,
       location: selectedSample.location,
-      action: updateData.status,
+      action: updateData.status as any,
       user_id: profile?.id || '',
       temperature: selectedSample.temperature,
       notes: updateData.notes,
@@ -174,7 +174,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
       completed: 'default',
       rejected: 'destructive',
     };
-    return <Badge variant={variants[status as keyof typeof variants] || 'secondary'}>{status}</Badge>;
+    return <Badge variant={(variants[status as keyof typeof variants] || 'secondary') as any}>{status}</Badge>;
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -183,7 +183,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
       urgent: 'destructive',
       stat: 'destructive',
     };
-    return <Badge variant={variants[priority as keyof typeof variants] || 'secondary'}>{priority.toUpperCase()}</Badge>;
+    return <Badge variant={(variants[priority as keyof typeof variants] || 'secondary') as any}>{priority.toUpperCase()}</Badge>;
   };
 
   if (isLoading) {

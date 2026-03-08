@@ -83,7 +83,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         if (appointments) {
           appointments
             .filter((a) => {
-              const patientName = `${a.patient?.first_name} ${a.patient?.last_name}`.toLowerCase();
+              const patientName = `${(a.patient as any)?.first_name} ${(a.patient as any)?.last_name}`.toLowerCase();
               return patientName.includes(searchQuery.toLowerCase()) ||
                 a.appointment_type.toLowerCase().includes(searchQuery.toLowerCase());
             })
@@ -91,7 +91,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
               searchResults.push({
                 id: a.id,
                 type: 'appointment',
-                title: `${a.patient?.first_name} ${a.patient?.last_name}`,
+                title: `${(a.patient as any)?.first_name} ${(a.patient as any)?.last_name}`,
                 subtitle: `${format(parseISO(a.scheduled_date), 'MMM d, yyyy')} at ${a.scheduled_time} • ${a.appointment_type}`,
                 badge: a.status || 'scheduled',
               });

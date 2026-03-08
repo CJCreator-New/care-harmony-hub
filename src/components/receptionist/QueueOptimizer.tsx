@@ -90,11 +90,11 @@ export function QueueOptimizer() {
       return data.map(item => ({
         id: item.id,
         patient_id: item.patient_id,
-        patient_name: `${item.patients?.first_name} ${item.patients?.last_name}`,
+        patient_name: `${(item.patients as any)?.first_name} ${(item.patients as any)?.last_name}`,
         priority: item.priority as any,
         status: normalizeQueueStatus(item.status),
         checked_in_at: item.created_at,
-        doctor_name: item.profiles?.full_name,
+        doctor_name: (item.profiles as any)?.full_name,
         estimated_wait_time: calculateInitialWait(item.created_at),
         optimization_score: calculateScore(item)
       })) as QueueEntry[];

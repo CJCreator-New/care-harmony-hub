@@ -133,7 +133,7 @@ export function ScheduleAppointmentModal({
       const { data, error } = await supabase
         .from("profiles")
         .select("id, first_name, last_name")
-        .eq("hospital_id" as any, hospital.id);
+        .eq("hospital_id", hospital.id as any);
       
       if (error) throw error;
       return (data || []) as Array<{ id: string; first_name: string; last_name: string }>;

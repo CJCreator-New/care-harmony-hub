@@ -341,7 +341,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <Label htmlFor="walkIn">Register as Walk-In</Label>
           </div>
           {isWalkIn && (
-            <Select value={priority} onValueChange={setPriority}>
+            <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select priority..." />
               </SelectTrigger>
@@ -549,7 +549,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <Checkbox
               id="sms-confirmation"
               checked={sendSmsConfirmation}
-              onCheckedChange={setSendSmsConfirmation}
+              onCheckedChange={(c) => setSendSmsConfirmation(c === true)}
             />
             <Label htmlFor="sms-confirmation" className="text-sm">
               SMS ({selectedPatient?.phone})
@@ -559,7 +559,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <Checkbox
               id="email-confirmation"
               checked={sendEmailConfirmation}
-              onCheckedChange={setSendEmailConfirmation}
+              onCheckedChange={(c) => setSendEmailConfirmation(c === true)}
             />
             <Label htmlFor="email-confirmation" className="text-sm">
               Email

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Pill, 
   Clock, 
@@ -136,7 +137,7 @@ export function MedicationReminders() {
           </div>
           <div className="flex bg-muted p-1 rounded-lg">
             <Button 
-              variant={filter === 'today' ? 'white' : 'ghost'} 
+               variant={filter === 'today' ? 'ghost' : 'ghost'} 
               size="sm" 
               className="h-7 text-[10px] uppercase font-bold px-3 shadow-none bg-transparent data-[variant=white]:bg-white data-[variant=white]:shadow-sm"
               onClick={() => setFilter('today')}
@@ -145,7 +146,7 @@ export function MedicationReminders() {
               Today
             </Button>
             <Button 
-              variant={filter === 'history' ? 'white' : 'ghost'} 
+               variant={filter === 'history' ? 'ghost' : 'ghost'} 
               size="sm" 
               className="h-7 text-[10px] uppercase font-bold px-3 shadow-none bg-transparent data-[variant=white]:bg-white data-[variant=white]:shadow-sm"
               onClick={() => setFilter('history')}

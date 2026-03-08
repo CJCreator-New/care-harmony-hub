@@ -28,7 +28,7 @@ export function BarcodeSampleScanner() {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Sample collected for ${data.patient?.first_name} ${data.patient?.last_name}`);
+      toast.success(`Sample collected for ${(data as any).patient?.first_name} ${(data as any).patient?.last_name}`);
       setBarcode('');
       queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
     },

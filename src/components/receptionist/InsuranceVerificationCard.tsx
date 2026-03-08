@@ -68,8 +68,8 @@ export const InsuranceVerificationCard: React.FC<InsuranceVerificationCardProps>
         }
       };
 
-      setVerification(prev => ({ ...prev, ...mockResponse }));
-      onVerify({ ...verification, ...mockResponse });
+      setVerification((prev: any) => ({ ...prev, ...mockResponse }));
+      onVerify({ ...verification, ...mockResponse } as any);
     } catch (error) {
       setVerification(prev => ({
         ...prev,

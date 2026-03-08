@@ -26,7 +26,7 @@ export function EnhancedLabOrderQueue() {
     const nextStatus = STATUS_TRANSITIONS[order.status];
     if (!nextStatus) return; // 'completed' has no next transition
     try {
-      await updateLabOrder.mutateAsync({ id: order.id, status: nextStatus });
+      await updateLabOrder.mutateAsync({ id: order.id, updates: { status: nextStatus } });
       toast.success(`Order updated to ${nextStatus.replace('_', ' ')}`);
     } catch {
       toast.error('Failed to update lab order');
