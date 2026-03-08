@@ -15,6 +15,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@/integrations/supabase/client": [
+        "./src/integrations/supabase/query-helper.ts"
       ]
     },
     "skipLibCheck": true,
