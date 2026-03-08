@@ -341,7 +341,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <Label htmlFor="walkIn">Register as Walk-In</Label>
           </div>
           {isWalkIn && (
-            <Select value={priority} onValueChange={setPriority}>
+            <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select priority..." />
               </SelectTrigger>
