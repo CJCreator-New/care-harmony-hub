@@ -51,7 +51,7 @@ export function SmartScheduler({ patientId }: SmartSchedulerProps) {
         scheduled_date: selectedRawSlot.slot_date,
         scheduled_time: selectedRawSlot.time,
         appointment_type: 'general',
-        priority: priority === 'follow-up' ? undefined : priority,
+        priority: priority === 'follow-up' ? undefined : priority as any,
       });
       toast.success('Appointment booked successfully');
       setSelectedSlot('');

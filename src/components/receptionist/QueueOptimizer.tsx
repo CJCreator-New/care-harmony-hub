@@ -94,7 +94,7 @@ export function QueueOptimizer() {
         priority: item.priority as any,
         status: normalizeQueueStatus(item.status),
         checked_in_at: item.created_at,
-        doctor_name: item.profiles?.full_name,
+        doctor_name: (item.profiles as any)?.full_name,
         estimated_wait_time: calculateInitialWait(item.created_at),
         optimization_score: calculateScore(item)
       })) as QueueEntry[];

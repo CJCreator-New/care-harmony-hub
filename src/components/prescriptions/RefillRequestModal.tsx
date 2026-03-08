@@ -27,7 +27,7 @@ export function RefillRequestModal({ open, onOpenChange, prescription }: RefillR
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    await createRefillRequest.mutateAsync({
+    await (createRefillRequest as any).mutateAsync({
       prescriptionId: prescription.id,
       patientId: prescription.patient_id,
       hospitalId: prescription.hospital_id,

@@ -122,8 +122,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
               test_name: order.test,
               priority: mapToCanonicalLabPriority(order.priority) as any,
               status: 'pending',
-              notes,
-            });
+            } as any);
 
           await triggerWorkflow({
             type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,

@@ -206,8 +206,8 @@ export function PatientRegistrationModal({
       let finalPatientData = patientData;
 
       try {
-        const { data: encryptedData, metadata } = await encryptPHI(patientData);
-        finalPatientData = encryptedData;
+        const { data: encryptedData, metadata } = await encryptPHI(patientData as any);
+        finalPatientData = encryptedData as any;
         encryptionMetadata = metadata;
       } catch (encryptError) {
         // If encryption fails, log but continue with unencrypted data
