@@ -120,7 +120,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
               consultation_id: consultation.id,
               ordered_by: consultation.doctor_id,
               test_name: order.test,
-              priority: mapToCanonicalLabPriority(order.priority),
+              priority: mapToCanonicalLabPriority(order.priority) as any,
               status: 'pending',
               notes,
             });

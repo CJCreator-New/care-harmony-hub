@@ -143,7 +143,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
     trackSampleMovement({
       sample_id: selectedSample.id,
       location: selectedSample.location,
-      action: updateData.status,
+      action: updateData.status as any,
       user_id: profile?.id || '',
       temperature: selectedSample.temperature,
       notes: updateData.notes,

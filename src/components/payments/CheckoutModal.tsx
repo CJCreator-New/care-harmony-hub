@@ -76,7 +76,7 @@ export function CheckoutModal({ open, onOpenChange, amount, invoiceId, onSuccess
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handlePay} disabled={!cardNumber || !name || !expiry || !cvv || capture.isLoading}>
+          <Button onClick={handlePay} disabled={!cardNumber || !name || !expiry || !cvv || capture.isPending}>
             Pay {formatCurrency(amount)}
           </Button>
         </DialogFooter>

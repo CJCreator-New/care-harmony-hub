@@ -559,7 +559,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <Checkbox
               id="email-confirmation"
               checked={sendEmailConfirmation}
-              onCheckedChange={setSendEmailConfirmation}
+              onCheckedChange={(c) => setSendEmailConfirmation(c === true)}
             />
             <Label htmlFor="email-confirmation" className="text-sm">
               Email
