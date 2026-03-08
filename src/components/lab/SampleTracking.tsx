@@ -174,7 +174,7 @@ export function SampleTracking({ className }: SampleTrackingProps) {
       completed: 'default',
       rejected: 'destructive',
     };
-    return <Badge variant={variants[status as keyof typeof variants] || 'secondary'}>{status}</Badge>;
+    return <Badge variant={(variants[status as keyof typeof variants] || 'secondary') as any}>{status}</Badge>;
   };
 
   const getPriorityBadge = (priority: string) => {
