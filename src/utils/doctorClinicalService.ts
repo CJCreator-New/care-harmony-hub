@@ -204,7 +204,7 @@ export class DoctorClinicalService {
             documentationCompleteness: 98,
             prescriptionAccuracy: 99,
           },
-        },
+        } as any),
       };
     } catch (error) {
       return { error: error as Error };
