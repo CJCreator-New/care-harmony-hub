@@ -83,14 +83,14 @@ export function RefillRequests() {
                   <TableCell>
                     <div>
                       <p className="font-medium">
-                        {request.patient?.first_name} {request.patient?.last_name}
+                        {(request as any).patient?.first_name} {(request as any).patient?.last_name}
                       </p>
-                      <p className="text-sm text-muted-foreground">{request.patient?.mrn}</p>
+                      <p className="text-sm text-muted-foreground">{(request as any).patient?.mrn}</p>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      {((request.prescription as any)?.prescription_items || []).slice(0, 2).map((item: any, idx: number) => (
+                      {(((request as any).prescription as any)?.prescription_items || []).slice(0, 2).map((item: any, idx: number) => (
                         <p key={`item-${idx}`} className="text-xs">
                           • {item.medication_name} ({item.dosage})
                         </p>

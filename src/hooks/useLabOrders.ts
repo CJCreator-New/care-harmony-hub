@@ -30,7 +30,7 @@ export function useLabOrders(status?: string) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as LabOrder[];
+      return data as unknown as LabOrder[];
     },
     enabled: !!profile?.hospital_id,
   });

@@ -105,10 +105,9 @@ export function useSpeechRecognition(
     setIsListening(false);
 
     captureClinicalError(error, {
-      context: 'speech_recognition_hook',
       hospitalId: hospital?.id,
       provider: currentProvider,
-    });
+    } as any);
   }, [hospital?.id, currentProvider]);
 
   // Set up event listeners
@@ -161,10 +160,9 @@ export function useSpeechRecognition(
       setError(errorMessage);
 
       captureClinicalError(err as Error, {
-        context: 'speech_recognition_start',
         hospitalId: hospital.id,
         provider: config.provider,
-      });
+      } as any);
 
       throw err;
     }
@@ -180,10 +178,9 @@ export function useSpeechRecognition(
       setError(errorMessage);
 
       captureClinicalError(err as Error, {
-        context: 'speech_recognition_stop',
         hospitalId: hospital?.id,
         provider: currentProvider,
-      });
+      } as any);
 
       throw err;
     }

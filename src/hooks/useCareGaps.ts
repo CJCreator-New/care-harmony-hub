@@ -26,7 +26,7 @@ export function useCareGaps() {
           patient:patients(first_name, last_name, mrn, date_of_birth)
         `)
         .eq('hospital_id', profile?.hospital_id)
-        .order('due_date', { ascending: true, nullsLast: true });
+        .order('due_date', { ascending: true });
 
       if (error) throw error;
       return data as CareGap[];

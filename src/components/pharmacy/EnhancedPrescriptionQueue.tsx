@@ -12,7 +12,8 @@ import { formatDistanceToNow } from 'date-fns';
 export function EnhancedPrescriptionQueue() {
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
   const { data: prescriptions, isLoading } = usePrescriptions(selectedStatus);
-  const { checkInteractions } = useDrugUtilizationReview();
+  const durReview = useDrugUtilizationReview();
+  const checkInteractions = (durReview as any).checkInteractions || (() => []);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {

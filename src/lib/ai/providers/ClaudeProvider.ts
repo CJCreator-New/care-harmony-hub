@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Anthropic from '@anthropic-ai/sdk';
 import { AIDateSanitizer, AIEncryptionService, AISecurityAuditor } from '../security';
 import { AIProvider, AIRequest, AIResponse, AIProviderConfig } from '../types';

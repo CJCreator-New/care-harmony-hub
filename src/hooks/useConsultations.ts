@@ -158,7 +158,7 @@ export function useConsultations() {
 
         if (error) throw error;
         devLog('Consultations fetched:', data?.length ?? 0);
-        return (data || []) as Consultation[];
+        return (data || []) as unknown as Consultation[];
       });
     },
     enabled: !!hospital?.id,
@@ -183,7 +183,7 @@ export function useConsultation(consultationId: string | undefined) {
           .maybeSingle();
 
         if (error) throw error;
-        return data as Consultation | null;
+        return data as unknown as Consultation | null;
       });
     },
     enabled: !!consultationId,
@@ -212,7 +212,7 @@ export function useCreateConsultation() {
           .neq('status', 'completed')
           .maybeSingle();
 
-        if (existing) return existing as Consultation;
+        if (existing) return existing as unknown as Consultation;
 
         const { data: consultation, error } = await supabase
           .from('consultations')
@@ -234,7 +234,7 @@ export function useCreateConsultation() {
           .single();
 
         if (error) throw error;
-        return consultation as Consultation;
+        return consultation as unknown as Consultation;
       });
     },
     onSuccess: (data) => {
@@ -297,7 +297,7 @@ export function useGetOrCreateConsultation() {
             .eq('patient_id', patientId)
             .in('status', ['waiting', 'called']);
 
-          return existingConsultation as Consultation;
+          return existingConsultation as unknown as Consultation;
         }
 
         // Create new consultation if none exists
@@ -330,7 +330,7 @@ export function useGetOrCreateConsultation() {
           .eq('patient_id', patientId)
           .in('status', ['waiting', 'called']);
 
-        return consultation as Consultation;
+        return consultation as unknown as Consultation;
       });
     },
     onSuccess: () => {

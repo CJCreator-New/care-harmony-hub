@@ -84,7 +84,7 @@ export function useStaffPerformanceMetrics() {
         
         const existing = staffMetrics.get(c.doctor_id) || {
           staff_id: c.doctor_id,
-          staff_name: `Dr. ${c.doctor.first_name} ${c.doctor.last_name}`,
+          staff_name: `Dr. ${(c.doctor as any)?.first_name} ${(c.doctor as any)?.last_name}`,
           role: 'doctor',
           consultations_completed: 0,
           prescriptions_written: 0,
@@ -116,7 +116,7 @@ export function useStaffPerformanceMetrics() {
         
         const existing = staffMetrics.get(p.prescribed_by) || {
           staff_id: p.prescribed_by,
-          staff_name: `Dr. ${p.doctor.first_name} ${p.doctor.last_name}`,
+          staff_name: `Dr. ${(p.doctor as any)?.first_name} ${(p.doctor as any)?.last_name}`,
           role: 'doctor',
           consultations_completed: 0,
           prescriptions_written: 0,

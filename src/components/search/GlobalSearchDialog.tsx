@@ -115,18 +115,20 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
 
         if (prescriptions) {
           prescriptions
-            .filter((rx) => {
-              const patientName = `${rx.patient?.first_name} ${rx.patient?.last_name}`.toLowerCase();
-              const meds = rx.items?.map((i) => i.medication_name.toLowerCase()).join(' ') || '';
+            .filter((rx: any) => {
+              const p = Array.isArray(rx.patient) ? rx.patient[0] : rx.patient;
+              const patientName = `${p?.first_name} ${p?.last_name}`.toLowerCase();
+              const meds = (rx.items || [])?.map((i: any) => i.medication_name?.toLowerCase()).join(' ') || '';
               return patientName.includes(searchQuery.toLowerCase()) ||
                 meds.includes(searchQuery.toLowerCase());
             })
-            .forEach((rx) => {
-              const meds = rx.items?.slice(0, 2).map((i) => i.medication_name).join(', ') || 'No medications';
+            .forEach((rx: any) => {
+              const p = Array.isArray(rx.patient) ? rx.patient[0] : rx.patient;
+              const meds = (rx.items || [])?.slice(0, 2).map((i: any) => i.medication_name).join(', ') || 'No medications';
               searchResults.push({
                 id: rx.id,
                 type: 'prescription',
-                title: `${rx.patient?.first_name} ${rx.patient?.last_name}`,
+                title: `${p?.first_name} ${p?.last_name}`,
                 subtitle: meds,
                 badge: rx.status,
               });
@@ -149,16 +151,18 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
 
         if (labOrders) {
           labOrders
-            .filter((lab) => {
-              const patientName = `${lab.patient?.first_name} ${lab.patient?.last_name}`.toLowerCase();
+            .filter((lab: any) => {
+              const p = Array.isArray(lab.patient) ? lab.patient[0] : lab.patient;
+              const patientName = `${p?.first_name} ${p?.last_name}`.toLowerCase();
               return patientName.includes(searchQuery.toLowerCase()) ||
                 lab.test_name.toLowerCase().includes(searchQuery.toLowerCase());
             })
-            .forEach((lab) => {
+            .forEach((lab: any) => {
+              const p = Array.isArray(lab.patient) ? lab.patient[0] : lab.patient;
               searchResults.push({
                 id: lab.id,
                 type: 'lab',
-                title: `${lab.patient?.first_name} ${lab.patient?.last_name}`,
+                title: `${p?.first_name} ${p?.last_name}`,
                 subtitle: lab.test_name,
                 badge: lab.status,
               });

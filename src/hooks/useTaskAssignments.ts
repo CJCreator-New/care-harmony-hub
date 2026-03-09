@@ -51,7 +51,7 @@ export function useTaskAssignments() {
         `)
         .eq('assigned_to', profile?.id)
         .neq('status', 'completed')
-        .order('due_date', { ascending: true, nullsLast: true });
+        .order('due_date', { ascending: true });
 
       if (error) throw error;
       return data as TaskAssignment[];
@@ -84,7 +84,7 @@ export function useTaskAssignments() {
       });
     },
     onError: (error) => {
-      console.error('Error creating task assignment:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+      console.error('Error creating task assignment:', error instanceof Error ? error.message : 'Unknown error');
       toast({
         title: "Error",
         description: "Failed to create task assignment. Please try again.",
@@ -120,7 +120,7 @@ export function useTaskAssignments() {
       });
     },
     onError: (error) => {
-      console.error('Error updating task assignment:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+      console.error('Error updating task assignment:', error instanceof Error ? error.message : 'Unknown error');
       toast({
         title: "Error",
         description: "Failed to update task assignment. Please try again.",

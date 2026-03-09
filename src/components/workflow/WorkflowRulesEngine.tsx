@@ -157,7 +157,7 @@ export function WorkflowRulesEngine() {
                 Create Rule
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl" ref={focusTrapRef}>
+            <DialogContent className="max-w-2xl" ref={focusTrapRef as any}>
               <DialogHeader>
                 <DialogTitle>Create Automation Rule</DialogTitle>
               </DialogHeader>
@@ -188,7 +188,7 @@ export function WorkflowRulesEngine() {
                 </div>
                 <div>
                   <Label>Trigger Event</Label>
-                  <Select value={newRule.trigger_event} onValueChange={(v) => setNewRule({ ...newRule, trigger_event: v })}>
+                  <Select value={newRule.trigger_event} onValueChange={(v: any) => setNewRule({ ...newRule, trigger_event: v })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

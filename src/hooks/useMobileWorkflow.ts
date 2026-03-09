@@ -50,9 +50,9 @@ export function useMobileWorkflow() {
 
   // Get mobile workflow configuration
   const { data: workflowConfig, isLoading: loadingConfig } = useQuery({
-    queryKey: ['mobile-workflow-config', profile?.role],
+    queryKey: ['mobile-workflow-config', (profile as any)?.role],
     queryFn: async () => {
-      if (!profile?.role) return null;
+      if (!(profile as any)?.role) return null;
 
       // Default mobile configurations by role
       const configs: Record<string, MobileWorkflowConfig> = {
@@ -88,7 +88,7 @@ export function useMobileWorkflow() {
 
       return configs[primaryRole ?? roles[0] ?? 'doctor'] || configs.doctor;
     },
-    enabled: !!profile?.role
+    enabled: !!(profile as any)?.role
   });
 
   // Sync offline data

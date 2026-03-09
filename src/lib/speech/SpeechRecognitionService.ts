@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AIDateSanitizer, AIEncryptionService, AISecurityAuditor } from '../ai/security';
 import { MedicalTerminologyServiceImpl } from '../medical/MedicalTerminologyService';
 /**

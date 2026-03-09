@@ -116,9 +116,10 @@ export function EnhancedTaskManagement({ patientId }: EnhancedTaskManagementProp
       if (error) throw error;
 
       // Get unique patients
-      const uniquePatients = data.reduce((acc: any[], item) => {
-        if (item.patient && !acc.find(p => p.id === item.patient.id)) {
-          acc.push(item.patient);
+      const uniquePatients = data.reduce((acc: any[], item: any) => {
+        const p = Array.isArray(item.patient) ? item.patient[0] : item.patient;
+        if (p && !acc.find((x: any) => x.id === p.id)) {
+          acc.push(p);
         }
         return acc;
       }, []);

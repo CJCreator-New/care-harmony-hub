@@ -35,12 +35,12 @@ const InteractiveButton = React.forwardRef<HTMLButtonElement, InteractiveButtonP
 
     return (
       <motion.button
-        ref={ref}
+        ref={ref as any}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
         whileHover={shouldReduceMotion ? {} : { y: -2 }}
         whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
         transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
-        {...props}
+        {...(props as any)}
       >
         {isLoading && (
           <motion.svg

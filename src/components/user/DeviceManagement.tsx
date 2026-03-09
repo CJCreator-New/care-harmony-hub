@@ -180,18 +180,18 @@ export function DeviceManagement() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {device.browser_name && device.browser_version && (
-                          <span>{device.browser_name} {device.browser_version}</span>
+                        {(device as any).browser_name && (device as any).browser_version && (
+                          <span>{(device as any).browser_name} {(device as any).browser_version}</span>
                         )}
-                        {device.os_name && (
-                          <span className="ml-2">• {device.os_name} {device.os_version}</span>
+                        {(device as any).os_name && (
+                          <span className="ml-2">• {(device as any).os_name} {(device as any).os_version}</span>
                         )}
                         {device.ip_address && (
                           <span className="ml-2">• IP: {device.ip_address}</span>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {formatLastSeen(device.last_seen_at)}
+                        {formatLastSeen((device as any).last_seen_at)}
                       </p>
                     </div>
                   </div>

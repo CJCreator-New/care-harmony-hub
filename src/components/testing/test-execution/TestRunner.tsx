@@ -164,7 +164,7 @@ export default function TestRunner({ script, onExecutionComplete }: TestRunnerPr
                     <Terminal className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[80vh]" ref={focusTrapRef}>
+                <DialogContent className="max-w-4xl max-h-[80vh]" ref={focusTrapRef as any}>
                   <DialogHeader>
                     <DialogTitle>Test Execution Details</DialogTitle>
                   </DialogHeader>

@@ -373,7 +373,7 @@ function generateRuleBasedDrugInteractions(medications: string[], allergies: str
     if (hasBothDrugs) {
       insights.push({
         type: 'drug_interaction',
-        severity: combo.severity,
+        severity: combo.severity as any,
         message: combo.message,
         recommendation: combo.recommendation,
         confidence: 0.90,
