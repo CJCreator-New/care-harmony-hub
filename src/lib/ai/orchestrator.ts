@@ -46,7 +46,7 @@ export class AIServiceOrchestrator {
       await this.validateCompliance(securityContext, request);
 
       // Step 2: Select appropriate AI provider
-      selectedProvider = this.selectProvider(request.options?.provider);
+      selectedProvider = this.selectProvider(request.options?.provider as any);
 
       // Step 3: Sanitize and encrypt data
       const sanitizedData = AIDateSanitizer.sanitizePatientData(request.patientData, securityContext);
