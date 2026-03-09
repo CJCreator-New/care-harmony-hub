@@ -306,7 +306,7 @@ ${formData.soap_plan || 'Not documented'}`;
                 test_name: order.test,
                 priority: mapToCanonicalLabPriority(order.priority) as any,
                 status: 'pending',
-                notes: order.notes || formData.handoff_notes,
+                result_notes: order.notes || formData.handoff_notes,
               });
 
               // Notify lab technicians via workflow orchestrator

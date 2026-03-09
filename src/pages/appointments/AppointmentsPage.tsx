@@ -94,7 +94,7 @@ export default function AppointmentsPage() {
   };
 
   const {
-    data: appointments,
+    data: rawAppointments,
     isLoading,
     isSearching,
     currentPage,
@@ -112,6 +112,9 @@ export default function AppointmentsPage() {
     orderBy: { column: 'scheduled_time', ascending: true },
     pageSize: viewMode === "calendar" ? 100 : 50, // Load more for calendar view
   });
+
+  // Cast to proper type
+  const appointments = (rawAppointments || []) as Appointment[];
 
   const checkIn = useCheckInAppointment();
   const updateAppointment = useUpdateAppointment();
