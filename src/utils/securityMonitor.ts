@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 export interface SecurityEvent {
   id: string;
   event_type: string;
@@ -94,9 +93,9 @@ class SecurityMonitor {
     this.eventLog.push(event);
 
     try {
-      const { data, error } = await supabase.from('security_events').insert(event);
+      const { data, error } = await supabase.from('activity_logs' as any).insert(event as any).select();
       if (error) throw error;
-      return data?.[0] as SecurityEvent;
+      return (data as any)?.[0] as SecurityEvent ?? event;
     } catch (error) {
       console.error('Failed to log security event:', error);
       return event;

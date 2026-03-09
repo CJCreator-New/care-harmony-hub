@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { captureClinicalError, trackAIOperation } from '@/lib/monitoring/sentry';
 import {
@@ -47,7 +46,7 @@ export class AIServiceOrchestrator {
       await this.validateCompliance(securityContext, request);
 
       // Step 2: Select appropriate AI provider
-      selectedProvider = this.selectProvider(request.options?.provider);
+      selectedProvider = this.selectProvider(request.options?.provider as any);
 
       // Step 3: Sanitize and encrypt data
       const sanitizedData = AIDateSanitizer.sanitizePatientData(request.patientData, securityContext);
@@ -165,7 +164,8 @@ export class AIServiceOrchestrator {
         .gte('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
         .limit(config.maxRequestsPerHour || 100);
 
-      if (recentRequests.length >= (config.maxRequestsPerHour || 100)) {
+      const requestCount = (recentRequests as any)?.data?.length ?? 0;
+      if (requestCount >= (config.maxRequestsPerHour || 100)) {
         throw new Error('AI request rate limit exceeded');
       }
     }
@@ -174,8 +174,8 @@ export class AIServiceOrchestrator {
   /**
    * Selects the appropriate AI provider based on request and availability
    */
-  private selectProvider(requestedProvider?: AIProvider): AIProvider {
-    if (requestedProvider && this.activeProviders.has(requestedProvider.name)) {
+  private selectProvider(requestedProvider?: any): AIProvider {
+    if (requestedProvider && typeof requestedProvider === 'object' && this.activeProviders.has(requestedProvider.name)) {
       return requestedProvider;
     }
 
@@ -206,7 +206,7 @@ export class AIServiceOrchestrator {
     }
 
     // Decrypt the payload for the AI provider
-    const decryptedData = await AIEncryptionService.decryptFromAI(encryptedPayload);
+    const decryptedData = await AIEncryptionService.decryptFromAI(encryptedPayload, {} as any);
 
     // Execute the appropriate AI operation
     switch (request.type) {

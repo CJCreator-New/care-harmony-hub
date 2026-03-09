@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, memo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -48,6 +47,19 @@ import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Local type for appointment data returned by usePaginatedQuery
+type Appointment = {
+  id: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  status: string;
+  appointment_type: string;
+  reason_for_visit?: string;
+  notes?: string;
+  queue_number?: number;
+  patient?: { id: string; first_name: string; last_name: string; mrn: string; phone?: string };
+  doctor?: { id: string; first_name: string; last_name: string };
+};
 const STATUS_CONFIG: Record<string, { label: string; variant: "info" | "warning" | "secondary" | "success" | "destructive" | "outline"; icon: React.FC<{ className?: string }> }> = {
   scheduled:   { label: "Scheduled",   variant: "info",        icon: Clock        },
   checked_in:  { label: "Checked In",  variant: "warning",     icon: CheckCircle  },
@@ -82,7 +94,7 @@ export default function AppointmentsPage() {
   };
 
   const {
-    data: appointments,
+    data: rawAppointments,
     isLoading,
     isSearching,
     currentPage,
@@ -100,6 +112,9 @@ export default function AppointmentsPage() {
     orderBy: { column: 'scheduled_time', ascending: true },
     pageSize: viewMode === "calendar" ? 100 : 50, // Load more for calendar view
   });
+
+  // Cast to proper type
+  const appointments = (rawAppointments || []) as unknown as Appointment[];
 
   const checkIn = useCheckInAppointment();
   const updateAppointment = useUpdateAppointment();

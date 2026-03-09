@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -37,6 +36,7 @@ import {
   CreditCard,
   AlertCircle,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import {

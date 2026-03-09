@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as Sentry from '@sentry/react';
 
 export const initSentry = () => {
@@ -11,11 +10,14 @@ export const initSentry = () => {
       tracesSampleRate: 0.2, // Increased for better visibility
       integrations: [
         Sentry.browserTracingIntegration({
-          tracePropagationTargets: [
-            'localhost',
-            /^https:\/\/.*\.supabase\.co/,
-            /^https:\/\/.*\.sentry\.io/,
-          ],
+          // tracePropagationTargets may not be available in all versions
+          ...(({
+            tracePropagationTargets: [
+              'localhost',
+              /^https:\/\/.*\.supabase\.co/,
+              /^https:\/\/.*\.sentry\.io/,
+            ],
+          }) as any),
         }),
         // Note: Replay integration may not be available in this Sentry version
         // Commenting out for now to avoid build errors
@@ -57,7 +59,9 @@ export const initSentry = () => {
         // Filter out very fast transactions
         if (event.spans) {
           event.spans = event.spans.filter(span => {
-            return span.endTimestamp - span.startTimestamp > 0.1; // > 100ms
+            const end = (span as any).endTimestamp ?? (span as any).timestamp ?? 0;
+            const start = (span as any).startTimestamp ?? (span as any).start_timestamp ?? 0;
+            return end - start > 0.1; // > 100ms
           });
         }
         return event;
@@ -84,17 +88,18 @@ export const captureError = (error: Error, context?: Record<string, unknown>) =>
     extra: context,
     tags: {
       error_type: 'application_error',
-      healthcare_context: context?.healthcareContext || 'general',
+      healthcare_context: String(context?.healthcareContext || 'general'),
     },
   });
 };
 
 export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'info', context?: Record<string, unknown>) => {
-  Sentry.captureMessage(message, level, {
+  Sentry.captureMessage(message, {
+    level,
     extra: context,
     tags: {
       message_type: 'application_message',
-      healthcare_context: context?.healthcareContext || 'general',
+      healthcare_context: String(context?.healthcareContext || 'general'),
     },
   });
 };
@@ -124,8 +129,9 @@ export const clearUser = () => {
 export const captureClinicalError = (error: Error, context: {
   patientId?: string;
   operation: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  phiInvolved: boolean;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  phiInvolved?: boolean;
+  [key: string]: any;
 }) => {
   Sentry.captureException(error, {
     level: context.severity === 'critical' ? 'fatal' : 'error',
@@ -133,8 +139,8 @@ export const captureClinicalError = (error: Error, context: {
     tags: {
       error_type: 'clinical_error',
       operation: context.operation,
-      severity: context.severity,
-      phi_involved: context.phiInvolved,
+      severity: context.severity || 'medium',
+      phi_involved: String(context.phiInvolved ?? false),
       healthcare_context: 'clinical_workflow',
     },
   });
@@ -148,19 +154,22 @@ export const startPerformanceTransaction = (name: string, op: string) => {
 };
 
 // AI operation tracking
-export const trackAIOperation = (operation: string, metrics: {
+export const trackAIOperation = (operation: string | Record<string, any>, metrics?: {
   duration: number;
   tokensUsed?: number;
   cost?: number;
   success: boolean;
   provider: string;
 }) => {
-  Sentry.captureMessage(`AI Operation: ${operation}`, 'info', {
-    extra: metrics,
+  const opName = typeof operation === 'string' ? operation : (operation as any).operation || 'unknown';
+  const m = typeof operation === 'string' ? metrics! : operation as any;
+  Sentry.captureMessage(`AI Operation: ${opName}`, {
+    level: 'info',
+    extra: m,
     tags: {
       operation_type: 'ai_operation',
-      ai_provider: metrics.provider,
-      success: metrics.success,
+      ai_provider: m?.provider || 'unknown',
+      success: String(m?.success ?? true),
       healthcare_context: 'ai_integration',
     },
   });
@@ -174,7 +183,8 @@ export const trackDatabaseOperation = (operation: string, metrics: {
   success: boolean;
 }) => {
   if (metrics.duration > 1000) { // Log slow queries > 1 second
-    Sentry.captureMessage(`Slow Database Operation: ${operation}`, 'warning', {
+    Sentry.captureMessage(`Slow Database Operation: ${operation}`, {
+      level: 'warning',
       extra: metrics,
       tags: {
         operation_type: 'database_operation',

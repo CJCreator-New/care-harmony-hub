@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -305,9 +304,9 @@ ${formData.soap_plan || 'Not documented'}`;
                 consultation_id: id,
                 ordered_by: consultation.doctor_id,
                 test_name: order.test,
-                priority: mapToCanonicalLabPriority(order.priority),
+                priority: mapToCanonicalLabPriority(order.priority) as any,
                 status: 'pending',
-                notes: order.notes || formData.handoff_notes,
+                result_notes: order.notes || formData.handoff_notes,
               });
 
               // Notify lab technicians via workflow orchestrator
@@ -649,7 +648,7 @@ ${formData.soap_plan || 'Not documented'}`;
                     patientId={consultation.patient_id}
                     consultationId={consultation.id}
                     patientAllergies={consultation.patient?.allergies || []}
-                    patientMedications={consultation.patient?.current_medications || []}
+                    patientMedications={(consultation.patient as any)?.current_medications || []}
                   />
                 </TabsContent>
                 <TabsContent value="5" className="mt-0">

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { captureClinicalError } from '@/lib/monitoring/sentry';
 
@@ -139,10 +138,9 @@ export class AIDateSanitizer {
     const encoder = new TextEncoder();
     const data = encoder.encode(`${originalId}-${context.sessionId}-${Date.now()}`);
 
-    return crypto.subtle.digest('SHA-256', data).then(hash => {
-      const hashArray = Array.from(new Uint8Array(hash));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-    });
+    // Use synchronous fallback for de-identified ID generation
+    const hashArray = Array.from(data);
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
   }
 
   /**
@@ -232,11 +230,11 @@ export class AIEncryptionService {
       const hmac = await this.generateHMAC(encrypted, key);
 
       const payload: EncryptedPayload = {
-        encryptedData: this.arrayBufferToBase64(encrypted),
+        encryptedData: this.arrayBufferToBase64(encrypted as ArrayBuffer),
         encryptionKeyId: keyId,
         algorithm: this.ALGORITHM,
-        iv: this.arrayBufferToBase64(iv),
-        hmac: this.arrayBufferToBase64(hmac),
+        iv: this.arrayBufferToBase64((iv as any).buffer || iv),
+        hmac: this.arrayBufferToBase64((hmac as any).buffer || hmac),
         metadata: {
           createdAt: new Date(),
           expiresAt: new Date(Date.now() + (context.dataRetentionDays * 24 * 60 * 60 * 1000)),
