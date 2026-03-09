@@ -21,7 +21,7 @@ export const validationEngine = {
           if (!value || value === '') errors.push(rule.message);
           break;
         case 'email':
-          if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push(rule.message);
+          if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) errors.push(rule.message);
           break;
         case 'phone':
           if (value && !/^\+?[\d\s-()]+$/.test(value)) errors.push(rule.message);
