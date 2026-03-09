@@ -160,10 +160,9 @@ export function useSpeechRecognition(
       setError(errorMessage);
 
       captureClinicalError(err as Error, {
-        context: 'speech_recognition_start',
         hospitalId: hospital.id,
         provider: config.provider,
-      });
+      } as any);
 
       throw err;
     }
