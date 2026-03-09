@@ -234,7 +234,7 @@ export function useCreateConsultation() {
           .single();
 
         if (error) throw error;
-        return consultation as Consultation;
+        return consultation as unknown as Consultation;
       });
     },
     onSuccess: (data) => {
