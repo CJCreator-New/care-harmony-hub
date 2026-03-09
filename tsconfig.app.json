@@ -33,7 +33,9 @@
     "useDefineForClassFields": true
   },
   "include": [
-    "src"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "src/integrations/supabase/client.ts"
