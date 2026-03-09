@@ -146,7 +146,7 @@ const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateA
             Book Appointment
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for billing */ }}>
-            <CreditCard className="h-4 w-4 mr-2" />
+            <FileText className="h-4 w-4 mr-2" />
             Generate Invoice
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for history */ }}>
