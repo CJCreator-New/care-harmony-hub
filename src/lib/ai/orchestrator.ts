@@ -164,7 +164,8 @@ export class AIServiceOrchestrator {
         .gte('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
         .limit(config.maxRequestsPerHour || 100);
 
-      if (recentRequests.length >= (config.maxRequestsPerHour || 100)) {
+      const requestCount = (recentRequests as any)?.data?.length ?? 0;
+      if (requestCount >= (config.maxRequestsPerHour || 100)) {
         throw new Error('AI request rate limit exceeded');
       }
     }
