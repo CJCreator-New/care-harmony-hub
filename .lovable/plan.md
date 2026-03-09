@@ -1,196 +1,171 @@
+# MediCare Hospital Management System — Enhancement Plan
 
-
-# CareSync HMS - Comprehensive Codebase Audit Report
-
-## Status of Previously Reported Issues
-
-Many issues from prior reviews have been **resolved**. Here is the verified current state:
-
-### RESOLVED Issues
-
-| Previously Reported Issue | Status | Evidence |
-|--------------------------|--------|----------|
-| `permissions.includes()` misuse in AI engines | RESOLVED | `LengthOfStayForecastingEngine` and `ResourceUtilizationOptimizationEngine` now use `permissions.can()` |
-| Missing `switchRole` in AuthContext | RESOLVED | `switchRole` implemented at `AuthContext.tsx:675` with role validation, audit logging, and localStorage persistence |
-| `useNurseWorkflow` not exported | RESOLVED | Unified hook exported at `useNurseWorkflow.ts:713` |
-| `useVitalSigns` not exported | RESOLVED | Unified hook exported at `useVitalSigns.ts:144` |
-| `generate-2fa-secret` otpauth module error | RESOLVED | Rewritten with native TOTP URI generation (no external module) |
-| `verify-totp` ArrayBuffer type mismatch | RESOLVED | Now uses `new Uint8Array(iv)` at line 52 |
-| `DiagnosisStep.tsx` using `.description` instead of `.short_description` | RESOLVED | Uses `diagnosis.short_description` at lines 90 and 147 |
-| `NoShowPrediction` missing `patient_id` | RESOLVED | `patient_id` added to interface at `usePredictiveAnalytics.ts:7` |
-| `NurseDashboard` missing `CardDescription` | RESOLVED | Imported at line 7 |
-| `StartConsultationModal` missing imports | RESOLVED | `Badge`, `Button`, `Input`, `ScrollArea` all imported |
-| `TreatmentRecommendationsEngine` call signature | RESOLVED | Now calls with 3 args: `generateTreatmentRecommendations(patientData, diagnoses, context)` at line 94 |
-| `DoctorAvailability` interface missing properties | RESOLVED | Interface includes `status`, `last_name`, `current_patient_count` at `useDoctorAvailability.ts:6-27` |
-| `CareGap` missing `id` | RESOLVED | `AIClinicalDashboard.tsx:291` uses fallback key `gap.id ?? gap.description` |
-| `DiagnosisStepEnhanced` missing Pill/Target icons | RESOLVED | Imported at line 8 |
+> **Created:** 2026-03-09  
+> **Status:** Active  
+> **Build Status:** ✅ Compiling (45 files use @ts-nocheck suppressions to be resolved incrementally)
 
 ---
 
-## REMAINING Issues Requiring Fixes
+## Phase 0 — Technical Debt Cleanup (Priority: Critical)
 
-### CRITICAL: Missing Database Objects (3 issues)
+### 0.1 Remove @ts-nocheck Suppressions
+- 45 files currently suppressed; fix underlying type issues in batches:
+  - **Batch A** — Hooks (useAI, useCrossRoleCommunication, useOptimisticMutation, etc.)
+  - **Batch B** — Pages (BillingPage, messaging pages, ConsultationWorkflowPage, etc.)
+  - **Batch C** — Utils/Services (abacManager, reportingEngine, aiTriageService, etc.)
+  - **Batch D** — Test files (admin-rbac-verify, setup, integration tests)
 
-**Issue 1: Missing `patient_consents` table**
-- **Files affected:** `src/components/consent/ConsentForm.tsx:26`, `src/hooks/usePatientPortal.ts:794`, `src/components/telemedicine/VideoCallModal.tsx:87,151`
-- **Impact:** Consent form, telemedicine consent, and patient portal consent all fail at runtime
-- **Fix:** Create database migration:
-```sql
-CREATE TABLE public.patient_consents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id UUID NOT NULL REFERENCES patients(id),
-  hospital_id UUID NOT NULL REFERENCES hospitals(id),
-  treatment_consent BOOLEAN DEFAULT false,
-  data_processing_consent BOOLEAN DEFAULT false,
-  telemedicine_consent BOOLEAN DEFAULT false,
-  data_sharing_consent BOOLEAN DEFAULT false,
-  consent_date TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE public.patient_consents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Staff can manage consents" ON patient_consents FOR ALL
-  USING (user_belongs_to_hospital(auth.uid(), hospital_id));
-```
+### 0.2 Fix Supabase Join Types
+- ~40 localized type mismatches on Supabase `.select()` join results
+- Create typed query helpers with explicit return types per table join pattern
 
-**Issue 2: Missing `task_assignments` table**
-- **Files affected:** 12 files including `useTaskAssignments.ts`, `useNurseTasks.ts`, `EnhancedTaskManagement.tsx`, `PatientSidebar.tsx`, `ConsultationWorkflowPage.tsx`, `WorkflowPerformanceMonitor.tsx`, `useEnhancedWorkflowAutomation.ts`, `useIntelligentTaskRouter.ts`
-- **Impact:** Task management, nurse task panel, workflow automation all fail
-- **Fix:** Create database migration with columns: `id`, `hospital_id`, `patient_id`, `title`, `description`, `task_type`, `status`, `priority`, `assigned_to`, `assigned_by`, `due_date`, `completed_at`, `notes`, `created_at`, `updated_at`
-
-**Issue 3: Missing `log_security_event` database function**
-- **Files affected:** `src/contexts/AuthContext.tsx:276,445,461,569,596,682`, `src/components/layout/DashboardLayout.tsx:112,135`
-- **Impact:** Security event logging silently fails on login, logout, signup, and role switch
-- **Fix:** Create RPC function:
-```sql
-CREATE OR REPLACE FUNCTION public.log_security_event(
-  p_user_id UUID,
-  p_event_type TEXT,
-  p_user_agent TEXT DEFAULT NULL,
-  p_details JSONB DEFAULT '{}'::JSONB,
-  p_severity TEXT DEFAULT 'info'
-) RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-BEGIN
-  INSERT INTO public.activity_logs (user_id, action_type, entity_type, details, user_agent)
-  VALUES (COALESCE(p_user_id, '00000000-0000-0000-0000-000000000000'), p_event_type, 'security', 
-    jsonb_build_object('severity', p_severity) || p_details, p_user_agent);
-END;
-$$;
-```
+### 0.3 Remove Dead Code
+- Delete unused AI provider files (ClaudeProvider, OpenAIProvider) — use Lovable AI gateway instead
+- Clean up orphaned service files (reportingEngine imports from non-existent `@/lib/supabase`)
 
 ---
 
-### HIGH: Table Name Typo (1 issue)
+## Phase 1 — UI/UX Redesign (Priority: High)
 
-**Issue 4: Wrong table name in `useNurseWorkflow` unified hook**
-- **File:** `src/hooks/useNurseWorkflow.ts:723`
-- **Current code:** `.from('patient_prep_checklist')` (singular)
-- **Correct table name:** `patient_prep_checklists` (plural - confirmed exists in database)
-- **Impact:** `markReadyForDoctor()` in `EnhancedTriagePanel` fails silently
-- **Fix:** Change `'patient_prep_checklist'` to `'patient_prep_checklists'`
+### 1.1 Landing Page Overhaul
+- **Current:** Basic hospital landing with sign-up/login buttons
+- **Target:** Bold, editorial healthcare design with:
+  - Animated hero section (framer-motion) using `--gradient-hero`
+  - Feature showcase with role-based previews (Doctor, Nurse, Pharmacy, etc.)
+  - Trust indicators (HIPAA badge, encryption icons, uptime stats)
+  - Testimonials / hospital count counter
 
----
+### 1.2 Dashboard Redesign (Per Role)
+- **Doctor Dashboard:** Patient timeline view, AI-assisted clinical cards, quick-consult launcher
+- **Nurse Dashboard:** Task priority board (Kanban), vitals alert stream, prep checklist widget
+- **Receptionist Dashboard:** Queue management hero view, appointment heatmap, walk-in express flow
+- **Admin Dashboard:** Financial overview charts (recharts), staff utilization gauges, compliance scorecard
+- **Patient Portal:** Health timeline, upcoming appointments card, medication tracker, secure messaging
 
-### HIGH: Non-existent Table Reference (1 issue)
+### 1.3 Design System Refinements
+- Expand shadcn component variants (e.g., `variant="clinical"`, `variant="status"`)
+- Add micro-interaction library (hover states, page transitions, loading skeletons)
+- Dark mode polish — ensure all 60+ role/status colors have dark counterparts
+- Mobile-first responsive overhaul for all dashboard layouts
 
-**Issue 5: `patient_prep_status` table does not exist**
-- **File:** `src/components/nurse/NursePatientQueue.tsx:54`
-- **Current code:** `.from('patient_prep_status')` 
-- **Impact:** Prep status badges in nurse queue never load
-- **Fix:** Change to query `patient_prep_checklists` table instead:
-```typescript
-.from('patient_prep_checklists')
-.select('*')
-.eq('ready_for_doctor', true)
-```
-
----
-
-### HIGH: Missing Database Column (1 issue)
-
-**Issue 6: `backup_codes_salt` column missing from `two_factor_secrets`**
-- **Files affected:** `supabase/functions/store-2fa-secret/index.ts:135`, `supabase/functions/verify-backup-code/index.ts:98`
-- **Current columns:** `id`, `user_id`, `secret`, `backup_codes`, `verified_at`, `created_at`, `updated_at`
-- **Missing:** `backup_codes_salt` (TEXT column)
-- **Impact:** Storing and verifying 2FA backup codes fails
-- **Fix:** 
-```sql
-ALTER TABLE public.two_factor_secrets ADD COLUMN IF NOT EXISTS backup_codes_salt TEXT;
-```
+### 1.4 Navigation & Information Architecture
+- Collapsible sidebar with role-based section grouping
+- Global command palette (⌘K) with smart search across patients, appointments, records
+- Breadcrumb navigation for deep pages
+- Notification bell with categorized dropdown (urgent/info/action-required)
 
 ---
 
-### MEDIUM: MobileConsultation Insert Type Error (1 issue)
+## Phase 2 — Feature Additions (Priority: High)
 
-**Issue 7: Incorrect insert into consultations table**
-- **File:** `src/components/doctor/MobileConsultation.tsx:44`
-- **Current code:** Inserts `{ patient_id, consultation_id, notes, timestamp }` 
-- **Problem:** `consultation_id` and `timestamp` are not valid columns on `consultations` table. The table requires `hospital_id` and `doctor_id` (non-nullable).
-- **Fix:** Include required fields and use correct column names:
-```typescript
-const { error } = await supabase.from('consultations').insert({
-  patient_id: patientId,
-  hospital_id: hospital.id,
-  doctor_id: profile.id,
-  clinical_notes: notes,
-});
-```
+### 2.1 Authentication & Security
+- [ ] **Two-Factor Authentication (2FA):** TOTP-based with QR code setup, backup codes, stored in Supabase Vault
+- [ ] **Email Verification:** Enforce email confirmation before login
+- [ ] **Session Timeout:** Auto-logout after configurable inactivity period
+- [ ] **Password Expiry Policy:** Force password change every 90 days with policy enforcement
+- [ ] **Login Audit Trail:** Log all auth events with IP, device, timestamp
+
+### 2.2 Patient Management
+- [ ] **Patient Portal Self-Registration:** Patients sign up, link to hospital, request appointments
+- [ ] **Health Timeline:** Visual chronological view of all encounters, labs, prescriptions
+- [ ] **Document Upload:** Patients upload insurance cards, referrals, prior records via storage bucket
+- [ ] **Appointment Self-Scheduling:** Calendar view with doctor availability, time slot picker
+
+### 2.3 Clinical Workflow
+- [ ] **AI Clinical Assistant:** Powered by Lovable AI (Gemini/GPT models) — differential diagnosis, drug interaction checks, clinical note summarization
+- [ ] **Consultation Templates:** Pre-built templates by specialty (Cardiology, Pediatrics, etc.)
+- [ ] **E-Prescribing:** Full prescription workflow with pharmacy notification and dispensing tracking
+- [ ] **Lab Order Workflow:** Order → Collection → Processing → Results with realtime status updates
+
+### 2.4 Communication
+- [ ] **Realtime Secure Messaging:** Supabase Realtime channels for staff-to-staff and staff-to-patient
+- [ ] **Notification Center:** In-app + email notifications for appointments, lab results, prescriptions
+- [ ] **Shift Handoff Notes:** Structured handoff form with acknowledgment tracking
+
+### 2.5 Billing & Insurance
+- [ ] **Invoice Generation:** Auto-generate from consultation with CPT/ICD-10 codes
+- [ ] **Payment Processing:** Record payments, partial payments, payment plans
+- [ ] **Insurance Claims:** Submit, track, and manage claim lifecycle
+- [ ] **Financial Reports:** Revenue dashboards, aging reports, collection rates
+
+### 2.6 Reporting & Analytics
+- [ ] **Operational Reports:** Patient volume, wait times, appointment utilization
+- [ ] **Clinical Reports:** Diagnosis distribution, treatment outcomes, readmission rates
+- [ ] **Export:** PDF and CSV export for all report types
+- [ ] **Scheduled Reports:** Auto-generate and email weekly/monthly summaries
+
+### 2.7 Telemedicine
+- [ ] **Video Consultation:** WebRTC-based video calls with waiting room
+- [ ] **Screen Sharing:** Share lab results, imaging during consultation
+- [ ] **Telemedicine Consent:** Digital consent collection before session start
 
 ---
 
-### MEDIUM: LabTechDashboard optional chaining (1 issue)
+## Phase 3 — Performance Optimization (Priority: Medium)
 
-**Issue 8: `stats?.critical` possibly undefined**
-- **File:** `src/components/dashboard/LabTechDashboard.tsx:159`
-- **Current code:** `{stats?.critical > 0 && (...)}` 
-- **Problem:** When `stats` is undefined, `stats?.critical > 0` evaluates to `undefined > 0` which is `false` - technically safe but TypeScript will flag it
-- **Fix:** Change to `{(stats?.critical ?? 0) > 0 && (...)}`
+### 3.1 Bundle Size Reduction
+- Audit current bundle with `vite-bundle-visualizer`
+- Aggressive code splitting — each role dashboard as separate lazy chunk
+- Tree-shake unused shadcn components and utility functions
+- Remove unused dependencies (@anthropic-ai/sdk, openai — use Lovable AI gateway)
+
+### 3.2 Data Loading
+- Implement pagination for all list views (patients, appointments, lab orders) — respect Supabase 1000-row limit
+- Add `useDebouncedValue` to all search inputs
+- Prefetch adjacent routes on hover/focus
+- React Query stale time optimization per data type (static vs realtime)
+
+### 3.3 Caching Strategy
+- Service Worker for offline-capable static assets (vite-plugin-pwa)
+- IndexedDB for offline patient queue and form drafts
+- Supabase Realtime for live data instead of polling
+
+### 3.4 Rendering Performance
+- Virtualized lists for large datasets (patients, medications, lab results)
+- `React.memo` and `useMemo` audit on heavy components
+- Image optimization (lazy loading, WebP, proper sizing)
 
 ---
 
-### LOW: Console.log in production hooks (informational)
+## Phase 4 — Infrastructure & DevOps (Priority: Medium)
 
-133 `console.log` statements across 6 hook files are not gated by environment. These don't cause errors but produce noisy production logs.
-- `useWorkflowOrchestrator.ts`
-- `useWorkflowNotifications.ts`  
-- `useIntegration.ts`
-- `useOfflineSync.ts`
-- `useRealtimeUpdates.ts`
+### 4.1 Testing
+- Unit tests for all hooks (vitest)
+- Integration tests for critical flows (signup → dashboard → consultation)
+- E2E smoke tests for each role's primary workflow
+
+### 4.2 Monitoring
+- Error tracking with Sentry (already partially configured)
+- Performance monitoring (Core Web Vitals)
+- Database query performance monitoring
+
+### 4.3 Security Hardening
+- RLS policy audit for all 30+ tables
+- Input sanitization audit
+- CSRF protection verification
+- Rate limiting on auth endpoints (edge function)
 
 ---
 
-## Summary of Current State
+## Implementation Priority Order
 
-| Category | Issues Found | Previously | Status |
-|----------|-------------|-----------|--------|
-| Previously CRITICAL build errors | 14 | CRITICAL | **RESOLVED** |
-| Missing database tables | 2 | CRITICAL | **STILL OPEN** |
-| Missing database function | 1 | HIGH | **STILL OPEN** |
-| Table name typos/wrong references | 2 | HIGH | **STILL OPEN** |
-| Missing database column | 1 | HIGH | **STILL OPEN** |
-| Insert type mismatch | 1 | MEDIUM | **STILL OPEN** |
-| Optional chaining | 1 | MEDIUM | **STILL OPEN** |
-| Console.log cleanup | ~133 instances | LOW | **STILL OPEN** |
+| Order | Item | Effort | Impact |
+|-------|------|--------|--------|
+| 1 | Phase 0.1-0.3 — Tech debt cleanup | 2-3 sessions | Unblocks everything |
+| 2 | Phase 1.1 — Landing page redesign | 1 session | First impression |
+| 3 | Phase 2.1 — Auth hardening (2FA, email verify) | 2 sessions | Security critical |
+| 4 | Phase 1.2 — Dashboard redesign (start with Admin) | 2-3 sessions | Daily UX |
+| 5 | Phase 2.3 — AI Clinical Assistant | 1-2 sessions | Key differentiator |
+| 6 | Phase 3.1-3.2 — Bundle + data loading | 1 session | Performance |
+| 7 | Phase 2.2 — Patient portal features | 2 sessions | Patient experience |
+| 8 | Phase 2.4 — Realtime messaging | 1-2 sessions | Communication |
+| 9 | Phase 2.5 — Billing workflow | 2 sessions | Revenue |
+| 10 | Phase 1.3-1.4 — Design system + navigation | 1-2 sessions | Polish |
 
-## Recommended Fix Order
+---
 
-```text
-Step 1: Database migrations (30-45 min)
-  - Create patient_consents table with RLS
-  - Create task_assignments table with RLS  
-  - Add backup_codes_salt column to two_factor_secrets
-  - Create log_security_event RPC function
-
-Step 2: Code fixes (30 min)
-  - Fix useNurseWorkflow.ts:723 table name typo
-  - Fix NursePatientQueue.tsx:54 wrong table reference
-  - Fix MobileConsultation.tsx:44 insert fields
-  - Fix LabTechDashboard.tsx:159 optional chaining
-
-Step 3: Quality cleanup (optional, 2 hours)
-  - Gate console.log statements behind environment check
-```
-
-**Total estimated fix time: 1.5-3.5 hours**
-
-The application has made significant progress - 14 previously critical build errors are now resolved. The remaining 8 issues are primarily missing database objects and minor code fixes.
-
+## Notes
+- All AI features should use **Lovable AI gateway** (Gemini/GPT models) — no external API keys needed
+- All new tables need **RLS policies** before deployment
+- Realtime features need `ALTER PUBLICATION supabase_realtime ADD TABLE` for each table
+- The `mobile-app/` directory contains an Expo/React Native scaffold — mobile enhancements are out of scope for this plan
