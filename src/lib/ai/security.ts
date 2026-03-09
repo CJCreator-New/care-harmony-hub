@@ -230,7 +230,7 @@ export class AIEncryptionService {
       const hmac = await this.generateHMAC(encrypted, key);
 
       const payload: EncryptedPayload = {
-        encryptedData: this.arrayBufferToBase64(encrypted),
+        encryptedData: this.arrayBufferToBase64(encrypted as ArrayBuffer),
         encryptionKeyId: keyId,
         algorithm: this.ALGORITHM,
         iv: this.arrayBufferToBase64(iv),

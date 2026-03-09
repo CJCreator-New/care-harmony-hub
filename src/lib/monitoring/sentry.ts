@@ -10,11 +10,14 @@ export const initSentry = () => {
       tracesSampleRate: 0.2, // Increased for better visibility
       integrations: [
         Sentry.browserTracingIntegration({
-          tracePropagationTargets: [
-            'localhost',
-            /^https:\/\/.*\.supabase\.co/,
-            /^https:\/\/.*\.sentry\.io/,
-          ],
+          // tracePropagationTargets may not be available in all versions
+          ...(({
+            tracePropagationTargets: [
+              'localhost',
+              /^https:\/\/.*\.supabase\.co/,
+              /^https:\/\/.*\.sentry\.io/,
+            ],
+          }) as any),
         }),
         // Note: Replay integration may not be available in this Sentry version
         // Commenting out for now to avoid build errors

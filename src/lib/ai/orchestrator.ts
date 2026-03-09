@@ -206,7 +206,7 @@ export class AIServiceOrchestrator {
     }
 
     // Decrypt the payload for the AI provider
-    const decryptedData = await AIEncryptionService.decryptFromAI(encryptedPayload);
+    const decryptedData = await AIEncryptionService.decryptFromAI(encryptedPayload, {} as any);
 
     // Execute the appropriate AI operation
     switch (request.type) {
