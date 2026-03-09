@@ -45,7 +45,8 @@ export function transformConsultationFromService(
 ): Consultation {
   const normalizedStatus = normalizeConsultationStatus(consultation.status);
   return {
-    ...consultation,
+    ...(consultation as any),
+    appointment_id: (consultation as any).appointment_id || null,
     nurse_id: (consultation as any).nurse_id || null,
     doctor_id: consultation.provider_id,
     status: normalizedStatus,
