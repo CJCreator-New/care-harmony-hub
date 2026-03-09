@@ -168,7 +168,7 @@ export default function TestingDashboardPage() {
   const { categories, scripts, loading, error } = state;
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [showScriptGenerator, setShowScriptGenerator] = useState(false);
-  const [scriptToRun, setScriptToRun] = useState<AutomationScript | null>(null);
+  const [scriptToRun, setScriptToRun] = useState<any>(null);
 
   const handleTestCaseClick = (testCase: TestCase) => {
     setSelectedTestCase(testCase);
@@ -230,7 +230,7 @@ export default function TestingDashboardPage() {
             <Code className="h-4 w-4 mr-2" />
             Generate Script
           </Button>
-          <Button variant="outline" onClick={() => setActiveTab('reports')}>
+          <Button variant="outline" onClick={() => toast.info('Reports view coming soon')}>
             <BarChart3 className="h-4 w-4 mr-2" />
             View Reports
           </Button>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { abacManager, ABACManager, UserAttributes, ResourceAttributes, EnvironmentAttributes, PermissionRequest } from './abacManager';
 

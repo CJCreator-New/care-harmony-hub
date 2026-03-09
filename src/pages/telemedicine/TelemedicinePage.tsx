@@ -38,7 +38,8 @@ export default function TelemedicinePage() {
   const [pickerPatientId, setPickerPatientId] = useState<string>('');
 
   const { data: appointments, isLoading } = useAppointments();
-  const { data: patients = [] } = usePatients();
+  const { data: patientsData } = usePatients();
+  const patients = Array.isArray(patientsData) ? patientsData : (patientsData as any)?.patients || [];
 
   // Filter for telemedicine appointments
   const telemedicineAppointments = appointments?.filter(

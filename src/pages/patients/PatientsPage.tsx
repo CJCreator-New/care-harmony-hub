@@ -146,7 +146,7 @@ const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateA
             Book Appointment
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for billing */ }}>
-            <CreditCard className="h-4 w-4 mr-2" />
+            <FileText className="h-4 w-4 mr-2" />
             Generate Invoice
           </DropdownMenuItem>
           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for history */ }}>
@@ -382,11 +382,11 @@ export default function PatientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {patients.map((patient) => (
+                {(patients as any[]).map((patient: any) => (
                   <PatientRow
                     key={patient.id}
                     patient={patient}
-                    calculateAge={calculateAge}
+                    calculateAge={calculateAge as any}
                     onViewProfile={(patient) => {
                       logActivity({
                         actionType: 'patient_view',

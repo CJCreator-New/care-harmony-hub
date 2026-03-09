@@ -33,7 +33,7 @@ const requestStatusColors: Record<string, string> = {
 export default function PatientAppointmentsPage() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const { appointments = [], loading: isLoading } = usePatientAppointments();
-  const { data: requests = [], isLoading: requestsLoading } = usePatientAppointmentRequests();
+  const { appointmentRequests: requests = [], isLoading: requestsLoading } = usePatientAppointmentRequests();
   const skeletonKeys = ['apt-1', 'apt-2', 'apt-3'];
   
   const today = startOfDay(new Date());

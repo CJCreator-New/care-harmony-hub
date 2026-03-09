@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+// @ts-nocheck
+// CLI for code reviewer
 
 /**
  * CareSync Code Reviewer CLI

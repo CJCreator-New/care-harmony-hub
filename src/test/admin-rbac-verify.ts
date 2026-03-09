@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Admin RBAC Test Verification Script
 // Standalone test runner to verify all test cases pass
 

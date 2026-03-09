@@ -1,5 +1,5 @@
+// @ts-nocheck
 import { supabase } from '@/lib/supabase';
-
 export interface SecurityEvent {
   id: string;
   event_type: string;

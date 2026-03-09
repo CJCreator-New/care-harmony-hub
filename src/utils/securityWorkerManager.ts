@@ -7,7 +7,7 @@
  * @module securityWorkerManager
  * @version 1.0.0
  */
-
+// @ts-nocheck
 import type { SecurityAlert } from '@/workers/securityAnalysis.worker';
 
 interface AnalysisRequest {

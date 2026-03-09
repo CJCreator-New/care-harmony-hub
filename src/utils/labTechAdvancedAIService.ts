@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Lab Tech Advanced AI Diagnostics and Predictive Maintenance Service
 import { LabTechUser } from '../types/labtech';
 

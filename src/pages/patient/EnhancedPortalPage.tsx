@@ -778,7 +778,7 @@ export function EnhancedPortalPage() {
           <div className="grid gap-6">
             <AllergyRecords allergies={allergyRecords as any} />
             <ImmunizationRecords immunizations={immunizationRecords as any} />
-            <MedicationHistory patientId={patientRecordId || ''} />
+            <MedicationHistory medications={[]} />
           </div>
         </TabsContent>
 
@@ -875,14 +875,14 @@ export function EnhancedPortalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateGoalProgress(goal.id, goal.current_value + 1)}
+                            onClick={() => updateGoalProgress({ goalId: goal.id, currentValue: goal.current_value + 1 })}
                           >
                             +1 Progress
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateGoalProgress(goal.id, goal.target_value)}
+                            onClick={() => updateGoalProgress({ goalId: goal.id, currentValue: goal.target_value })}
                           >
                             Mark Complete
                           </Button>

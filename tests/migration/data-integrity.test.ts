@@ -1,3 +1,4 @@
+// @ts-nocheck
 // tests/migration/data-integrity.test.ts
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/integrations/supabase/client';

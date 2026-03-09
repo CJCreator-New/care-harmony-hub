@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 
 // Mock sonner globally to prevent DOM access
 vi.mock('sonner', () => {
-  const toastFn = vi.fn();
+  const toastFn: any = vi.fn();
   toastFn.error = vi.fn();
   toastFn.success = vi.fn();
   toastFn.info = vi.fn();

@@ -209,42 +209,14 @@ export interface PerformanceBenchmark {
   recommendations: string[];
 }
 
-// Extend existing Database types
-declare module '@/integrations/supabase/types' {
-  interface Database {
-    public: {
-      Tables: {
-        prediction_models: {
-          Row: PredictionModel;
-          Insert: Omit<PredictionModel, 'id' | 'created_at' | 'updated_at'>;
-          Update: Partial<Omit<PredictionModel, 'id' | 'created_at'>>;
-        };
-        predictive_alerts: {
-          Row: PredictiveAlert;
-          Insert: Omit<PredictiveAlert, 'id' | 'created_at' | 'updated_at'>;
-          Update: Partial<Omit<PredictiveAlert, 'id' | 'created_at'>>;
-        };
-        ai_clinical_insights: {
-          Row: AIClinicalInsight;
-          Insert: Omit<AIClinicalInsight, 'id' | 'created_at' | 'updated_at'>;
-          Update: Partial<Omit<AIClinicalInsight, 'id' | 'created_at'>>;
-        };
-        workflow_automation_rules: {
-          Row: WorkflowAutomationRule;
-          Insert: Omit<WorkflowAutomationRule, 'id' | 'created_at' | 'updated_at'>;
-          Update: Partial<Omit<WorkflowAutomationRule, 'id' | 'created_at'>>;
-        };
-        automated_task_executions: {
-          Row: AutomatedTaskExecution;
-          Insert: Omit<AutomatedTaskExecution, 'id' | 'created_at'>;
-          Update: Partial<Omit<AutomatedTaskExecution, 'id' | 'created_at'>>;
-        };
-        ai_performance_metrics: {
-          Row: AIPerformanceMetric;
-          Insert: Omit<AIPerformanceMetric, 'id' | 'created_at'>;
-          Update: Partial<Omit<AIPerformanceMetric, 'id' | 'created_at'>>;
-        };
-      };
-    };
-  }
-}
+// Extended Database types (commented out to avoid duplicate identifier)
+// declare module '@/integrations/supabase/types' {
+//   interface Database {
+//     public: {
+//       Tables: {
+//         prediction_models: { ... };
+//         ...
+//       };
+//     };
+//   }
+// }
