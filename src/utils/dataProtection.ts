@@ -138,7 +138,7 @@ export class FieldEncryptionService {
 
       return {
         encrypted: this.arrayBufferToBase64(encrypted),
-        iv: this.arrayBufferToBase64(iv),
+        iv: this.arrayBufferToBase64((iv as any).buffer || iv),
         keyVersion: keyVersion || 'v1'
       };
     } catch (error) {

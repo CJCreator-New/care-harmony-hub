@@ -187,7 +187,7 @@ export class DoctorClinicalService {
         : 0;
 
       return {
-        metrics: {
+        metrics: ({
           clinicalMetrics: {
             patientsSeen: consultationCount || 0,
             avgConsultationTime: Math.round(avgTime),
