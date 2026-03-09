@@ -126,8 +126,9 @@ export const clearUser = () => {
 export const captureClinicalError = (error: Error, context: {
   patientId?: string;
   operation: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  phiInvolved: boolean;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  phiInvolved?: boolean;
+  [key: string]: any;
 }) => {
   Sentry.captureException(error, {
     level: context.severity === 'critical' ? 'fatal' : 'error',
@@ -135,8 +136,8 @@ export const captureClinicalError = (error: Error, context: {
     tags: {
       error_type: 'clinical_error',
       operation: context.operation,
-      severity: context.severity,
-      phi_involved: context.phiInvolved,
+      severity: context.severity || 'medium',
+      phi_involved: String(context.phiInvolved ?? false),
       healthcare_context: 'clinical_workflow',
     },
   });
