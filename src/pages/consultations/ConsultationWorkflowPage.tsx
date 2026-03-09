@@ -304,7 +304,7 @@ ${formData.soap_plan || 'Not documented'}`;
                 consultation_id: id,
                 ordered_by: consultation.doctor_id,
                 test_name: order.test,
-                priority: mapToCanonicalLabPriority(order.priority),
+                priority: mapToCanonicalLabPriority(order.priority) as any,
                 status: 'pending',
                 notes: order.notes || formData.handoff_notes,
               });
