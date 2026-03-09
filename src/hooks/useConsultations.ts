@@ -183,7 +183,7 @@ export function useConsultation(consultationId: string | undefined) {
           .maybeSingle();
 
         if (error) throw error;
-        return data as Consultation | null;
+        return data as unknown as Consultation | null;
       });
     },
     enabled: !!consultationId,
