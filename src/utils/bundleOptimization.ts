@@ -24,7 +24,7 @@ export const LazyAI = {
 // Lazy load heavy dashboards
 export const LazyDashboards = {
   AdminDashboard: lazy(() => import('@/components/dashboard/AdminDashboard').then(m => ({ default: m.AdminDashboard }))),
-  AnalyticsDashboard: lazy(() => import('@/components/admin/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard }))),
+  AnalyticsDashboard: lazy(() => import('@/components/admin/AdminDashboard' as any).then((m: any) => ({ default: m.default || m.AnalyticsDashboard }))),
   MonitoringDashboard: lazy(() => import('@/components/monitoring/MonitoringDashboard').then(m => ({ default: m.default }))),
 };
 
