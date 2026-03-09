@@ -168,7 +168,7 @@ export default function TestingDashboardPage() {
   const { categories, scripts, loading, error } = state;
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [showScriptGenerator, setShowScriptGenerator] = useState(false);
-  const [scriptToRun, setScriptToRun] = useState<AutomationScript | null>(null);
+  const [scriptToRun, setScriptToRun] = useState<any>(null);
 
   const handleTestCaseClick = (testCase: TestCase) => {
     setSelectedTestCase(testCase);
