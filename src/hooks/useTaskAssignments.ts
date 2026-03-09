@@ -51,7 +51,7 @@ export function useTaskAssignments() {
         `)
         .eq('assigned_to', profile?.id)
         .neq('status', 'completed')
-        .order('due_date', { ascending: true, nullsLast: true });
+        .order('due_date', { ascending: true });
 
       if (error) throw error;
       return data as TaskAssignment[];
