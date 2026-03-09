@@ -157,7 +157,7 @@ export function WorkflowRulesEngine() {
                 Create Rule
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl" ref={focusTrapRef}>
+            <DialogContent className="max-w-2xl" ref={focusTrapRef as any}>
               <DialogHeader>
                 <DialogTitle>Create Automation Rule</DialogTitle>
               </DialogHeader>
