@@ -209,9 +209,9 @@ export interface PerformanceBenchmark {
   recommendations: string[];
 }
 
-// Extend existing Database types
-declare module '@/integrations/supabase/types' {
-  interface Database {
+// Extended Database types (commented out to avoid duplicate identifier)
+// declare module '@/integrations/supabase/types' {
+//   interface Database {
     public: {
       Tables: {
         prediction_models: {

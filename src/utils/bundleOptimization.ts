@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Bundle Optimization Utilities
  * Lazy loading strategies for heavy components

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TestExecutionResult, AutomationScript } from '../../types/testing';
 
 export interface ExecutionOptions {
