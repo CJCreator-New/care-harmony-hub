@@ -1,4 +1,3 @@
-// @ts-nocheck
 interface ValidationRule {
   field: string;
   type: 'required' | 'email' | 'phone' | 'numeric' | 'date' | 'custom';

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Types for encryption
 export interface EncryptionConfig {
   algorithm: 'AES-GCM';

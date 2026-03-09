@@ -1,6 +1,6 @@
-// @ts-nocheck
 // Doctor Clinical Service
 import { supabase } from '@/integrations/supabase/client';
+import { Consultation, Prescription, LabOrder, DoctorDashboard, DoctorMetrics } from '@/types/doctor';
 import { Consultation, Prescription, LabOrder, DoctorDashboard, DoctorMetrics } from '@/types/doctor';
 
 export class DoctorClinicalService {
