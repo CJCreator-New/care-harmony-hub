@@ -114,7 +114,7 @@ export function useAI({ purpose, dataRetentionDays = 90 }: UseAIProps): UseAIRes
         options: additionalOptions,
       };
 
-      const response = await aiOrchestrator.processAIRequest(request, securityContext);
+      const response = await aiOrchestrator.processAIRequest(request as any, securityContext);
 
       setLastResponse(response);
 
