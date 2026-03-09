@@ -62,7 +62,7 @@ export class TestExecutionService {
       const result: TestExecutionResult = {
         id: executionId,
         scriptId: options.script.id,
-        status: 'passed',
+        status: 'Passed' as any,
         startedAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
         duration: 1000,

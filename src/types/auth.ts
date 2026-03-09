@@ -1,4 +1,5 @@
-export type { UserRole } from './rbac';
+import type { UserRole as _UserRole } from './rbac';
+export type UserRole = _UserRole;
 
 export interface User {
   id: string;
