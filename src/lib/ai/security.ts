@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { captureClinicalError } from '@/lib/monitoring/sentry';
 

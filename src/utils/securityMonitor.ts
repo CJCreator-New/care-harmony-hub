@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 export interface SecurityEvent {
   id: string;
   event_type: string;
