@@ -233,8 +233,8 @@ export class AIEncryptionService {
         encryptedData: this.arrayBufferToBase64(encrypted as ArrayBuffer),
         encryptionKeyId: keyId,
         algorithm: this.ALGORITHM,
-        iv: this.arrayBufferToBase64(iv),
-        hmac: this.arrayBufferToBase64(hmac),
+        iv: this.arrayBufferToBase64((iv as any).buffer || iv),
+        hmac: this.arrayBufferToBase64((hmac as any).buffer || hmac),
         metadata: {
           createdAt: new Date(),
           expiresAt: new Date(Date.now() + (context.dataRetentionDays * 24 * 60 * 60 * 1000)),

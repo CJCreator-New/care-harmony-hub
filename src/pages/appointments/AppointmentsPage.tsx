@@ -47,6 +47,18 @@ import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Local type for appointment data returned by usePaginatedQuery
+type Appointment = {
+  id: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  status: string;
+  appointment_type: string;
+  reason_for_visit?: string;
+  notes?: string;
+  patient?: { id: string; first_name: string; last_name: string; mrn: string; phone?: string };
+  doctor?: { id: string; first_name: string; last_name: string };
+};
 const STATUS_CONFIG: Record<string, { label: string; variant: "info" | "warning" | "secondary" | "success" | "destructive" | "outline"; icon: React.FC<{ className?: string }> }> = {
   scheduled:   { label: "Scheduled",   variant: "info",        icon: Clock        },
   checked_in:  { label: "Checked In",  variant: "warning",     icon: CheckCircle  },

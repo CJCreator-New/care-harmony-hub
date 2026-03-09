@@ -648,7 +648,7 @@ ${formData.soap_plan || 'Not documented'}`;
                     patientId={consultation.patient_id}
                     consultationId={consultation.id}
                     patientAllergies={consultation.patient?.allergies || []}
-                    patientMedications={consultation.patient?.current_medications || []}
+                    patientMedications={(consultation.patient as any)?.current_medications || []}
                   />
                 </TabsContent>
                 <TabsContent value="5" className="mt-0">
