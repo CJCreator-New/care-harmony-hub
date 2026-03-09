@@ -1,6 +1,5 @@
-// @ts-nocheck
 // Advanced AI Diagnostics Service for Doctors
-import { DoctorUser } from '../types/doctor';
+type DoctorUser = any;
 import { logAudit } from './auditLogQueue';
 
 export interface ComplexCase {

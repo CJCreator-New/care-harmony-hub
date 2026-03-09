@@ -1,4 +1,3 @@
-// @ts-nocheck
 interface ValidationRule {
   field: string;
   type: 'required' | 'email' | 'phone' | 'numeric' | 'date' | 'custom';
@@ -22,10 +21,10 @@ export const validationEngine = {
           if (!value || value === '') errors.push(rule.message);
           break;
         case 'email':
-          if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.push(rule.message);
+          if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))) errors.push(rule.message);
           break;
         case 'phone':
-          if (value && !/^\+?[\d\s-()]+$/.test(value)) errors.push(rule.message);
+          if (value && !/^\+?[\d\s-()]+$/.test(String(value))) errors.push(rule.message);
           break;
         case 'numeric':
           if (value && isNaN(Number(value))) errors.push(rule.message);

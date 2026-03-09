@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MobileConsultation } from '@/components/doctor/MobileConsultation';
@@ -36,7 +35,7 @@ export default function MobileConsultationPage() {
               <SelectValue placeholder="Choose a patient..." />
             </SelectTrigger>
             <SelectContent>
-              {patients?.map((patient) => (
+              {(patients as any)?.patients?.map((patient: any) => (
                 <SelectItem key={patient.id} value={patient.id}>
                   {patient.first_name} {patient.last_name} - MRN: {patient.mrn}
                 </SelectItem>

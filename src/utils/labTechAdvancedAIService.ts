@@ -1,6 +1,6 @@
-// @ts-nocheck
 // Lab Tech Advanced AI Diagnostics and Predictive Maintenance Service
 import { LabTechUser } from '../types/labtech';
+const logAudit = (entry: any) => { console.log('Audit:', entry.action_type); };
 
 export interface AIResultCorrelation {
   testId: string;

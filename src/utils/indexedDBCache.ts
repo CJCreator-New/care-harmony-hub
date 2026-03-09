@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * IndexedDB Cache Utility
  * 
@@ -120,10 +119,10 @@ class IndexedDBCache {
           const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
           
           stores.forEach(storeName => {
-            if (!db.objectStoreNames.contains(storeName)) {
-              const store = db.createObjectStore(storeName, { keyPath: 'id' });
-              store.createIndex('by-hospital', 'hospitalId');
-              store.createIndex('by-timestamp', 'timestamp');
+            if (!db.objectStoreNames.contains(storeName as any)) {
+              const store = db.createObjectStore(storeName as any, { keyPath: 'id' });
+              store.createIndex('by-hospital' as any, 'hospitalId');
+              store.createIndex('by-timestamp' as any, 'timestamp');
             }
           });
 

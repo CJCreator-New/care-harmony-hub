@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 export interface Report {
   id: string;
   name: string;
@@ -61,7 +60,7 @@ class ReportingEngine {
       });
 
       if (error) throw error;
-      return report?.[0] as Report;
+      return (report as any)?.[0] as Report ?? null;
     } catch (error) {
       console.error('Report generation failed:', error);
       return null;
@@ -412,7 +411,7 @@ class ReportingEngine {
     });
 
     if (error) return null;
-    return data?.[0] as ReportTemplate;
+    return (data as any)?.[0] as ReportTemplate ?? null;
   }
 
   async scheduleReport(
@@ -431,7 +430,7 @@ class ReportingEngine {
     });
 
     if (error) return null;
-    return data?.[0] as ScheduledReport;
+    return (data as any)?.[0] as ScheduledReport ?? null;
   }
 
   private calculateNextRun(frequency: string): string {

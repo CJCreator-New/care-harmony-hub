@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Doctor Clinical Service
 import { supabase } from '@/integrations/supabase/client';
 import { Consultation, Prescription, LabOrder, DoctorDashboard, DoctorMetrics } from '@/types/doctor';
@@ -188,7 +187,7 @@ export class DoctorClinicalService {
         : 0;
 
       return {
-        metrics: {
+        metrics: ({
           clinicalMetrics: {
             patientsSeen: consultationCount || 0,
             avgConsultationTime: Math.round(avgTime),
@@ -205,7 +204,7 @@ export class DoctorClinicalService {
             documentationCompleteness: 98,
             prescriptionAccuracy: 99,
           },
-        },
+        } as any),
       };
     } catch (error) {
       return { error: error as Error };

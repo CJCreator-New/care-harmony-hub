@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Types for encryption
 export interface EncryptionConfig {
   algorithm: 'AES-GCM';
@@ -132,14 +131,14 @@ export class FieldEncryptionService {
 
       const encodedValue = new TextEncoder().encode(value);
       const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
+        { name: 'AES-GCM', iv: iv as any },
         key,
-        encodedValue
+        encodedValue as any
       );
 
       return {
         encrypted: this.arrayBufferToBase64(encrypted),
-        iv: this.arrayBufferToBase64(iv),
+        iv: this.arrayBufferToBase64((iv as any).buffer || iv),
         keyVersion: keyVersion || 'v1'
       };
     } catch (error) {

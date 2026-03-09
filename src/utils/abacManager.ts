@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
 
@@ -130,7 +129,7 @@ export class ABACManager {
         { attribute: 'user', field: 'roles', operator: 'contains', value: 'nurse' },
         { attribute: 'user', field: 'hospitalId', operator: 'equals', value: 'field:resource.hospitalId' },
         { attribute: 'resource', field: 'sensitivityLevel', operator: 'not_equals', value: 'restricted' },
-        { attribute: 'action', operator: 'in', value: ['read', 'update'] }
+        { attribute: 'action', field: 'type', operator: 'in', value: ['read', 'update'] }
       ],
       effect: 'allow',
       enabled: true

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -375,7 +374,7 @@ export function LabAutomationPage() {
                         <div>
                           <p className="text-sm font-medium">{qc.test_type} - Lot {qc.control_lot}</p>
                           <p className="text-xs text-muted-foreground">
-                            {qc.technician?.first_name} {qc.technician?.last_name} • {new Date(qc.performed_at).toLocaleDateString()}
+                            {(qc as any).technician?.first_name} {(qc as any).technician?.last_name} • {new Date(qc.performed_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>

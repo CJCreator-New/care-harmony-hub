@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Performance Monitoring System
  * Tracks Core Web Vitals, API performance, and user interactions
@@ -50,7 +49,7 @@ class PerformanceMonitor {
         const lcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
           const lastEntry = entries[entries.length - 1];
-          this.coreWebVitals.lcp = lastEntry.renderTime || lastEntry.loadTime;
+          this.coreWebVitals.lcp = (lastEntry as any).renderTime || (lastEntry as any).loadTime;
         });
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
       } catch (e) {
@@ -120,7 +119,7 @@ class PerformanceMonitor {
               unit: 'ms',
               timestamp: Date.now(),
               context: {
-                type: entry.initiatorType,
+                type: (entry as any).initiatorType,
                 size: (entry as any).transferSize,
               },
             });
