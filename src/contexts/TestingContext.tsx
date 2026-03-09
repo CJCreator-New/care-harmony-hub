@@ -523,7 +523,7 @@ if __name__ == "__main__":
     print("All doctor workflow tests completed!")`,
               language: 'python',
               tags: ['doctor', 'consultation', 'prescription', 'lab-order', 'workflow'],
-              createdAt: new Date().toISOString(),
+              createdAt: new Date().toISOString() as any,
               updatedAt: new Date().toISOString(),
               automationEnabled: true,
               lastRun: null,
