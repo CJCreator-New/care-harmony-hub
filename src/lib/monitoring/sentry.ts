@@ -56,7 +56,9 @@ export const initSentry = () => {
         // Filter out very fast transactions
         if (event.spans) {
           event.spans = event.spans.filter(span => {
-            return span.endTimestamp - span.startTimestamp > 0.1; // > 100ms
+            const end = (span as any).endTimestamp ?? (span as any).timestamp ?? 0;
+            const start = (span as any).startTimestamp ?? (span as any).start_timestamp ?? 0;
+            return end - start > 0.1; // > 100ms
           });
         }
         return event;
