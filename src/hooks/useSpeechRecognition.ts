@@ -105,10 +105,9 @@ export function useSpeechRecognition(
     setIsListening(false);
 
     captureClinicalError(error, {
-      context: 'speech_recognition_hook',
       hospitalId: hospital?.id,
       provider: currentProvider,
-    });
+    } as any);
   }, [hospital?.id, currentProvider]);
 
   // Set up event listeners
