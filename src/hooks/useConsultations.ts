@@ -297,7 +297,7 @@ export function useGetOrCreateConsultation() {
             .eq('patient_id', patientId)
             .in('status', ['waiting', 'called']);
 
-          return existingConsultation as Consultation;
+          return existingConsultation as unknown as Consultation;
         }
 
         // Create new consultation if none exists
