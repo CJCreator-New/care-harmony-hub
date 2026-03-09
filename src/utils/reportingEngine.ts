@@ -60,7 +60,7 @@ class ReportingEngine {
       });
 
       if (error) throw error;
-      return report?.[0] as Report;
+      return (report as any)?.[0] as Report ?? null;
     } catch (error) {
       console.error('Report generation failed:', error);
       return null;
