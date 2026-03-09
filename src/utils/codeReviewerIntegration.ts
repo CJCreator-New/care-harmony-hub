@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CareSync Code Reviewer CI/CD Integration
  * Automated code review integration for continuous quality assurance

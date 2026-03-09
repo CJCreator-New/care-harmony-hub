@@ -1,19 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { CPTCode, ClinicalTemplate } from '@/types/soap';
 
 export const useCPTCodes = () => {
   const [cptCodes, setCptCodes] = useState<CPTCode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { hospital } = useAuth();
 
   const loadCPTCodes = useCallback(async (category?: string) => {
+    if (!hospital?.id) return;
     setLoading(true);
     setError(null);
     try {
       let query = supabase
         .from('cpt_codes')
         .select('*')
+        .eq('hospital_id', hospital.id)
         .order('category', { ascending: true });
 
       if (category) {
@@ -31,12 +35,14 @@ export const useCPTCodes = () => {
   }, []);
 
   const searchCPTCodes = async (searchTerm: string) => {
+    if (!hospital?.id) return;
     setLoading(true);
     setError(null);
     try {
       const { data, error } = await supabase
         .from('cpt_codes')
         .select('*')
+        .eq('hospital_id', hospital.id)
         .or(`code.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
         .order('code');
 

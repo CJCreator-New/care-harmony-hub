@@ -9,6 +9,7 @@ import { Calendar, Clock, User, Plus } from 'lucide-react';
 import { usePatientAppointments } from '@/hooks/usePatientPortal';
 import { usePatientAppointmentRequests } from '@/hooks/useAppointmentRequests';
 import { RequestAppointmentModal } from '@/components/patient/RequestAppointmentModal';
+import { PatientVideoCallModal } from '@/components/telemedicine/PatientVideoCallModal';
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 
 const statusColors: Record<string, string> = {
@@ -233,6 +234,16 @@ export default function PatientAppointmentsPage() {
           open={isRequestModalOpen}
           onOpenChange={setIsRequestModalOpen}
         />
+
+        {/* Listen for incoming telemedicine calls on each upcoming appointment channel */}
+        {upcomingAppointments.map((apt) => (
+          <PatientVideoCallModal
+            key={apt.id}
+            listening
+            appointmentId={apt.id}
+            doctorName={apt.doctor ? `${apt.doctor.first_name} ${apt.doctor.last_name}` : undefined}
+          />
+        ))}
       </div>
     </DashboardLayout>
   );

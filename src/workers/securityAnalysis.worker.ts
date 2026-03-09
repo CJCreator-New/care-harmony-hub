@@ -7,7 +7,6 @@
  * @module securityAnalysisWorker
  * @version 1.0.0
  */
-// @ts-nocheck
 // Type definitions for worker messages
 interface SecurityAnalysisRequest {
   type: 'analyzeLogs' | 'detectAnomalies' | 'checkPatterns';

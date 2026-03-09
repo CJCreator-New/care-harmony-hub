@@ -23,6 +23,7 @@ import {
   Send,
   Loader2,
   Keyboard,
+  Layers,
 } from "lucide-react";
 import {
   useConsultation,
@@ -42,6 +43,7 @@ import { TreatmentPlanStep } from "@/components/consultations/steps/TreatmentPla
 import { SummaryStep } from "@/components/consultations/steps/SummaryStep";
 import { PatientSidebar } from "@/components/consultations/PatientSidebar";
 import { AIConsultationAssistant } from "@/components/consultations/AIConsultationAssistant";
+import { ConsultationTemplateSelector, ConsultationTemplate } from "@/components/consultations/ConsultationTemplateSelector";
 import { EnhancedTaskManagement } from "@/components/workflow/EnhancedTaskManagement";
 import { toast } from "sonner";
 
@@ -62,6 +64,18 @@ export default function ConsultationWorkflowPage() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+
+  const handleApplyTemplate = (template: ConsultationTemplate) => {
+    setFormData(prev => ({
+      ...prev,
+      chief_complaint: template.chiefComplaint,
+      history_of_present_illness: template.hpi,
+      physical_examination: template.physicalExamination,
+      clinical_notes: template.clinicalNotes,
+    }));
+    toast.success(`${template.specialty} template applied`);
+  };
 
   const getDiagnosisSummary = () => {
     const diagnosisList = Array.isArray(formData.diagnoses) ? formData.diagnoses : [];
@@ -676,6 +690,15 @@ ${formData.soap_plan || 'Not documented'}`;
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setTemplateSelectorOpen(true)}
+                className="px-3"
+              >
+                <Layers className="h-4 w-4 mr-1" />
+                Template
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowKeyboardHelp(true)}
                 className="px-3"
               >
@@ -752,6 +775,11 @@ ${formData.soap_plan || 'Not documented'}`;
           </div>
         </DialogContent>
       </Dialog>
+      <ConsultationTemplateSelector
+        open={templateSelectorOpen}
+        onOpenChange={setTemplateSelectorOpen}
+        onApply={handleApplyTemplate}
+      />
     </DashboardLayout>
   );
 }

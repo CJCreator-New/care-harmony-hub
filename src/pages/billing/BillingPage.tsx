@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -37,6 +38,10 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
+  Shield,
+  Calendar,
+  Send,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -46,6 +51,8 @@ import {
   useBillingRealtime,
   Invoice,
 } from "@/hooks/useBilling";
+import { useInsuranceClaims } from "@/hooks/useInsuranceClaims";
+import { usePaymentPlans } from "@/hooks/usePaymentPlans";
 import { usePatients } from "@/hooks/usePatients";
 import { CreateInvoiceModal } from "@/components/billing/CreateInvoiceModal";
 import { formatCurrency } from "@/lib/currency";
@@ -54,6 +61,22 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   pending: { label: "Pending", variant: "destructive" },
   partial: { label: "Partial", variant: "secondary" },
   paid: { label: "Paid", variant: "default" },
+  cancelled: { label: "Cancelled", variant: "outline" },
+};
+
+const CLAIM_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "Draft", variant: "outline" },
+  submitted: { label: "Submitted", variant: "secondary" },
+  under_review: { label: "Under Review", variant: "secondary" },
+  approved: { label: "Approved", variant: "default" },
+  denied: { label: "Denied", variant: "destructive" },
+  paid: { label: "Paid", variant: "default" },
+};
+
+const PLAN_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  active: { label: "Active", variant: "default" },
+  completed: { label: "Completed", variant: "secondary" },
+  defaulted: { label: "Defaulted", variant: "destructive" },
   cancelled: { label: "Cancelled", variant: "outline" },
 };
 
@@ -70,6 +93,8 @@ export default function BillingPage() {
 
   const { data: invoices, isLoading } = useInvoices();
   const { data: stats } = useInvoiceStats();
+  const { claims, isLoading: claimsLoading, submitClaim, refreshClaimStatus } = useInsuranceClaims();
+  const { paymentPlans, isLoading: plansLoading } = usePaymentPlans();
 
   const filteredInvoices = invoices?.filter((inv) => {
     const matchesSearch =
@@ -88,9 +113,9 @@ export default function BillingPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Billing & Invoices</h1>
+            <h1 className="text-2xl font-bold text-foreground">Billing & Finance</h1>
             <p className="text-muted-foreground">
-              Manage patient invoices and track payments
+              Manage patient invoices, insurance claims, and payment plans
             </p>
           </div>
           <Button onClick={() => setIsCreateModalOpen(true)}>
@@ -153,46 +178,63 @@ export default function BillingPage() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by invoice number, patient name, or MRN..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                <SelectItem key={key} value={key}>
-                  {config.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Tabs defaultValue="invoices">
+          <TabsList>
+            <TabsTrigger value="invoices">
+              <FileText className="h-4 w-4 mr-2" />
+              Invoices
+            </TabsTrigger>
+            <TabsTrigger value="claims">
+              <Shield className="h-4 w-4 mr-2" />
+              Insurance Claims
+            </TabsTrigger>
+            <TabsTrigger value="plans">
+              <Calendar className="h-4 w-4 mr-2" />
+              Payment Plans
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Invoices Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+          <TabsContent value="invoices" className="space-y-4 mt-4">
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by invoice number, patient name, or MRN..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      {config.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Invoices Table */}
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Paid</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -261,6 +303,189 @@ export default function BillingPage() {
             </Table>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="claims" className="space-y-4 mt-4">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Claim #</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead>Claim Amount</TableHead>
+                      <TableHead>Approved</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {claimsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : !claims?.length ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          No insurance claims found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      claims.map((claim) => {
+                        const status = CLAIM_STATUS_CONFIG[claim.status] || CLAIM_STATUS_CONFIG.draft;
+                        return (
+                          <TableRow key={claim.id}>
+                            <TableCell className="font-medium">{claim.claim_number}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {claim.patient?.first_name} {claim.patient?.last_name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{claim.patient?.mrn}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>{claim.insurance_provider}</TableCell>
+                            <TableCell>{formatCurrency(claim.claim_amount)}</TableCell>
+                            <TableCell>
+                              {claim.approved_amount != null
+                                ? formatCurrency(claim.approved_amount)
+                                : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={status.variant}>{status.label}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {claim.submitted_at
+                                ? format(new Date(claim.submitted_at), "MMM d, yyyy")
+                                : <span className="text-muted-foreground">Not submitted</span>}
+                            </TableCell>
+                            <TableCell className="text-right space-x-1">
+                              {claim.status === 'draft' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => submitClaim.mutate(claim.id)}
+                                  disabled={submitClaim.isPending}
+                                >
+                                  <Send className="mr-1 h-3 w-3" />
+                                  Submit
+                                </Button>
+                              )}
+                              {['submitted', 'under_review'].includes(claim.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => refreshClaimStatus.mutate(claim.id)}
+                                  disabled={refreshClaimStatus.isPending}
+                                >
+                                  <RefreshCw className="mr-1 h-3 w-3" />
+                                  Refresh
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="plans" className="space-y-4 mt-4">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Installment</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead>Next Due</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {plansLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : !paymentPlans?.length ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          No payment plans found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paymentPlans.map((plan) => {
+                        const status = PLAN_STATUS_CONFIG[plan.status] || PLAN_STATUS_CONFIG.active;
+                        const paid = plan.paid_installments ?? 0;
+                        const pct = plan.total_installments > 0
+                          ? Math.round((paid / plan.total_installments) * 100)
+                          : 0;
+                        return (
+                          <TableRow key={plan.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {plan.patient?.first_name} {plan.patient?.last_name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{plan.patient?.mrn}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>{formatCurrency(plan.total_amount)}</TableCell>
+                            <TableCell className="text-destructive font-medium">
+                              {formatCurrency(plan.remaining_balance)}
+                            </TableCell>
+                            <TableCell>{formatCurrency(plan.installment_amount)}</TableCell>
+                            <TableCell className="capitalize">
+                              {plan.installment_frequency.replace('_', ' ')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-muted rounded-full h-1.5">
+                                  <div
+                                    className="bg-primary h-1.5 rounded-full transition-all"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {paid}/{plan.total_installments}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {plan.next_due_date
+                                ? format(new Date(plan.next_due_date), "MMM d, yyyy")
+                                : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={status.variant}>{status.label}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <CreateInvoiceModal

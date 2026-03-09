@@ -7,6 +7,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** Resolve the hospital_id for the authenticated caller.
+ *  Returns null if the caller has no profile or is not hospital-scoped. */
+async function resolveHospitalId(
+  supabase: ReturnType<typeof createClient>,
+  authHeader: string
+): Promise<string | null> {
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("hospital_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return profile?.hospital_id ?? null;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,17 +36,34 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Resolve and enforce the caller's hospital scope before any query.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const hospitalId = await resolveHospitalId(supabase, authHeader);
+    if (!hospitalId) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized — could not resolve hospital" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { action, params } = await req.json();
 
     switch (action) {
       case 'get_kpis':
-        return await getKPIs(supabase, params);
+        return await getKPIs(supabase, { ...params, hospitalId });
       case 'get_financial_metrics':
-        return await getFinancialMetrics(supabase, params);
+        return await getFinancialMetrics(supabase, { ...params, hospitalId });
       case 'get_operational_metrics':
-        return await getOperationalMetrics(supabase, params);
+        return await getOperationalMetrics(supabase, { ...params, hospitalId });
       case 'get_clinical_metrics':
-        return await getClinicalMetrics(supabase, params);
+        return await getClinicalMetrics(supabase, { ...params, hospitalId });
       default:
         throw new Error('Invalid action');
     }
@@ -39,31 +75,35 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function getKPIs(supabase: any, { period = '30d' }: any) {
+async function getKPIs(supabase: any, { period = '30d', hospitalId }: any) {
   const startDate = getStartDate(period);
   
-  // Patient metrics
+  // Patient metrics — scoped to caller's hospital
   const { data: patientStats } = await supabase
     .from('patients')
     .select('id, created_at')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
-  // Appointment metrics
+  // Appointment metrics — scoped to caller's hospital
   const { data: appointmentStats } = await supabase
     .from('appointments')
     .select('id, status, scheduled_at')
+    .eq('hospital_id', hospitalId)
     .gte('scheduled_at', startDate);
 
-  // Revenue metrics
+  // Revenue metrics — invoices scoped to caller's hospital
   const { data: billingStats } = await supabase
-    .from('billing')
-    .select('amount, status, created_at')
+    .from('invoices')
+    .select('total_amount, status, created_at')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
-  // Staff utilization
+  // Staff utilization — scoped to caller's hospital
   const { data: consultationStats } = await supabase
     .from('consultations')
     .select('id, doctor_id, created_at')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
   const kpis = {
@@ -83,13 +123,13 @@ async function getKPIs(supabase: any, { period = '30d' }: any) {
       ),
     },
     financial_metrics: {
-      total_revenue: billingStats?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0,
+      total_revenue: billingStats?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0,
       pending_payments: billingStats?.filter(b => b.status === 'pending')
-        .reduce((sum, b) => sum + (b.amount || 0), 0) || 0,
+        .reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0,
       collection_rate: calculateRate(
         billingStats?.filter(b => b.status === 'paid')
-          .reduce((sum, b) => sum + (b.amount || 0), 0) || 0,
-        billingStats?.reduce((sum, b) => sum + (b.amount || 0), 0) || 1
+          .reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0,
+        billingStats?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 1
       ),
     },
     operational_metrics: {
@@ -107,22 +147,24 @@ async function getKPIs(supabase: any, { period = '30d' }: any) {
   );
 }
 
-async function getFinancialMetrics(supabase: any, { period = '30d' }: any) {
+async function getFinancialMetrics(supabase: any, { period = '30d', hospitalId }: any) {
   const startDate = getStartDate(period);
 
   const { data: billing } = await supabase
-    .from('billing')
+    .from('invoices')
     .select('*')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
   const { data: prescriptions } = await supabase
     .from('prescriptions')
     .select('*, medications(*)')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
   const revenue_by_service = billing?.reduce((acc: any, bill: any) => {
     const service = bill.service_type || 'consultation';
-    acc[service] = (acc[service] || 0) + (bill.amount || 0);
+    acc[service] = (acc[service] || 0) + (bill.total_amount || 0);
     return acc;
   }, {}) || {};
 
@@ -141,25 +183,28 @@ async function getFinancialMetrics(supabase: any, { period = '30d' }: any) {
   );
 }
 
-async function getOperationalMetrics(supabase: any, { period = '30d' }: any) {
+async function getOperationalMetrics(supabase: any, { period = '30d', hospitalId }: any) {
   const startDate = getStartDate(period);
 
-  // Bed occupancy
+  // Bed occupancy — hospital-scoped
   const { data: admissions } = await supabase
     .from('admissions')
     .select('*')
+    .eq('hospital_id', hospitalId)
     .gte('admission_date', startDate);
 
-  // Staff productivity
+  // Staff productivity — hospital-scoped
   const { data: consultations } = await supabase
     .from('consultations')
     .select('doctor_id, duration, created_at')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
-  // Wait times
+  // Wait times — hospital-scoped
   const { data: appointments } = await supabase
     .from('appointments')
     .select('scheduled_at, actual_start_time')
+    .eq('hospital_id', hospitalId)
     .gte('scheduled_at', startDate)
     .not('actual_start_time', 'is', null);
 
@@ -186,17 +231,19 @@ async function getOperationalMetrics(supabase: any, { period = '30d' }: any) {
   );
 }
 
-async function getClinicalMetrics(supabase: any, { period = '30d' }: any) {
+async function getClinicalMetrics(supabase: any, { period = '30d', hospitalId }: any) {
   const startDate = getStartDate(period);
 
   const { data: consultations } = await supabase
     .from('consultations')
     .select('diagnosis, treatment_outcome, created_at')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
   const { data: prescriptions } = await supabase
     .from('prescriptions')
     .select('*')
+    .eq('hospital_id', hospitalId)
     .gte('created_at', startDate);
 
   const diagnosis_distribution = consultations?.reduce((acc: any, c: any) => {

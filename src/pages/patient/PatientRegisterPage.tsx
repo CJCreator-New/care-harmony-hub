@@ -16,7 +16,8 @@ import {
   User, 
   Lock, 
   Heart,
-  Loader2 
+  Loader2,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,7 @@ interface FormData {
   chronicConditions: string;
   agreeToTerms: boolean;
   agreeToHipaa: boolean;
+  hospitalCode: string;
 }
 
 export default function PatientRegisterPage() {
@@ -80,6 +82,7 @@ export default function PatientRegisterPage() {
     chronicConditions: '',
     agreeToTerms: false,
     agreeToHipaa: false,
+    hospitalCode: '',
   });
 
   const updateFormData = (field: keyof FormData, value: string | boolean) => {
@@ -156,14 +159,36 @@ export default function PatientRegisterPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Update profile with security info
+        // Optionally resolve hospital by license number
+        let resolvedHospitalId: string | null = null;
+        if (formData.hospitalCode.trim()) {
+          const { data: hospitalRow } = await supabase
+            .from('hospitals')
+            .select('id')
+            .eq('license_number', formData.hospitalCode.trim())
+            .maybeSingle();
+          if (hospitalRow) {
+            resolvedHospitalId = hospitalRow.id;
+          } else {
+            toast({
+              title: 'Invalid Hospital Code',
+              description: 'No hospital found with that code. Registration will continue without hospital linking.',
+              variant: 'destructive',
+            });
+          }
+        }
+
+        // Update profile with security info + optional hospital link
+        const profileUpdate: Record<string, unknown> = {
+          security_question: formData.securityQuestion,
+          security_answer: formData.securityAnswer,
+          is_staff: false,
+        };
+        if (resolvedHospitalId) profileUpdate.hospital_id = resolvedHospitalId;
+
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({
-            security_question: formData.securityQuestion,
-            security_answer: formData.securityAnswer,
-            is_staff: false,
-          })
+          .update(profileUpdate)
           .eq('user_id', authData.user.id);
 
         if (profileError) console.error('Profile update error:', profileError);
@@ -399,16 +424,21 @@ export default function PatientRegisterPage() {
                       />
                     </div>
                   </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hospitalCode" className="flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    Hospital Code <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    id="hospitalCode"
+                    value={formData.hospitalCode}
+                    onChange={(e) => updateFormData('hospitalCode', e.target.value)}
+                    placeholder="Enter hospital license number to link your account"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    If provided by your healthcare provider, enter it here to link to their facility.
+                  </p>
                 </div>
-              )}
-
-              {/* Step 2: Account Creation */}
-              {currentStep === 2 && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <Input
-                      id="password"
                       type="password"
                       value={formData.password}
                       onChange={(e) => updateFormData('password', e.target.value)}

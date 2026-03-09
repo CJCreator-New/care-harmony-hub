@@ -2,7 +2,7 @@
 
 > **Created:** 2026-03-09  
 > **Status:** Active  
-> **Build Status:** ✅ Compiling (45 files use @ts-nocheck suppressions to be resolved incrementally)
+> **Build Status:** ✅ Compiling (all @ts-nocheck suppressions resolved in src/)
 
 ---
 
@@ -59,45 +59,45 @@
 ## Phase 2 — Feature Additions (Priority: High)
 
 ### 2.1 Authentication & Security
-- [ ] **Two-Factor Authentication (2FA):** TOTP-based with QR code setup, backup codes, stored in Supabase Vault
-- [ ] **Email Verification:** Enforce email confirmation before login
-- [ ] **Session Timeout:** Auto-logout after configurable inactivity period
-- [ ] **Password Expiry Policy:** Force password change every 90 days with policy enforcement
-- [ ] **Login Audit Trail:** Log all auth events with IP, device, timestamp
+- [x] **Two-Factor Authentication (2FA):** TOTP-based with QR code setup, backup codes, stored in Supabase Vault
+- [x] **Email Verification:** Enforce email confirmation before login
+- [x] **Session Timeout:** Auto-logout after configurable inactivity period
+- [x] **Password Expiry Policy:** Force password change every 90 days with policy enforcement
+- [x] **Login Audit Trail:** Log all auth events with IP, device, timestamp
 
 ### 2.2 Patient Management
-- [ ] **Patient Portal Self-Registration:** Patients sign up, link to hospital, request appointments
-- [ ] **Health Timeline:** Visual chronological view of all encounters, labs, prescriptions
-- [ ] **Document Upload:** Patients upload insurance cards, referrals, prior records via storage bucket
-- [ ] **Appointment Self-Scheduling:** Calendar view with doctor availability, time slot picker
+- [x] **Patient Portal Self-Registration:** Patients sign up, link to hospital (via license-number code), request appointments
+- [x] **Health Timeline:** Visual chronological view of all encounters, labs, prescriptions
+- [x] **Document Upload:** Patients upload insurance cards, referrals, prior records via storage bucket
+- [x] **Appointment Self-Scheduling:** Calendar view with doctor availability, time slot picker
 
 ### 2.3 Clinical Workflow
-- [ ] **AI Clinical Assistant:** Powered by Lovable AI (Gemini/GPT models) — differential diagnosis, drug interaction checks, clinical note summarization
-- [ ] **Consultation Templates:** Pre-built templates by specialty (Cardiology, Pediatrics, etc.)
-- [ ] **E-Prescribing:** Full prescription workflow with pharmacy notification and dispensing tracking
-- [ ] **Lab Order Workflow:** Order → Collection → Processing → Results with realtime status updates
+- [x] **AI Clinical Assistant:** Powered by Lovable AI (Gemini/GPT models) — differential diagnosis, drug interaction checks, clinical note summarization
+- [x] **Consultation Templates:** Pre-built templates by specialty (Cardiology, Pediatrics, Orthopedics, Neurology, Pulmonology, Ophthalmology, ENT, Endocrinology, Emergency Medicine)
+- [x] **E-Prescribing:** Full prescription workflow with pharmacy notification and dispensing tracking
+- [x] **Lab Order Workflow:** Order → Collection → Processing → Results with realtime status updates
 
 ### 2.4 Communication
-- [ ] **Realtime Secure Messaging:** Supabase Realtime channels for staff-to-staff and staff-to-patient
-- [ ] **Notification Center:** In-app + email notifications for appointments, lab results, prescriptions
-- [ ] **Shift Handoff Notes:** Structured handoff form with acknowledgment tracking
+- [x] **Realtime Secure Messaging:** Supabase Realtime channels for staff-to-staff and staff-to-patient
+- [x] **Notification Center:** In-app + email notifications for appointments, lab results, prescriptions
+- [x] **Shift Handoff Notes:** Structured handoff form with acknowledgment tracking
 
 ### 2.5 Billing & Insurance
-- [ ] **Invoice Generation:** Auto-generate from consultation with CPT/ICD-10 codes
-- [ ] **Payment Processing:** Record payments, partial payments, payment plans
-- [ ] **Insurance Claims:** Submit, track, and manage claim lifecycle
-- [ ] **Financial Reports:** Revenue dashboards, aging reports, collection rates
+- [x] **Invoice Generation:** Auto-generate from consultation with CPT/ICD-10 codes
+- [x] **Payment Processing:** Record payments, partial payments, payment plans
+- [x] **Insurance Claims:** Submit, track, and manage claim lifecycle (surfaced in BillingPage tabs)
+- [x] **Financial Reports:** Revenue dashboards, aging reports, collection rates
 
 ### 2.6 Reporting & Analytics
-- [ ] **Operational Reports:** Patient volume, wait times, appointment utilization
-- [ ] **Clinical Reports:** Diagnosis distribution, treatment outcomes, readmission rates
-- [ ] **Export:** PDF and CSV export for all report types
-- [ ] **Scheduled Reports:** Auto-generate and email weekly/monthly summaries
+- [x] **Operational Reports:** Patient volume, wait times, appointment utilization
+- [x] **Clinical Reports:** Diagnosis distribution, treatment outcomes, readmission rates
+- [x] **Export:** PDF and CSV export for all report types
+- [x] **Scheduled Reports:** Auto-generate and email weekly/monthly summaries
 
 ### 2.7 Telemedicine
-- [ ] **Video Consultation:** WebRTC-based video calls with waiting room
-- [ ] **Screen Sharing:** Share lab results, imaging during consultation
-- [ ] **Telemedicine Consent:** Digital consent collection before session start
+- [x] **Video Consultation:** WebRTC-based video calls with waiting room
+- [x] **Screen Sharing:** Share lab results, imaging during consultation
+- [x] **Telemedicine Consent:** Digital consent collection before session start
 
 ---
 

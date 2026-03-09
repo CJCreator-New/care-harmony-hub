@@ -1,4 +1,3 @@
-// @ts-nocheck
 // CLI for code reviewer
 
 /**
