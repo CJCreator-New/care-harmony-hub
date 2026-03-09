@@ -85,17 +85,18 @@ export const captureError = (error: Error, context?: Record<string, unknown>) =>
     extra: context,
     tags: {
       error_type: 'application_error',
-      healthcare_context: context?.healthcareContext || 'general',
+      healthcare_context: String(context?.healthcareContext || 'general'),
     },
   });
 };
 
 export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'info', context?: Record<string, unknown>) => {
-  Sentry.captureMessage(message, level, {
+  Sentry.captureMessage(message, {
+    level,
     extra: context,
     tags: {
       message_type: 'application_message',
-      healthcare_context: context?.healthcareContext || 'general',
+      healthcare_context: String(context?.healthcareContext || 'general'),
     },
   });
 };
