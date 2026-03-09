@@ -138,10 +138,9 @@ export class AIDateSanitizer {
     const encoder = new TextEncoder();
     const data = encoder.encode(`${originalId}-${context.sessionId}-${Date.now()}`);
 
-    return crypto.subtle.digest('SHA-256', data).then(hash => {
-      const hashArray = Array.from(new Uint8Array(hash));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-    });
+    // Use synchronous fallback for de-identified ID generation
+    const hashArray = Array.from(data);
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
   }
 
   /**
