@@ -49,7 +49,7 @@ class PerformanceMonitor {
         const lcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
           const lastEntry = entries[entries.length - 1];
-          this.coreWebVitals.lcp = lastEntry.renderTime || lastEntry.loadTime;
+          this.coreWebVitals.lcp = (lastEntry as any).renderTime || (lastEntry as any).loadTime;
         });
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
       } catch (e) {
