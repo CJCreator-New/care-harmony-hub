@@ -1,4 +1,4 @@
-// Augment ImportMeta and SupabaseClientOptions so the auto-generated client.ts compiles cleanly.
+// Augment ImportMeta so the auto-generated client.ts compiles cleanly.
 
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string;
@@ -9,11 +9,4 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
-}
-
-// Allow the `fetch` property on createClient options
-declare module '@supabase/supabase-js' {
-  interface SupabaseClientOptions<SchemaName> {
-    fetch?: typeof fetch;
-  }
 }
