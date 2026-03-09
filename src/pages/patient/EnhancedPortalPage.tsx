@@ -778,7 +778,7 @@ export function EnhancedPortalPage() {
           <div className="grid gap-6">
             <AllergyRecords allergies={allergyRecords as any} />
             <ImmunizationRecords immunizations={immunizationRecords as any} />
-            <MedicationHistory patientId={patientRecordId || ''} />
+            <MedicationHistory medications={[]} />
           </div>
         </TabsContent>
 
