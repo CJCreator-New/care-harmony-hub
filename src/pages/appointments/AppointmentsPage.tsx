@@ -114,7 +114,7 @@ export default function AppointmentsPage() {
   });
 
   // Cast to proper type
-  const appointments = (rawAppointments || []) as Appointment[];
+  const appointments = (rawAppointments || []) as unknown as Appointment[];
 
   const checkIn = useCheckInAppointment();
   const updateAppointment = useUpdateAppointment();
