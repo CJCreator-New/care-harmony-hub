@@ -178,10 +178,9 @@ export function useSpeechRecognition(
       setError(errorMessage);
 
       captureClinicalError(err as Error, {
-        context: 'speech_recognition_stop',
         hospitalId: hospital?.id,
         provider: currentProvider,
-      });
+      } as any);
 
       throw err;
     }

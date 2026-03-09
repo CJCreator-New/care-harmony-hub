@@ -76,8 +76,8 @@ export function useSymptomAnalysis() {
         body: {
           symptoms,
           patient_id: profile.id,
-          patient_age: calculateAge(profile.date_of_birth),
-          patient_gender: profile.gender,
+          patient_age: calculateAge((profile as any).date_of_birth),
+          patient_gender: (profile as any).gender,
         }
       });
 

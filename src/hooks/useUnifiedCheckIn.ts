@@ -52,7 +52,7 @@ export function useUnifiedCheckIn() {
     await triggerWorkflow({
       type: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN,
       patientId: patient.id,
-      priority,
+      priority: priority as any,
       data: {
         patientName: `${patient.first_name} ${patient.last_name}`,
         queueNumber: queueEntry.queue_number,

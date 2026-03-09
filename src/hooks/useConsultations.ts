@@ -330,7 +330,7 @@ export function useGetOrCreateConsultation() {
           .eq('patient_id', patientId)
           .in('status', ['waiting', 'called']);
 
-        return consultation as Consultation;
+        return consultation as unknown as Consultation;
       });
     },
     onSuccess: () => {

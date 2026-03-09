@@ -88,7 +88,7 @@ export function useMobileWorkflow() {
 
       return configs[primaryRole ?? roles[0] ?? 'doctor'] || configs.doctor;
     },
-    enabled: !!profile?.role
+    enabled: !!(profile as any)?.role
   });
 
   // Sync offline data
