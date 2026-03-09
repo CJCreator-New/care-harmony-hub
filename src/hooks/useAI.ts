@@ -127,11 +127,10 @@ export function useAI({ purpose, dataRetentionDays = 90 }: UseAIProps): UseAIRes
       setError(errorMessage);
 
       captureClinicalError(err as Error, {
-        context: 'ai_hook_operation',
         operation: type,
         hospitalId: hospital?.id,
         userId: profile?.id,
-      });
+      } as any);
 
       throw err;
     } finally {
