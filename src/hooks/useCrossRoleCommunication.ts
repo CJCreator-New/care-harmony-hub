@@ -239,7 +239,7 @@ export function useCrossRoleCommunication() {
       const messages = recipientRoles.map(role => ({
         ...message,
         sender_id: profile.id,
-        sender_role: primaryRole ?? profile?.role,
+        sender_role: primaryRole ?? (profile as any)?.role,
         sender_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
         recipient_role: role,
         hospital_id: hospital.id,
