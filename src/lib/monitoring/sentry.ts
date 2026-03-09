@@ -151,19 +151,22 @@ export const startPerformanceTransaction = (name: string, op: string) => {
 };
 
 // AI operation tracking
-export const trackAIOperation = (operation: string, metrics: {
+export const trackAIOperation = (operation: string | Record<string, any>, metrics?: {
   duration: number;
   tokensUsed?: number;
   cost?: number;
   success: boolean;
   provider: string;
 }) => {
-  Sentry.captureMessage(`AI Operation: ${operation}`, 'info', {
-    extra: metrics,
+  const opName = typeof operation === 'string' ? operation : (operation as any).operation || 'unknown';
+  const m = typeof operation === 'string' ? metrics! : operation as any;
+  Sentry.captureMessage(`AI Operation: ${opName}`, {
+    level: 'info',
+    extra: m,
     tags: {
       operation_type: 'ai_operation',
-      ai_provider: metrics.provider,
-      success: metrics.success,
+      ai_provider: m?.provider || 'unknown',
+      success: String(m?.success ?? true),
       healthcare_context: 'ai_integration',
     },
   });
