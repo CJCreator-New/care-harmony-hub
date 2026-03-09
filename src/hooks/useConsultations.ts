@@ -212,7 +212,7 @@ export function useCreateConsultation() {
           .neq('status', 'completed')
           .maybeSingle();
 
-        if (existing) return existing as Consultation;
+        if (existing) return existing as unknown as Consultation;
 
         const { data: consultation, error } = await supabase
           .from('consultations')
