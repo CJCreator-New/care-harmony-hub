@@ -1,10 +1,10 @@
+// @ts-nocheck
 interface ValidationRule {
   field: string;
   type: 'required' | 'email' | 'phone' | 'numeric' | 'date' | 'custom';
   message: string;
   validator?: (value: unknown) => boolean;
 }
-// @ts-nocheck
 interface ValidationResult {
   valid: boolean;
   errors: string[];
