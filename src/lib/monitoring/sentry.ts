@@ -180,7 +180,8 @@ export const trackDatabaseOperation = (operation: string, metrics: {
   success: boolean;
 }) => {
   if (metrics.duration > 1000) { // Log slow queries > 1 second
-    Sentry.captureMessage(`Slow Database Operation: ${operation}`, 'warning', {
+    Sentry.captureMessage(`Slow Database Operation: ${operation}`, {
+      level: 'warning',
       extra: metrics,
       tags: {
         operation_type: 'database_operation',
