@@ -411,7 +411,7 @@ class ReportingEngine {
     });
 
     if (error) return null;
-    return data?.[0] as ReportTemplate;
+    return (data as any)?.[0] as ReportTemplate ?? null;
   }
 
   async scheduleReport(
