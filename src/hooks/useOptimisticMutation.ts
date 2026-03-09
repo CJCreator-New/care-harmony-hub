@@ -115,7 +115,7 @@ export function useOptimisticMutation<TData = unknown, TError = Error, TVariable
 
       // Call custom onError if provided
       if (customOnError) {
-        customOnError(error, variables, context, queryClient);
+        customOnError(error as any, variables, context, queryClient);
       }
     },
 

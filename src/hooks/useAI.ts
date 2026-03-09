@@ -318,19 +318,12 @@ export function useAIDataFlow(sessionId?: string) {
     queryFn: async () => {
       if (!hospital?.id) return [];
 
-      const query = import('@/integrations/supabase/client').then(({ supabase }) =>
-        supabase
-          .from('ai_data_flow')
+      const { data, error } = await supabase
+          .from('activity_logs')
           .select('*')
           .eq('hospital_id', hospital.id)
-          .order('stage_timestamp', { ascending: true })
-      );
+          .order('created_at', { ascending: true });
 
-      if (sessionId) {
-        query.then(q => q.eq('session_id', sessionId));
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },

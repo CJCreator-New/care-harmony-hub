@@ -41,7 +41,7 @@ export function useMedications() {
         .order('name');
 
       if (error) throw error;
-      return data as Medication[];
+      return data as unknown as Medication[];
     },
     enabled: !!hospital?.id,
   });

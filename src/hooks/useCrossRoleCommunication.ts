@@ -89,7 +89,7 @@ export function useCrossRoleCommunication() {
       const { count, error } = await supabase
         .from('communication_messages')
         .select('*', { count: 'exact', head: true })
-        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? profile?.role}`)
+        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? (profile as any)?.role}`)
         .eq('read', false)
         .eq('hospital_id', hospital?.id);
 

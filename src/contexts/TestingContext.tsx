@@ -719,7 +719,7 @@ if __name__ == "__main__":
     print("All pharmacy workflow tests completed!")`,
               language: 'python',
               tags: ['pharmacy', 'prescription', 'dispensing', 'inventory', 'workflow'],
-              createdAt: new Date().toISOString(),
+              createdAt: new Date().toISOString() as any,
               updatedAt: new Date().toISOString(),
               automationEnabled: true,
               lastRun: null,

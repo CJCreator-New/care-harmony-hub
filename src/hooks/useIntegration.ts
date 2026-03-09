@@ -120,13 +120,13 @@ export const useTaskAssignments = (hospitalId: string, userId: string) => {
           patient_id: taskData.patient_id || null,
           title: taskData.title,
           description: taskData.description || null,
-          assigned_role: taskData.assigned_role || null,
+          assigned_role: (taskData as any).assigned_role || null,
           assigned_to: taskData.assigned_to || null,
           created_by: userId,
           priority: taskData.priority || 'normal',
           status: 'pending',
           due_date: taskData.due_date || null,
-          workflow_type: taskData.task_type || 'general',
+          workflow_type: (taskData as any).task_type || 'general',
         });
       if (error) throw error;
       await fetchTasks();

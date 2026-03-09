@@ -158,7 +158,7 @@ export function useConsultations() {
 
         if (error) throw error;
         devLog('Consultations fetched:', data?.length ?? 0);
-        return (data || []) as Consultation[];
+        return (data || []) as unknown as Consultation[];
       });
     },
     enabled: !!hospital?.id,

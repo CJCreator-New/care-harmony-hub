@@ -74,7 +74,7 @@ export function usePatientsReadyForDoctor() {
         .order('completed_at', { ascending: true });
 
       if (error) throw error;
-      return (checklists || []) as PatientReadyForDoctor[];
+      return (checklists || []) as unknown as PatientReadyForDoctor[];
     },
     enabled: !!hospital?.id,
     refetchInterval: 15000, // Refresh every 15 seconds

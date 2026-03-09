@@ -124,11 +124,11 @@ export function useAutomatedCareCoordination() {
         hospital_id: profile?.hospital_id,
         action_type: 'automated_followup_scheduled',
         entity_type: 'appointment',
-        entity_id: data[0]?.id,
+        entity_id: (data as any)?.[0]?.id,
         details: { follow_up_type: followUpType, days_from_now: daysFromNow }
       });
 
-      return data[0];
+      return (data as any)?.[0];
     }
   });
 
