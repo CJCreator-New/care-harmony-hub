@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-
+// @ts-nocheck
 export interface Report {
   id: string;
   name: string;

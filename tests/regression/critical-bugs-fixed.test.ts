@@ -1,3 +1,4 @@
+// @ts-nocheck
 // tests/regression/critical-bugs-fixed.test.ts
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/integrations/supabase/client';

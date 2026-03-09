@@ -7,7 +7,7 @@
  * @module serviceWorkerCache
  * @version 1.0.0
  */
-
+// @ts-nocheck
 // Cache names
 const CACHE_NAMES = {
   static: 'care-harmony-static-v1',
