@@ -110,8 +110,8 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
 
     if (status.isLimited) {
       const error = new Error('Rate limit exceeded');
-      (error as Record<string, unknown>).status = 429;
-      (error as Record<string, unknown>).retryAfter = Math.ceil((status.resetTime - Date.now()) / 1000);
+      (error as unknown as Record<string, unknown>).status = 429;
+      (error as unknown as Record<string, unknown>).retryAfter = Math.ceil((status.resetTime - Date.now()) / 1000);
       throw error;
     }
 

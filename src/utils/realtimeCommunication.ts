@@ -154,7 +154,7 @@ class RealtimeCommunication {
       return null;
     }
 
-    return data?.[0] as Message;
+    return (data as any)?.[0] as Message ?? null;
   }
 
   async getConversation(userId1: string, userId2: string, limit: number = 50): Promise<Message[]> {

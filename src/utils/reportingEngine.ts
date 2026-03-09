@@ -430,7 +430,7 @@ class ReportingEngine {
     });
 
     if (error) return null;
-    return data?.[0] as ScheduledReport;
+    return (data as any)?.[0] as ScheduledReport ?? null;
   }
 
   private calculateNextRun(frequency: string): string {
