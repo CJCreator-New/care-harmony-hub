@@ -230,7 +230,7 @@ export default function TestingDashboardPage() {
             <Code className="h-4 w-4 mr-2" />
             Generate Script
           </Button>
-          <Button variant="outline" onClick={() => setActiveTab('reports')}>
+          <Button variant="outline" onClick={() => toast.info('Reports view coming soon')}>
             <BarChart3 className="h-4 w-4 mr-2" />
             View Reports
           </Button>

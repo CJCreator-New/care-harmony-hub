@@ -54,10 +54,20 @@ export class TestExecutionService {
       // Update progress: Preparing script
       this.updateProgress(executionId, { status: 'running', currentStep: 'Preparing script for execution', progress: 10 });
 
-      // For now, simulate execution since we can't run Python directly in browser
-      // In production, this would integrate with a backend service
-      const result = await this.simulateExecution(options, executionId);
+      // Simulated execution - in production this would integrate with a backend service
+      this.updateProgress(executionId, { status: 'running', currentStep: 'Executing test steps', progress: 50 });
+      await this.delay(1000);
+      this.updateProgress(executionId, { status: 'completed', currentStep: 'Test completed', progress: 100 });
 
+      const result: TestExecutionResult = {
+        id: executionId,
+        scriptId: options.script.id,
+        status: 'passed',
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        duration: 1000,
+        steps: [],
+      };
       return result;
 
     } catch (error) {

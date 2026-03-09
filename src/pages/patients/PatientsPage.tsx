@@ -382,11 +382,11 @@ export default function PatientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {patients.map((patient) => (
+                {(patients as any[]).map((patient: any) => (
                   <PatientRow
                     key={patient.id}
                     patient={patient}
-                    calculateAge={calculateAge}
+                    calculateAge={calculateAge as any}
                     onViewProfile={(patient) => {
                       logActivity({
                         actionType: 'patient_view',

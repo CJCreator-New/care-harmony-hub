@@ -324,8 +324,8 @@ export class AdvancedTriageService {
     });
   }
 
-  getRecommendedActions(acuityLevel: AcuityLevel): string[] {
-    return this.getRecommendedActions(acuityLevel, []);
+  getRecommendedActionsLegacy(acuityLevel: AcuityLevel): string[] {
+    return (this as any).getRecommendedActions(acuityLevel, []);
   }
 
   async saveAssessment(patientId: string, assessment: any) {

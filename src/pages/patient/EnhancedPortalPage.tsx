@@ -882,7 +882,7 @@ export function EnhancedPortalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateGoalProgress(goal.id, goal.target_value)}
+                            onClick={() => updateGoalProgress({ goalId: goal.id, currentValue: goal.target_value })}
                           >
                             Mark Complete
                           </Button>

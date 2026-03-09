@@ -1,4 +1,4 @@
-export { UserRole } from './rbac';
+export type { UserRole } from './rbac';
 
 export interface User {
   id: string;
