@@ -147,7 +147,7 @@ export function useCrossRoleCommunication() {
       const messageData = {
         ...message,
         sender_id: profile.id,
-        sender_role: primaryRole ?? profile?.role,
+        sender_role: primaryRole ?? (profile as any)?.role,
         sender_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
         hospital_id: hospital.id,
         read: false,
