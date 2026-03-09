@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { aiOrchestrator } from '@/lib/ai/orchestrator';
 import {
-  AIRequest,
-  AIResponse,
   AISecurityContext,
   SanitizedPatientData
 } from '@/lib/ai/security';
+
+type AIRequest = { type: string; patientData: SanitizedPatientData; context: string; options?: any };
+type AIResponse = any;
 import { captureClinicalError } from '@/lib/monitoring/sentry';
 
 export interface UseAIProps {
