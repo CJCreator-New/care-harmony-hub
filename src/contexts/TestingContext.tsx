@@ -347,7 +347,7 @@ export function TestingProvider({ children }: TestingProviderProps) {
               id: 'auth-workflow-tests',
               name: 'User Registration & Authentication Tests',
               category: 'Security & Compliance',
-              description: 'Complete test suite for user registration, login, password reset, and role-based access control',
+              description: 'Complete test suite for user registration, login, password reset, and role-based access control' as any,
               code: `from playwright.sync_api import sync_playwright, expect
 import pytest
 import time
