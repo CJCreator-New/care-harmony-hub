@@ -1,5 +1,5 @@
 // Advanced AI Diagnostics Service for Doctors
-import { DoctorUser } from '../types/doctor';
+import type { DoctorUser } from '../types/doctor';
 import { logAudit } from './auditLogQueue';
 
 export interface ComplexCase {

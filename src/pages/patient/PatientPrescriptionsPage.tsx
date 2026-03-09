@@ -60,7 +60,7 @@ export default function PatientPrescriptionsPage() {
                     <div key={request.id} className="flex items-center justify-between p-3 bg-background rounded-lg">
                       <div>
                         <p className="font-medium">
-                          {request.prescription?.items?.map((i) => i.medication_name).join(', ')}
+                          {(request as any).prescription?.items?.map((i: any) => i.medication_name).join(', ')}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Requested {format(parseISO(request.requested_at), 'MMM d, yyyy')}

@@ -374,7 +374,7 @@ export function LabAutomationPage() {
                         <div>
                           <p className="text-sm font-medium">{qc.test_type} - Lot {qc.control_lot}</p>
                           <p className="text-xs text-muted-foreground">
-                            {qc.technician?.first_name} {qc.technician?.last_name} • {new Date(qc.performed_at).toLocaleDateString()}
+                            {(qc as any).technician?.first_name} {(qc as any).technician?.last_name} • {new Date(qc.performed_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
