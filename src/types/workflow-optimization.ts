@@ -242,9 +242,9 @@ export interface PerformanceBenchmark {
         ai_performance_metrics: {
           Row: AIPerformanceMetric;
           Insert: Omit<AIPerformanceMetric, 'id' | 'created_at'>;
-          Update: Partial<Omit<AIPerformanceMetric, 'id' | 'created_at'>>;
-        };
-      };
-    };
-  }
-}
+//         Update: Partial<Omit<AIPerformanceMetric, 'id' | 'created_at'>>;
+//       };
+//     };
+//   };
+// }
+// }
