@@ -36,9 +36,9 @@ async function loadJSPDF(): Promise<typeof jsPDF> {
  * Dynamically imports html2canvas only when needed
  * Reduces initial bundle by ~800KB
  */
-async function loadHtml2Canvas(): Promise<typeof html2canvas> {
+async function loadHtml2Canvas(): Promise<any> {
   const html2canvas = await import('html2canvas');
-  return html2canvas.default;
+  return html2canvas.default || html2canvas;
 }
 
 /**

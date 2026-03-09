@@ -131,9 +131,9 @@ export class FieldEncryptionService {
 
       const encodedValue = new TextEncoder().encode(value);
       const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
+        { name: 'AES-GCM', iv: iv as any },
         key,
-        encodedValue
+        encodedValue as any
       );
 
       return {

@@ -54,7 +54,7 @@ export function withLazyLoading<P extends object>(
   return function LazyLoadedComponent(props: P) {
     return React.createElement(Suspense, {
       fallback: fallback || React.createElement(ChartLoadingFallback)
-    }, React.createElement(Component, props));
+    }, React.createElement(Component as any, props));
   };
 }
 

@@ -119,7 +119,7 @@ class PerformanceMonitor {
               unit: 'ms',
               timestamp: Date.now(),
               context: {
-                type: entry.initiatorType,
+                type: (entry as any).initiatorType,
                 size: (entry as any).transferSize,
               },
             });
