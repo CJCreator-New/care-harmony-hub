@@ -875,7 +875,7 @@ export function EnhancedPortalPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateGoalProgress(goal.id, goal.current_value + 1)}
+                            onClick={() => updateGoalProgress({ goalId: goal.id, currentValue: goal.current_value + 1 })}
                           >
                             +1 Progress
                           </Button>
