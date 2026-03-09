@@ -307,7 +307,7 @@ export class AdvancedTriageService {
   // Legacy methods for backward compatibility
   calculateAcuity(vitals: any, symptoms: string[]): AcuityLevel {
     const result = this.analyzeSymptoms(symptoms.map(s => s), vitals);
-    return result.acuityLevel;
+    return (result as any).acuityLevel;
   }
 
   predictWaitTime(queueData: any): number {
