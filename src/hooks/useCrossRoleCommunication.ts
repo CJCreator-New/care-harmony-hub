@@ -69,7 +69,7 @@ export function useCrossRoleCommunication() {
           sender:sender_id(name, role),
           recipient:recipient_id(name, role)
         `)
-        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? profile?.role}`)
+        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? (profile as any)?.role}`)
         .eq('hospital_id', hospital?.id)
         .order('created_at', { ascending: false })
         .limit(100);
