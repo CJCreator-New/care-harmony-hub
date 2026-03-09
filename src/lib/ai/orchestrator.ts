@@ -174,8 +174,8 @@ export class AIServiceOrchestrator {
   /**
    * Selects the appropriate AI provider based on request and availability
    */
-  private selectProvider(requestedProvider?: AIProvider): AIProvider {
-    if (requestedProvider && this.activeProviders.has(requestedProvider.name)) {
+  private selectProvider(requestedProvider?: any): AIProvider {
+    if (requestedProvider && typeof requestedProvider === 'object' && this.activeProviders.has(requestedProvider.name)) {
       return requestedProvider;
     }
 
