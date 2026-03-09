@@ -188,7 +188,7 @@ export function WorkflowRulesEngine() {
                 </div>
                 <div>
                   <Label>Trigger Event</Label>
-                  <Select value={newRule.trigger_event} onValueChange={(v) => setNewRule({ ...newRule, trigger_event: v })}>
+                  <Select value={newRule.trigger_event} onValueChange={(v: any) => setNewRule({ ...newRule, trigger_event: v })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

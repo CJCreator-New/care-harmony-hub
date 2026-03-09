@@ -609,7 +609,7 @@ export function VideoCallModal({
             {/* Side Panel - Chat or Notes */}
             {isConnected && (showChat || showNotes) && (
               <div className="w-96 bg-background rounded-lg border">
-                {showChat && <TelemedicineChat patientId={patient?.id || ''} />}
+                {showChat && <TelemedicineChat patientName={`${patient?.first_name || ''} ${patient?.last_name || ''}`} />}
                 {showNotes && <SessionNotes appointmentId={appointmentId} patientId={patient?.id || ''} />}
               </div>
             )}

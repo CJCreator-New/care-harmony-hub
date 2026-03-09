@@ -417,7 +417,7 @@ if __name__ == "__main__":
     print("All user registration and authentication tests completed!")`,
               language: 'python',
               tags: ['authentication', 'registration', 'login', 'rbac', 'security'],
-              createdAt: new Date().toISOString(),
+              createdAt: new Date().toISOString() as any,
               updatedAt: new Date().toISOString(),
               automationEnabled: true,
               lastRun: null,

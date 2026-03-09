@@ -78,7 +78,7 @@ export function useAI({ purpose, dataRetentionDays = 90 }: UseAIProps): UseAIRes
       userId: profile.id,
       sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date(),
-      purpose,
+      purpose: purpose as any,
       dataRetentionDays,
     };
   }, [hospital?.id, profile?.id, purpose, dataRetentionDays]);

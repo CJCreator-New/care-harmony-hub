@@ -66,7 +66,7 @@ export function ReceptionistMessaging({ compact = false }: ReceptionistMessaging
         .limit(50);
 
       if (error) throw error;
-      setMessages(data || []);
+      setMessages((data || []).map((d: any) => ({ ...d, sender: Array.isArray(d.sender) ? d.sender[0] : d.sender })));
     } catch (error) {
       console.error('Error loading messages:', error);
     }

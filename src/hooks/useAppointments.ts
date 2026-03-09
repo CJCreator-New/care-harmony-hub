@@ -82,7 +82,7 @@ export function useAppointments(date?: string) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as Appointment[];
+      return data as unknown as Appointment[];
     },
     enabled: !!hospital?.id,
   });

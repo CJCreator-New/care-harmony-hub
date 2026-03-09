@@ -135,8 +135,9 @@ export function useAutomatedCareCoordination() {
   const identifyAndCloseCareGaps = useMutation({
     mutationFn: async ({ patientId }: { patientId: string }) => {
       // AI analysis to identify care gaps
-      const identifiedGaps: CareGap[] = [
+      const identifiedGaps: any[] = [
         {
+          id: crypto.randomUUID(),
           patient_id: patientId,
           gap_type: 'preventive_care',
           description: 'Annual mammogram overdue by 3 months',

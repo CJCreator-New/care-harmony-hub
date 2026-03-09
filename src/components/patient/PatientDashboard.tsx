@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   HoverCard,
-  MetricCard,
   PulseBadge,
   StaggeredList,
 } from "@/components/ui/micro-interactions"

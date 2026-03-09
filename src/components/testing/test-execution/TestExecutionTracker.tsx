@@ -221,7 +221,7 @@ export default function TestExecutionTracker({ onExecutionComplete }: TestExecut
                     Import Results
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl" ref={focusTrapRef}>
+                <DialogContent className="max-w-2xl" ref={focusTrapRef as any}>
                   <DialogHeader>
                     <DialogTitle>Import Test Results</DialogTitle>
                   </DialogHeader>
