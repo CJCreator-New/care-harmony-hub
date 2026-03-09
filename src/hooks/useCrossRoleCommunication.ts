@@ -283,7 +283,7 @@ export function useCrossRoleCommunication() {
           // Check if message is for current user
           const message = payload.new as CommunicationMessage;
           const isForMe = message.recipient_id === profile.id ||
-                         message.recipient_role === (primaryRole ?? profile?.role);
+                         message.recipient_role === (primaryRole ?? (profile as any)?.role);
 
           if (isForMe) {
             queryClient.invalidateQueries({ queryKey: ['communication-messages'] });
