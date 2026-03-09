@@ -56,6 +56,7 @@ type Appointment = {
   appointment_type: string;
   reason_for_visit?: string;
   notes?: string;
+  queue_number?: number;
   patient?: { id: string; first_name: string; last_name: string; mrn: string; phone?: string };
   doctor?: { id: string; first_name: string; last_name: string };
 };
