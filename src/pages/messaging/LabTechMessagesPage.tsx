@@ -38,9 +38,17 @@ export default function LabTechMessagesPage() {
 
   const { data: allMessages } = useMessages();
   const { data: conversationMessages } = useConversation(selectedContact?.id || '');
-  const { data: contacts } = useMessageContacts();
+  const { data: rawContacts } = useMessageContacts();
   const sendMessage = useSendMessage();
   const markAsRead = useMarkAsRead();
+
+  // Transform contacts to include derived name/role properties
+  const contacts = (rawContacts || []).map((c: any) => ({
+    ...c,
+    name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || 'Unknown',
+    role: c.role || 'staff',
+    unreadCount: 0,
+  }));
 
   useMessagesRealtime();
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
