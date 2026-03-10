@@ -86,7 +86,7 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
               </div>
               <p className="text-xs text-muted-foreground">
                 Peer average: {m.peerAverage}{m.unit}
-                <span className={`ml-1 ${m.value > m.peerAverage ? 'text-green-500' : 'text-muted-foreground'}`}>
+                <span className={`ml-1 ${m.value > m.peerAverage ? 'text-green-700' : 'text-muted-foreground'}`}>
                   ({Math.round(((m.value - m.peerAverage) / m.peerAverage) * 100)}%)
                 </span>
               </p>

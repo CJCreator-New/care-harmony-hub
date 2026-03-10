@@ -1,13 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimit } from "../_shared/rateLimit.ts";
+import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
 import { validateAIClinicalRequest } from "../_shared/validation.ts";
 import { authorize } from "../_shared/authorize.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 interface ClinicalData {
   symptoms: string[];
@@ -27,6 +23,7 @@ interface DiagnosisRecommendation {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -40,9 +37,17 @@ const handler = async (req: Request): Promise<Response> => {
   if (authResponse) return authResponse;
 
   try {
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Resolve caller's hospital_id from their profile
+    const token = req.headers.get("Authorization")!.replace("Bearer ", "");
+    const { data: { user } } = await supabase.auth.getUser(token);
+    const { data: callerProfile } = user
+      ? await supabase.from("profiles").select("hospital_id").eq("user_id", user.id).maybeSingle()
+      : { data: null };
+    const callerHospitalId: string | null = callerProfile?.hospital_id ?? null;
 
     const body = await req.json();
     
@@ -59,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     switch (action) {
       case 'analyze_symptoms':
-        return await analyzeSymptoms(supabase, data);
+        return await analyzeSymptoms(supabase, data, callerHospitalId);
       case 'drug_interaction_check':
         return await checkDrugInteractions(supabase, data);
       case 'risk_assessment':
@@ -71,13 +76,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
 
-async function analyzeSymptoms(supabase: any, { clinical_data }: { clinical_data: ClinicalData }) {
+async function analyzeSymptoms(supabase: any, { clinical_data }: { clinical_data: ClinicalData }, hospitalId: string | null) {
   // AI-powered symptom analysis (simplified rule-based system)
   const recommendations: DiagnosisRecommendation[] = [];
 
@@ -124,6 +129,7 @@ async function analyzeSymptoms(supabase: any, { clinical_data }: { clinical_data
   const analysisId = crypto.randomUUID();
   await supabase.from('ai_clinical_analyses').insert({
     id: analysisId,
+    hospital_id: hospitalId,
     clinical_data,
     recommendations,
     analysis_type: 'symptom_analysis',
@@ -304,4 +310,4 @@ function generateRiskRecommendations(riskFactors: any): string[] {
   return recommendations;
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler, { limit: 10, windowMs: 60000 }));

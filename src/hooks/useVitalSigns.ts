@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { sanitizeLogMessage } from '@/utils/sanitize';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
 export interface VitalSigns {
   id: string;
@@ -95,6 +96,7 @@ export function useTodayVitalsCount() {
 export function useRecordVitals() {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async (vitals: {
@@ -135,6 +137,13 @@ export function useRecordVitals() {
       queryClient.invalidateQueries({ queryKey: ['vital-signs', variables.patient_id] });
       queryClient.invalidateQueries({ queryKey: ['vital-signs', 'today-count'] });
       toast.success('Vitals recorded successfully');
+      void triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.VITALS_RECORDED,
+        sourceRole: 'nurse',
+        patientId: variables.patient_id,
+        data: { consultationId: variables.consultation_id ?? null },
+        priority: 'normal',
+      });
     },
     onError: (error) => {
       console.error('Error recording vitals:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));

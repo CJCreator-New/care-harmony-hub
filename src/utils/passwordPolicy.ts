@@ -176,7 +176,7 @@ class PasswordPolicyManager {
     const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
     // Ensure at least one of each required character type
-    const randomBytes = new Uint32Array(length);
+    const randomBytes = new Uint32Array(length + 4);
     crypto.getRandomValues(randomBytes);
 
     let password = '';

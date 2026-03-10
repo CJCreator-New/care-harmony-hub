@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
 export interface Prescription {
   id: string;
@@ -118,6 +119,7 @@ export function usePrescriptionStats() {
 export function useCreatePrescription() {
   const queryClient = useQueryClient();
   const { hospital, profile } = useAuth();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async ({
@@ -191,10 +193,17 @@ export function useCreatePrescription() {
 
       return prescription;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
       queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
       toast.success('Prescription created successfully');
+      void triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
+        sourceRole: 'doctor',
+        patientId: variables.patientId,
+        data: { prescriptionId: data.id, consultationId: variables.consultationId ?? null },
+        priority: 'normal',
+      });
     },
     onError: (error: Error) => {
       toast.error(`Failed to create prescription: ${error.message}`);

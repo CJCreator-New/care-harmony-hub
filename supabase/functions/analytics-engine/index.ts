@@ -1,11 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimit } from "../_shared/rateLimit.ts";
+import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
+import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const analyticsSchema = z.object({
+  action: z.string().min(1),
+  params: z.any().optional(),
+});
 
 /** Resolve the hospital_id for the authenticated caller.
  *  Returns null if the caller has no profile or is not hospital-scoped. */
@@ -27,13 +31,17 @@ async function resolveHospitalId(
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'doctor', 'super_admin']);
+  if (authError) return authError;
+
   try {
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Resolve and enforce the caller's hospital scope before any query.
@@ -53,7 +61,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { action, params } = await req.json();
+    const validation = await validateRequest(req, analyticsSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    const { action, params } = validation.data;
 
     switch (action) {
       case 'get_kpis':
@@ -69,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
@@ -143,7 +158,7 @@ async function getKPIs(supabase: any, { period = '30d', hospitalId }: any) {
 
   return new Response(
     JSON.stringify({ kpis, period }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -179,7 +194,7 @@ async function getFinancialMetrics(supabase: any, { period = '30d', hospitalId }
       total_revenue: Object.values(revenue_by_service).reduce((a: any, b: any) => a + b, 0) + pharmacy_revenue,
       period
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -227,7 +242,7 @@ async function getOperationalMetrics(supabase: any, { period = '30d', hospitalId
       avg_wait_time_minutes: Math.round(avg_wait_time || 0),
       period
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -264,7 +279,7 @@ async function getClinicalMetrics(supabase: any, { period = '30d', hospitalId }:
       total_prescriptions: prescriptions?.length || 0,
       period
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -287,4 +302,4 @@ function calculateAverage(total: number, count: number): number {
   return count > 0 ? Math.round(total / count) : 0;
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

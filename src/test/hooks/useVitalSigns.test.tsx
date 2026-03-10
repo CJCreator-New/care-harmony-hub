@@ -10,8 +10,16 @@ import {
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+vi.mock('@/hooks/useWorkflowOrchestrator', () => ({
+  useWorkflowOrchestrator: () => ({ triggerWorkflow: vi.fn() }),
+  WORKFLOW_EVENT_TYPES: {},
+}));
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -21,6 +29,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockVitals = {
   id: 'vitals-1',
@@ -118,9 +130,7 @@ describe('useTodayVitalsCount', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns 0 when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ profile: { ...mockProfile, hospital_id: null } }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ profile: { ...mockProfile, hospital_id: null } }));
     const { result } = renderHook(() => useTodayVitalsCount(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });

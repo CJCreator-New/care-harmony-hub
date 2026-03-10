@@ -34,7 +34,7 @@
     --secondary-foreground: 222 47% 11%;
 
     --muted: 215 20% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 215 16% 44%; /* Darkened from 47% → 44% for WCAG AA 4.5:1 on white (now ~4.76:1) */
 
     --accent: 215 25% 93%;
     --accent-foreground: 222 47% 11%;

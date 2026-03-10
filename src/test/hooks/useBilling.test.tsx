@@ -11,8 +11,16 @@ import {
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+vi.mock('@/hooks/useWorkflowOrchestrator', () => ({
+  useWorkflowOrchestrator: () => ({ triggerWorkflow: vi.fn() }),
+  WORKFLOW_EVENT_TYPES: {},
+}));
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 vi.mock('@/utils/rateLimitBackoff', () => ({
   executeWithRateLimitBackoff: vi.fn().mockImplementation((fn) => fn()),
 }));
@@ -25,6 +33,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockInvoice = {
   id: 'inv-1',
@@ -45,20 +57,19 @@ describe('useInvoices', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns empty array when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ hospital: null }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
     const { result } = renderHook(() => useInvoices(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it('fetches invoices with optional status filter', async () => {
-    mockSupabaseClient.from.mockReturnValue({
-      ...mockSupabaseClient.from(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: [mockInvoice], error: null }),
-    });
+    const chain: any = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn()
+      .mockReturnValueOnce(chain)
+      .mockResolvedValueOnce({ data: [mockInvoice], error: null });
+    chain.order = vi.fn().mockReturnValue(chain);
+    mockSupabaseClient.from.mockReturnValue(chain);
 
     const { result } = renderHook(() => useInvoices('pending'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -121,18 +132,17 @@ describe('useCreateInvoice', () => {
     const invoiceInsertMock = vi.fn().mockReturnThis();
     const itemsInsertMock = vi.fn().mockResolvedValue({ error: null });
 
+    const invoiceChain: any = {
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: mockInvoice, error: null }),
+    };
+    invoiceChain.insert = invoiceInsertMock;
+    const itemsChain = { insert: itemsInsertMock };
+
     mockSupabaseClient.rpc.mockResolvedValueOnce({ data: 'INV-002', error: null });
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: invoiceInsertMock,
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: mockInvoice, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: itemsInsertMock,
-      });
+      .mockReturnValueOnce(invoiceChain)
+      .mockReturnValueOnce(itemsChain);
 
     const { result } = renderHook(() => useCreateInvoice(), { wrapper: createWrapper() });
 
@@ -160,30 +170,23 @@ describe('useRecordPayment', () => {
     const updateMock = vi.fn().mockReturnThis();
     const eqMock = vi.fn().mockResolvedValue({ error: null });
 
+    const paymentChain: any = {
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { id: 'pay-1', amount: 100 }, error: null }),
+    };
+    paymentChain.insert = vi.fn().mockReturnValue(paymentChain);
+    const invoiceSelectChain: any = {
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { total: 100, paid_amount: 0 }, error: null }),
+    };
+    invoiceSelectChain.select = vi.fn().mockReturnValue(invoiceSelectChain);
+    const invoiceUpdateChain: any = { eq: eqMock };
+    invoiceUpdateChain.update = updateMock;
+
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'pay-1', amount: 100 },
-          error: null,
-        }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: { total: 100, paid_amount: 0 },
-          error: null,
-        }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        update: updateMock,
-        eq: eqMock,
-      });
+      .mockReturnValueOnce(paymentChain)
+      .mockReturnValueOnce(invoiceSelectChain)
+      .mockReturnValueOnce(invoiceUpdateChain);
 
     const { result } = renderHook(() => useRecordPayment(), { wrapper: createWrapper() });
 
@@ -203,24 +206,23 @@ describe('useRecordPayment', () => {
   it('sets status to partial when partially paid', async () => {
     const updateMock = vi.fn().mockReturnThis();
 
+    const paymentChain: any = {
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { id: 'pay-1', amount: 50 }, error: null }),
+    };
+    paymentChain.insert = vi.fn().mockReturnValue(paymentChain);
+    const invoiceSelectChain: any = {
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { total: 100, paid_amount: 0 }, error: null }),
+    };
+    invoiceSelectChain.select = vi.fn().mockReturnValue(invoiceSelectChain);
+    const invoiceUpdateChain: any = { eq: vi.fn().mockResolvedValue({ error: null }) };
+    invoiceUpdateChain.update = updateMock;
+
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: { id: 'pay-1', amount: 50 }, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: { total: 100, paid_amount: 0 }, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        update: updateMock,
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      });
+      .mockReturnValueOnce(paymentChain)
+      .mockReturnValueOnce(invoiceSelectChain)
+      .mockReturnValueOnce(invoiceUpdateChain);
 
     const { result } = renderHook(() => useRecordPayment(), { wrapper: createWrapper() });
 

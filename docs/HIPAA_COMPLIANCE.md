@@ -5,6 +5,8 @@
 **Status**: Significant Progress - Critical Security Issues Resolved  
 **Last Updated**: After RLS Policy Fixes and PHI Encryption Implementation
 
+> CareSync is designed to protect patient privacy in accordance with HIPAA Privacy Rule requirements (45 CFR Part 164). This includes privacy notices, patient rights management, and minimum necessary access controls.
+
 ## 1. Administrative Safeguards
 
 ### Security Management Process

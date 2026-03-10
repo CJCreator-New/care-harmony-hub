@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const telemedicineSchema = z.object({
+  action: z.string().min(1),
+  data: z.any().optional(),
+});
 
 interface VideoSession {
   id: string;
@@ -19,16 +24,27 @@ interface VideoSession {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'super_admin']);
+  if (authError) return authError;
+
   try {
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, data } = await req.json();
+    const validation = await validateRequest(req, telemedicineSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    const { action, data } = validation.data;
 
     switch (action) {
       case 'create_session':
@@ -44,13 +60,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
 
-async function createVideoSession(supabase: any, { appointment_id, doctor_id, patient_id }: any) {
+async function createVideoSession(supabase: any, { appointment_id, doctor_id, patient_id, hospital_id }: any) {
   const sessionId = crypto.randomUUID();
   const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
@@ -70,7 +86,7 @@ async function createVideoSession(supabase: any, { appointment_id, doctor_id, pa
 
   const { error } = await supabase
     .from('telemedicine_sessions')
-    .insert(session);
+    .insert({ ...session, hospital_id: hospital_id ?? null });
 
   if (error) throw error;
 
@@ -91,7 +107,7 @@ async function createVideoSession(supabase: any, { appointment_id, doctor_id, pa
       patient_token: patientToken,
       join_url: `https://meet.caresync.com/room/${roomId}`,
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -140,7 +156,7 @@ async function joinVideoSession(supabase: any, { session_id, user_id, user_type 
       status: 'active',
       participant_token: generateSessionToken(user_id, user_type),
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -177,7 +193,7 @@ async function endVideoSession(supabase: any, { session_id, ended_by }: any) {
       status: 'ended',
       ended_at: endTime 
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -234,7 +250,7 @@ async function recordConsultationNotes(supabase: any, { session_id, consultation
       consultation_id: consultationId,
       prescriptions_created: prescriptions?.length || 0 
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -250,4 +266,4 @@ function generateSessionToken(userId: string, userType: string): string {
   return btoa(JSON.stringify(payload));
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

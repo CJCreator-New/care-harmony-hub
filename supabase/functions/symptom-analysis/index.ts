@@ -1,5 +1,27 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { authorize } from '../_shared/authorize.ts';
+import { withRateLimit } from '../_shared/rateLimit.ts';
+import { validateRequest } from '../_shared/validation.ts';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+
+const symptomItemSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  category: z.string(),
+  severity: z.enum(['mild', 'moderate', 'severe']),
+  duration: z.string(),
+  description: z.string().optional(),
+  associated_symptoms: z.array(z.string()).optional(),
+});
+
+const symptomAnalysisRequestSchema = z.object({
+  symptoms: z.array(symptomItemSchema).min(1),
+  patient_id: z.string().uuid(),
+  patient_age: z.number().int().positive().max(150).optional(),
+  patient_gender: z.string().optional(),
+});
 
 interface Symptom {
   id: string;
@@ -234,46 +256,43 @@ function generateRecommendations(symptoms: Symptom[], conditions: PossibleCondit
   return [...new Set(recommendations)]; // Remove duplicates
 }
 
-Deno.serve(async (req) => {
-  // Handle CORS
+const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'super_admin']);
+  if (authError) return authError;
+
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get the request body
-    const { symptoms, patient_id, patient_age, patient_gender }: SymptomAnalysisRequest = await req.json();
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabaseClient.auth.getUser(token);
+    const { data: profile } = user
+      ? await supabaseClient.from('profiles').select('hospital_id').eq('user_id', user.id).maybeSingle()
+      : { data: null };
 
-    // Validate input
-    if (!symptoms || !Array.isArray(symptoms) || symptoms.length === 0) {
+    // Validate and parse the request body
+    const validation = await validateRequest(req, symptomAnalysisRequestSchema);
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'Symptoms array is required and cannot be empty' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    if (!patient_id) {
-      return new Response(
-        JSON.stringify({ error: 'Patient ID is required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
+    const { symptoms, patient_id, patient_age, patient_gender } = validation.data;
 
     // Determine urgency level
     const urgency_level = determineUrgencyLevel(symptoms);
@@ -310,7 +329,7 @@ Deno.serve(async (req) => {
         disclaimer: analysis.disclaimer,
         ai_model_version: analysis.ai_model_version,
         confidence_score: analysis.confidence_score,
-        hospital_id: null // Will be set by RLS policy based on user context
+        hospital_id: profile?.hospital_id ?? null
       });
 
     if (insertError) {
@@ -336,4 +355,6 @@ Deno.serve(async (req) => {
       }
     );
   }
-});
+};
+
+serve((req) => withRateLimit(req, handler));

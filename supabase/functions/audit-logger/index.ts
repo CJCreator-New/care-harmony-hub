@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const auditSchema = z.object({
+  action: z.string().min(1),
+  events: z.any().optional(),
+});
 
 interface AuditEvent {
   user_id: string;
@@ -18,16 +23,27 @@ interface AuditEvent {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'accountant', 'super_admin']);
+  if (authError) return authError;
+
   try {
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, events } = await req.json();
+    const validation = await validateRequest(req, auditSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    const { action, events } = validation.data;
 
     switch (action) {
       case 'log_event':
@@ -41,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
@@ -54,8 +70,16 @@ async function logAuditEvent(supabase: any, event: AuditEvent, req: Request) {
   
   const userAgent = req.headers.get('user-agent') || 'unknown';
 
+  // Derive hospital_id server-side from the event user's profile (R9)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('hospital_id')
+    .eq('user_id', event.user_id)
+    .maybeSingle();
+
   const auditRecord = {
     ...event,
+    hospital_id: profile?.hospital_id ?? null,
     ip_address: clientIP,
     user_agent: userAgent,
     timestamp: new Date().toISOString(),
@@ -75,7 +99,7 @@ async function logAuditEvent(supabase: any, event: AuditEvent, req: Request) {
 
   return new Response(
     JSON.stringify({ success: true, logged: true }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -99,7 +123,7 @@ async function getAuditTrail(supabase: any, { resource_type, resource_id, limit 
 
   return new Response(
     JSON.stringify({ audit_trail: data }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -120,7 +144,7 @@ async function searchAuditLogs(supabase: any, { user_id, action, start_date, end
 
   return new Response(
     JSON.stringify({ logs: data, total: data.length }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -147,4 +171,4 @@ async function createSecurityAlert(supabase: any, auditRecord: any) {
   await supabase.from('security_alerts').insert(alert);
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

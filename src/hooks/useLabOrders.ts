@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
 export type LabOrder = Tables<'lab_orders'>;
 export type LabOrderInsert = TablesInsert<'lab_orders'>;
@@ -69,6 +70,7 @@ export function useLabOrderStats() {
 export function useUpdateLabOrder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: LabOrderUpdate }) => {
@@ -82,10 +84,19 @@ export function useUpdateLabOrder() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
       queryClient.invalidateQueries({ queryKey: ['lab-order-stats'] });
       toast({ title: 'Lab order updated' });
+      if (variables.updates.status === 'completed') {
+        void triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.LAB_RESULTS_READY,
+          sourceRole: 'lab_technician',
+          patientId: data?.patient_id ?? undefined,
+          data: { labOrderId: data?.id ?? null },
+          priority: 'high',
+        });
+      }
     },
     onError: (error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -97,6 +108,7 @@ export function useCreateLabOrder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { hospital, user } = useAuth();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async (order: LabOrderInsert) => {
@@ -130,6 +142,13 @@ export function useCreateLabOrder() {
       queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
       queryClient.invalidateQueries({ queryKey: ['lab-order-stats'] });
       toast({ title: 'Lab order created' });
+      void triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
+        sourceRole: 'doctor',
+        patientId: data?.patient_id ?? undefined,
+        data: { labOrderId: data?.id ?? null },
+        priority: 'normal',
+      });
       // T-90: Critical-handoff telemetry — lab_order_dispatch_success (no PHI)
       void supabase.from('activity_logs').insert({
         user_id: user?.id ?? null,

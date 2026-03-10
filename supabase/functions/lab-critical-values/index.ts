@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 // Critical value thresholds for common lab tests
 const CRITICAL_VALUES: Record<string, { low?: number; high?: number; unit: string }> = {
@@ -86,9 +85,13 @@ interface LabOrderWithDetails {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician', 'super_admin']);
+  if (authError) return authError;
 
   try {
     console.log("Starting critical value check...");
@@ -102,7 +105,16 @@ const handler = async (req: Request): Promise<Response> => {
     let labOrderId: string | null = null;
     try {
       const body = await req.json();
-      labOrderId = body.labOrderId;
+      if (body?.labOrderId !== undefined) {
+        const parsed = z.string().uuid().safeParse(body.labOrderId);
+        if (!parsed.success) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid labOrderId: must be a valid UUID' }),
+            { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        }
+        labOrderId = parsed.data;
+      }
     } catch {
       // No body provided, check all recent completed orders
     }
@@ -259,14 +271,13 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error("Error in lab-critical-values function:", errorMessage);
+    console.error("Error in lab-critical-values function:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));
 

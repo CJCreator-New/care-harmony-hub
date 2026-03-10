@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from '../_shared/cors.ts'
+import { authorize } from '../_shared/authorize.ts'
+import { withRateLimit } from '../_shared/rateLimit.ts'
+import { validateRequest } from '../_shared/validation.ts'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const workflowSchema = z.object({
+  action: z.string().min(1),
+  data: z.any().optional(),
+});
 
 interface WorkflowTask {
   id: string
@@ -27,23 +32,29 @@ interface WorkflowRule {
   last_triggered: string
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
+
+  const authErr = await authorize(req, ['admin', 'doctor', 'nurse', 'super_admin'])
+  if (authErr) return authErr
 
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { action, data } = await req.json()
+    const validation = await validateRequest(req, workflowSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { action, data } = validation.data;
 
     switch (action) {
       case 'process_workflow_rules':
@@ -64,12 +75,14 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Workflow automation error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
     })
   }
-})
+}
+
+serve((req) => withRateLimit(req, handler));
 
 async function processWorkflowRules(supabaseClient: any, data: any) {
   const { trigger_event, record_data, hospital_id } = data
@@ -119,7 +132,7 @@ async function processWorkflowRules(supabaseClient: any, data: any) {
     created_tasks: createdTasks.length,
     tasks: createdTasks
   }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
   })
 }
 
@@ -417,7 +430,7 @@ async function autoAssignTasks(supabaseClient: any, data: any) {
     assignments_made: assignments.length,
     assignments
   }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
   })
 }
 
@@ -472,7 +485,7 @@ async function calculateWorkflowMetrics(supabaseClient: any, data: any) {
     success: true,
     metrics
   }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
   })
 }
 
@@ -494,7 +507,7 @@ async function sendBulkNotifications(supabaseClient: any, data: any) {
       message: 'No recipients found for the specified roles',
       notifications_sent: 0
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
     })
   }
 
@@ -541,6 +554,8 @@ async function sendBulkNotifications(supabaseClient: any, data: any) {
     notifications_sent: recipientIds.length,
     recipients: recipientIds
   }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
   })
 }
+
+

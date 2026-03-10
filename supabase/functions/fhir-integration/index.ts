@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getIdentifier, rateLimit } from "../_shared/rateLimit.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getIdentifier, rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
+import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
 
 const FHIR_CONTENT_TYPE = "application/fhir+json";
 const OBS_STATUS_VALUES = new Set([
@@ -568,7 +565,7 @@ async function authorizeFhirAction(
     throw new HttpError({
       status: 500,
       code: "exception",
-      diagnostics: `Failed to resolve caller profile: ${profileByUserIdError.message}`,
+      diagnostics: 'Unable to resolve caller profile.',
     });
   }
 
@@ -589,7 +586,7 @@ async function authorizeFhirAction(
     throw new HttpError({
       status: 500,
       code: "exception",
-      diagnostics: `Failed to resolve caller roles: ${roleError.message}`,
+      diagnostics: 'Unable to resolve caller roles.',
     });
   }
 
@@ -603,7 +600,7 @@ async function authorizeFhirAction(
     throw new HttpError({
       status: 500,
       code: "exception",
-      diagnostics: `Failed to resolve caller patient context: ${patientLookupError.message}`,
+      diagnostics: 'Unable to resolve caller patient context.',
     });
   }
 
@@ -706,8 +703,11 @@ function enforcePatientScopeAccess(
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
+
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician', 'super_admin']);
+  if (authError) return authError;
 
   try {
     const limiter = rateLimit(getIdentifier(req));
@@ -742,8 +742,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false },
     });
@@ -765,7 +765,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (error instanceof HttpError) {
       return fhirError(error.status, error.code, error.diagnostics, error.headers);
     }
-    const diagnostics = error instanceof Error ? error.message : "Unexpected server error.";
+    const diagnostics = "Unexpected server error.";
     return fhirError(500, "exception", diagnostics);
   }
 };
@@ -1141,4 +1141,4 @@ async function exportEncounter(
   });
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

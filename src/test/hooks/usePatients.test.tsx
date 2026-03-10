@@ -5,8 +5,12 @@ import { usePatients, usePatient, useCreatePatient, useSearchPatients } from '@/
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 vi.mock('@/hooks/useDataProtection', () => ({
   useHIPAACompliance: () => ({
     encryptPHI: vi.fn().mockResolvedValue({ data: {}, metadata: {} }),
@@ -22,6 +26,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockPatient = {
   id: 'patient-1',
@@ -43,9 +51,7 @@ describe('usePatients', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns empty result when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ hospital: null }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
     const { result } = renderHook(() => usePatients(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });

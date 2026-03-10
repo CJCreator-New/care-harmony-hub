@@ -4,6 +4,8 @@
 
 CareSync uses PostgreSQL via Lovable Cloud (Supabase) with Row Level Security (RLS) enabled on all 46+ tables. All tables are hospital-scoped for multi-tenancy.
 
+Each table uses a foreign key to `hospitals.id` for isolation. The core relationship between `patients`, `appointments`, `consultations`, `prescriptions`, and `lab_orders` forms the patient journey relationship chain.
+
 ---
 
 ## Entity Relationship Diagram

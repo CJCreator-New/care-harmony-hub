@@ -12,8 +12,12 @@ import {
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 vi.mock('@/hooks/useActivityLog', () => ({
   useActivityLog: () => ({ logActivity: vi.fn().mockResolvedValue(undefined) }),
 }));
@@ -26,6 +30,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockAppointment = {
   id: 'appt-1',
@@ -49,20 +57,19 @@ describe('useAppointments', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns empty array when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ hospital: null }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
     const { result } = renderHook(() => useAppointments(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it('fetches appointments for a date', async () => {
-    mockSupabaseClient.from.mockReturnValue({
-      ...mockSupabaseClient.from(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: [mockAppointment], error: null }),
-    });
+    const chain: any = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn()
+      .mockReturnValueOnce(chain)
+      .mockResolvedValueOnce({ data: [mockAppointment], error: null });
+    chain.order = vi.fn().mockReturnValue(chain);
+    mockSupabaseClient.from.mockReturnValue(chain);
 
     const { result } = renderHook(() => useAppointments('2026-06-01'), {
       wrapper: createWrapper(),
@@ -93,7 +100,7 @@ describe('useTodayAppointments', () => {
       ...mockSupabaseClient.from(),
       select: vi.fn().mockReturnThis(),
       eq: eqMock,
-      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      order: vi.fn().mockReturnThis(),
     });
 
     renderHook(() => useTodayAppointments(), { wrapper: createWrapper() });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { deviceManager } from '../deviceManager';
+import { deviceManager } from './deviceManager';
 import { supabase } from '@/integrations/supabase/client';
 
 // Mock Supabase client

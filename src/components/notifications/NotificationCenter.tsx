@@ -103,7 +103,9 @@ export function NotificationCenter() {
         <ScrollArea className="h-[400px]">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+              <div role="status" aria-label="Loading notifications">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" aria-hidden="true" />
+              </div>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">

@@ -10,8 +10,16 @@ import {
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+vi.mock('@/hooks/useWorkflowOrchestrator', () => ({
+  useWorkflowOrchestrator: () => ({ triggerWorkflow: vi.fn() }),
+  WORKFLOW_EVENT_TYPES: {},
+}));
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -21,6 +29,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockPrescription = {
   id: 'rx-1',
@@ -41,21 +53,20 @@ describe('usePrescriptions', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns empty array when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ hospital: null }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
     const { result } = renderHook(() => usePrescriptions(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it('fetches prescriptions with optional status filter', async () => {
-    const eqMock = vi.fn().mockReturnThis();
-    mockSupabaseClient.from.mockReturnValue({
-      ...mockSupabaseClient.from(),
-      select: vi.fn().mockReturnThis(),
-      eq: eqMock,
-      order: vi.fn().mockResolvedValue({ data: [mockPrescription], error: null }),
-    });
+    const chain: any = {};
+    const eqMock = vi.fn()
+      .mockReturnValueOnce(chain)
+      .mockResolvedValueOnce({ data: [mockPrescription], error: null });
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = eqMock;
+    chain.order = vi.fn().mockReturnValue(chain);
+    mockSupabaseClient.from.mockReturnValue(chain);
 
     const { result } = renderHook(() => usePrescriptions('pending'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -103,21 +114,17 @@ describe('useCreatePrescription', () => {
     const itemsInsertMock = vi.fn().mockResolvedValue({ error: null });
     const queueInsertMock = vi.fn().mockResolvedValue({ error: null });
 
+    const rxChain: any = {
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: mockPrescription, error: null }),
+    };
+    rxChain.insert = rxInsertMock;
+    const itemsChain = { insert: itemsInsertMock };
+    const queueChain = { insert: queueInsertMock };
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: rxInsertMock,
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: mockPrescription, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: itemsInsertMock,
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: queueInsertMock,
-      });
+      .mockReturnValueOnce(rxChain)
+      .mockReturnValueOnce(itemsChain)
+      .mockReturnValueOnce(queueChain);
 
     const { result } = renderHook(() => useCreatePrescription(), { wrapper: createWrapper() });
 
@@ -144,9 +151,7 @@ describe('useCreatePrescription', () => {
   });
 
   it('throws when no hospital/profile context', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ hospital: null, profile: null }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null, profile: null }));
 
     const { result } = renderHook(() => useCreatePrescription(), { wrapper: createWrapper() });
 
@@ -166,22 +171,19 @@ describe('useDispensePrescription', () => {
     const itemsUpdateMock = vi.fn().mockReturnThis();
     const queueUpdateMock = vi.fn().mockReturnThis();
 
+    const rxChain: any = { eq: vi.fn().mockResolvedValue({ error: null }) };
+    rxChain.update = rxUpdateMock;
+    const itemsChain: any = { eq: vi.fn().mockResolvedValue({ error: null }) };
+    itemsChain.update = itemsUpdateMock;
+    const queueChain: any = {};
+    queueChain.eq = vi.fn()
+      .mockReturnValueOnce(queueChain)
+      .mockResolvedValueOnce({ error: null });
+    queueChain.update = queueUpdateMock;
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        update: rxUpdateMock,
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        update: itemsUpdateMock,
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        update: queueUpdateMock,
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      });
+      .mockReturnValueOnce(rxChain)
+      .mockReturnValueOnce(itemsChain)
+      .mockReturnValueOnce(queueChain);
 
     const { result } = renderHook(() => useDispensePrescription(), { wrapper: createWrapper() });
 

@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+
+const verifyTotpSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Code must be exactly 6 digits'),
+});
 
 interface VerifyRequest {
   code: string;
-  userId?: string;
 }
 
 const fromBase64 = (value: string): Uint8Array => {
@@ -141,40 +147,33 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get authorization header
+    // Require a valid Authorization header — never trust a caller-supplied userId.
     const authHeader = req.headers.get("Authorization");
-    let userId: string;
-    
-    const { code, userId: providedUserId }: VerifyRequest = await req.json();
-    
-    if (!code || !/^\d{6}$/.test(code)) {
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "Invalid code format. Please provide a 6-digit code." }),
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+      );
+    }
+
+    const validation = await validateRequest(req, verifyTotpSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
         { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
-    
-    // If userId is provided (for login verification), use that
-    // Otherwise, get user from auth token
-    if (providedUserId) {
-      userId = providedUserId;
-    } else if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      
-      if (error || !user) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
-        );
-      }
-      userId = user.id;
-    } else {
+    const { code } = validation.data;
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: "User ID or authorization required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
       );
     }
+    const userId = user.id;
     
     // Get user's 2FA secret
     const { data: secretData, error: secretError } = await supabase
@@ -207,13 +206,12 @@ const handler = async (req: Request): Promise<Response> => {
     );
     
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in verify-totp function:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
 };
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

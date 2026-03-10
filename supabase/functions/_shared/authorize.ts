@@ -9,10 +9,10 @@ export async function authorize(req: Request, allowedRoles: string[]) {
     );
   }
 
-  const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   // Use the service role key for server-side JWT verification.
   // The user's bearer token is verified via getUser(); never used as auth key.
-  const serviceRoleKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   // Verify the caller's JWT using the admin client.

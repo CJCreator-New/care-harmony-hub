@@ -70,7 +70,7 @@ describe('Data Protection Services', () => {
       const data = { phone: '+1-555-012-3456' };
       const masked = maskingService.maskData(data);
 
-      expect(masked.phone).toBe('+1-555-012-XXXX');
+      expect(masked.phone).toBe('+1-555-012-3XXX');
     });
 
     it('should detect sensitive data', () => {

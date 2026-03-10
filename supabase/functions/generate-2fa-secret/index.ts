@@ -1,7 +1,14 @@
 // Supabase Edge Function: generate-2fa-secret
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { getIdentifier } from '../_shared/rateLimit.ts';
+import { getIdentifier, withRateLimit } from '../_shared/rateLimit.ts';
 import { getCorsHeaders, isOriginAllowed } from '../_shared/cors.ts';
+import { validateRequest } from '../_shared/validation.ts';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+
+const generate2faSchema = z.object({
+  email: z.string().email(),
+  issuer: z.string().default('CareSync HMS'),
+});
 
 // Native TOTP URI generation
 function generateTOTPURI(issuer: string, label: string, secret: string): string {
@@ -38,11 +45,11 @@ function checkRateLimit(req: Request): { allowed: boolean; remaining: number; re
   return { allowed: true, remaining: maxAttempts - current.count, resetTime: current.resetTime };
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   const reqCorsHeaders = getCorsHeaders(req);
 
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
+    return new Response(null, {
       headers: reqCorsHeaders,
     });
   }
@@ -71,14 +78,14 @@ serve(async (req) => {
       );
     }
 
-    const { email, issuer = 'CareSync HMS' } = await req.json();
-
-    if (!email) {
+    const validation = await validateRequest(req, generate2faSchema);
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'Email is required' }),
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
       );
     }
+    const { email, issuer } = validation.data;
 
     // Generate a random secret (32 bytes = 256 bits)
     const secret = crypto.getRandomValues(new Uint8Array(32));
@@ -116,8 +123,10 @@ serve(async (req) => {
     );
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
     );
   }
-});
+};
+
+serve((req) => withRateLimit(req, handler, { limit: 5, windowMs: 300000 }));

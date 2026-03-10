@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const monitoringSchema = z.object({
+  action: z.string().min(1),
+  data: z.any().optional(),
+});
 
 interface AlertRule {
   id: string;
@@ -24,16 +29,27 @@ interface MetricData {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'super_admin']);
+  if (authError) return authError;
+
   try {
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, data } = await req.json();
+    const validation = await validateRequest(req, monitoringSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    const { action, data } = validation.data;
 
     switch (action) {
       case 'collect_metrics':
@@ -47,7 +63,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
@@ -62,7 +78,7 @@ async function collectMetrics(supabase: any, metrics: MetricData[]) {
 
   return new Response(
     JSON.stringify({ success: true, collected: metrics.length }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -99,7 +115,7 @@ async function checkAlerts(supabase: any) {
 
   return new Response(
     JSON.stringify({ alerts_triggered: alerts.length, alerts }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -123,8 +139,8 @@ async function getSystemStatus(supabase: any) {
       active_alerts: activeAlerts?.length || 0,
       last_updated: new Date().toISOString(),
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

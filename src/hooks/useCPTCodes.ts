@@ -32,7 +32,7 @@ export const useCPTCodes = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hospital?.id]);
 
   const searchCPTCodes = async (searchTerm: string) => {
     if (!hospital?.id) return;

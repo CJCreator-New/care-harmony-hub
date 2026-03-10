@@ -1,24 +1,27 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-interface EmailRequest {
-  to: string | string[];
-  subject: string;
-  html: string;
-  from?: string;
-  replyTo?: string;
-}
+const emailSchema = z.object({
+  to: z.union([z.string().email(), z.array(z.string().email())]),
+  subject: z.string().min(1),
+  html: z.string().min(1),
+  from: z.string().optional(),
+  replyTo: z.string().email().optional(),
+});
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'super_admin']);
+  if (authError) return authError;
 
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
@@ -33,21 +36,14 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, subject, html, from, replyTo }: EmailRequest = await req.json();
-
-    if (!to || !subject || !html) {
-      console.error("Missing required fields:", { to: !!to, subject: !!subject, html: !!html });
+    const validation = await validateRequest(req, emailSchema);
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: to, subject, html" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        JSON.stringify({ error: "Validation failed", details: validation.error }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    console.log("Sending email to:", to);
-    console.log("Subject:", subject);
+    const { to, subject, html, from, replyTo } = validation.data;
 
     // Using fetch to call Resend API directly
     const response = await fetch("https://api.resend.com/emails", {
@@ -85,10 +81,9 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in send-email function:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Internal server error' }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -97,5 +92,5 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));
 

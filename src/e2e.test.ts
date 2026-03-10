@@ -83,6 +83,7 @@ describe('E2E: Error Handling Workflow', () => {
   beforeEach(() => {
     logger.clearLogs();
     notificationManager.clear();
+    analytics.clearEvents();
   });
 
   it('logs and notifies on API error', () => {

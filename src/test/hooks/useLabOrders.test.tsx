@@ -5,8 +5,16 @@ import { useLabOrders, useLabOrderStats, useUpdateLabOrder, useCreateLabOrder } 
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+vi.mock('@/hooks/useWorkflowOrchestrator', () => ({
+  useWorkflowOrchestrator: () => ({ triggerWorkflow: vi.fn() }),
+  WORKFLOW_EVENT_TYPES: {},
+}));
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 const createWrapper = () => {
@@ -17,6 +25,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockLabOrder = {
   id: 'lab-1',
@@ -34,9 +46,7 @@ describe('useLabOrders', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns empty array when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ profile: { ...mockProfile, hospital_id: null } }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ profile: { ...mockProfile, hospital_id: null } }));
     const { result } = renderHook(() => useLabOrders(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
@@ -60,7 +70,7 @@ describe('useLabOrders', () => {
       ...mockSupabaseClient.from(),
       select: vi.fn().mockReturnThis(),
       eq: eqMock,
-      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      order: vi.fn().mockReturnThis(),
     });
 
     renderHook(() => useLabOrders('pending'), { wrapper: createWrapper() });
@@ -144,21 +154,17 @@ describe('useCreateLabOrder', () => {
     const orderInsertMock = vi.fn().mockReturnThis();
     const queueInsertMock = vi.fn().mockResolvedValue({ error: null });
 
+    const orderChain: any = {
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: mockLabOrder, error: null }),
+    };
+    orderChain.insert = orderInsertMock;
+    const queueChain = { insert: queueInsertMock };
+    const telemetryChain = { insert: vi.fn().mockResolvedValue({ error: null }) };
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: orderInsertMock,
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: mockLabOrder, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: queueInsertMock,
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: vi.fn().mockResolvedValue({ error: null }), // activity_logs telemetry
-      });
+      .mockReturnValueOnce(orderChain)
+      .mockReturnValueOnce(queueChain)
+      .mockReturnValueOnce(telemetryChain);
 
     const { result } = renderHook(() => useCreateLabOrder(), { wrapper: createWrapper() });
 

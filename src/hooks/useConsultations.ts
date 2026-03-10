@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useEffect, useCallback, useRef } from 'react';
 import { devLog } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
@@ -65,6 +66,8 @@ export interface Consultation {
   vitals: Record<string, any>;
   chief_complaint: string | null;
   history_of_present_illness: string | null;
+  hpi_data: Record<string, any> | null;
+  hpi_notes: string | null;
   // Step 2: Clinical Assessment
   physical_examination: Record<string, any>;
   symptoms: string[];
@@ -268,6 +271,7 @@ export function useCreateConsultation() {
 export function useGetOrCreateConsultation() {
   const queryClient = useQueryClient();
   const { hospital, profile } = useAuth();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async (patientId: string) => {
@@ -333,10 +337,17 @@ export function useGetOrCreateConsultation() {
         return consultation as unknown as Consultation;
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       toast.success('Consultation started');
+      void triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.CONSULTATION_STARTED,
+        sourceRole: 'doctor',
+        patientId: data.patient_id,
+        data: { consultationId: data.id, doctorId: data.doctor_id },
+        priority: 'normal',
+      });
     },
     onError: (error: Error) => {
       toast.error(`Failed to load consultation: ${error.message}`);
@@ -372,6 +383,7 @@ export function useUpdateConsultation() {
 
 export function useAdvanceConsultationStep() {
   const updateConsultation = useUpdateConsultation();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async ({ consultationId, currentStep }: { consultationId: string; currentStep: number }) => {
@@ -390,7 +402,16 @@ export function useAdvanceConsultationStep() {
 
       return updateConsultation.mutateAsync(updates);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.status === 'completed') {
+        void triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
+          sourceRole: 'doctor',
+          patientId: data.patient_id,
+          data: { consultationId: data.id, doctorId: data.doctor_id },
+          priority: 'normal',
+        });
+      }
       toast.success('Moved to next step');
     },
   });

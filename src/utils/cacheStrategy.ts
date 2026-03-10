@@ -88,6 +88,8 @@ export const patientCache = new CacheManager();
 export const invalidatePatientCache = (patientId: string): void => {
   patientCache.invalidateByTag(`patient-${patientId}`);
   patientCache.invalidateByTag('patients-list');
+  queryCache.invalidateByTag(`patient-${patientId}`);
+  queryCache.invalidateByTag('patients-list');
 };
 
 // Invalidate all user-related caches

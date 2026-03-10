@@ -49,8 +49,8 @@ export default function Dashboard() {
     if (!activeRole) {
       return (
         <div className="flex items-center justify-center p-12 min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <div role="status" aria-label="Loading dashboard" className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" aria-hidden="true" />
             <p className="text-muted-foreground">Loading your dashboard...</p>
           </div>
         </div>

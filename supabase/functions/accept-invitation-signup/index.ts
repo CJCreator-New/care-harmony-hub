@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
-import { rateLimit, getIdentifier } from "../_shared/rateLimit.ts";
+import { rateLimit, getIdentifier, withRateLimit } from "../_shared/rateLimit.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const requestSchema = z.object({
@@ -14,7 +14,7 @@ const requestSchema = z.object({
 
 const ACCEPT_INVITATION_RATE_LIMIT = { windowMs: 10 * 60 * 1000, maxRequests: 8 };
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   const reqCorsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -175,4 +175,6 @@ serve(async (req) => {
       { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
-});
+};
+
+serve((req) => withRateLimit(req, handler, { limit: 8, windowMs: 600000 }));

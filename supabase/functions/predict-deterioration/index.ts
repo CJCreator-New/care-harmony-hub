@@ -1,15 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders } from '../_shared/cors.ts'
+import { authorize } from '../_shared/authorize.ts'
+import { validateRequest } from '../_shared/validation.ts'
+import { withRateLimit } from '../_shared/rateLimit.ts'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const deteriorationSchema = z.object({
+  patient_id: z.string().uuid(),
+  hospital_id: z.string().uuid().optional(),
+});
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
+
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'super_admin'])
+  if (authError) return authError
 
   try {
     const supabaseClient = createClient(
@@ -17,9 +26,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { patient_id, hospital_id } = await req.json()
-
-    if (!patient_id) throw new Error('patient_id is required')
+    const validation = await validateRequest(req, deteriorationSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { patient_id, hospital_id } = validation.data;
 
     // 1. Fetch latest 5 readings for trend analysis
     const { data: vitals, error: vitalsError } = await supabaseClient
@@ -101,10 +115,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Deterioration prediction error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
-})
+}
+
+serve((req) => withRateLimit(req, handler));
 

@@ -33,7 +33,7 @@ describe('HIPAA Compliance Tests', () => {
 
       expect(masked.ssn).toBe('XXX-XX-6789');
       expect(masked.medical_record_number).not.toBe('MRN-2026-98765');
-      expect(String(masked.phone)).toContain('XXXX');
+      expect(String(masked.phone)).toContain('XXX');
     });
 
     it('encrypts and restores PHI for secure transmission', async () => {

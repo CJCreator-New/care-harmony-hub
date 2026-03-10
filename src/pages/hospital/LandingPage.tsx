@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from 'react';
 import { VideoModal } from '@/components/landing/VideoModal';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Testimonial } from '@/components/ui/design-testimonial';
@@ -109,6 +109,7 @@ export default function LandingPage() {
   const closeVideoModal = () => setIsVideoOpen(false);
   
   return (
+    <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>CareSync HIMS | Modern Hospital Management System</title>
@@ -546,5 +547,6 @@ export default function LandingPage() {
         <EnhancedFooter />
       </Suspense>
     </div>
+    </MotionConfig>
   );
 }

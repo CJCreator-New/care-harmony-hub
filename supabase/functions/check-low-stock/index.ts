@@ -1,10 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
 
 interface LowStockMedication {
   id: string;
@@ -17,7 +14,8 @@ interface LowStockMedication {
   hospital_email?: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -216,12 +214,11 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in check-low-stock function:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: errorMessage 
+        error: 'Internal server error' 
       }),
       { 
         status: 500, 
@@ -229,5 +226,7 @@ serve(async (req) => {
       }
     );
   }
-});
+};
+
+serve((req) => withRateLimit(req, handler));
 

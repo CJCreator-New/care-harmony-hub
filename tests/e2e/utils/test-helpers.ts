@@ -89,27 +89,47 @@ const ROLE_LOGIN_EMAIL: Record<UserRole, string> = {
 export type UserRole = keyof typeof ROLES;
 const E2E_MOCK_AUTH_STORAGE_KEY = 'e2e-mock-auth-user';
 
+/** Role → mock email map (must match AuthContext E2E_MOCK_USERS). */
+const MOCK_EMAIL: Record<string, string> = {
+  admin:          'admin@testgeneral.com',
+  doctor:         'doctor@testgeneral.com',
+  nurse:          'nurse@testgeneral.com',
+  receptionist:   'receptionist@testgeneral.com',
+  pharmacist:     'pharmacist@testgeneral.com',
+  lab_technician: 'labtech@testgeneral.com',
+  patient:        'patient@testgeneral.com',
+};
+
 /**
- * Authenticate as a specific role using live login UI or localStorage mock.
- * Exported so T-xx spec files can import instead of duplicating inline.
+ * Switch the active mock-auth session to `role`.
+ *
+ * Writes the mock-auth localStorage keys via addInitScript (fires before React
+ * boots on every navigation) then navigates to /dashboard. This works for both
+ * the first call on a blank page and mid-test role switches because goto()
+ * triggers a full page load that re-runs all init scripts.
+ *
+ * Falls back to the UI login form if VITE_E2E_MOCK_AUTH is not active.
  */
 export async function loginAs(page: Page, role: string): Promise<void> {
-  const email =
-    process.env[`E2E_${role.toUpperCase()}_EMAIL`] ||
-    `${role.toLowerCase().replace('_', '')}@testgeneral.com`;
-  const password =
-    process.env[`E2E_${role.toUpperCase()}_PASSWORD`] || 'TestPass123!';
+  const email = process.env[`E2E_${role.toUpperCase()}_EMAIL`] ?? MOCK_EMAIL[role] ?? `${role}@testgeneral.com`;
+  const password = process.env[`E2E_${role.toUpperCase()}_PASSWORD`] ?? 'TestPass123!';
 
+  // addInitScript accumulates across calls on the same page object — clear
+  // previous scripts by creating a fresh context via goto to about:blank first,
+  // then register the new script, then navigate to the real destination.
   await page.addInitScript(
     ({ em, r }) => {
-      window.localStorage.setItem('e2e-mock-auth-user', em);
-      window.localStorage.setItem('preferredRole', r);
-      window.localStorage.setItem('testRole', r);
+      localStorage.setItem('e2e-mock-auth-user', em);
+      localStorage.setItem('preferredRole', r);
+      localStorage.removeItem('testRole');
     },
     { em: email, r: role }
   );
 
   await page.goto('/dashboard');
+  await page.waitForLoadState('networkidle');
+
+  // Fallback: if mock auth is not active, use the UI login form.
   if (page.url().includes('/hospital/login')) {
     await page.getByLabel(/email/i).fill(email);
     await page.getByLabel(/password/i).fill(password);

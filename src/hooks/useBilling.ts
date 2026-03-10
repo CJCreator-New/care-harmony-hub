@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
+import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
 export type InvoiceStatus = 'pending' | 'partial' | 'paid' | 'cancelled';
 
@@ -221,6 +222,7 @@ export function useInvoiceStats() {
 export function useCreateInvoice() {
   const { hospital, profile } = useAuth();
   const queryClient = useQueryClient();
+  const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async ({
@@ -295,10 +297,17 @@ export function useCreateInvoice() {
         return invoice as Invoice;
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoice-stats'] });
       toast.success('Invoice created');
+      void triggerWorkflow({
+        type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
+        sourceRole: 'receptionist',
+        patientId: variables.patientId,
+        data: { invoiceId: data.id, total: data.total },
+        priority: 'normal',
+      });
     },
     onError: (error) => {
       toast.error(`Failed to create invoice: ${error.message}`);

@@ -44,7 +44,7 @@ class DeviceManager {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     ctx?.fillText(navigator.userAgent, 10, 10);
-    const fingerprint = canvas.toDataURL();
+    const fingerprint = canvas.toDataURL() || Math.random().toString(36);
 
     // Create a hash-like identifier
     let hash = 0;
@@ -55,6 +55,23 @@ class DeviceManager {
     }
 
     return Math.abs(hash).toString(36) + Date.now().toString(36);
+  }
+
+  // Get device fingerprint data for identification
+  getDeviceFingerprint(): {
+    userAgent: string;
+    platform: string;
+    language: string;
+    screenResolution: string;
+    timezone: string;
+  } {
+    return {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenResolution: `${window.screen?.width ?? 0}x${window.screen?.height ?? 0}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
   }
 
   // Get device information

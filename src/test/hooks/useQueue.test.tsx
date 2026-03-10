@@ -12,8 +12,12 @@ import {
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
-vi.mock('@/integrations/supabase/client', () => ({ supabase: mockSupabaseClient }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => createMockAuthContext() }));
+vi.mock('@/integrations/supabase/client', async () => {
+  const { mockSupabaseClient } = await import('../mocks/supabase');
+  return { supabase: mockSupabaseClient };
+});
+const mockUseAuth = vi.hoisted(() => vi.fn());
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: mockUseAuth }));
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -23,6 +27,10 @@ const createWrapper = () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
+
+beforeEach(() => {
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+});
 
 const mockQueueEntry = {
   id: 'queue-1',
@@ -47,9 +55,7 @@ describe('useQueue', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns empty array when no hospital', async () => {
-    vi.mock('@/contexts/AuthContext', () => ({
-      useAuth: () => createMockAuthContext({ hospital: null }),
-    }));
+    mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
     const { result } = renderHook(() => useQueue(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
@@ -132,25 +138,23 @@ describe('useAddToQueue', () => {
     const insertMock = vi.fn().mockReturnThis();
     const singleMock = vi.fn().mockResolvedValue({ data: mockQueueEntry, error: null });
 
+    const checkChain = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const insertChain: any = {
+      select: vi.fn().mockReturnThis(),
+      single: singleMock,
+    };
+    insertChain.insert = insertMock;
+    const auditChain = { insert: vi.fn().mockResolvedValue({ error: null }) };
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        gte: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: insertMock,
-        select: vi.fn().mockReturnThis(),
-        single: singleMock,
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
-        insert: vi.fn().mockResolvedValue({ error: null }),
-      });
+      .mockReturnValueOnce(checkChain)
+      .mockReturnValueOnce(insertChain)
+      .mockReturnValueOnce(auditChain);
 
     mockSupabaseClient.rpc.mockResolvedValueOnce({ data: 2, error: null });
 

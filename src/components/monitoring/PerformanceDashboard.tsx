@@ -191,7 +191,7 @@ export function PerformanceDashboard({ className }: PerformanceDashboardProps) {
                 </div>
                 <div className="flex justify-between items-center p-3 border rounded-lg">
                   <span className="text-sm font-medium">Error Rate</span>
-                  <span className={`font-bold ${systemHealth.error_rate > 1 ? 'text-red-500' : 'text-green-500'}`}>
+                  <span className={`font-bold ${systemHealth.error_rate > 1 ? 'text-red-700' : 'text-green-700'}`}>
                     {systemHealth.error_rate}%
                   </span>
                 </div>

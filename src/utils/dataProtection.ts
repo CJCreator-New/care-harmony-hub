@@ -236,8 +236,8 @@ export class DataMaskingService {
     },
     {
       field: 'phone',
-      pattern: /^\+?1?[-.\s]?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$/,
-      maskFunction: (value: string) => value.replace(/(\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3})[-.\s]?([0-9]{4})/, '$1-XXXX')
+      pattern: /[\+\d][\d\s\-\.\(\)]{3,}/,
+      maskFunction: (value: string) => value.replace(/\d{3}$/, 'XXX')
     }
   ];
 

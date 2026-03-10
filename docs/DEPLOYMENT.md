@@ -34,6 +34,9 @@ CareSync can be deployed via Lovable's built-in publishing or self-hosted on var
 - npm or bun
 - Git
 - Hosting platform account
+- PostgreSQL 15+ (provided via Supabase; not required to install separately)
+
+> Before deploying, review the environment configuration section below and set all required variables.
 
 ### Build Process
 

@@ -361,20 +361,20 @@ const DemographicsConfirmationStep: React.FC<{ onComplete: (data: any) => void }
       
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Full Name</Label>
-          <Input value="John Doe" readOnly className="bg-gray-50" />
+          <Label htmlFor="checkin-full-name">Full Name</Label>
+          <Input id="checkin-full-name" value="John Doe" readOnly className="bg-gray-50" />
         </div>
         <div>
-          <Label>Date of Birth</Label>
-          <Input value="01/15/1985" readOnly className="bg-gray-50" />
+          <Label htmlFor="checkin-dob">Date of Birth</Label>
+          <Input id="checkin-dob" value="01/15/1985" readOnly className="bg-gray-50" />
         </div>
         <div>
-          <Label>Phone Number</Label>
-          <Input value="(555) 123-4567" readOnly className="bg-gray-50" />
+          <Label htmlFor="checkin-phone">Phone Number</Label>
+          <Input id="checkin-phone" value="(555) 123-4567" readOnly className="bg-gray-50" />
         </div>
         <div>
-          <Label>Email</Label>
-          <Input value="john.doe@email.com" readOnly className="bg-gray-50" />
+          <Label htmlFor="checkin-email">Email</Label>
+          <Input id="checkin-email" value="john.doe@email.com" readOnly className="bg-gray-50" />
         </div>
       </div>
       

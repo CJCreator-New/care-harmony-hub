@@ -97,8 +97,10 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
       <Card className={cn('w-full', className)}>
         <CardContent className="p-6">
           <div className="flex items-center justify-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            <span className="text-sm text-muted-foreground">Analyzing clinical text...</span>
+            <div role="status" aria-label="Analyzing clinical text" className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" aria-hidden="true"></div>
+              <span className="text-sm text-muted-foreground">Analyzing clinical text...</span>
+            </div>
           </div>
         </CardContent>
       </Card>

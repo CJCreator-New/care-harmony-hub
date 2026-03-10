@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const requestSchema = z.object({
@@ -15,12 +17,15 @@ const requestSchema = z.object({
   license_number: z.string().optional().nullable(),
 });
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   const reqCorsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: reqCorsHeaders });
   }
+
+  const authError = await authorize(req, ['super_admin']);
+  if (authError) return authError;
 
   if (!isOriginAllowed(req)) {
     return new Response(
@@ -97,11 +102,12 @@ serve(async (req) => {
       { status: 200, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("create-hospital-admin error:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   }
-});
+};
+
+serve((req) => withRateLimit(req, handler));

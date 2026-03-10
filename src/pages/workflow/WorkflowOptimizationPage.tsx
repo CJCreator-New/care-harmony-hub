@@ -3,8 +3,9 @@ import { UnifiedCommunicationHub } from '@/components/workflow/UnifiedCommunicat
 import { WorkflowRulesEngine } from '@/components/workflow/WorkflowRulesEngine';
 import { WorkflowPerformanceMonitor } from '@/components/workflow/WorkflowPerformanceMonitor';
 import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
+import { RoleHandoffStatusPanel } from '@/components/workflow/RoleHandoffStatusPanel';
 import { Badge } from '@/components/ui/badge';
-import { Activity, MessageSquare, Settings, BarChart3, CheckSquare } from 'lucide-react';
+import { Activity, MessageSquare, Settings, BarChart3, CheckSquare, GitMerge } from 'lucide-react';
 
 export default function WorkflowOptimizationPage() {
   return (
@@ -22,8 +23,12 @@ export default function WorkflowOptimizationPage() {
         </Badge>
       </div>
 
-      <Tabs defaultValue="performance" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue="handoffs" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="handoffs" className="flex items-center gap-2">
+            <GitMerge className="h-4 w-4" />
+            Handoffs
+          </TabsTrigger>
           <TabsTrigger value="performance" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Performance
@@ -45,6 +50,10 @@ export default function WorkflowOptimizationPage() {
             Overview
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="handoffs">
+          <RoleHandoffStatusPanel />
+        </TabsContent>
 
         <TabsContent value="performance">
           <WorkflowPerformanceMonitor />

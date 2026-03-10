@@ -199,8 +199,9 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                       name={`items.${index}.description`}
                       render={({ field: f }) => (
                         <FormItem>
+                          <FormLabel className="sr-only">Item description (required)</FormLabel>
                           <FormControl>
-                            <Input placeholder="Description *" {...f} />
+                            <Input placeholder="Description *" aria-required="true" {...f} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

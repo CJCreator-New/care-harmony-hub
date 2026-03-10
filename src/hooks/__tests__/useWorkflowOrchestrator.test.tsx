@@ -83,8 +83,16 @@ describe('useWorkflowOrchestrator', () => {
       eq: vi.fn().mockResolvedValue({ error: null })
     });
 
+    // Dedup chain for workflow_events — resolves to no duplicate found
+    const mockDedupChain = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+
     (supabase.from as any).mockImplementation((table: string) => {
-      if (table === 'workflow_events') return { insert: mockEventInsert, update: mockUpdate };
+      if (table === 'workflow_events') return { ...mockDedupChain, insert: mockEventInsert, update: mockUpdate };
       if (table === 'workflow_rules') return { select: mockRulesSelect, update: mockUpdate };
       if (table === 'workflow_tasks') return { insert: mockTaskInsert };
       return { select: vi.fn(), insert: vi.fn(), update: vi.fn() };
@@ -117,13 +125,22 @@ describe('useWorkflowOrchestrator', () => {
   });
 
   it('should handle errors gracefully', async () => {
-    (supabase.from as any).mockImplementation(() => ({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } })
+    (supabase.from as any).mockImplementation(() => {
+      const dedupChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      };
+      return {
+        ...dedupChain,
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } })
+          })
         })
-      })
-    }));
+      };
+    });
 
     const { result } = renderHook(() => useWorkflowOrchestrator(), { wrapper: createWrapper() });
 

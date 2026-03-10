@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const backupSchema = z.object({
+  action: z.string().min(1),
+  data: z.any().optional(),
+});
 
 interface BackupJob {
   id: string;
@@ -21,16 +26,27 @@ const CRITICAL_TABLES = [
 ];
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'super_admin']);
+  if (authError) return authError;
+
   try {
-    const supabaseUrl = (globalThis as any).Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = (globalThis as any).Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, data } = await req.json();
+    const validation = await validateRequest(req, backupSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Validation failed', details: validation.error }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+    const { action, data } = validation.data;
 
     switch (action) {
       case 'create_backup':
@@ -46,13 +62,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
 
-async function createBackup(supabase: any, { type = 'full', tables = [] }: any) {
+async function createBackup(supabase: any, { type = 'full', tables = [], hospital_id }: any) {
   const backupId = crypto.randomUUID();
   const timestamp = new Date().toISOString();
   
@@ -64,6 +80,7 @@ async function createBackup(supabase: any, { type = 'full', tables = [] }: any) 
     .from('backup_jobs')
     .insert({
       id: backupId,
+      hospital_id: hospital_id ?? null,
       type,
       status: 'running',
       tables: targetTables,
@@ -125,7 +142,7 @@ async function createBackup(supabase: any, { type = 'full', tables = [] }: any) 
         size_mb: Math.round(totalSize / 1024 / 1024),
         tables_backed_up: targetTables.length,
       }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
     );
 
   } catch (error) {
@@ -175,7 +192,7 @@ async function restoreBackup(supabase: any, { backup_id }: any) {
       backup_id,
       tables_restored: restoredTables,
     }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -190,7 +207,7 @@ async function listBackups(supabase: any) {
 
   return new Response(
     JSON.stringify({ backups: data }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
@@ -208,8 +225,8 @@ async function scheduleBackup(supabase: any, { schedule_type, frequency }: any) 
 
   return new Response(
     JSON.stringify({ success: true, message: 'Backup scheduled successfully' }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
+    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
   );
 }
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));

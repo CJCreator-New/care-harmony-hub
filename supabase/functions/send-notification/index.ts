@@ -1,30 +1,32 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { authorize } from "../_shared/authorize.ts";
+import { validateRequest } from "../_shared/validation.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("CORS_ALLOWED_ORIGINS")?.split(",")[0]?.trim() || "http://localhost:5173",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const notificationSchema = z.object({
+  type: z.enum(["appointment_reminder", "prescription_ready", "lab_results", "invoice", "custom"]),
+  recipientEmail: z.string().email(),
+  recipientName: z.string().min(1),
+  hospitalName: z.string().min(1),
+  data: z.object({
+    appointmentDate: z.string().optional(),
+    appointmentTime: z.string().optional(),
+    doctorName: z.string().optional(),
+    prescriptionDetails: z.string().optional(),
+    labTestName: z.string().optional(),
+    invoiceNumber: z.string().optional(),
+    invoiceAmount: z.string().optional(),
+    customSubject: z.string().optional(),
+    customMessage: z.string().optional(),
+  }).optional(),
+});
 
-interface NotificationRequest {
-  type: "appointment_reminder" | "prescription_ready" | "lab_results" | "invoice" | "custom";
-  recipientEmail: string;
-  recipientName: string;
-  hospitalName: string;
-  data?: {
-    appointmentDate?: string;
-    appointmentTime?: string;
-    doctorName?: string;
-    prescriptionDetails?: string;
-    labTestName?: string;
-    invoiceNumber?: string;
-    invoiceAmount?: string;
-    customSubject?: string;
-    customMessage?: string;
-  };
-}
+type NotificationRequest = z.infer<typeof notificationSchema>;
 
 function getEmailContent(request: NotificationRequest): { subject: string; html: string } {
   const { type, recipientName, hospitalName, data } = request;
@@ -125,12 +127,23 @@ function getEmailContent(request: NotificationRequest): { subject: string; html:
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'super_admin']);
+  if (authError) return authError;
+
   try {
-    const request: NotificationRequest = await req.json();
+    const validation = await validateRequest(req, notificationSchema);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: "Validation failed", details: validation.error }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const request = validation.data;
     const { subject, html } = getEmailContent(request);
 
     const emailResponse = await resend.emails.send({
@@ -149,11 +162,11 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error sending notification:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
 
-serve(handler);
+serve((req) => withRateLimit(req, handler));
 
