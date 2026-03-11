@@ -7,6 +7,7 @@ import { devLog } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 export type ConsultationStatus =
   | 'scheduled'
@@ -134,6 +135,36 @@ const withConsultationRateLimit = async <T,>(fn: () => Promise<T>) =>
     },
   });
 
+const consultationJoinSelect = (includeHpiColumns = true) => `
+  ${includeHpiColumns ? CONSULTATION_COLUMNS.detail : CONSULTATION_COLUMNS.detailWithoutHpi},
+  patient:patients(${PATIENT_COLUMNS.detail}),
+  doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
+`;
+
+const isMissingHpiColumnError = (error: PostgrestError | null) =>
+  !!error && /column consultations\.(hpi_data|hpi_notes) does not exist/i.test(error.message);
+
+const withConsultationHpiFallback = async <T,>(
+  runQuery: (includeHpiColumns: boolean) => Promise<{ data: T | null; error: PostgrestError | null }>
+) => {
+  const primaryResult = await runQuery(true);
+  if (!isMissingHpiColumnError(primaryResult.error)) {
+    if (primaryResult.error) throw primaryResult.error;
+    return primaryResult.data;
+  }
+
+  const fallbackResult = await runQuery(false);
+  if (fallbackResult.error) throw fallbackResult.error;
+  return fallbackResult.data;
+};
+
+const stripUnsupportedHpiFields = <T extends Record<string, any>>(updates: T): T => {
+  const sanitized = { ...updates };
+  delete sanitized.hpi_data;
+  delete sanitized.hpi_notes;
+  return sanitized;
+};
+
 export function useConsultations() {
   const { hospital } = useAuth();
 
@@ -148,18 +179,15 @@ export function useConsultations() {
       devLog('Fetching consultations for hospital:', hospital.id);
 
       return withConsultationRateLimit(async () => {
-        const { data, error } = await supabase
-          .from('consultations')
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .eq('hospital_id', hospital.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
+        const data = await withConsultationHpiFallback((includeHpiColumns) =>
+          supabase
+            .from('consultations')
+            .select(consultationJoinSelect(includeHpiColumns))
+            .eq('hospital_id', hospital.id)
+            .order('created_at', { ascending: false })
+            .limit(100)
+        );
 
-        if (error) throw error;
         devLog('Consultations fetched:', data?.length ?? 0);
         return (data || []) as unknown as Consultation[];
       });
@@ -175,17 +203,14 @@ export function useConsultation(consultationId: string | undefined) {
       if (!consultationId) return null;
 
       return withConsultationRateLimit(async () => {
-        const { data, error } = await supabase
-          .from('consultations')
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .eq('id', consultationId)
-          .maybeSingle();
+        const data = await withConsultationHpiFallback((includeHpiColumns) =>
+          supabase
+            .from('consultations')
+            .select(consultationJoinSelect(includeHpiColumns))
+            .eq('id', consultationId)
+            .maybeSingle()
+        );
 
-        if (error) throw error;
         return data as unknown as Consultation | null;
       });
     },
@@ -203,40 +228,35 @@ export function useCreateConsultation() {
 
       return withConsultationRateLimit(async () => {
         // Idempotency guard: return existing non-completed consultation if present
-        const { data: existing } = await supabase
-          .from('consultations')
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .eq('hospital_id', hospital.id)
-          .eq('patient_id', data.patient_id)
-          .neq('status', 'completed')
-          .maybeSingle();
+        const existing = await withConsultationHpiFallback((includeHpiColumns) =>
+          supabase
+            .from('consultations')
+            .select(consultationJoinSelect(includeHpiColumns))
+            .eq('hospital_id', hospital.id)
+            .eq('patient_id', data.patient_id)
+            .neq('status', 'completed')
+            .maybeSingle()
+        );
 
         if (existing) return existing as unknown as Consultation;
 
-        const { data: consultation, error } = await supabase
-          .from('consultations')
-          .insert({
-            patient_id: data.patient_id,
-            hospital_id: hospital.id,
-            doctor_id: profile.id,
-            nurse_id: data.nurse_id ?? null,
-            appointment_id: data.appointment_id ?? null,
-            status: 'patient_overview' as ConsultationStatus,
-            current_step: 1,
-            started_at: new Date().toISOString(),
-          })
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .single();
+        const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
+          supabase
+            .from('consultations')
+            .insert({
+              patient_id: data.patient_id,
+              hospital_id: hospital.id,
+              doctor_id: profile.id,
+              nurse_id: data.nurse_id ?? null,
+              appointment_id: data.appointment_id ?? null,
+              status: 'patient_overview' as ConsultationStatus,
+              current_step: 1,
+              started_at: new Date().toISOString(),
+            })
+            .select(consultationJoinSelect(includeHpiColumns))
+            .single()
+        );
 
-        if (error) throw error;
         return consultation as unknown as Consultation;
       });
     },
@@ -279,16 +299,14 @@ export function useGetOrCreateConsultation() {
 
       return withConsultationRateLimit(async () => {
         // First, try to find existing consultation
-        const { data: existingConsultation } = await supabase
-          .from('consultations')
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .eq('patient_id', patientId)
-          .neq('status', 'completed')
-          .maybeSingle();
+        const existingConsultation = await withConsultationHpiFallback((includeHpiColumns) =>
+          supabase
+            .from('consultations')
+            .select(consultationJoinSelect(includeHpiColumns))
+            .eq('patient_id', patientId)
+            .neq('status', 'completed')
+            .maybeSingle()
+        );
 
         if (existingConsultation) {
           // Update queue entry to in_service if not already
@@ -305,24 +323,20 @@ export function useGetOrCreateConsultation() {
         }
 
         // Create new consultation if none exists
-        const { data: consultation, error } = await supabase
-          .from('consultations')
-          .insert({
-            patient_id: patientId,
-            hospital_id: hospital.id,
-            doctor_id: profile.id,
-            status: 'patient_overview' as ConsultationStatus,
-            current_step: 1,
-            started_at: new Date().toISOString(),
-          })
-          .select(`
-            ${CONSULTATION_COLUMNS.detail},
-            patient:patients(${PATIENT_COLUMNS.detail}),
-            doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
-          `)
-          .single();
-
-        if (error) throw error;
+        const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
+          supabase
+            .from('consultations')
+            .insert({
+              patient_id: patientId,
+              hospital_id: hospital.id,
+              doctor_id: profile.id,
+              status: 'patient_overview' as ConsultationStatus,
+              current_step: 1,
+              started_at: new Date().toISOString(),
+            })
+            .select(consultationJoinSelect(includeHpiColumns))
+            .single()
+        );
 
         // Update queue entry to in_service
         await supabase
@@ -361,15 +375,27 @@ export function useUpdateConsultation() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) =>
       withConsultationRateLimit(async () => {
-        const { data, error } = await supabase
+        const primaryResult = await supabase
           .from('consultations')
           .update(updates)
           .eq('id', id)
           .select()
           .single();
 
-        if (error) throw error;
-        return data as Consultation;
+        if (!isMissingHpiColumnError(primaryResult.error)) {
+          if (primaryResult.error) throw primaryResult.error;
+          return primaryResult.data as Consultation;
+        }
+
+        const fallbackResult = await supabase
+          .from('consultations')
+          .update(stripUnsupportedHpiFields(updates))
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (fallbackResult.error) throw fallbackResult.error;
+        return fallbackResult.data as Consultation;
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });

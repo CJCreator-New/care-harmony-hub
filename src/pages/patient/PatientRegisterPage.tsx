@@ -439,6 +439,10 @@ export default function PatientRegisterPage() {
                     If provided by your healthcare provider, enter it here to link to their facility.
                   </p>
                 </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password *</Label>
+                    <Input
+                      id="password"
                       type="password"
                       value={formData.password}
                       onChange={(e) => updateFormData('password', e.target.value)}
