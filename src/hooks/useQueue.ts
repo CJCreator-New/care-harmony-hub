@@ -64,12 +64,16 @@ export function useQueue(status?: QueueStatus[]) {
       const today = new Date().toISOString().split('T')[0];
       query = query.gte('created_at', `${today}T00:00:00`);
 
+      // Limit to prevent unbounded queries
+      query = query.limit(100);
+
       const { data, error } = await query;
 
       if (error) throw error;
       return data as QueueEntry[];
     },
     enabled: !!hospital?.id,
+    staleTime: 30 * 1000, // 30 seconds - queue updates via realtime
   });
 }
 

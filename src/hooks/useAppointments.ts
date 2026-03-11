@@ -85,6 +85,7 @@ export function useAppointments(date?: string) {
       return data as unknown as Appointment[];
     },
     enabled: !!hospital?.id,
+    staleTime: 60 * 1000, // 1 minute - appointments updated via realtime
   });
 }
 
@@ -121,6 +122,7 @@ export function useUpcomingAppointments(limit: number = 10) {
       return data as Appointment[];
     },
     enabled: !!hospital?.id,
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 

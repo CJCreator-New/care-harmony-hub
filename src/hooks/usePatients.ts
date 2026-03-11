@@ -117,12 +117,13 @@ export function usePatient(patientId: string | undefined) {
   return useQuery({
     queryKey: ['patient', patientId, hospital?.id],
     queryFn: async () => {
-      if (!patientId) return null;
+      if (!patientId || !hospital?.id) return null;
 
       const { data, error } = await supabase
         .from('patients')
         .select('*')
         .eq('id', patientId)
+        .eq('hospital_id', hospital.id)
         .maybeSingle();
 
       if (error) throw error;
@@ -151,7 +152,7 @@ export function usePatient(patientId: string | undefined) {
 
       return data as Patient;
     },
-    enabled: !!patientId,
+    enabled: !!patientId && !!hospital?.id,
   });
 }
 

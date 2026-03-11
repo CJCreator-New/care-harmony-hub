@@ -2,8 +2,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const _url = import.meta.env.VITE_SUPABASE_URL;
+const _key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+// In test environments NODE_ENV=test, use stub values so the module loads
+// without throwing. All Supabase calls are intercepted by vi.mock in tests.
+const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+const SUPABASE_URL = _url || (isTest ? 'https://stub.supabase.co' : '');
+const SUPABASE_PUBLISHABLE_KEY = _key || (isTest ? 'stub-anon-key' : '');
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(

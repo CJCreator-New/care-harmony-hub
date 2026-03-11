@@ -44,6 +44,7 @@ export function useMedications() {
       return data as unknown as Medication[];
     },
     enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - reference data
   });
 }
 
@@ -67,6 +68,7 @@ export function useLowStockMedications() {
       return (data as Medication[]).filter(m => m.current_stock < m.minimum_stock);
     },
     enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - reference data
   });
 }
 
@@ -98,6 +100,7 @@ export function useMedicationStats() {
       };
     },
     enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - reference data
   });
 }
 

@@ -8,6 +8,8 @@ import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { useAudit } from '@/hooks/useAudit';
+import { fieldEncryption } from '@/utils/dataProtection';
 
 export type ConsultationStatus =
   | 'scheduled'
@@ -191,6 +193,24 @@ const stripUnsupportedConsultationFields = <T extends Record<string, any>>(
   return sanitized;
 };
 
+/** F2.3 — Decrypt consultation clinical PHI fields if encryption_metadata is present. */
+async function decryptConsultationFields(consultation: any): Promise<any> {
+  if (!consultation?.encryption_metadata || Object.keys(consultation.encryption_metadata).length === 0) {
+    return consultation;
+  }
+  const decrypted = { ...consultation };
+  for (const [field, encData] of Object.entries(consultation.encryption_metadata as Record<string, any>)) {
+    if (decrypted[field] && typeof decrypted[field] === 'string' && decrypted[field].startsWith('__ENCRYPTED__')) {
+      try {
+        decrypted[field] = await fieldEncryption.decryptField(encData);
+      } catch {
+        decrypted[field] = '[Encrypted]';
+      }
+    }
+  }
+  return decrypted;
+}
+
 export function useConsultations() {
   const { hospital } = useAuth();
 
@@ -215,10 +235,13 @@ export function useConsultations() {
         );
 
         devLog('Consultations fetched:', data?.length ?? 0);
-        return (data || []) as unknown as Consultation[];
+        const rows = (data || []) as any[];
+        const decrypted = await Promise.all(rows.map(decryptConsultationFields));
+        return decrypted as unknown as Consultation[];
       });
     },
     enabled: !!hospital?.id,
+    staleTime: 60 * 1000, // 1 minute - consultations updated via realtime
   });
 }
 
@@ -237,16 +260,18 @@ export function useConsultation(consultationId: string | undefined) {
             .maybeSingle()
         );
 
-        return data as unknown as Consultation | null;
+        return await decryptConsultationFields(data) as unknown as Consultation | null;
       });
     },
     enabled: !!consultationId,
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
 export function useCreateConsultation() {
   const queryClient = useQueryClient();
   const { hospital, profile } = useAuth();
+  const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async (data: ConsultationInsert) => {
@@ -289,6 +314,14 @@ export function useCreateConsultation() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       toast.success('Consultation started');
+      // F3.1 — HIPAA §164.312(b): audit log for consultation create
+      void logActivity({
+        actionType: 'CONSULTATION_CREATED',
+        entityType: 'consultations',
+        entityId: data?.id,
+        details: { patient_id: data?.patient_id, doctor_id: data?.doctor_id },
+        severity: 'info',
+      });
       // T-90: Critical-handoff telemetry — consult_start_success (no PHI in details)
       void supabase.from('activity_logs').insert({
         user_id: profile?.user_id ?? null,
@@ -318,6 +351,7 @@ export function useGetOrCreateConsultation() {
   const queryClient = useQueryClient();
   const { hospital, profile } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async (patientId: string) => {
@@ -381,6 +415,14 @@ export function useGetOrCreateConsultation() {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       toast.success('Consultation started');
+      // F3.1 — HIPAA §164.312(b): audit log
+      void logActivity({
+        actionType: 'CONSULTATION_CREATED',
+        entityType: 'consultations',
+        entityId: data.id,
+        details: { patient_id: data.patient_id, doctor_id: data.doctor_id },
+        severity: 'info',
+      });
       void triggerWorkflow({
         type: WORKFLOW_EVENT_TYPES.CONSULTATION_STARTED,
         sourceRole: 'doctor',
@@ -397,10 +439,29 @@ export function useGetOrCreateConsultation() {
 
 export function useUpdateConsultation() {
   const queryClient = useQueryClient();
+  const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) =>
       withConsultationRateLimit(async () => {
+        // F2.3 — HIPAA §164.312(a)(2)(iv): encrypt clinical narrative PHI fields before storage
+        const clinicalPHIFields = [
+          'chief_complaint', 'history_of_present_illness', 'treatment_plan',
+          'clinical_notes', 'follow_up_notes', 'handoff_notes',
+        ] as const;
+        const encMeta: Record<string, any> = (updates as any).encryption_metadata ?? {};
+        for (const field of clinicalPHIFields) {
+          const value = (updates as any)[field];
+          if (value && typeof value === 'string' && !value.startsWith('__ENCRYPTED__')) {
+            const encrypted = await fieldEncryption.encryptField(value);
+            encMeta[field] = encrypted;
+            (updates as any)[field] = `__ENCRYPTED__${encrypted.keyVersion}`;
+          }
+        }
+        if (Object.keys(encMeta).length > 0) {
+          (updates as any).encryption_metadata = encMeta;
+        }
+
         let pendingUpdates = { ...updates };
 
         while (true) {
@@ -428,6 +489,14 @@ export function useUpdateConsultation() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['consultation', data.id] });
+      // F3.1 — HIPAA §164.312(b): audit log for consultation update
+      void logActivity({
+        actionType: 'CONSULTATION_UPDATED',
+        entityType: 'consultations',
+        entityId: data.id,
+        details: { patient_id: data.patient_id, status: data.status },
+        severity: 'info',
+      });
     },
     onError: (error: Error) => {
       toast.error(`Failed to update consultation: ${error.message}`);
@@ -438,6 +507,7 @@ export function useUpdateConsultation() {
 export function useAdvanceConsultationStep() {
   const updateConsultation = useUpdateConsultation();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async ({ consultationId, currentStep }: { consultationId: string; currentStep: number }) => {
@@ -458,6 +528,13 @@ export function useAdvanceConsultationStep() {
     },
     onSuccess: (data) => {
       if (data.status === 'completed') {
+        void logActivity({
+          actionType: 'CONSULTATION_COMPLETED',
+          entityType: 'consultations',
+          entityId: data.id,
+          details: { patient_id: data.patient_id, doctor_id: data.doctor_id },
+          severity: 'info',
+        });
         void triggerWorkflow({
           type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
           sourceRole: 'doctor',
@@ -561,6 +638,7 @@ export function usePatientsReadyForConsultation() {
       });
     },
     enabled: !!hospital?.id,
+    staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 }

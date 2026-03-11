@@ -2,6 +2,7 @@
 @import './styles/typography.css';
 @import './styles/spacing.css';
 @import './styles/colors.css';
+@import './styles/surfaces.css';
 
 @tailwind base;
 @tailwind components;

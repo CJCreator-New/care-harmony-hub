@@ -7,11 +7,15 @@ interface User {
   email: string;
   phone?: string;
   full_name?: string;
+  /** Resolved patient record id from the `patients` table (patient-role users only). */
+  patient_id?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  /** Convenience accessor — same as user?.patient_id */
+  patientId: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -37,12 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ? {
-          id: session.user.id,
-          email: session.user.email!,
-          phone: session.user.phone,
-          full_name: session.user.user_metadata?.full_name,
-        } : null);
+        if (session?.user) {
+          // Resolve patient_id for patient-role users
+          const { data: patientRow } = await supabase
+            .from('patients')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            phone: session.user.phone,
+            full_name: session.user.user_metadata?.full_name,
+            patient_id: patientRow?.id,
+          });
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }
     );
@@ -63,8 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await SecureStore.deleteItemAsync('supabase-session');
   };
 
+  const patientId = user?.patient_id ?? null;
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, patientId, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

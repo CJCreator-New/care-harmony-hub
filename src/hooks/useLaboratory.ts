@@ -183,7 +183,7 @@ export const useLabResults = (patientId?: string, loincCode?: string) => {
 
       if (error) throw error;
     } catch (err) {
-      console.error('Failed to create critical value notification:', err);
+      console.error('Failed to create critical value notification:', sanitizeForLog(err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 

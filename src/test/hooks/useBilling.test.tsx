@@ -69,6 +69,7 @@ describe('useInvoices', () => {
       .mockReturnValueOnce(chain)
       .mockResolvedValueOnce({ data: [mockInvoice], error: null });
     chain.order = vi.fn().mockReturnValue(chain);
+    chain.limit = vi.fn().mockReturnValue(chain);
     mockSupabaseClient.from.mockReturnValue(chain);
 
     const { result } = renderHook(() => useInvoices('pending'), { wrapper: createWrapper() });

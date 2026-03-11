@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeLogMessage } from '@/utils/sanitize';
+import { useAudit } from '@/hooks/useAudit';
 
 export interface AIInsight {
   type: 'drug_interaction' | 'clinical_guideline' | 'risk_assessment';
@@ -26,6 +28,7 @@ export interface TreatmentGuideline {
 
 export function useAIClinicalSuggestions(patientId?: string) {
   const { profile } = useAuth();
+  const { logActivity } = useAudit();
 
   // Query for patient-specific AI insights using real AI analysis
   const { data: aiInsights = [], isLoading: isLoadingInsights, error: insightsError } = useQuery({
@@ -42,41 +45,53 @@ export function useAIClinicalSuggestions(patientId?: string) {
 
       if (!patientData) return [];
 
+      // F4.3 — HIPAA §164.508: check data_sharing_consent before sending PHI to external AI services
+      const { data: consent } = await supabase
+        .from('patient_consents')
+        .select('data_sharing_consent')
+        .eq('patient_id', patientId)
+        .maybeSingle();
+
+      const hasAIConsent = consent?.data_sharing_consent === true;
+
       const insights: AIInsight[] = [];
 
       try {
-        // Real AI-powered drug interaction analysis
-        if (patientData.current_medications && patientData.current_medications.length > 0) {
-          const drugAnalysis = await analyzeDrugInteractions(patientData.current_medications, patientData.allergies || []);
-          insights.push(...drugAnalysis);
+        if (hasAIConsent) {
+          // Real AI-powered drug interaction analysis (requires data_sharing_consent)
+          if (patientData.current_medications && patientData.current_medications.length > 0) {
+            const drugAnalysis = await analyzeDrugInteractions(patientData.current_medications, patientData.allergies || []);
+            insights.push(...drugAnalysis);
+          }
+
+          // Real AI-powered clinical guideline analysis
+          if (patientData.age && patientData.chief_complaint) {
+            const guidelineAnalysis = await analyzeClinicalGuidelines(patientData.age, patientData.chief_complaint, patientData.medical_history || []);
+            insights.push(...guidelineAnalysis);
+          }
+
+          // Real AI-powered risk assessment
+          const riskAnalysis = await assessPatientRisks(patientData);
+          insights.push(...riskAnalysis);
+        } else {
+          // Fallback to rule-based analysis when consent is absent — no PHI sent externally
+          insights.push(...generateFallbackInsights(patientData));
         }
 
-        // Real AI-powered clinical guideline analysis
-        if (patientData.age && patientData.chief_complaint) {
-          const guidelineAnalysis = await analyzeClinicalGuidelines(patientData.age, patientData.chief_complaint, patientData.medical_history || []);
-          insights.push(...guidelineAnalysis);
-        }
-
-        // Real AI-powered risk assessment
-        const riskAnalysis = await assessPatientRisks(patientData);
-        insights.push(...riskAnalysis);
-
-        // Log AI usage for audit and improvement
-        await supabase.from('activity_logs').insert({
-          user_id: profile?.user_id,
-          hospital_id: profile?.hospital_id,
-          action_type: 'ai_clinical_analysis',
-          entity_type: 'patient',
-          entity_id: patientId,
+        // F3.6 — Use useAudit instead of direct insert for proper metadata enrichment
+        void logActivity({
+          actionType: 'AI_CLINICAL_ANALYSIS',
+          entityType: 'patient',
+          entityId: patientId,
           details: {
             insights_generated: insights.length,
-            confidence_scores: insights.map(i => i.confidence),
-            analysis_types: [...new Set(insights.map(i => i.type))]
-          }
+            analysis_types: [...new Set(insights.map(i => i.type))],
+            ai_used: hasAIConsent,
+          },
         });
 
       } catch (error) {
-        console.error('AI analysis failed:', error);
+        console.error('AI analysis failed:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI analysis failed'));
         // Fallback to basic analysis if AI fails
         insights.push(...generateFallbackInsights(patientData));
       }
@@ -227,7 +242,7 @@ async function analyzeDrugInteractions(medications: string[], allergies: string[
       insights.push(...generateRuleBasedDrugInteractions(medications, allergies));
     }
   } catch (error) {
-    console.warn('AI drug interaction analysis failed, using rule-based fallback:', error);
+    console.warn('AI drug interaction analysis failed, using rule-based fallback:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI drug interaction failed'));
     insights.push(...generateRuleBasedDrugInteractions(medications, allergies));
   }
 
@@ -272,7 +287,7 @@ async function analyzeClinicalGuidelines(age: number, chiefComplaint: string, me
       insights.push(...generateBasicGuidelines(age, chiefComplaint, medicalHistory));
     }
   } catch (error) {
-    console.warn('AI clinical guideline analysis failed, using basic fallback:', error);
+    console.warn('AI clinical guideline analysis failed, using basic fallback:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI guideline failed'));
     insights.push(...generateBasicGuidelines(age, chiefComplaint, medicalHistory));
   }
 
@@ -315,7 +330,7 @@ async function assessPatientRisks(patientData: any): Promise<AIInsight[]> {
       insights.push(...generateBasicRiskAssessment(patientData));
     }
   } catch (error) {
-    console.warn('AI risk assessment failed, using basic fallback:', error);
+    console.warn('AI risk assessment failed, using basic fallback:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI risk assessment failed'));
     insights.push(...generateBasicRiskAssessment(patientData));
   }
 

@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { secureTransmission } from '@/utils/dataProtection';
 
 export interface MobileWorkflowConfig {
   role: string;
@@ -103,7 +104,7 @@ export function useMobileWorkflow() {
             .from(change.table)
             .upsert(change.data);
         } catch (error) {
-          console.error('Sync error:', error);
+          console.error('Sync error:', typeof error === 'object' && error !== null && 'message' in error ? (error as Error).message : 'Unknown sync error');
         }
       }
 
@@ -123,7 +124,22 @@ export function useMobileWorkflow() {
       };
 
       setOfflineData(syncedData);
-      localStorage.setItem('offline_data', JSON.stringify(syncedData));
+
+      // F2.1 — HIPAA §164.312(a)(2)(iv): encrypt PHI before writing to localStorage
+      const phiFields = [
+        'first_name', 'last_name', 'date_of_birth', 'phone', 'email',
+        'address', 'allergies', 'chronic_conditions', 'current_medications',
+        'insurance_provider', 'insurance_policy_number',
+      ];
+      const encryptedPatientsResults = await Promise.all(
+        syncedData.patients.map(p => secureTransmission.prepareForTransmission(p as Record<string, any>, phiFields))
+      );
+      const storagePayload = {
+        ...syncedData,
+        patients: encryptedPatientsResults.map(r => r.data),
+        _patients_encryption_metadata: encryptedPatientsResults.map(r => r.encryptionMetadata),
+      };
+      localStorage.setItem('offline_data', JSON.stringify(storagePayload));
 
       return syncedData;
     },
@@ -198,8 +214,8 @@ export function useMobileWorkflow() {
     }
   });
 
-  // Offline data management
-  const addOfflineChange = (table: string, data: any) => {
+  // Offline data management — F2.1: encrypt PHI before persisting pending changes
+  const addOfflineChange = async (table: string, data: any) => {
     if (!offlineData) return;
 
     const updatedData = {
@@ -211,15 +227,47 @@ export function useMobileWorkflow() {
     };
 
     setOfflineData(updatedData);
-    localStorage.setItem('offline_data', JSON.stringify(updatedData));
+
+    const phiFields = [
+      'first_name', 'last_name', 'date_of_birth', 'phone', 'email',
+      'address', 'allergies', 'chronic_conditions', 'current_medications',
+      'insurance_provider', 'insurance_policy_number',
+    ];
+    const encryptedPatientsResults = await Promise.all(
+      updatedData.patients.map(p => secureTransmission.prepareForTransmission(p as Record<string, any>, phiFields))
+    );
+    const storagePayload = {
+      ...updatedData,
+      patients: encryptedPatientsResults.map(r => r.data),
+      _patients_encryption_metadata: encryptedPatientsResults.map(r => r.encryptionMetadata),
+    };
+    localStorage.setItem('offline_data', JSON.stringify(storagePayload));
   };
 
-  // Initialize offline data on mount
+  // Initialize offline data on mount — F2.1: decrypt PHI after reading from localStorage
   useEffect(() => {
-    const savedData = localStorage.getItem('offline_data');
-    if (savedData) {
-      setOfflineData(JSON.parse(savedData));
-    }
+    const loadOfflineData = async () => {
+      const savedData = localStorage.getItem('offline_data');
+      if (!savedData) return;
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed._patients_encryption_metadata && Array.isArray(parsed.patients)) {
+          parsed.patients = await Promise.all(
+            parsed.patients.map((patient: any, i: number) =>
+              parsed._patients_encryption_metadata[i]
+                ? secureTransmission.restoreFromTransmission(patient, parsed._patients_encryption_metadata[i])
+                : patient
+            )
+          );
+          delete parsed._patients_encryption_metadata;
+        }
+        setOfflineData(parsed);
+      } catch {
+        // Corrupted or legacy unencrypted cache — clear it
+        localStorage.removeItem('offline_data');
+      }
+    };
+    void loadOfflineData();
   }, []);
 
   // Auto-sync when coming back online

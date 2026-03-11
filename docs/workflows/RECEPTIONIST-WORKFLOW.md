@@ -17,6 +17,11 @@ The Receptionist role manages patient intake, scheduling, and front-desk operati
 - Automated patient check-in with biometric verification (pending)
 - Assign patient to queue (real-time updates)
 
+### Unified Check-in Error Handling
+- Front-desk check-in now catches mutation failures inside `useUnifiedCheckIn()` instead of letting them escape uncaught to the caller.
+- Failed check-ins surface an explicit toast error and return `null`, so the UI can stop safely without entering a half-complete state.
+- Workflow priority during check-in is narrowed to the supported workflow priority union and no longer relies on unsafe casts.
+
 ## 3. Appointment Scheduling
 - Book, reschedule, or cancel appointments
 - AI-driven scheduling suggestions (pending)
@@ -38,7 +43,7 @@ The Receptionist role manages patient intake, scheduling, and front-desk operati
 ## Automation & Notifications
 - Check-in and scheduling events can trigger queue updates and staff notifications via workflow rules.
 - Appointment changes send patient notifications; escalations for long waits can create tasks for nursing/admin when rules are enabled.
-- No automatic retries on failed actions; confirm notifications/queue updates if behavior seems off.
+- If a workflow side effect fails after retries, the failure is persisted to `workflow_action_failures`, exposed in the Workflow Dashboard, and escalated through the maintenance routine if it remains unresolved.
 
 ## Access & Scope
 - Hospital-scoped via RLS; no cross-hospital visibility.

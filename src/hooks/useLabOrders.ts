@@ -35,7 +35,8 @@ export function useLabOrders(status?: string) {
         .from('lab_orders')
         .select(LAB_ORDER_COLUMNS.list)
         .eq('hospital_id', profile.hospital_id)
-        .order('ordered_at', { ascending: false });
+        .order('ordered_at', { ascending: false })
+        .limit(100); // Prevent unbounded queries
 
       if (status && status !== 'all') {
         query = query.eq('status', status);
@@ -47,6 +48,7 @@ export function useLabOrders(status?: string) {
       return data as unknown as LabOrder[];
     },
     enabled: !!profile?.hospital_id,
+    staleTime: 60 * 1000, // 1 minute - lab orders don't change frequently
   });
 }
 
@@ -77,6 +79,7 @@ export function useLabOrderStats() {
       return { pending, inProgress, completedToday };
     },
     enabled: !!profile?.hospital_id,
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 

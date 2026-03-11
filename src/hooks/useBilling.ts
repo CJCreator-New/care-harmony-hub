@@ -90,7 +90,8 @@ export function useInvoices(status?: InvoiceStatus) {
           `,
           )
           .eq('hospital_id', hospital.id)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(100); // Prevent unbounded queries
 
         if (status) {
           query = query.eq('status', status);
@@ -103,6 +104,7 @@ export function useInvoices(status?: InvoiceStatus) {
       });
     },
     enabled: !!hospital?.id,
+    staleTime: 60 * 1000, // 1 minute - invoice status changes
   });
 }
 
@@ -131,6 +133,7 @@ export function useInvoice(invoiceId: string | undefined) {
       });
     },
     enabled: !!invoiceId,
+    staleTime: 60 * 1000, // 1 minute - invoice status changes
   });
 }
 
@@ -152,6 +155,7 @@ export function useInvoiceItems(invoiceId: string | undefined) {
       });
     },
     enabled: !!invoiceId,
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
@@ -178,6 +182,7 @@ export function useInvoicePayments(invoiceId: string | undefined) {
       });
     },
     enabled: !!invoiceId,
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
@@ -216,6 +221,7 @@ export function useInvoiceStats() {
       });
     },
     enabled: !!hospital?.id,
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 

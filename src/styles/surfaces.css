@@ -1,0 +1,210 @@
+/*
+ * CareSync HMS — Surface & Depth System
+ *
+ * Provides atmospheric gradient meshes, glassmorphic surfaces, layered card
+ * elevation, and stagger-delay utilities. Import this after colors.css.
+ *
+ * Usage examples:
+ *   className="cs-surface-glass"          → frosted glass card
+ *   className="cs-card-1"                 → elevation level 1
+ *   className="cs-card-2"                 → elevation level 2 (hover target)
+ *   className="cs-gradient-mesh"          → animated ambient background
+ *   className="cs-stagger-children"       → auto-stagger child elements on mount
+ *   style={{ "--stagger-delay": "50ms" }} → override stagger interval
+ */
+
+@layer utilities {
+
+  /* ── Gradient mesh backgrounds ──────────────────────────────────────────── */
+
+  .cs-gradient-mesh {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, hsl(var(--primary) / 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, hsl(var(--info) / 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 50% 50%, hsl(var(--secondary) / 0.04) 0%, transparent 70%),
+      hsl(var(--background));
+  }
+
+  .dark .cs-gradient-mesh {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, hsl(var(--primary) / 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, hsl(var(--info) / 0.09) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 50% 50%, hsl(var(--secondary) / 0.06) 0%, transparent 70%),
+      hsl(var(--background));
+  }
+
+  .cs-gradient-mesh-sidebar {
+    background:
+      radial-gradient(ellipse 100% 40% at 50% 0%, hsl(var(--primary) / 0.14) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 0% 100%, hsl(var(--secondary) / 0.08) 0%, transparent 60%),
+      hsl(var(--sidebar-background));
+  }
+
+  /* ── Glassmorphism surfaces ──────────────────────────────────────────────── */
+
+  .cs-surface-glass {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    border: 1px solid hsl(var(--border) / 0.6);
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.08),
+      0 4px 16px -4px hsl(215 20% 11% / 0.10);
+  }
+
+  .cs-surface-frosted {
+    background: hsl(var(--background) / 0.85);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border: 1px solid hsl(var(--border) / 0.4);
+  }
+
+  /* ── Three-tier card elevation ───────────────────────────────────────────── */
+
+  /* Tier 1 — resting state */
+  .cs-card-1 {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.06),
+      0 1px 3px 0 hsl(215 20% 11% / 0.08),
+      0 1px 2px -1px hsl(215 20% 11% / 0.06);
+    transition: box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 200ms ease,
+                transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Tier 2 — hover state */
+  .cs-card-2:hover,
+  .cs-card-hover:hover {
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.08),
+      0 12px 24px -4px hsl(215 20% 11% / 0.12),
+      0 4px 8px -4px hsl(215 20% 11% / 0.06);
+    border-color: hsl(var(--primary) / 0.25);
+    transform: translateY(-2px);
+  }
+
+  /* Tier 3 — active / modal / overlay */
+  .cs-card-3 {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.08),
+      0 24px 48px -8px hsl(215 20% 11% / 0.18),
+      0 8px 16px -8px hsl(215 20% 11% / 0.10);
+  }
+
+  /* ── Stat card — signature surface for dashboards ───────────────────────── */
+
+  .cs-stat-card {
+    background:
+      linear-gradient(135deg, hsl(var(--primary) / 0.06) 0%, transparent 60%),
+      hsl(var(--card));
+    border: 1px solid hsl(var(--primary) / 0.15);
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 0 hsl(var(--primary) / 0.08),
+      0 4px 12px -4px hsl(var(--primary) / 0.12);
+    transition: box-shadow 200ms ease, transform 200ms cubic-bezier(0.22,1,0.36,1);
+  }
+
+  .cs-stat-card:hover {
+    box-shadow:
+      inset 0 1px 0 0 hsl(var(--primary) / 0.12),
+      0 12px 28px -6px hsl(var(--primary) / 0.20);
+    transform: translateY(-2px);
+  }
+
+  .cs-stat-card.cs-critical {
+    background:
+      linear-gradient(135deg, hsl(var(--destructive) / 0.08) 0%, transparent 60%),
+      hsl(var(--card));
+    border-color: hsl(var(--destructive) / 0.25);
+    animation: critical-pulse 1.5s cubic-bezier(0.42,0,0.58,1) infinite;
+  }
+
+  /* ── Stagger children animation ─────────────────────────────────────────── */
+  /*
+   * Apply .cs-stagger-children to a container.
+   * Each direct child gets an incremental animation-delay.
+   * Limit: 12 items. For longer lists use virtualization.
+   */
+
+  .cs-stagger-children > * {
+    animation: stagger-fade 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .cs-stagger-children > *:nth-child(1)  { animation-delay: calc(0  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(2)  { animation-delay: calc(1  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(3)  { animation-delay: calc(2  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(4)  { animation-delay: calc(3  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(5)  { animation-delay: calc(4  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(6)  { animation-delay: calc(5  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(7)  { animation-delay: calc(6  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(8)  { animation-delay: calc(7  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(9)  { animation-delay: calc(8  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(10) { animation-delay: calc(9  * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(11) { animation-delay: calc(10 * var(--stagger-delay, 60ms)) }
+  .cs-stagger-children > *:nth-child(12) { animation-delay: calc(11 * var(--stagger-delay, 60ms)) }
+
+  /* ── Reduced-motion overrides ────────────────────────────────────────────── */
+
+  @media (prefers-reduced-motion: reduce) {
+    .cs-gradient-mesh,
+    .cs-gradient-mesh-sidebar {
+      background: hsl(var(--background)); /* remove gradient breathing */
+    }
+
+    .cs-stagger-children > *,
+    .cs-card-1,
+    .cs-card-hover:hover,
+    .cs-stat-card,
+    .cs-stat-card:hover,
+    .cs-stat-card.cs-critical {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+
+  /* ── Precision line accent (for sidebar active states) ──────────────────── */
+
+  .cs-nav-active-indicator {
+    position: relative;
+  }
+
+  .cs-nav-active-indicator::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: linear-gradient(to bottom, hsl(var(--primary)), hsl(var(--primary) / 0.5));
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.4);
+  }
+
+  /* ── Noise texture overlay ───────────────────────────────────────────────── */
+  /*
+   * Subtle grain — applied via pseudo-element to avoid affecting children.
+   * Use on hero sections or dashboard backgrounds.
+   */
+
+  .cs-grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 160px 160px;
+    opacity: 0.5;
+    z-index: 1;
+    border-radius: inherit;
+  }
+
+}

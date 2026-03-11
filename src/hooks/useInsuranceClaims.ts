@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { sanitizeLogMessage } from '@/utils/sanitize';
+import { useAudit } from '@/hooks/useAudit';
 import {
   resolveIndianScheme,
   validateClaimForScheme,
@@ -46,6 +48,7 @@ export const useInsuranceClaims = () => {
   const hospitalId = profile?.hospital_id;
   const queryClient = useQueryClient();
   const functions = (supabase as any).functions;
+  const { logActivity } = useAudit();
 
   const submitClaimToProvider = async (claim: InsuranceClaim): Promise<ClaimSubmissionResult | null> => {
     if (!functions?.invoke) return null;
@@ -67,7 +70,7 @@ export const useInsuranceClaims = () => {
       });
       return response?.data ?? null;
     } catch (error) {
-      console.error('Failed to submit claim to provider', error);
+      console.error('Failed to submit claim to provider', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return null;
     }
   };
@@ -84,7 +87,7 @@ export const useInsuranceClaims = () => {
       });
       return response?.data ?? null;
     } catch (error) {
-      console.error('Failed to check claim status', error);
+      console.error('Failed to check claim status', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       return null;
     }
   };
@@ -150,9 +153,17 @@ export const useInsuranceClaims = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
       toast.success('Insurance claim created');
+      // F3.4 — HIPAA §164.506: audit PHI disclosure for insurance claims
+      void logActivity({
+        actionType: 'INSURANCE_CLAIM_CREATED',
+        entityType: 'insurance_claims',
+        entityId: data.id,
+        details: { patient_id: data.patient_id, insurance_provider: data.insurance_provider },
+        severity: 'info',
+      });
     },
     onError: (error) => {
       toast.error('Failed to create claim: ' + error.message);
@@ -171,9 +182,17 @@ export const useInsuranceClaims = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
       toast.success('Claim updated');
+      // F3.4 — HIPAA §164.506: audit log for claim update
+      void logActivity({
+        actionType: 'INSURANCE_CLAIM_UPDATED',
+        entityType: 'insurance_claims',
+        entityId: data.id,
+        details: { status: data.status },
+        severity: 'info',
+      });
     },
     onError: (error) => {
       toast.error('Failed to update claim: ' + error.message);
@@ -215,9 +234,17 @@ export const useInsuranceClaims = () => {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['insurance-claims'] });
       toast.success('Claim submitted');
+      // F3.4 — HIPAA §164.506: PHI disclosure to insurer — requires audit trail
+      void logActivity({
+        actionType: 'INSURANCE_CLAIM_SUBMITTED',
+        entityType: 'insurance_claims',
+        entityId: data.id,
+        details: { insurance_provider: data.insurance_provider, claim_amount: data.claim_amount },
+        severity: 'warning',
+      });
     },
   });
 

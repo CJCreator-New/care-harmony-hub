@@ -78,6 +78,7 @@ export function useCrossRoleCommunication() {
       return data as CommunicationMessage[];
     },
     enabled: !!profile?.id && !!hospital?.id,
+    staleTime: 30 * 1000, // 30 seconds - messages
   });
 
   // Get unread messages count
@@ -97,6 +98,7 @@ export function useCrossRoleCommunication() {
       return count || 0;
     },
     enabled: !!profile?.id && !!hospital?.id,
+    staleTime: 30 * 1000, // 30 seconds - messages
   });
 
   // Get communication threads
@@ -119,6 +121,7 @@ export function useCrossRoleCommunication() {
       return data as CommunicationThread[];
     },
     enabled: !!profile?.id && !!hospital?.id,
+    staleTime: 30 * 1000, // 30 seconds - threads
   });
 
   // Get notification settings
@@ -137,6 +140,7 @@ export function useCrossRoleCommunication() {
       return data as NotificationSettings | null;
     },
     enabled: !!profile?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings don't change often
   });
 
   // Send message

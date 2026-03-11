@@ -66,7 +66,8 @@ describe('useQueue', () => {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
-      gte: vi.fn().mockResolvedValue({ data: [mockQueueEntry], error: null }),
+      gte: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [mockQueueEntry], error: null }),
     });
 
     const { result } = renderHook(() => useQueue(), { wrapper: createWrapper() });

@@ -66,6 +66,7 @@ describe('usePrescriptions', () => {
     chain.select = vi.fn().mockReturnValue(chain);
     chain.eq = eqMock;
     chain.order = vi.fn().mockReturnValue(chain);
+    chain.limit = vi.fn().mockReturnValue(chain);
     mockSupabaseClient.from.mockReturnValue(chain);
 
     const { result } = renderHook(() => usePrescriptions('pending'), { wrapper: createWrapper() });

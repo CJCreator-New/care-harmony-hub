@@ -24,6 +24,21 @@ The Doctor role is central to patient care, diagnosis, and treatment. This workf
 - Automated alerts for critical results
 - Integration with pharmacist and lab tech workflows
 
+### Prescription Field Standard
+- Consultation and prescription payloads now persist `medication_name` as the canonical field.
+- Any older `medication` draft state is normalized before persistence.
+- Doctor-facing summaries and downstream pharmacy handoff views now read `medication_name` consistently.
+
+### Queue Degradation Behavior
+- If `lab_queue` is missing in an older deployment, the lab order still persists to `lab_orders`.
+- If `prescription_queue` is missing in an older deployment, the prescription still persists to `prescriptions`.
+- In both cases, the system creates a compensating `workflow_tasks` record so the handoff is still durable and reviewable.
+
+### Workflow Retry Behavior
+- Workflow side effects such as notifications and secondary task fan-out are best-effort and no longer block core consultation completion.
+- Retry-exhausted failures are written to `workflow_action_failures`.
+- Failures older than 1 hour are escalated to admin via the workflow failure escalation maintenance routine.
+
 ## 4. Collaboration & Handover
 - Secure messaging with nurses, lab techs, and pharmacists
 - Handover notes and care plans (audit-logged)
@@ -50,7 +65,7 @@ The Doctor role is central to patient care, diagnosis, and treatment. This workf
 ## Automation & Notifications
 - Events from consultations, orders, and critical labs create tasks/notifications via workflow rules.
 - Critical lab values notify doctor; prescription creation notifies pharmacy; consult tasks notify nursing when applicable.
-- No automatic retries on failed actions; monitor notifications/tasks for completion.
+- Failed workflow actions are persisted for review, surfaced in the Workflow Dashboard, and escalated if unresolved beyond the maintenance threshold.
 
 ## Access & Scope
 - Hospital-scoped via RLS; no cross-hospital visibility.

@@ -16,6 +16,7 @@ This document outlines maintenance procedures for the CareSync Hospital Manageme
 8. [Performance Monitoring](#performance)
 9. [Security Maintenance](#security)
 10. [Database Maintenance](#database)
+11. [Workflow Maintenance](#workflow-maintenance)
 
 ## Daily Maintenance
 
@@ -152,6 +153,20 @@ This document outlines maintenance procedures for the CareSync Hospital Manageme
    - Check for unusual access patterns
    - Audit privileged account usage
 
+### Workflow Failure Review
+
+**Time Required:** 20 minutes
+**Responsible:** Admin Operations or Clinical Systems Owner
+
+1. Open the Workflow Dashboard at `/integration/workflow`
+2. Review the `Unresolved Action Failures` panel
+3. For each unresolved failure:
+   - verify whether the underlying clinical or administrative action persisted successfully
+   - inspect the `event_type`, `action_type`, retry count, and error message
+   - fix the operational issue or create a follow-up task
+   - use `Mark Resolved` only after closure is confirmed
+4. Escalate repeated failure sources to engineering if the same pattern appears more than once in a week
+
 ## Monthly Maintenance
 
 ### Comprehensive System Audit
@@ -173,6 +188,23 @@ This document outlines maintenance procedures for the CareSync Hospital Manageme
    - Review monthly performance metrics
    - Analyze system bottlenecks
    - Plan capacity upgrades
+
+### Workflow Rules Effectiveness Review
+
+**Time Required:** 45 minutes
+**Responsible:** Admin Operations + Technical Owner
+
+1. Open the Workflow Dashboard `Analytics` tab
+2. Review:
+   - workflow rule coverage percentage
+   - missing workflow events without active rules
+   - workflow failure rate
+   - top workflow events
+   - top failure sources
+3. Confirm every current workflow dispatcher event has at least one active rule in the hospital
+4. Review queue depth trends for `prescription_queue` and `lab_queue`
+5. Disable obsolete rules and add rules for uncovered or weakly-covered events
+6. Record any recurring retry-exhausted failure source in the monthly operations report
 
 ### Data Quality Maintenance
 
@@ -541,6 +573,41 @@ DELETE FROM main_table WHERE created_date < DATEADD(month, -6, GETDATE());
    - Configure connection pooling
    - Optimize tempdb usage
 
+## Workflow Maintenance
+
+### Failure Escalation Routine
+
+Use the escalation function to raise unresolved workflow action failures that have remained open beyond the target threshold:
+
+```sql
+SELECT public.escalate_stale_workflow_action_failures(INTERVAL '1 hour', 100);
+```
+
+What it does:
+- finds unresolved `workflow_action_failures` older than the threshold
+- inserts urgent admin notifications pointing to `/integration/workflow`
+- marks the failure metadata with `escalated_at` to avoid duplicate escalation
+
+### Automatic Scheduling
+
+Migration [20260311000002_workflow_failure_escalation.sql](c:\Users\HP\OneDrive\Desktop\Projects\VS Code\AroCord-HIMS\care-harmony-hub\supabase\migrations\20260311000002_workflow_failure_escalation.sql) installs the escalation function and attempts to register a `pg_cron` job named `workflow-action-failure-escalation-hourly`.
+
+Expected schedule:
+- every 15 minutes
+- escalates failures older than 1 hour
+
+Validation query:
+
+```sql
+SELECT jobid, jobname, schedule, command
+FROM cron.job
+WHERE jobname = 'workflow-action-failure-escalation-hourly';
+```
+
+If `pg_cron` is unavailable in the target Supabase environment:
+- invoke the escalation SQL function from an external scheduler or operations runbook
+- keep the weekly Workflow Dashboard review mandatory
+
 ---
 
 ## Maintenance Checklist Templates
@@ -557,12 +624,14 @@ DELETE FROM main_table WHERE created_date < DATEADD(month, -6, GETDATE());
 - [ ] User accounts reviewed
 - [ ] Performance optimization completed
 - [ ] Log files archived
+- [ ] Workflow action failures reviewed in Workflow Dashboard
 
 ### Monthly Checklist
 - [ ] System audit completed
 - [ ] Data quality verified
 - [ ] Hardware maintenance performed
 - [ ] Compliance requirements met
+- [ ] Workflow rule effectiveness reviewed
 
 ### Emergency Contact Information
 

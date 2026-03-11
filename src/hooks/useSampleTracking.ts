@@ -3,21 +3,37 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { secureTransmission } from '@/utils/dataProtection';
 
 const LOCAL_SAMPLES_KEY = 'lab-samples-fallback';
+
+// F2.2 — HIPAA §164.312(a)(2)(iv): PHI fields to encrypt in lab sample fallback storage
+const SAMPLE_PHI_FIELDS = ['patient_id', 'notes'];
 
 function loadLocalSamples(): LabSample[] {
   try {
     const raw = window.localStorage.getItem(LOCAL_SAMPLES_KEY);
-    return raw ? (JSON.parse(raw) as LabSample[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    // Legacy unencrypted data from before this fix — discard to prevent PHI exposure
+    if (!parsed._encrypted) return [];
+    return parsed.samples as LabSample[];
   } catch {
     return [];
   }
 }
 
-function saveLocalSamples(samples: LabSample[]) {
+async function saveLocalSamples(samples: LabSample[]): Promise<void> {
   try {
-    window.localStorage.setItem(LOCAL_SAMPLES_KEY, JSON.stringify(samples));
+    // Encrypt PHI fields in each sample before persisting
+    const encryptedResults = await Promise.all(
+      samples.map(s => secureTransmission.prepareForTransmission(s as unknown as Record<string, any>, SAMPLE_PHI_FIELDS))
+    );
+    window.localStorage.setItem(LOCAL_SAMPLES_KEY, JSON.stringify({
+      _encrypted: true,
+      samples: encryptedResults.map(r => r.data),
+      _metadata: encryptedResults.map(r => r.encryptionMetadata),
+    }));
   } catch {
     // Ignore storage failures
   }
@@ -142,7 +158,7 @@ export function useSampleTracking() {
             updated_at: new Date().toISOString(),
           };
           const existing = loadLocalSamples();
-          saveLocalSamples([fallbackSample, ...existing]);
+          await saveLocalSamples([fallbackSample, ...existing]);
           return fallbackSample;
         }
         throw error;
@@ -198,7 +214,7 @@ export function useSampleTracking() {
           const updated = existing.map((sample) =>
             sample.id === sampleId ? { ...sample, ...updateData } as LabSample : sample
           );
-          saveLocalSamples(updated);
+          await saveLocalSamples(updated);
           return updated.find((sample) => sample.id === sampleId) as LabSample;
         }
         throw error;

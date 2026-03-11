@@ -56,7 +56,8 @@ describe('useLabOrders', () => {
       ...mockSupabaseClient.from(),
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: [mockLabOrder], error: null }),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [mockLabOrder], error: null }),
     });
 
     const { result } = renderHook(() => useLabOrders(), { wrapper: createWrapper() });
@@ -71,6 +72,7 @@ describe('useLabOrders', () => {
       select: vi.fn().mockReturnThis(),
       eq: eqMock,
       order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
     });
 
     renderHook(() => useLabOrders('pending'), { wrapper: createWrapper() });

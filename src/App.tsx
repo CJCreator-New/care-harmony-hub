@@ -109,6 +109,7 @@ const ClinicalPharmacyPage = lazy(() => import("./pages/pharmacy/ClinicalPharmac
 const LabAutomationPage = lazy(() => import("./pages/lab/LabAutomationPage"));
 const WorkflowDashboard = lazy(() => import("./pages/integration/WorkflowDashboard"));
 const WorkflowOptimizationPage = lazy(() => import("./pages/workflow/WorkflowOptimizationPage"));
+const DischargeWorkflowPage = lazy(() => import("./pages/workflow/DischargeWorkflowPage"));
 const TestingDashboardPage = lazy(() => import("./pages/testing/TestingDashboardPage"));
 const AIDemoPage = lazy(() => import("./pages/AIDemoPage"));
 const DifferentialDiagnosisPage = lazy(() => import("./pages/DifferentialDiagnosisPage"));
@@ -704,6 +705,14 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']}>
             <WorkflowOptimizationPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/workflow/discharge"
+        element={
+          <RoleProtectedRoute allowedRoles={['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist']}>
+            <DischargeWorkflowPage />
           </RoleProtectedRoute>
         }
       />

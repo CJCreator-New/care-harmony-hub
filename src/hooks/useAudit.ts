@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback } from "react";
+import { sanitizeForLog } from "@/utils/sanitize";
 
 export type AuditSeverity = 'info' | 'warning' | 'error' | 'critical';
 
@@ -45,10 +46,19 @@ export function useAudit() {
       });
 
       if (error) {
-        console.error('Audit Logging Failed:', error);
+        // Audit failure must never be silent — log sanitized message and persist to error tracking
+        console.error('Audit Logging Failed:', sanitizeForLog(String(error)));
+        void supabase.from('activity_logs').insert({
+          hospital_id: profile.hospital_id,
+          user_id: session.user.id,
+          action_type: 'audit_log_write_failure',
+          entity_type: 'system',
+          details: { original_action: params.actionType, error_message: 'audit_log_write_failed' },
+          severity: 'critical' as AuditSeverity,
+        }).then(() => {});
       }
     } catch (err) {
-      console.error('Failed to log activity:', err);
+      console.error('Failed to log activity:', sanitizeForLog(String(err)));
     }
   }, [session?.user?.id, profile?.hospital_id]);
 

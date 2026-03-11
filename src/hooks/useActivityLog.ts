@@ -112,7 +112,8 @@ export function useActivityLogs(filters?: {
           )
         `)
         .eq('hospital_id', hospital.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Limit to 100 rows
 
       if (filters?.actionType) {
         query = query.eq('action_type', filters.actionType);
@@ -128,8 +129,6 @@ export function useActivityLogs(filters?: {
       }
       if (filters?.limit) {
         query = query.limit(filters.limit);
-      } else {
-        query = query.limit(100);
       }
 
       const { data, error } = await query;
@@ -138,5 +137,6 @@ export function useActivityLogs(filters?: {
       return data;
     },
     enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - aggregates
   });
 }

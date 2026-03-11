@@ -10,6 +10,11 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    },
+    "test-automation-strategy": {
+      "source": "proffesor-for-testing/agentic-qe",
+      "sourceType": "github",
+      "computedHash": "5a88869f974686b1855eb922438266c8f5c3bc5dfd323573b3e0fcfacbf7d852"
     }
   }
 }

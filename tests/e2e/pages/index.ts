@@ -6,6 +6,8 @@
 export { BasePage } from './base.page';
 export { LoginPage } from './login.page';
 export { DashboardPage } from './dashboard.page';
+export { DoctorPage } from './doctor.page';
+export { PatientPortalPage } from './patient-portal.page';
 
 // Re-export components
 export {

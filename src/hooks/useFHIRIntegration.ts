@@ -107,6 +107,17 @@ async function invokeFHIRAction<T>(
 export function useFHIRIntegration() {
   const exportPatient = useMutation({
     mutationFn: async (patientId: string) => {
+      // F4.2 — HIPAA §164.508: verify data-sharing consent before FHIR export
+      const { data: consent, error: consentError } = await supabase
+        .from('patient_consents')
+        .select('data_sharing_consent')
+        .eq('patient_id', patientId)
+        .maybeSingle();
+
+      if (consentError || !consent?.data_sharing_consent) {
+        throw new Error('Patient data sharing consent not recorded. Cannot export FHIR data.');
+      }
+
       return invokeFHIRAction<FHIRPatient>('export_patient', { patient_id: patientId });
     },
   });

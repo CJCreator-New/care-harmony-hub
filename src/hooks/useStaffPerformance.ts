@@ -148,5 +148,6 @@ export function useStaffPerformance() {
       );
     },
     enabled: !!hospital?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - expensive compute
   });
 }
