@@ -301,13 +301,15 @@ export function useCreateInvoice() {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoice-stats'] });
       toast.success('Invoice created');
-      void triggerWorkflow({
-        type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
-        sourceRole: 'receptionist',
-        patientId: variables.patientId,
-        data: { invoiceId: data.id, total: data.total },
-        priority: 'normal',
-      });
+      if (!variables.consultationId) {
+        void triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
+          sourceRole: 'receptionist',
+          patientId: variables.patientId,
+          data: { invoiceId: data.id, total: data.total },
+          priority: 'normal',
+        });
+      }
     },
     onError: (error) => {
       toast.error(`Failed to create invoice: ${error.message}`);

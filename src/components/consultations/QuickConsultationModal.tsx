@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,15 @@ interface QuickConsultationModalProps {
   consultation: any;
 }
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return 'Unknown error';
+};
+
 export function QuickConsultationModal({ open, onOpenChange, consultation }: QuickConsultationModalProps) {
   const [diagnosis, setDiagnosis] = useState<StructuredDiagnosis | null>(null);
   const [cptCodes, setCptCodes] = useState<string[]>([]);
@@ -44,6 +53,17 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
   const createPrescription = useCreatePrescription();
   const createLabOrder = useCreateLabOrder();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+
+  const triggerWorkflowSafely = async (
+    event: Parameters<typeof triggerWorkflow>[0],
+    context: string
+  ) => {
+    try {
+      await triggerWorkflow(event);
+    } catch (error) {
+      console.error(`Workflow side effect failed during ${context}:`, getErrorMessage(error), error);
+    }
+  };
 
   const handleAddDiagnosis = (code: ICD10Code) => {
     setDiagnosis({
@@ -99,7 +119,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
           })),
           notes,
         });
-        await triggerWorkflow({
+        await triggerWorkflowSafely({
           type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
           patientId: consultation.patient_id,
           data: {
@@ -107,7 +127,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
             prescriptionId: prescriptionResult.id,
             medicationCount: prescriptions.length,
           },
-        });
+        }, 'quick prescription creation');
       }
 
       // Handle lab orders
@@ -124,7 +144,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
               status: 'pending',
             } as any);
 
-          await triggerWorkflow({
+          await triggerWorkflowSafely({
             type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
             patientId: consultation.patient_id,
             priority: mapToWorkflowPriority(order.priority),
@@ -134,11 +154,11 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
               labOrderId: labOrder.id,
               priority: mapToCanonicalLabPriority(order.priority),
             },
-          });
+          }, 'quick lab order creation');
         }
       }
 
-      await triggerWorkflow({
+      await triggerWorkflowSafely({
         type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
         patientId: consultation.patient_id,
         data: {
@@ -148,12 +168,14 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
           prescriptionCount: prescriptions.length,
           labOrderCount: labOrders.length,
         },
-      });
+      }, 'quick consultation completion');
       
       toast.success('Consultation completed successfully!');
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to complete consultation');
+      const message = getErrorMessage(error);
+      console.error('Failed to complete quick consultation:', message, error);
+      toast.error(`Failed to complete consultation: ${message}`);
     } finally {
       setIsCompleting(false);
     }
@@ -167,6 +189,9 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
             <Stethoscope className="h-5 w-5" />
             Quick Consultation - {consultation?.patient?.first_name} {consultation?.patient?.last_name}
           </DialogTitle>
+          <DialogDescription>
+            Capture a diagnosis, add prescriptions or lab orders, and complete the consultation in a condensed workflow.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

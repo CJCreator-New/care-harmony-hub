@@ -38,13 +38,31 @@ import {
 import { WorkflowOrchestrator } from '@/components/integration/WorkflowOrchestrator';
 import { useWorkflowAutomation } from '@/hooks/useWorkflowAutomation';
 import { useCrossRoleCommunication } from '@/hooks/useCrossRoleCommunication';
+import { WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+
+type WorkflowActionFailureRecord = {
+  id: string;
+  workflow_event_id: string;
+  action_type: string;
+  error_message: string;
+  retry_attempts: number;
+  created_at: string;
+  resolved: boolean;
+  resolved_at?: string | null;
+  event_type?: string | null;
+};
+
+const WORKFLOW_EVENT_LIST = Object.values(WORKFLOW_EVENT_TYPES);
 
 export function WorkflowDashboard() {
   const { profile, hospital } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedTimeframe, setSelectedTimeframe] = useState('7d');
+  const queryClient = useQueryClient();
 
   const {
     myTasks,
@@ -69,8 +87,173 @@ export function WorkflowDashboard() {
   const { data: metrics } = getWorkflowMetrics();
   const { data: overdueTasks } = getOverdueTasks();
 
+  const { data: actionFailures = [] } = useQuery({
+    queryKey: ['workflow-action-failures', hospital?.id],
+    queryFn: async () => {
+      if (!hospital?.id) return [];
+      const { data, error } = await supabase
+        .from('workflow_action_failures')
+        .select('*')
+        .eq('hospital_id', hospital.id)
+        .eq('resolved', false)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      const failures = (data || []) as WorkflowActionFailureRecord[];
+      const eventIds = Array.from(new Set(failures.map((failure) => failure.workflow_event_id).filter(Boolean)));
+
+      if (eventIds.length === 0) {
+        return failures;
+      }
+
+      const { data: workflowEvents, error: workflowEventsError } = await supabase
+        .from('workflow_events')
+        .select('id, event_type')
+        .in('id', eventIds);
+
+      if (workflowEventsError) throw workflowEventsError;
+
+      const eventTypeById = new Map(
+        ((workflowEvents || []) as Array<{ id: string; event_type: string }>).map((event) => [event.id, event.event_type]),
+      );
+
+      return failures.map((failure) => ({
+        ...failure,
+        event_type: eventTypeById.get(failure.workflow_event_id) ?? null,
+      }));
+    },
+    enabled: !!hospital?.id,
+  });
+
+  const { data: queueDepth } = useQuery({
+    queryKey: ['workflow-queue-depth', hospital?.id],
+    queryFn: async () => {
+      if (!hospital?.id) return { prescriptionQueue: 0, labQueue: 0 };
+
+      const [prescriptionQueueResult, labQueueResult] = await Promise.all([
+        supabase.from('prescription_queue').select('id', { count: 'exact', head: true }).eq('hospital_id', hospital.id),
+        supabase.from('lab_queue').select('id', { count: 'exact', head: true }).eq('hospital_id', hospital.id),
+      ]);
+
+      return {
+        prescriptionQueue: prescriptionQueueResult.count || 0,
+        labQueue: labQueueResult.count || 0,
+      };
+    },
+    enabled: !!hospital?.id,
+  });
+
+  const { data: workflowAnalytics } = useQuery({
+    queryKey: ['workflow-analytics', hospital?.id, selectedTimeframe],
+    queryFn: async () => {
+      if (!hospital?.id) {
+        return {
+          ruleCoveragePercent: 0,
+          coveredEvents: 0,
+          missingEvents: [] as string[],
+          totalEvents: 0,
+          totalFailures: 0,
+          failureRate: 0,
+          topEvents: [] as Array<{ eventType: string; count: number }>,
+          topFailures: [] as Array<{ actionType: string; eventType: string; count: number }>,
+        };
+      }
+
+      const timeframeDays = selectedTimeframe === '7d' ? 7 : selectedTimeframe === '30d' ? 30 : 90;
+      const fromDate = subDays(new Date(), timeframeDays).toISOString();
+
+      const [rulesResult, eventsResult, failuresResult] = await Promise.all([
+        supabase
+          .from('workflow_rules')
+          .select('trigger_event, active')
+          .eq('hospital_id', hospital.id)
+          .eq('active', true),
+        supabase
+          .from('workflow_events')
+          .select('id, event_type, created_at')
+          .eq('hospital_id', hospital.id)
+          .gte('created_at', fromDate),
+        supabase
+          .from('workflow_action_failures')
+          .select('workflow_event_id, action_type, created_at')
+          .eq('hospital_id', hospital.id)
+          .gte('created_at', fromDate),
+      ]);
+
+      if (rulesResult.error) throw rulesResult.error;
+      if (eventsResult.error) throw eventsResult.error;
+      if (failuresResult.error) throw failuresResult.error;
+
+      const activeRules = rulesResult.data || [];
+      const workflowEvents = (eventsResult.data || []) as Array<{ id: string; event_type: string }>;
+      const failures = (failuresResult.data || []) as Array<{ workflow_event_id: string; action_type: string }>;
+
+      const coveredEvents = new Set(activeRules.map((rule: { trigger_event: string }) => rule.trigger_event));
+      const missingEvents = WORKFLOW_EVENT_LIST.filter((eventType) => !coveredEvents.has(eventType));
+      const eventTypeById = new Map(workflowEvents.map((event) => [event.id, event.event_type]));
+
+      const eventCounts = new Map<string, number>();
+      for (const event of workflowEvents) {
+        eventCounts.set(event.event_type, (eventCounts.get(event.event_type) || 0) + 1);
+      }
+
+      const failureCounts = new Map<string, number>();
+      for (const failure of failures) {
+        const eventType = eventTypeById.get(failure.workflow_event_id) ?? 'unknown';
+        const key = `${failure.action_type}|||${eventType}`;
+        failureCounts.set(key, (failureCounts.get(key) || 0) + 1);
+      }
+
+      return {
+        ruleCoveragePercent: Math.round((coveredEvents.size / WORKFLOW_EVENT_LIST.length) * 100),
+        coveredEvents: coveredEvents.size,
+        missingEvents,
+        totalEvents: workflowEvents.length,
+        totalFailures: failures.length,
+        failureRate: workflowEvents.length > 0 ? (failures.length / workflowEvents.length) * 100 : 0,
+        topEvents: Array.from(eventCounts.entries())
+          .map(([eventType, count]) => ({ eventType, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5),
+        topFailures: Array.from(failureCounts.entries())
+          .map(([key, count]) => {
+            const [actionType, eventType] = key.split('|||');
+            return { actionType, eventType, count };
+          })
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5),
+      };
+    },
+    enabled: !!hospital?.id,
+  });
+
+  const markFailureResolved = async (failureId: string) => {
+    const { error } = await supabase
+      .from('workflow_action_failures')
+      .update({ resolved: true, resolved_at: new Date().toISOString() })
+      .eq('id', failureId);
+
+    if (error) {
+      console.error('Failed to resolve workflow action failure:', error);
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['workflow-action-failures'] });
+  };
+
   const unreadMessages = getUnreadMessages();
   const urgentMessages = getUrgentMessages();
+  const queueDepthTotal = (queueDepth?.prescriptionQueue || 0) + (queueDepth?.labQueue || 0);
+  const analyticsSummary = workflowAnalytics ?? {
+    ruleCoveragePercent: 0,
+    coveredEvents: 0,
+    missingEvents: [] as string[],
+    totalEvents: 0,
+    totalFailures: 0,
+    failureRate: 0,
+    topEvents: [] as Array<{ eventType: string; count: number }>,
+    topFailures: [] as Array<{ actionType: string; eventType: string; count: number }>,
+  };
 
   // Calculate dashboard metrics
   const getDashboardMetrics = () => {
@@ -150,7 +333,7 @@ export function WorkflowDashboard() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -203,6 +386,21 @@ export function WorkflowDashboard() {
                 </p>
               </div>
               <MessageSquare className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Queue Depth</p>
+                <p className="text-2xl font-bold">{queueDepthTotal}</p>
+                <p className="text-xs text-muted-foreground">
+                  Rx {queueDepth?.prescriptionQueue || 0} · Lab {queueDepth?.labQueue || 0}
+                </p>
+              </div>
+              <Workflow className="h-8 w-8 text-indigo-500" />
             </div>
           </CardContent>
         </Card>
@@ -340,6 +538,42 @@ export function WorkflowDashboard() {
               </ScrollArea>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Unresolved Action Failures</CardTitle>
+              <CardDescription>
+                Workflow actions that failed after retries and still need manual review
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {actionFailures.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No unresolved workflow action failures.</div>
+              ) : (
+                <div className="space-y-3">
+                  {actionFailures.map((failure: WorkflowActionFailureRecord) => (
+                    <div key={failure.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="destructive">{failure.action_type}</Badge>
+                            <span className="text-sm font-medium">{failure.event_type || failure.workflow_event_id}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{failure.error_message}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Retries: {failure.retry_attempts} · {format(new Date(failure.created_at), 'MMM d, h:mm a')}
+                          </p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => void markFailureResolved(failure.id)}>
+                          Mark Resolved
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="orchestrator">
@@ -462,46 +696,65 @@ export function WorkflowDashboard() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          {/* Performance Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Task Completion Trends</CardTitle>
+                <CardTitle>Workflow Rule Coverage</CardTitle>
                 <CardDescription>
-                  Task completion rates over time
+                  Active rule coverage across the current workflow dispatcher events
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <LineChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Chart visualization would be implemented here</p>
-                    <p className="text-sm">Integration with charting library needed</p>
-                  </div>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Coverage</span>
+                  <span className="text-2xl font-semibold">{analyticsSummary.ruleCoveragePercent}%</span>
+                </div>
+                <Progress value={analyticsSummary.ruleCoveragePercent} />
+                <div className="flex items-center justify-between text-sm">
+                  <span>{analyticsSummary.coveredEvents} covered</span>
+                  <span>{WORKFLOW_EVENT_LIST.length - analyticsSummary.coveredEvents} missing</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {analyticsSummary.missingEvents.length === 0 ? (
+                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100">All current events covered</Badge>
+                  ) : (
+                    analyticsSummary.missingEvents.map((eventType) => (
+                      <Badge key={eventType} variant="outline">{eventType}</Badge>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Role Performance</CardTitle>
+                <CardTitle>Workflow Failure Rate</CardTitle>
                 <CardDescription>
-                  Performance metrics by healthcare role
+                  Retry-exhausted action failures relative to recorded workflow events
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <PieChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Role performance breakdown</p>
-                    <p className="text-sm">Data visualization pending</p>
+              <CardContent className="space-y-4">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-3xl font-semibold">{analyticsSummary.failureRate.toFixed(1)}%</div>
+                    <p className="text-sm text-muted-foreground">failure rate in the selected window</p>
+                  </div>
+                  <AlertTriangle className="h-8 w-8 text-orange-500" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="rounded-lg border p-3">
+                    <div className="text-muted-foreground">Workflow events</div>
+                    <div className="text-xl font-semibold">{analyticsSummary.totalEvents}</div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-muted-foreground">Failed actions</div>
+                    <div className="text-xl font-semibold">{analyticsSummary.totalFailures}</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Detailed Metrics */}
           <Card>
             <CardHeader>
               <CardTitle>Detailed Analytics</CardTitle>
@@ -563,22 +816,78 @@ export function WorkflowDashboard() {
                       <span className="font-medium">{workflowRules?.filter(r => r.active).length || 0}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">Auto Tasks Created</span>
-                      <span className="font-medium">127</span>
+                      <span className="text-sm">Queue Depth</span>
+                      <span className="font-medium">{queueDepthTotal}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">Time Saved</span>
-                      <span className="font-medium">42h</span>
+                      <span className="text-sm">Rule Coverage</span>
+                      <span className="font-medium">{analyticsSummary.ruleCoveragePercent}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">Efficiency Gain</span>
-                      <span className="font-medium">+35%</span>
+                      <span className="text-sm">Failure Rate</span>
+                      <span className="font-medium">{analyticsSummary.failureRate.toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Workflow Events</CardTitle>
+                <CardDescription>
+                  Highest-volume workflow events in the selected window
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analyticsSummary.topEvents.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No workflow events recorded in this window.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {analyticsSummary.topEvents.map((event) => (
+                      <div key={event.eventType} className="flex items-center justify-between rounded-lg border p-3">
+                        <span className="text-sm">{event.eventType}</span>
+                        <Badge variant="secondary">{event.count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Failure Sources</CardTitle>
+                <CardDescription>
+                  Workflow actions with the highest retry-exhausted failure counts
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analyticsSummary.topFailures.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No retry-exhausted failures in this window.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {analyticsSummary.topFailures.map((failure) => (
+                      <div key={`${failure.actionType}-${failure.eventType}`} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="destructive">{failure.actionType}</Badge>
+                              <span className="text-sm font-medium">{failure.eventType}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">Retry exhausted failure count</p>
+                          </div>
+                          <span className="text-lg font-semibold">{failure.count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
       </div>

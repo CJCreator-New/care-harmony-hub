@@ -52,6 +52,15 @@ export interface WorkflowAction {
   metadata?: Record<string, any>;
 }
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return 'Unknown error';
+};
+
 export function useWorkflowOrchestrator() {
   const { hospital, profile, primaryRole } = useAuth();
   const queryClient = useQueryClient();
@@ -64,25 +73,10 @@ export function useWorkflowOrchestrator() {
       return;
     }
 
+    let eventRecordId: string | null = null;
+
     try {
       devLog(`Triggering workflow: ${event.type} for hospital ${hospital.id}`);
-
-      // Best-effort idempotency guard to reduce duplicate handoff fan-out
-      const dedupeWindowStart = new Date(Date.now() - 30 * 1000).toISOString();
-      const { data: recentDuplicate } = await supabase
-        .from('workflow_events')
-        .select('id')
-        .eq('hospital_id', hospital.id)
-        .eq('event_type', event.type)
-        .eq('patient_id', event.patientId ?? null)
-        .eq('source_user', profile?.user_id ?? null)
-        .gte('created_at', dedupeWindowStart)
-        .maybeSingle();
-
-      if (recentDuplicate) {
-        devLog(`Skipping duplicate workflow event within dedupe window: ${event.type}`);
-        return;
-      }
 
       // 1. Log the event for audit purposes
       const { data: eventRecord, error: eventError } = await supabase
@@ -100,6 +94,7 @@ export function useWorkflowOrchestrator() {
         .single();
 
       if (eventError) throw eventError;
+      eventRecordId = eventRecord.id;
 
       // 2. Fetch active rules for this event type
       const { data: rules, error: rulesError } = await supabase
@@ -118,6 +113,15 @@ export function useWorkflowOrchestrator() {
 
       // 3. Execute actions for each rule
       for (const rule of rules) {
+        const cooldownMinutes = typeof rule.cooldown_minutes === 'number' ? rule.cooldown_minutes : 0;
+        if (cooldownMinutes > 0 && rule.last_triggered) {
+          const cooldownStartedAt = new Date(Date.now() - cooldownMinutes * 60 * 1000);
+          if (new Date(rule.last_triggered) >= cooldownStartedAt) {
+            devLog(`Skipping rule ${rule.name} due to cooldown (${cooldownMinutes}m)`);
+            continue;
+          }
+        }
+
         devLog(`Executing rule: ${rule.name}`);
         const actions = rule.actions as WorkflowAction[];
         
@@ -143,8 +147,15 @@ export function useWorkflowOrchestrator() {
       queryClient.invalidateQueries({ queryKey: ['workflow-events'] });
 
     } catch (error: any) {
-      console.error('Workflow orchestration failed:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
-      toast.error(`Workflow error: ${error.message}`);
+      const message = getErrorMessage(error);
+      console.error('Workflow orchestration failed:', sanitizeLogMessage(message), error);
+      if (eventRecordId) {
+        await supabase
+          .from('workflow_events')
+          .update({ processing_error: message })
+          .eq('id', eventRecordId);
+      }
+      toast.error(`Workflow error: ${message}`);
     }
   };
 
@@ -175,7 +186,7 @@ export function useWorkflowOrchestrator() {
         lastError = actionError;
         console.error(
           `Failed to execute action ${action.type} (attempt ${currentAttempt}):`,
-          sanitizeLogMessage(actionError instanceof Error ? actionError.message : 'Unknown error')
+          sanitizeLogMessage(getErrorMessage(actionError))
         );
 
         if (currentAttempt < maxRetries) {
@@ -195,7 +206,7 @@ export function useWorkflowOrchestrator() {
       workflow_event_id: event.type,
       action_type: action.type,
       action_metadata: action,
-      error_message: lastError instanceof Error ? lastError.message : 'Unknown error',
+      error_message: getErrorMessage(lastError),
       retry_attempts: maxRetries,
       patient_id: event.patientId,
       created_at: new Date().toISOString()

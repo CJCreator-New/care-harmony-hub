@@ -46,6 +46,17 @@ export interface PrescriptionItem {
   created_at: string;
 }
 
+const isMissingPrescriptionQueueSchemaError = (error: { message?: string } | null) => {
+  if (!error?.message) return false;
+
+  return (
+    /relation ["']?public\.prescription_queue["']? does not exist/i.test(error.message) ||
+    /relation ["']?prescription_queue["']? does not exist/i.test(error.message) ||
+    /column .* of relation ["']?prescription_queue["']? does not exist/i.test(error.message) ||
+    /could not find the '([a-zA-Z0-9_]+)' column of 'prescription_queue' in the schema cache/i.test(error.message)
+  );
+};
+
 export function usePrescriptions(status?: string) {
   const { hospital } = useAuth();
 
@@ -187,8 +198,37 @@ export function useCreatePrescription() {
         });
 
       if (queueError) {
-        // If queue insertion fails, log and surface the error so callers can handle it
-        throw queueError;
+        if (!isMissingPrescriptionQueueSchemaError(queueError)) {
+          throw queueError;
+        }
+
+        const { error: fallbackTaskError } = await supabase
+          .from('workflow_tasks')
+          .insert({
+            hospital_id: hospital.id,
+            patient_id: patientId,
+            title: 'Manual pharmacy queue follow-up required',
+            description: 'prescription_queue was unavailable when this prescription was created. Review and route manually.',
+            assigned_to: profile.id,
+            priority: 'high',
+            status: 'pending',
+            workflow_type: 'medication',
+            metadata: {
+              degraded_queue: 'prescription_queue',
+              prescription_id: prescription.id,
+              item_count: items.length,
+              original_error: queueError.message,
+            },
+          });
+
+        if (fallbackTaskError) {
+          throw fallbackTaskError;
+        }
+
+        console.warn('prescription_queue unavailable; prescription created without durable queue entry', {
+          prescriptionId: prescription.id,
+          error: queueError.message,
+        });
       }
 
       return prescription;

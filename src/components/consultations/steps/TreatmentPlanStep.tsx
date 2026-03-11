@@ -24,7 +24,7 @@ interface TreatmentPlanStepProps {
 }
 
 interface Prescription {
-  medication: string;
+  medication_name: string;
   dosage: string;
   frequency: string;
   duration: string;
@@ -62,7 +62,7 @@ export function TreatmentPlanStep({
   const [isGeneratingInteractions, setIsGeneratingInteractions] = useState(false);
 
   const [newPrescription, setNewPrescription] = useState<Prescription>({
-    medication: "",
+    medication_name: "",
     dosage: "",
     frequency: "",
     duration: "",
@@ -87,11 +87,11 @@ export function TreatmentPlanStep({
   const safetyAlerts = useMemo(() => {
     const allAllergyAlerts: any[] = [];
     const allDrugInteractions: any[] = [];
-    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication));
+    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication_name));
     
     for (const rx of prescriptions) {
-      const otherMeds = currentMeds.filter((m: string) => m !== rx.medication);
-      const safety = checkPrescriptionSafety(rx.medication, patientAllergies, otherMeds);
+      const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
+      const safety = checkPrescriptionSafety(rx.medication_name, patientAllergies, otherMeds);
       allAllergyAlerts.push(...safety.allergyAlerts);
       allDrugInteractions.push(...safety.drugInteractions);
     }
@@ -105,16 +105,16 @@ export function TreatmentPlanStep({
 
   // Check new prescription before adding
   const newPrescriptionSafety = useMemo(() => {
-    if (!newPrescription.medication.trim()) return null;
-    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication));
-    return checkPrescriptionSafety(newPrescription.medication, patientAllergies, currentMeds);
-  }, [newPrescription.medication, prescriptions, patientAllergies, patientMedications]);
+    if (!newPrescription.medication_name.trim()) return null;
+    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication_name));
+    return checkPrescriptionSafety(newPrescription.medication_name, patientAllergies, currentMeds);
+  }, [newPrescription.medication_name, prescriptions, patientAllergies, patientMedications]);
 
   const addPrescription = () => {
-    if (newPrescription.medication.trim()) {
+    if (newPrescription.medication_name.trim()) {
       onUpdate("prescriptions", [...prescriptions, { ...newPrescription }]);
       setNewPrescription({
-        medication: "",
+        medication_name: "",
         dosage: "",
         frequency: "",
         duration: "",
@@ -218,8 +218,8 @@ export function TreatmentPlanStep({
       // Get all current medications (existing + new prescriptions)
       const allMedications = [
         ...patientMedications,
-        ...prescriptions.map((p: Prescription) => p.medication),
-        ...(newPrescription.medication ? [newPrescription.medication] : [])
+        ...prescriptions.map((p: Prescription) => p.medication_name),
+        ...(newPrescription.medication_name ? [newPrescription.medication_name] : [])
       ].filter(Boolean);
 
       if (allMedications.length < 2) {
@@ -361,9 +361,9 @@ export function TreatmentPlanStep({
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
             <Input
               placeholder="Medication"
-              value={newPrescription.medication}
+              value={newPrescription.medication_name}
               onChange={(e) =>
-                setNewPrescription({ ...newPrescription, medication: e.target.value })
+                setNewPrescription({ ...newPrescription, medication_name: e.target.value })
               }
               className={newPrescriptionSafety && !newPrescriptionSafety.isSafe ? 'border-warning' : ''}
             />
@@ -401,11 +401,11 @@ export function TreatmentPlanStep({
             <div className="space-y-2">
               {prescriptions.map((rx: Prescription, index) => (
                 <div
-                  key={`${rx.medication}-${rx.dosage}-${rx.frequency}-${rx.duration}`}
+                  key={`${rx.medication_name}-${rx.dosage}-${rx.frequency}-${rx.duration}`}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
                 >
                   <div>
-                    <p className="font-medium">{rx.medication}</p>
+                    <p className="font-medium">{rx.medication_name}</p>
                     <p className="text-sm text-muted-foreground">
                       {rx.dosage} - {rx.frequency} for {rx.duration}
                     </p>

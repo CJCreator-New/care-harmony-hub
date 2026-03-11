@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -49,6 +50,43 @@ import { toast } from "sonner";
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "Unknown error";
+};
+
+const buildGeneratedConsultationSummaryDescription = (summary: string) => {
+  const maxLength = 1500;
+  return summary.length > maxLength ? `${summary.slice(0, maxLength)}...` : summary;
+};
+
+const normalizeDiagnosisDescriptions = (value: any): string[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (entry?.description) return entry.description;
+      if (entry?.short_description) return entry.short_description;
+      if (entry?.icd_code) return entry.icd_code;
+      return null;
+    })
+    .filter((entry): entry is string => Boolean(entry));
+};
+
+const normalizePrescriptionDrafts = (value: any): any[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((item) => ({
+    ...item,
+    medication_name: item?.medication_name || item?.medication || "",
+  }));
+};
+
 export default function ConsultationWorkflowPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -66,6 +104,17 @@ export default function ConsultationWorkflowPage() {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
 
+  const triggerWorkflowSafely = async (
+    event: Parameters<typeof triggerWorkflow>[0],
+    context: string
+  ) => {
+    try {
+      await triggerWorkflow(event);
+    } catch (error) {
+      console.error(`Workflow side effect failed during ${context}:`, getErrorMessage(error), error);
+    }
+  };
+
   const handleApplyTemplate = (template: ConsultationTemplate) => {
     setFormData(prev => ({
       ...prev,
@@ -78,20 +127,6 @@ export default function ConsultationWorkflowPage() {
   };
 
   const getDiagnosisSummary = () => {
-    const diagnosisList = Array.isArray(formData.diagnoses) ? formData.diagnoses : [];
-    const diagnosisDescriptions = diagnosisList
-      .map((dx: any) => {
-        if (typeof dx === 'string') return dx;
-        if (dx?.description) return dx.description;
-        if (dx?.short_description) return dx.short_description;
-        if (dx?.icd_code) return dx.icd_code;
-        return '';
-      })
-      .filter(Boolean);
-
-    if (diagnosisDescriptions.length > 0) {
-      return diagnosisDescriptions.join(', ');
-    }
     if (Array.isArray(formData.final_diagnosis) && formData.final_diagnosis.length > 0) {
       return formData.final_diagnosis.join(', ');
     }
@@ -110,9 +145,11 @@ export default function ConsultationWorkflowPage() {
         symptoms: consultation.symptoms || [],
         diagnoses: (consultation as any).diagnoses || [],
         provisional_diagnosis: consultation.provisional_diagnosis || [],
-        final_diagnosis: consultation.final_diagnosis || [],
+        final_diagnosis: consultation.final_diagnosis?.length
+          ? consultation.final_diagnosis
+          : normalizeDiagnosisDescriptions((consultation as any).diagnoses),
         treatment_plan: consultation.treatment_plan || "",
-        prescriptions: consultation.prescriptions || [],
+        prescriptions: normalizePrescriptionDrafts(consultation.prescriptions || []),
         lab_orders: consultation.lab_orders || [],
         referrals: consultation.referrals || [],
         clinical_notes: consultation.clinical_notes || "",
@@ -151,14 +188,38 @@ export default function ConsultationWorkflowPage() {
   }, [formData, id]);
 
   const handleUpdateField = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      if (field === "diagnoses") {
+        return {
+          ...prev,
+          diagnoses: value,
+          final_diagnosis: normalizeDiagnosisDescriptions(value),
+        };
+      }
+
+      if (field === "final_diagnosis") {
+        return {
+          ...prev,
+          final_diagnosis: normalizeDiagnosisDescriptions(value),
+        };
+      }
+
+      if (field === "prescriptions") {
+        return {
+          ...prev,
+          prescriptions: normalizePrescriptionDrafts(value),
+        };
+      }
+
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleApplyAIRecommendation = (type: string, value: any) => {
     if (type === 'diagnosis') {
-      const currentDiagnoses = formData.diagnoses || [];
+      const currentDiagnoses = formData.final_diagnosis || [];
       if (typeof value === 'string' && !currentDiagnoses.includes(value)) {
-        handleUpdateField('diagnoses', [...currentDiagnoses, value]);
+        handleUpdateField('final_diagnosis', [...currentDiagnoses, value]);
         toast.success(`Applied AI recommendation: ${value}`);
       }
     } else if (type === 'lab') {
@@ -229,7 +290,7 @@ TREATMENT PLAN:
 ${formData.treatment_plan || 'Not documented'}
 
 PRESCRIPTIONS:
-${formData.prescriptions?.map((rx: any) => `- ${rx.medication} ${rx.dosage}, ${rx.frequency} for ${rx.duration}`).join('\n') || 'None'}
+${formData.prescriptions?.map((rx: any) => `- ${rx.medication_name} ${rx.dosage}, ${rx.frequency} for ${rx.duration}`).join('\n') || 'None'}
 
 LAB ORDERS:
 ${formData.lab_orders?.map((order: any) => `- ${order.test} (${order.priority})`).join('\n') || 'None'}
@@ -263,15 +324,26 @@ ${formData.soap_plan || 'Not documented'}`;
           lab_notified: formData.lab_orders?.length > 0 ? true : formData.lab_notified,
         });
 
-        // Store summary as a document for patient access
-        await supabase.from('documents').insert({
+        // Best-effort generated document record. Older schemas require file metadata and do not support inline content.
+        const { error: documentError } = await supabase.from('documents').insert({
           patient_id: consultation.patient_id,
+          consultation_id: id,
           hospital_id: consultation.hospital_id,
-          document_type: 'consultation_summary',
-          title: `Consultation - ${new Date().toLocaleDateString()} - ${consultation.doctor?.first_name} ${consultation.doctor?.last_name}`,
-          content: patientSummary,
-          created_by: consultation.doctor_id,
+          uploaded_by: consultation.doctor_id,
+          document_type: 'other',
+          title: `Consultation Summary - ${new Date().toLocaleDateString()}`,
+          description: buildGeneratedConsultationSummaryDescription(patientSummary),
+          file_name: `consultation-summary-${id}.txt`,
+          file_path: `generated/consultation-summaries/${id}.txt`,
+          file_size: patientSummary.length,
+          mime_type: 'text/plain',
+          is_confidential: true,
+          tags: ['consultation', 'summary', 'generated'],
         });
+
+        if (documentError) {
+          console.error('Failed to create generated consultation document:', getErrorMessage(documentError), documentError);
+        }
 
         const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
 
@@ -282,7 +354,7 @@ ${formData.soap_plan || 'Not documented'}`;
               patientId: consultation.patient_id,
               consultationId: id,
               items: formData.prescriptions.map((rx: any) => ({
-                medication_name: rx.medication,
+                medication_name: rx.medication_name,
                 dosage: rx.dosage,
                 frequency: rx.frequency,
                 duration: rx.duration,
@@ -291,7 +363,7 @@ ${formData.soap_plan || 'Not documented'}`;
               notes: formData.handoff_notes,
             });
             // Always notify pharmacists via workflow orchestrator when prescriptions are created
-            await triggerWorkflow({
+            await triggerWorkflowSafely({
               type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
               patientId: consultation.patient_id,
               data: {
@@ -299,11 +371,12 @@ ${formData.soap_plan || 'Not documented'}`;
                 prescriptionId: prescriptionResult.id,
                 medicationCount: formData.prescriptions.length
               }
-            });
+            }, 'prescription creation');
             toast.success(`${formData.prescriptions.length} prescription(s) created and sent to pharmacy`);
           } catch (err) {
-            console.error('Error creating prescription:', err);
-            toast.error('Failed to create prescriptions');
+            const message = getErrorMessage(err);
+            console.error('Error creating prescription:', message, err);
+            toast.error(`Failed to create prescriptions: ${message}`);
           }
         }
 
@@ -324,7 +397,7 @@ ${formData.soap_plan || 'Not documented'}`;
               });
 
               // Notify lab technicians via workflow orchestrator
-              await triggerWorkflow({
+              await triggerWorkflowSafely({
                 type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
                 patientId: consultation.patient_id,
                 data: {
@@ -334,12 +407,13 @@ ${formData.soap_plan || 'Not documented'}`;
                   priority: mapToCanonicalLabPriority(order.priority)
                 },
                 priority: mapToWorkflowPriority(order.priority)
-              });
+              }, 'lab order creation');
             }
             toast.success(`${formData.lab_orders.length} lab order(s) sent to laboratory`);
           } catch (err) {
-            console.error('Error creating lab orders:', err);
-            toast.error('Failed to send lab orders to laboratory');
+            const message = getErrorMessage(err);
+            console.error('Error creating lab orders:', message, err);
+            toast.error(`Failed to send lab orders to laboratory: ${message}`);
             throw err;
           }
         }
@@ -366,7 +440,7 @@ ${formData.soap_plan || 'Not documented'}`;
               dueDate: null,
             });
 
-            await triggerWorkflow({
+            await triggerWorkflowSafely({
               type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
               patientId: consultation.patient_id,
               data: {
@@ -376,10 +450,11 @@ ${formData.soap_plan || 'Not documented'}`;
                 invoiceNumber: invoice.invoice_number,
                 amount: invoice.total
               }
-            });
+            }, 'invoice creation');
           } catch (err) {
-            console.error('Error creating invoice:', err);
-            toast.error('Failed to create invoice for this consultation');
+            const message = getErrorMessage(err);
+            console.error('Error creating invoice:', message, err);
+            toast.error(`Failed to create invoice for this consultation: ${message}`);
           }
         }
 
@@ -390,9 +465,10 @@ ${formData.soap_plan || 'Not documented'}`;
           // Follow-up task if follow-up date is scheduled
           if (formData.follow_up_date) {
             tasksToCreate.push({
+              hospital_id: consultation.hospital_id,
               patient_id: consultation.patient_id,
               assigned_to: consultation.doctor_id,
-              created_by: consultation.doctor_id,
+              assigned_by: consultation.doctor_id,
               title: `Follow-up: ${consultation.patient?.first_name} ${consultation.patient?.last_name}`,
               description: `Scheduled follow-up consultation\n${formData.follow_up_notes || ''}\n\nOriginal consultation: ${new Date().toLocaleDateString()}`,
               priority: 'medium',
@@ -408,9 +484,10 @@ ${formData.soap_plan || 'Not documented'}`;
             const priority = urgentLabs.length > 0 ? 'urgent' : 'high';
 
             tasksToCreate.push({
+              hospital_id: consultation.hospital_id,
               patient_id: consultation.patient_id,
               assigned_to: consultation.doctor_id,
-              created_by: consultation.doctor_id,
+              assigned_by: consultation.doctor_id,
               title: `Review Lab Results: ${consultation.patient?.first_name} ${consultation.patient?.last_name}`,
               description: `Review results for ${formData.lab_orders.length} lab test(s) ordered:\n${formData.lab_orders.map((order: any) => `- ${order.test} (${order.priority})`).join('\n')}\n\nConsultation: ${new Date().toLocaleDateString()}`,
               priority,
@@ -423,9 +500,10 @@ ${formData.soap_plan || 'Not documented'}`;
           // Referral follow-up task if referrals were made
           if (formData.referrals?.length > 0) {
             tasksToCreate.push({
+              hospital_id: consultation.hospital_id,
               patient_id: consultation.patient_id,
               assigned_to: consultation.doctor_id,
-              created_by: consultation.doctor_id,
+              assigned_by: consultation.doctor_id,
               title: `Follow-up Referral: ${consultation.patient?.first_name} ${consultation.patient?.last_name}`,
               description: `Follow up on ${formData.referrals.length} referral(s) made:\n${formData.referrals.map((ref: any) => `- ${ref.specialty || ref.type}: ${ref.reason || ''}`).join('\n')}\n\nConsultation: ${new Date().toLocaleDateString()}`,
               priority: 'medium',
@@ -459,7 +537,7 @@ ${formData.soap_plan || 'Not documented'}`;
         // This fires unconditionally — whether or not an invoice was already
         // created inside the billing block above.
         const completionPatientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
-        await triggerWorkflow({
+        await triggerWorkflowSafely({
           type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
           patientId: consultation.patient_id,
           data: {
@@ -469,7 +547,7 @@ ${formData.soap_plan || 'Not documented'}`;
             labOrderCount: formData.lab_orders?.length || 0,
             billingNotified: !!formData.billing_notified,
           },
-        });
+        }, 'consultation completion');
         
         // Redirect after a short delay to show completion state
         setTimeout(() => {
@@ -477,7 +555,7 @@ ${formData.soap_plan || 'Not documented'}`;
         }, 1500);
       }
     } catch (error) {
-      // Error is handled by the hook
+      console.error('Consultation completion failed:', getErrorMessage(error), error);
     } finally {
       setIsCompleting(false);
     }
@@ -747,6 +825,9 @@ ${formData.soap_plan || 'Not documented'}`;
               <Keyboard className="h-5 w-5" />
               Keyboard Shortcuts
             </DialogTitle>
+            <DialogDescription>
+              Quick keyboard actions for saving progress and moving through the consultation workflow.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3">

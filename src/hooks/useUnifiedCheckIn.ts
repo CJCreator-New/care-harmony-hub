@@ -1,6 +1,30 @@
 import { useAddToQueue, PriorityLevel } from '@/hooks/useQueue';
 import { useCheckInAppointment } from '@/hooks/useAppointments';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { toast } from 'sonner';
+
+const toWorkflowPriority = (priority: string | undefined): 'low' | 'normal' | 'high' | 'urgent' => {
+  switch (priority) {
+    case 'low':
+    case 'normal':
+    case 'high':
+    case 'urgent':
+      return priority;
+    case 'emergency':
+      return 'urgent';
+    default:
+      return 'normal';
+  }
+};
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return 'Unknown error';
+};
 
 interface UnifiedCheckInInput {
   patient: {
@@ -25,43 +49,50 @@ export function useUnifiedCheckIn() {
     priority = 'normal',
     isWalkIn = false,
   }: UnifiedCheckInInput): Promise<number | null> => {
-    if (appointmentId) {
-      const result = await checkInAppointment.mutateAsync(appointmentId);
-      const queueNumber = result.queue_number ?? null;
+    try {
+      if (appointmentId) {
+        const result = await checkInAppointment.mutateAsync(appointmentId);
+        const queueNumber = result.queue_number ?? null;
+
+        await triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN,
+          patientId: patient.id,
+          priority: toWorkflowPriority((result.priority as string | undefined) || priority),
+          data: {
+            patientName: `${patient.first_name} ${patient.last_name}`,
+            queueNumber: result.queue_number || 0,
+            appointmentId,
+            mrn: patient.mrn || undefined,
+          },
+        });
+
+        return queueNumber;
+      }
+
+      const queueEntry = await addToQueue.mutateAsync({
+        patientId: patient.id,
+        priority,
+      });
 
       await triggerWorkflow({
         type: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN,
         patientId: patient.id,
-        priority: ((result.priority as string) || priority) as any,
+        priority: toWorkflowPriority(priority),
         data: {
           patientName: `${patient.first_name} ${patient.last_name}`,
-          queueNumber: result.queue_number || 0,
-          appointmentId,
+          queueNumber: queueEntry.queue_number,
+          isWalkIn,
           mrn: patient.mrn || undefined,
         },
       });
 
-      return queueNumber;
+      return queueEntry.queue_number;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      toast.error(`Failed to check in patient: ${message}`);
+      console.error('Unified check-in failed:', message, error);
+      return null;
     }
-
-    const queueEntry = await addToQueue.mutateAsync({
-      patientId: patient.id,
-      priority,
-    });
-
-    await triggerWorkflow({
-      type: WORKFLOW_EVENT_TYPES.PATIENT_CHECKED_IN,
-      patientId: patient.id,
-      priority: priority as any,
-      data: {
-        patientName: `${patient.first_name} ${patient.last_name}`,
-        queueNumber: queueEntry.queue_number,
-        isWalkIn,
-        mrn: patient.mrn || undefined,
-      },
-    });
-
-    return queueEntry.queue_number;
   };
 
   return {

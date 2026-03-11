@@ -5,10 +5,23 @@ import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 export type LabOrder = Tables<'lab_orders'>;
 export type LabOrderInsert = TablesInsert<'lab_orders'>;
 export type LabOrderUpdate = TablesUpdate<'lab_orders'>;
+
+const isMissingLabQueueSchemaError = (error: PostgrestError | null) => {
+  if (!error) return false;
+
+  const message = error.message || '';
+  return (
+    /relation ["']?public\.lab_queue["']? does not exist/i.test(message) ||
+    /relation ["']?lab_queue["']? does not exist/i.test(message) ||
+    /column .* of relation ["']?lab_queue["']? does not exist/i.test(message) ||
+    /could not find the '([a-zA-Z0-9_]+)' column of 'lab_queue' in the schema cache/i.test(message)
+  );
+};
 
 export function useLabOrders(status?: string) {
   const { profile } = useAuth();
@@ -132,8 +145,37 @@ export function useCreateLabOrder() {
         });
 
       if (queueError) {
-        // surface queue insertion error
-        throw queueError;
+        if (!isMissingLabQueueSchemaError(queueError)) {
+          throw queueError;
+        }
+
+        const { error: fallbackTaskError } = await supabase
+          .from('workflow_tasks')
+          .insert({
+            hospital_id: data.hospital_id,
+            patient_id: data.patient_id,
+            title: `Manual lab queue follow-up: ${data.test_name}`,
+            description: 'lab_queue was unavailable when this lab order was created. Review and route manually.',
+            assigned_to: order.ordered_by ?? null,
+            priority: 'high',
+            status: 'pending',
+            workflow_type: 'lab_order',
+            metadata: {
+              degraded_queue: 'lab_queue',
+              lab_order_id: data.id,
+              test_name: data.test_name,
+              original_error: queueError.message,
+            },
+          });
+
+        if (fallbackTaskError) {
+          throw fallbackTaskError;
+        }
+
+        console.warn('lab_queue unavailable; lab order created without durable queue entry', {
+          labOrderId: data.id,
+          error: queueError.message,
+        });
       }
 
       return data;

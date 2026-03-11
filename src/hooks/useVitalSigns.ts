@@ -137,12 +137,54 @@ export function useRecordVitals() {
       queryClient.invalidateQueries({ queryKey: ['vital-signs', variables.patient_id] });
       queryClient.invalidateQueries({ queryKey: ['vital-signs', 'today-count'] });
       toast.success('Vitals recorded successfully');
-      void triggerWorkflow({
-        type: WORKFLOW_EVENT_TYPES.VITALS_RECORDED,
-        sourceRole: 'nurse',
-        patientId: variables.patient_id,
-        data: { consultationId: variables.consultation_id ?? null },
-        priority: 'normal',
+      void (async () => {
+        await triggerWorkflow({
+          type: WORKFLOW_EVENT_TYPES.VITALS_RECORDED,
+          sourceRole: 'nurse',
+          patientId: variables.patient_id,
+          data: { consultationId: variables.consultation_id ?? null },
+          priority: 'normal',
+        });
+
+        let consultationLookup = variables.consultation_id ? { id: variables.consultation_id } : null;
+        if (!consultationLookup) {
+          const { data, error } = await supabase
+            .from('consultations')
+            .select('id')
+            .eq('patient_id', variables.patient_id)
+            .neq('status', 'completed')
+            .neq('status', 'cancelled')
+            .order('created_at', { ascending: false })
+            .maybeSingle();
+
+          if (error) throw error;
+          consultationLookup = data;
+        }
+
+        const { data: activeQueueEntry, error: queueError } = await supabase
+          .from('patient_queue')
+          .select('id')
+          .eq('patient_id', variables.patient_id)
+          .in('status', ['waiting', 'called', 'in_prep'])
+          .order('created_at', { ascending: false })
+          .maybeSingle();
+
+        if (queueError) throw queueError;
+
+        if (consultationLookup?.id && activeQueueEntry?.id) {
+          await triggerWorkflow({
+            type: WORKFLOW_EVENT_TYPES.PATIENT_READY_FOR_DOCTOR,
+            sourceRole: 'nurse',
+            patientId: variables.patient_id,
+            data: {
+              consultationId: consultationLookup.id,
+              queueEntryId: activeQueueEntry.id,
+            },
+            priority: 'high',
+          });
+        }
+      })().catch((error) => {
+        console.error('Vitals workflow handoff failed:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
       });
     },
     onError: (error) => {

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Clock, Users, Activity } from 'lucide-react';
+import { useBottleneckDetection } from '@/hooks/useBottleneckDetection';
 
 export function WorkflowPerformanceMonitor() {
   const { profile } = useAuth();
@@ -24,25 +25,7 @@ export function WorkflowPerformanceMonitor() {
     refetchInterval: 30000,
   });
 
-  const { data: bottlenecks = [] } = useQuery({
-    queryKey: ['workflow-bottlenecks', profile?.hospital_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('task_assignments')
-        .select(`
-          *,
-          assigned_to_profile:profiles!task_assignments_assigned_to_fkey(first_name, last_name, role)
-        `)
-        .eq('hospital_id', profile?.hospital_id)
-        .eq('status', 'pending')
-        .lt('due_date', new Date().toISOString())
-        .order('due_date', { ascending: true })
-        .limit(10);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile?.hospital_id,
-  });
+  const { data: bottlenecks = [] } = useBottleneckDetection();
 
   const { data: rolePerformance = [] } = useQuery({
     queryKey: ['role-performance', profile?.hospital_id],
@@ -170,20 +153,20 @@ export function WorkflowPerformanceMonitor() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {bottlenecks.map((task: any) => (
-                    <div key={task.id} className="p-3 border rounded-lg">
+                  {bottlenecks.map((item: any, index: number) => (
+                    <div key={`${item.stage_name}-${index}`} className="p-3 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{task.title}</span>
-                            <Badge variant="destructive">Overdue</Badge>
+                            <span className="font-medium">{item.stage_name}</span>
+                            <Badge variant={item.severity === 'critical' || item.severity === 'high' ? 'destructive' : 'secondary'}>
+                              {item.severity}
+                            </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            Assigned to: {task.assigned_to_profile?.first_name} {task.assigned_to_profile?.last_name} ({task.assigned_to_profile?.role})
-                          </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Due: {new Date(task.due_date).toLocaleString()}
+                            Avg wait: {Math.round(item.avg_wait_time)} min · Queue length: {item.queue_length}
                           </p>
+                          <p className="text-sm text-muted-foreground mt-2">{item.recommendation}</p>
                         </div>
                       </div>
                     </div>

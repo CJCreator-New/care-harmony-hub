@@ -141,8 +141,28 @@ const consultationJoinSelect = (includeHpiColumns = true) => `
   doctor:profiles!consultations_doctor_id_fkey(id, first_name, last_name)
 `;
 
+const getMissingConsultationColumns = (error: PostgrestError | null): string[] => {
+  if (!error) return [];
+
+  const patterns = [
+    /column consultations\.([a-zA-Z0-9_]+) does not exist/gi,
+    /could not find the '([a-zA-Z0-9_]+)' column of 'consultations' in the schema cache/gi,
+  ];
+
+  const missingColumns = new Set<string>();
+
+  for (const pattern of patterns) {
+    for (const match of error.message.matchAll(pattern)) {
+      const columnName = match[1];
+      if (columnName) missingColumns.add(columnName);
+    }
+  }
+
+  return [...missingColumns];
+};
+
 const isMissingHpiColumnError = (error: PostgrestError | null) =>
-  !!error && /column consultations\.(hpi_data|hpi_notes) does not exist/i.test(error.message);
+  getMissingConsultationColumns(error).some((columnName) => ['hpi_data', 'hpi_notes'].includes(columnName));
 
 const withConsultationHpiFallback = async <T,>(
   runQuery: (includeHpiColumns: boolean) => Promise<{ data: T | null; error: PostgrestError | null }>
@@ -158,10 +178,16 @@ const withConsultationHpiFallback = async <T,>(
   return fallbackResult.data;
 };
 
-const stripUnsupportedHpiFields = <T extends Record<string, any>>(updates: T): T => {
+const stripUnsupportedConsultationFields = <T extends Record<string, any>>(
+  updates: T,
+  unsupportedFields: string[]
+): T => {
   const sanitized = { ...updates };
-  delete sanitized.hpi_data;
-  delete sanitized.hpi_notes;
+
+  for (const field of unsupportedFields) {
+    delete sanitized[field];
+  }
+
   return sanitized;
 };
 
@@ -375,27 +401,29 @@ export function useUpdateConsultation() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) =>
       withConsultationRateLimit(async () => {
-        const primaryResult = await supabase
-          .from('consultations')
-          .update(updates)
-          .eq('id', id)
-          .select()
-          .single();
+        let pendingUpdates = { ...updates };
 
-        if (!isMissingHpiColumnError(primaryResult.error)) {
-          if (primaryResult.error) throw primaryResult.error;
-          return primaryResult.data as Consultation;
+        while (true) {
+          const result = await supabase
+            .from('consultations')
+            .update(pendingUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+
+          const missingColumns = getMissingConsultationColumns(result.error);
+          if (!missingColumns.length) {
+            if (result.error) throw result.error;
+            return result.data as Consultation;
+          }
+
+          const nextUpdates = stripUnsupportedConsultationFields(pendingUpdates, missingColumns);
+          if (Object.keys(nextUpdates).length === Object.keys(pendingUpdates).length) {
+            throw result.error;
+          }
+
+          pendingUpdates = nextUpdates;
         }
-
-        const fallbackResult = await supabase
-          .from('consultations')
-          .update(stripUnsupportedHpiFields(updates))
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (fallbackResult.error) throw fallbackResult.error;
-        return fallbackResult.data as Consultation;
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });

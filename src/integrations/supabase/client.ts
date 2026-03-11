@@ -17,11 +17,21 @@ const safeFetch = async (input: RequestInfo, init?: RequestInit): Promise<Respon
   const timeoutMs = 10000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const signal = init?.signal ?? controller.signal;
+    const signal = init?.signal
+      ? AbortSignal.any([init.signal, controller.signal])
+      : controller.signal;
     const res = await fetch(input, { ...(init ?? {}), signal });
     return res;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    const isAbortError =
+      (err instanceof DOMException && err.name === 'AbortError') ||
+      /aborted/i.test(message);
+
+    if (isAbortError) {
+      throw err;
+    }
+
     console.error('[supabase][fetch] network error:', message);
     throw new Error(`NetworkError: ${message}`);
   } finally {

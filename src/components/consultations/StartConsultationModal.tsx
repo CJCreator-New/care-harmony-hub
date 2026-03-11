@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -32,6 +33,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format, differenceInYears, differenceInMinutes } from 'date-fns';
 import { QuickConsultationModal } from './QuickConsultationModal';
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return 'Unknown error';
+};
 
 // File-level helper so PatientCard (also file-level) can access it
 const getAge = (dob: string) => differenceInYears(new Date(), new Date(dob));
@@ -76,7 +86,9 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
       onOpenChange(false);
       navigate(`/consultations/${result.id}`);
     } catch (error) {
-      console.error('Failed to start consultation:', error);
+      const message = getErrorMessage(error);
+      console.error('Failed to start consultation:', message, error);
+      toast.error(`Failed to start consultation: ${message}`);
     } finally {
       setStartingId(null);
     }
@@ -90,7 +102,9 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
       const result = await getOrCreateConsultation.mutateAsync(patientId);
       setQuickConsultation(result);
     } catch (error) {
-      console.error('Failed to start consultation:', error);
+      const message = getErrorMessage(error);
+      console.error('Failed to start consultation:', message, error);
+      toast.error(`Failed to start consultation: ${message}`);
     } finally {
       setStartingId(null);
     }
@@ -231,6 +245,9 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
             <Play className="h-5 w-5 text-primary" />
             Start Consultation
           </DialogTitle>
+          <DialogDescription>
+            Select a patient to begin a new consultation or resume an active one.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Unified Search Input */}
