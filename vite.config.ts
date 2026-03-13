@@ -146,17 +146,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    strictPort: false,
     hmr: {
-      // Do not pin HMR to a specific port — let Vite use the same port as the
-      // HTTP server so HMR works correctly even when 8080 is already in use
-      // and Vite falls back to e.g. 8081.
-      clientPort: undefined,
+      port: 8080,
     },
     headers: {
-      // ws://localhost:* and http://localhost:* cover any port Vite picks (e.g. 8080 or 8081)
-      // script-src must also allow localhost:* so dynamic import() can fetch chunks from any port
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://*.supabase.co https://images.unsplash.com; connect-src 'self' http://localhost:* https://*.supabase.co wss://*.supabase.co ws://localhost:*; frame-ancestors 'none';",
+      // ws://localhost:* covers any port vite picks (e.g. 8080 or 8081 when the primary port is in use)
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://*.supabase.co https://images.unsplash.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:*; frame-ancestors 'none';",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
