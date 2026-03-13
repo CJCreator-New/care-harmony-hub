@@ -30,9 +30,10 @@ test.describe('Nurse Role @nurse @role', () => {
       expect(loaded).toBeTruthy();
     });
 
-    test('should display Patient Queue tab', async ({ page }) => {
+    test('should display Patient Queue section', async ({ page }) => {
+      // Patient queue is displayed in the Overview tab (default), not as a separate tab
       await expect(
-        page.getByRole('tab', { name: /patient queue|queue/i })
+        page.getByRole('heading', { name: 'Patient Queue' })
       ).toBeVisible();
     });
 

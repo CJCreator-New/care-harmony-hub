@@ -35,6 +35,11 @@ function useLabTATData(filter: 'today' | 'week' | 'month') {
   return useQuery({
     queryKey: ['lab-tat-dashboard', hospital?.id, filter],
     queryFn: async () => {
+      if (!hospital?.id) {
+        console.warn('[LabTATDashboard] Hospital context not loaded');
+        return [];
+      }
+
       const now = new Date();
       let start: Date;
       if (filter === 'today') {
@@ -52,7 +57,7 @@ function useLabTATData(filter: 'today' | 'week' | 'month') {
           patients ( first_name, last_name, mrn ),
           ordering_physician:profiles!lab_orders_ordered_by_fkey ( first_name, last_name )
         `)
-        .eq('hospital_id', hospital!.id)
+        .eq('hospital_id', hospital.id)
         .gte('ordered_at', start.toISOString())
         .order('ordered_at', { ascending: false })
         .limit(200);

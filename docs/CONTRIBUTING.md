@@ -4,6 +4,27 @@
 
 Thank you for considering contributing to CareSync! This document provides guidelines for contributing to the project.
 
+**Current Version**: v1.2.1 (March 2026) — Production-ready with enhanced stability and integrated product strategy documentation.
+
+---
+
+## 📚 Documentation & Product Strategy
+
+### For Product Managers & Strategy Contributors
+Use the **Product-Strategy-Session Skill** for market analysis, roadmap planning, and feature prioritization:
+- Market research and competitive analysis
+- Go-to-market strategy development
+- Financial modeling and business case building
+- Feature prioritization frameworks
+
+**Access**: `.agents/skills/product-strategy-session/` — See [SKILL.md](./.agents/skills/product-strategy-session/SKILL.md) for methodology
+
+### For All Contributors
+**Important**: All project documentation is consolidated in one location:
+- **Single Reference**: [.agents/skills/product-strategy-session/PROJECT_DOCUMENTATION.md](./.agents/skills/product-strategy-session/PROJECT_DOCUMENTATION.md) — 32+ docs consolidated
+- **Master Index**: [.agents/skills/product-strategy-session/INDEX.md](./.agents/skills/product-strategy-session/INDEX.md) — Navigation & learning paths
+- **Quick Start**: Choose your role in [docs/README.md](./docs/README.md) for focused onboarding
+
 ---
 
 ## Getting Started

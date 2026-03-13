@@ -129,20 +129,30 @@ export class FieldEncryptionService {
       const key = await this.keyManager.getKey(keyVersion);
       const iv = this.generateIV();
 
+      if (!iv || iv.length === 0) {
+        throw new Error('Failed to generate IV');
+      }
+
       const encodedValue = new TextEncoder().encode(value);
+      
+      // Use typed Uint8Array instead of unsafe casts
+      const ivBuffer = iv instanceof Uint8Array ? iv : new Uint8Array(iv as any);
+      
       const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: iv as any },
+        { name: 'AES-GCM', iv: ivBuffer },
         key,
-        encodedValue as any
+        encodedValue
       );
 
+      const encryptedBuffer = new Uint8Array(encrypted);
+      
       return {
-        encrypted: this.arrayBufferToBase64(encrypted),
-        iv: this.arrayBufferToBase64((iv as any).buffer || iv),
+        encrypted: this.arrayBufferToBase64(encryptedBuffer),
+        iv: this.arrayBufferToBase64(ivBuffer),
         keyVersion: keyVersion || 'v1'
       };
     } catch (error) {
-      console.error('Field encryption failed:', error);
+      console.error('Field encryption failed:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to encrypt field data');
     }
   }

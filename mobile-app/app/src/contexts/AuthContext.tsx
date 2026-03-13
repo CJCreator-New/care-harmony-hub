@@ -28,15 +28,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ? {
-        id: session.user.id,
-        email: session.user.email!,
-        phone: session.user.phone,
-        full_name: session.user.user_metadata?.full_name,
-      } : null);
-      setLoading(false);
-    });
+    let mounted = true;
+    
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('[AuthContext] Failed to get session:', error);
+          setUser(null);
+        } else if (data && data.session && data.session.user) {
+          const sessionUser = data.session.user;
+          setUser({
+            id: sessionUser.id,
+            email: sessionUser.email || '',
+            phone: sessionUser.phone,
+            full_name: sessionUser.user_metadata?.full_name,
+          });
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        if (mounted) {
+          console.error('[AuthContext] Unexpected error loading session:', err instanceof Error ? err.message : String(err));
+          setUser(null);
+          setLoading(false);
+        }
+      });
+    
+    return () => {
+      mounted = false;
+    };
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

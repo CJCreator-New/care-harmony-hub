@@ -1,22 +1,56 @@
 # CareSync HMS System Maintenance Procedures
 
+**Version**: v1.2.1 (March 2026) — Enhanced stability with consolidated documentation workflows
+
 ## Overview
 
-This document outlines maintenance procedures for the CareSync Hospital Management System. Regular maintenance ensures system reliability, performance, and security.
+This document outlines maintenance procedures for the CareSync Hospital Management System. Regular maintenance ensures system reliability, performance, security, and documentation currency. All documentation is now consolidated in the product-strategy-session skill directory for easier reference and updates.
 
 ## Table of Contents
 
-1. [Daily Maintenance](#daily)
-2. [Weekly Maintenance](#weekly)
-3. [Monthly Maintenance](#monthly)
-4. [Quarterly Maintenance](#quarterly)
-5. [Annual Maintenance](#annual)
-6. [Emergency Maintenance](#emergency)
-7. [Backup and Recovery](#backup)
-8. [Performance Monitoring](#performance)
-9. [Security Maintenance](#security)
-10. [Database Maintenance](#database)
-11. [Workflow Maintenance](#workflow-maintenance)
+1. [Documentation Maintenance](#documentation-maintenance)
+2. [Daily Maintenance](#daily)
+3. [Weekly Maintenance](#weekly)
+4. [Monthly Maintenance](#monthly)
+5. [Quarterly Maintenance](#quarterly)
+6. [Annual Maintenance](#annual)
+7. [Emergency Maintenance](#emergency)
+8. [Backup and Recovery](#backup)
+9. [Performance Monitoring](#performance)
+10. [Security Maintenance](#security)
+11. [Database Maintenance](#database)
+12. [Workflow Maintenance](#workflow-maintenance)
+
+---
+
+## Documentation Maintenance
+
+### Overview
+All CareSync documentation is consolidated in `.agents/skills/product-strategy-session/PROJECT_DOCUMENTATION.md`. This master index keeps all 32+ project documents in one location — easier to find, update, and maintain.
+
+### When to Update Docs
+- **After Code Changes**: Update relevant sections in consolidated docs within 24 hours
+- **New Features**: Add feature description to FEATURES.md section + user guide section
+- **Breaking Changes**: Update CHANGELOG.md + affected architecture/API docs
+- **Process Changes**: Update relevant workflow sections
+- **Security Updates**: Document in SECURITY.md + HIPAA_COMPLIANCE.md sections
+
+### How to Update
+1. Navigate to `.agents/skills/product-strategy-session/PROJECT_DOCUMENTATION.md`
+2. Find the relevant section (search by document name)
+3. Update the content with your changes
+4. Update [CHANGELOG.md](./CHANGELOG.md) with version notes
+5. Commit with clear message: `docs: update [section] for [feature/fix]`
+
+### Quarterly Documentation Review
+- ✅ Verify all sections are current
+- ✅ Check for orphaned or outdated content
+- ✅ Review links and cross-references
+- ✅ Update version numbers and dates
+- ✅ Verify all code examples work
+- See [DOCUMENTATION_MAINTENANCE_GUIDE.md](./DOCUMENTATION_MAINTENANCE_GUIDE.md) for detailed checklist
+
+---
 
 ## Daily Maintenance
 

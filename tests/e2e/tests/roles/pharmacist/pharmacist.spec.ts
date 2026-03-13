@@ -30,9 +30,10 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
       expect(loaded).toBeTruthy();
     });
 
-    test('should display Prescription Queue tab', async ({ page }) => {
+    test('should display Prescription Queue section', async ({ page }) => {
+      // Prescription queue is displayed as a card section, not a tab
       await expect(
-        page.getByRole('tab', { name: /prescription queue|queue/i })
+        page.getByText(/prescription queue/i)
       ).toBeVisible({ timeout: 10_000 });
     });
 
@@ -46,9 +47,9 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
   // ── PHA-TC-01: Prescription Queue ─────────────────────────────────────────
 
   test.describe('Prescription Queue @critical', () => {
-    test('PHA-TC-01 prescription queue tab renders list', async ({ page }) => {
-      await page.getByRole('tab', { name: /prescription queue|queue/i }).click();
-      await page.waitForLoadState('networkidle');
+    test('PHA-TC-01 prescription queue section renders list', async ({ page }) => {
+      // Prescription queue is displayed as a card section on the dashboard, not a tab
+      await expect(page.getByText(/prescription queue/i)).toBeVisible();
       await expect(page.getByRole('main')).toBeVisible();
       await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
     });

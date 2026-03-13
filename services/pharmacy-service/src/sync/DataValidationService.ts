@@ -313,9 +313,23 @@ export class DataValidationService {
 
       // If approved or corrected, apply the data
       if (action === 'approve' || action === 'correct') {
-        const finalData = action === 'correct' ? correctedData : JSON.parse(
-          (await pool.query('SELECT data FROM data_quarantine WHERE id = $1', [quarantineId])).rows[0].data
-        );
+        let finalData;
+        
+        if (action === 'correct') {
+          finalData = correctedData;
+        } else {
+          // Action is 'approve' - fetch original data from quarantine
+          const quarantineQuery = await pool.query(
+            'SELECT data FROM data_quarantine WHERE id = $1',
+            [quarantineId]
+          );
+          
+          if (quarantineQuery.rows.length === 0) {
+            throw new Error('Quarantine record not found when fetching original data');
+          }
+          
+          finalData = JSON.parse(quarantineQuery.rows[0].data);
+        }
 
         await this.applyQuarantinedData(finalData);
       }

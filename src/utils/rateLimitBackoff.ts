@@ -40,7 +40,15 @@ const getCircuitState = (key: string): CircuitState => {
   if (!circuitStateByKey.has(key)) {
     circuitStateByKey.set(key, { failureCount: 0, openUntil: null });
   }
-  return circuitStateByKey.get(key)!;
+  // Safe return - we just set it above if missing
+  const state = circuitStateByKey.get(key);
+  if (!state) {
+    // Defensive fallback (should never reach here)
+    const newState = { failureCount: 0, openUntil: null };
+    circuitStateByKey.set(key, newState);
+    return newState;
+  }
+  return state;
 };
 
 const openCircuit = (state: CircuitState, timeoutMs: number) => {

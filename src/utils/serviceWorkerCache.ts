@@ -248,26 +248,40 @@ export async function handleFetch(request: Request): Promise<Response> {
 export async function precacheStaticAssets(): Promise<void> {
   const cache = await caches.open(CACHE_NAMES.static);
   
-  const assetsToCache = STATIC_ASSETS.map(asset => {
-    return fetch(asset).then(response => {
-      if (response.ok) {
-        const headers = new Headers(response.headers);
-        headers.set('x-cached-time', Date.now().toString());
-        
-        const modifiedResponse = new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers
-        });
-        
-        return cache.put(asset, modifiedResponse);
+  const assetPromises = STATIC_ASSETS.map(async (asset) => {
+    try {
+      const response = await fetch(asset);
+      
+      if (!response.ok) {
+        console.warn(`[ServiceWorker] Failed to cache ${asset}: HTTP ${response.status}`);
+        return { success: false, asset, error: `HTTP ${response.status}` };
       }
-    }).catch(error => {
-      console.warn(`Failed to cache ${asset}:`, error);
-    });
+      
+      const headers = new Headers(response.headers);
+      headers.set('x-cached-time', Date.now().toString());
+      
+      const modifiedResponse = new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      });
+      
+      await cache.put(asset, modifiedResponse);
+      return { success: true, asset };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[ServiceWorker] Cache error for ${asset}: ${errorMsg}`);
+      return { success: false, asset, error: errorMsg };
+    }
   });
   
-  await Promise.all(assetsToCache);
+  // Use Promise.all to wait for all operations, doesn't fail on partial failures
+  const results = await Promise.all(assetPromises);
+  const failed = results.filter(r => !r.success);
+  
+  if (failed.length > 0) {
+    console.warn(`[ServiceWorker] ${failed.length} asset(s) failed to cache, app still works with partial cache`);
+  }
 }
 
 /**

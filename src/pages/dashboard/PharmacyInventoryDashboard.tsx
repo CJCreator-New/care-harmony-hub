@@ -30,10 +30,15 @@ function usePharmacyInventory() {
   return useQuery({
     queryKey: ['pharmacy-inventory-dashboard', hospital?.id],
     queryFn: async () => {
+      if (!hospital?.id) {
+        console.warn('[PharmacyInventoryDashboard] Hospital context not loaded');
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('inventory')
         .select('id, name, category, quantity_in_stock, reorder_level, unit_price, expiry_date, supplier, hospital_id')
-        .eq('hospital_id', hospital!.id)
+        .eq('hospital_id', hospital.id)
         .order('quantity_in_stock', { ascending: true });
 
       if (error) throw error;

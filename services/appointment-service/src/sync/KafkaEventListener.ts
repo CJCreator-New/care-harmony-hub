@@ -56,7 +56,12 @@ export class KafkaEventListener {
       await this.consumer.run({
         eachMessage: async ({ topic, partition, message }) => {
           try {
-            const eventData = JSON.parse(message.value!.toString());
+            if (!message.value) {
+              this.fastify.log.warn({ msg: 'Received Kafka message with null value', topic });
+              return;
+            }
+
+            const eventData = JSON.parse(message.value.toString());
             await this.handleMessage(topic, eventData);
           } catch (error) {
             this.fastify.log.error({ msg: 'Failed to process Kafka message', error });

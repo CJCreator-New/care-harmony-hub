@@ -47,9 +47,21 @@ class PerformanceMonitor {
     if ('PerformanceObserver' in window) {
       try {
         const lcpObserver = new PerformanceObserver((list) => {
-          const entries = list.getEntries();
-          const lastEntry = entries[entries.length - 1];
-          this.coreWebVitals.lcp = (lastEntry as any).renderTime || (lastEntry as any).loadTime;
+          try {
+            const entries = list.getEntries();
+            if (entries && entries.length > 0) {
+              const lastEntry = entries[entries.length - 1] as any;
+              const renderTime = lastEntry?.renderTime;
+              const loadTime = lastEntry?.loadTime;
+              if (typeof renderTime === 'number') {
+                this.coreWebVitals.lcp = renderTime;
+              } else if (typeof loadTime === 'number') {
+                this.coreWebVitals.lcp = loadTime;
+              }
+            }
+          } catch (err) {
+            console.warn('[PerformanceMonitoring] Error processing LCP entry:', err);
+          }
         });
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
       } catch (e) {
@@ -59,10 +71,15 @@ class PerformanceMonitor {
       // CLS - Cumulative Layout Shift
       try {
         const clsObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            if (!(entry as any).hadRecentInput) {
-              this.coreWebVitals.cls = (this.coreWebVitals.cls || 0) + (entry as any).value;
+          try {
+            for (const entry of list.getEntries()) {
+              const entryAny = entry as any;
+              if (!entryAny?.hadRecentInput && typeof entryAny?.value === 'number') {
+                this.coreWebVitals.cls = (this.coreWebVitals.cls || 0) + entryAny.value;
+              }
             }
+          } catch (err) {
+            console.warn('[PerformanceMonitoring] Error processing CLS entry:', err);
           }
         });
         clsObserver.observe({ entryTypes: ['layout-shift'] });
@@ -73,9 +90,17 @@ class PerformanceMonitor {
       // FID - First Input Delay
       try {
         const fidObserver = new PerformanceObserver((list) => {
-          const entries = list.getEntries();
-          if (entries.length > 0) {
-            this.coreWebVitals.fid = (entries[0] as any).processingDuration;
+          try {
+            const entries = list.getEntries();
+            if (entries && entries.length > 0) {
+              const firstEntry = entries[0] as any;
+              const processingDuration = firstEntry?.processingDuration;
+              if (typeof processingDuration === 'number') {
+                this.coreWebVitals.fid = processingDuration;
+              }
+            }
+          } catch (err) {
+            console.warn('[PerformanceMonitoring] Error processing FID entry:', err);
           }
         });
         fidObserver.observe({ entryTypes: ['first-input'] });

@@ -31,11 +31,9 @@ test.describe('Lab Technician Role @lab_technician @role', () => {
     });
 
     test('should display lab orders section or tab', async ({ page }) => {
-      // Lab dashboard should show pending orders
+      // Lab dashboard should show Order Queue tab or Active Lab Orders section
       await expect(
-        page
-          .getByRole('tab', { name: /orders|lab orders/i })
-          .or(page.getByText(/pending orders|lab orders/i))
+        page.getByRole('tab', { name: 'Order Queue' })
       ).toBeVisible({ timeout: 10_000 });
     });
   });

@@ -223,30 +223,48 @@ async function analyzeDrugInteractions(medications: string[], allergies: string[
     });
 
     if (response.ok) {
-      const aiResult = await response.json();
+      try {
+        const aiResult = await response.json();
 
-      // Process AI results into insights
-      aiResult.interactions.forEach((interaction: any) => {
-        insights.push({
-          type: 'drug_interaction',
-          severity: interaction.severity,
-          message: interaction.description,
-          recommendation: interaction.recommendation,
-          confidence: interaction.confidence,
-          evidence: interaction.evidence,
-          source: 'AI_Analysis'
+        // Validate response structure
+        if (!aiResult || typeof aiResult !== 'object') {
+          console.warn('AI response is not a valid object');
+          return generateRuleBasedDrugInteractions(medications, allergies);
+        }
+
+        if (!Array.isArray(aiResult.interactions)) {
+          console.warn('AI response.interactions is not an array');
+          return generateRuleBasedDrugInteractions(medications, allergies);
+        }
+
+        // Process AI results into insights
+        aiResult.interactions.forEach((interaction: any) => {
+          if (interaction && typeof interaction === 'object') {
+            insights.push({
+              type: 'drug_interaction',
+              severity: interaction.severity || 'medium',
+              message: interaction.description || 'Unknown interaction',
+              recommendation: interaction.recommendation || 'Review with pharmacist',
+              confidence: interaction.confidence,
+              evidence: interaction.evidence,
+              source: 'AI_Analysis'
+            });
+          }
         });
-      });
+
+        return insights.length > 0 ? insights : generateRuleBasedDrugInteractions(medications, allergies);
+      } catch (parseError) {
+        console.warn('Failed to parse AI response:', sanitizeLogMessage(parseError instanceof Error ? parseError.message : 'Parse error'));
+        return generateRuleBasedDrugInteractions(medications, allergies);
+      }
     } else {
       // Fallback to rule-based analysis
-      insights.push(...generateRuleBasedDrugInteractions(medications, allergies));
+      return generateRuleBasedDrugInteractions(medications, allergies);
     }
   } catch (error) {
     console.warn('AI drug interaction analysis failed, using rule-based fallback:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI drug interaction failed'));
-    insights.push(...generateRuleBasedDrugInteractions(medications, allergies));
+    return generateRuleBasedDrugInteractions(medications, allergies);
   }
-
-  return insights;
 }
 
 async function analyzeClinicalGuidelines(age: number, chiefComplaint: string, medicalHistory: string[]): Promise<AIInsight[]> {
@@ -269,29 +287,47 @@ async function analyzeClinicalGuidelines(age: number, chiefComplaint: string, me
     });
 
     if (response.ok) {
-      const aiResult = await response.json();
+      try {
+        const aiResult = await response.json();
 
-      aiResult.guidelines.forEach((guideline: any) => {
-        insights.push({
-          type: 'clinical_guideline',
-          severity: guideline.priority,
-          message: guideline.title,
-          recommendation: guideline.recommendation,
-          confidence: guideline.confidence,
-          evidence: guideline.evidence,
-          source: 'Clinical_Guidelines_AI'
+        // Validate response structure
+        if (!aiResult || typeof aiResult !== 'object') {
+          console.warn('AI response is not a valid object');
+          return generateBasicGuidelines(age, chiefComplaint, medicalHistory);
+        }
+
+        if (!Array.isArray(aiResult.guidelines)) {
+          console.warn('AI response.guidelines is not an array');
+          return generateBasicGuidelines(age, chiefComplaint, medicalHistory);
+        }
+
+        aiResult.guidelines.forEach((guideline: any) => {
+          if (guideline && typeof guideline === 'object') {
+            insights.push({
+              type: 'clinical_guideline',
+              severity: guideline.priority || 'medium',
+              message: guideline.title || 'Clinical guideline',
+              recommendation: guideline.recommendation || 'Consult specialist',
+              confidence: guideline.confidence,
+              evidence: guideline.evidence,
+              source: 'Clinical_Guidelines_AI'
+            });
+          }
         });
-      });
+
+        return insights.length > 0 ? insights : generateBasicGuidelines(age, chiefComplaint, medicalHistory);
+      } catch (parseError) {
+        console.warn('Failed to parse AI response:', sanitizeLogMessage(parseError instanceof Error ? parseError.message : 'Parse error'));
+        return generateBasicGuidelines(age, chiefComplaint, medicalHistory);
+      }
     } else {
       // Fallback to basic guideline checks
-      insights.push(...generateBasicGuidelines(age, chiefComplaint, medicalHistory));
+      return generateBasicGuidelines(age, chiefComplaint, medicalHistory);
     }
   } catch (error) {
     console.warn('AI clinical guideline analysis failed, using basic fallback:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI guideline failed'));
-    insights.push(...generateBasicGuidelines(age, chiefComplaint, medicalHistory));
+    return generateBasicGuidelines(age, chiefComplaint, medicalHistory);
   }
-
-  return insights;
 }
 
 async function assessPatientRisks(patientData: any): Promise<AIInsight[]> {
@@ -312,29 +348,47 @@ async function assessPatientRisks(patientData: any): Promise<AIInsight[]> {
     });
 
     if (response.ok) {
-      const aiResult = await response.json();
+      try {
+        const aiResult = await response.json();
 
-      aiResult.risks.forEach((risk: any) => {
-        insights.push({
-          type: 'risk_assessment',
-          severity: risk.level,
-          message: risk.description,
-          recommendation: risk.recommendation,
-          confidence: risk.confidence,
-          evidence: risk.factors,
-          source: 'Risk_Assessment_AI'
+        // Validate response structure
+        if (!aiResult || typeof aiResult !== 'object') {
+          console.warn('AI response is not a valid object');
+          return generateBasicRiskAssessment(patientData);
+        }
+
+        if (!Array.isArray(aiResult.risks)) {
+          console.warn('AI response.risks is not an array');
+          return generateBasicRiskAssessment(patientData);
+        }
+
+        aiResult.risks.forEach((risk: any) => {
+          if (risk && typeof risk === 'object') {
+            insights.push({
+              type: 'risk_assessment',
+              severity: risk.level || 'medium',
+              message: risk.description || 'Risk assessment',
+              recommendation: risk.recommendation || 'Monitor patient',
+              confidence: risk.confidence,
+              evidence: risk.factors,
+              source: 'Risk_Assessment_AI'
+            });
+          }
         });
-      });
+
+        return insights.length > 0 ? insights : generateBasicRiskAssessment(patientData);
+      } catch (parseError) {
+        console.warn('Failed to parse AI response:', sanitizeLogMessage(parseError instanceof Error ? parseError.message : 'Parse error'));
+        return generateBasicRiskAssessment(patientData);
+      }
     } else {
       // Fallback to basic risk assessment
-      insights.push(...generateBasicRiskAssessment(patientData));
+      return generateBasicRiskAssessment(patientData);
     }
   } catch (error) {
     console.warn('AI risk assessment failed, using basic fallback:', sanitizeLogMessage(error instanceof Error ? error.message : 'AI risk assessment failed'));
-    insights.push(...generateBasicRiskAssessment(patientData));
+    return generateBasicRiskAssessment(patientData);
   }
-
-  return insights;
 }
 
 // Fallback functions for when AI services are unavailable

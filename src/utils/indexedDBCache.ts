@@ -116,13 +116,13 @@ class IndexedDBCache {
       this.db = await openDB<CareSyncDB>(DB_NAME, DB_VERSION, {
         upgrade(db) {
           // Create stores for different data types
-          const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
+          const stores: Array<keyof CareSyncDB> = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
           
           stores.forEach(storeName => {
-            if (!db.objectStoreNames.contains(storeName as any)) {
-              const store = db.createObjectStore(storeName as any, { keyPath: 'id' });
-              store.createIndex('by-hospital' as any, 'hospitalId');
-              store.createIndex('by-timestamp' as any, 'timestamp');
+            if (!db.objectStoreNames.contains(storeName)) {
+              const store = db.createObjectStore(storeName, { keyPath: 'id' });
+              store.createIndex('by-hospital', 'hospitalId');
+              store.createIndex('by-timestamp', 'timestamp');
             }
           });
 
@@ -142,7 +142,7 @@ class IndexedDBCache {
       // Clean up old cache entries on init
       await this.cleanup();
     } catch (error) {
-      console.error('Failed to initialize IndexedDB:', error);
+      console.error('Failed to initialize IndexedDB:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -159,7 +159,13 @@ class IndexedDBCache {
     if (!this.db) return null;
 
     try {
-      const entry = await this.db.get(storeName as any, key);
+      // Validate store exists
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        console.warn(`[indexedDBCache] Store does not exist: ${storeName}`);
+        return null;
+      }
+
+      const entry = await this.db.get(storeName, key);
       
       if (!entry) return null;
 
@@ -172,13 +178,13 @@ class IndexedDBCache {
       const ttl = CACHE_TTL[storeName as keyof typeof CACHE_TTL] || CACHE_TTL.default;
       if (Date.now() - entry.timestamp > ttl) {
         // Entry expired, delete it
-        await this.db.delete(storeName as any, key);
+        await this.db.delete(storeName, key);
         return null;
       }
 
       return entry.data as T;
     } catch (error) {
-      console.error(`Failed to get from cache [${storeName}]:`, error);
+      console.error(`Failed to get from cache [${storeName}]:`, error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -196,6 +202,12 @@ class IndexedDBCache {
     if (!this.db) return;
 
     try {
+      // Validate store exists
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        console.warn(`[indexedDBCache] Store does not exist: ${storeName}`);
+        return;
+      }
+
       const entry = {
         id: key,
         data,
@@ -203,7 +215,7 @@ class IndexedDBCache {
         hospitalId
       };
 
-      await this.db.put(storeName as any, entry);
+      await this.db.put(storeName, entry);
       
       // Check cache size and cleanup if needed
       await this.checkCacheSize();
@@ -223,8 +235,14 @@ class IndexedDBCache {
     if (!this.db) return [];
 
     try {
+      // Validate store exists
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        console.warn(`[indexedDBCache] Store does not exist: ${storeName}`);
+        return [];
+      }
+
       const entries = await this.db.getAllFromIndex(
-        storeName as any,
+        storeName,
         'by-hospital',
         hospitalId
       );
@@ -236,7 +254,11 @@ class IndexedDBCache {
       const validEntries = entries.filter(entry => {
         if (now - entry.timestamp > ttl) {
           // Delete expired entry
-          this.db!.delete(storeName as any, entry.id);
+          if (this.db) {
+            this.db.delete(storeName, entry.id).catch(err => {
+              console.warn(`[indexedDBCache] Failed to delete expired entry:`, err);
+            });
+          }
           return false;
         }
         return true;
@@ -244,7 +266,7 @@ class IndexedDBCache {
 
       return validEntries.map(entry => entry.data);
     } catch (error) {
-      console.error(`Failed to get all from cache [${storeName}]:`, error);
+      console.error(`Failed to get all from cache [${storeName}]:`, error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -257,9 +279,15 @@ class IndexedDBCache {
     if (!this.db) return;
 
     try {
-      await this.db.delete(storeName as any, key);
+      // Validate store exists
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        console.warn(`[indexedDBCache] Store does not exist: ${storeName}`);
+        return;
+      }
+
+      await this.db.delete(storeName, key);
     } catch (error) {
-      console.error(`Failed to delete from cache [${storeName}]:`, error);
+      console.error(`Failed to delete from cache [${storeName}]:`, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -270,21 +298,25 @@ class IndexedDBCache {
     await this.init();
     if (!this.db) return;
 
-    const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
+    const stores: Array<keyof CareSyncDB> = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
     
     for (const storeName of stores) {
       try {
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          continue;
+        }
+
         const entries = await this.db.getAllFromIndex(
-          storeName as any,
+          storeName,
           'by-hospital',
           hospitalId
         );
         
         for (const entry of entries) {
-          await this.db.delete(storeName as any, entry.id);
+          await this.db.delete(storeName, entry.id);
         }
       } catch (error) {
-        console.error(`Failed to clear hospital data [${storeName}]:`, error);
+        console.error(`Failed to clear hospital data [${storeName}]:`, error instanceof Error ? error.message : String(error));
       }
     }
   }
@@ -296,11 +328,15 @@ class IndexedDBCache {
     await this.init();
     if (!this.db) return;
 
-    const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing', 'offlineActions'];
+    const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing', 'offlineActions'] as const;
     
     for (const storeName of stores) {
       try {
-        await this.db.clear(storeName as any);
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          continue;
+        }
+
+        await this.db.clear(storeName);
       } catch (error) {
         console.error(`Failed to clear cache [${storeName}]:`, error);
       }
@@ -390,22 +426,28 @@ class IndexedDBCache {
       return { totalEntries: 0, oldestEntry: 0, newestEntry: 0 };
     }
 
-    const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
+    const stores: Array<keyof CareSyncDB> = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
     let totalEntries = 0;
     let oldestEntry = Date.now();
     let newestEntry = 0;
 
     for (const storeName of stores) {
       try {
-        const entries = await this.db.getAll(storeName as any);
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          continue;
+        }
+
+        const entries = await this.db.getAll(storeName);
         totalEntries += entries.length;
         
         for (const entry of entries) {
-          if (entry.timestamp < oldestEntry) oldestEntry = entry.timestamp;
-          if (entry.timestamp > newestEntry) newestEntry = entry.timestamp;
+          if (entry && entry.timestamp) {
+            if (entry.timestamp < oldestEntry) oldestEntry = entry.timestamp;
+            if (entry.timestamp > newestEntry) newestEntry = entry.timestamp;
+          }
         }
       } catch (error) {
-        console.error(`Failed to get stats [${storeName}]:`, error);
+        console.error(`Failed to get stats [${storeName}]:`, error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -418,36 +460,42 @@ class IndexedDBCache {
   private async cleanup(): Promise<void> {
     if (!this.db) return;
 
-    const stores = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
+    const stores: Array<keyof CareSyncDB> = ['patients', 'appointments', 'prescriptions', 'labResults', 'billing'];
     const now = Date.now();
 
     for (const storeName of stores) {
       try {
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          continue;
+        }
+
         const ttl = CACHE_TTL[storeName as keyof typeof CACHE_TTL] || CACHE_TTL.default;
-        const entries = await this.db.getAll(storeName as any);
+        const entries = await this.db.getAll(storeName);
         
         for (const entry of entries) {
-          if (now - entry.timestamp > ttl) {
-            await this.db.delete(storeName as any, entry.id);
+          if (entry && entry.timestamp && now - entry.timestamp > ttl) {
+            await this.db.delete(storeName, entry.id);
           }
         }
       } catch (error) {
-        console.error(`Failed to cleanup [${storeName}]:`, error);
+        console.error(`Failed to cleanup [${storeName}]:`, error instanceof Error ? error.message : String(error));
       }
     }
 
     // Clean up old offline actions (older than 7 days)
     try {
-      const actions = await this.db.getAll('offlineActions');
-      const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-      
-      for (const action of actions) {
-        if (action.timestamp < sevenDaysAgo) {
-          await this.db.delete('offlineActions', action.id);
+      if (this.db.objectStoreNames.contains('offlineActions')) {
+        const actions = await this.db.getAll('offlineActions');
+        const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+        
+        for (const action of actions) {
+          if (action && action.timestamp && action.timestamp < sevenDaysAgo) {
+            await this.db.delete('offlineActions', action.id);
+          }
         }
       }
     } catch (error) {
-      console.error('Failed to cleanup offline actions:', error);
+      console.error('Failed to cleanup offline actions:', error instanceof Error ? error.message : String(error));
     }
   }
 

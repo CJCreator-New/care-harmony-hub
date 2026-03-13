@@ -31,8 +31,8 @@ test.describe('Receptionist Role @receptionist @role', () => {
     });
 
     test('should display stat cards on dashboard', async ({ page }) => {
-      const statsCount = await dashboard.getStatsCardCount();
-      expect(statsCount).toBeGreaterThan(0);
+      // Receptionist dashboard has stats cards in the overview tab - check for one specific stat
+      await expect(page.getByText("Today's Appointments")).toBeVisible();
     });
   });
 

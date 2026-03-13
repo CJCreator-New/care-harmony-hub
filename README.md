@@ -32,6 +32,22 @@ The system has been finalized with advanced production optimizations:
 - **Visual Bundle Analysis**: Built-in Rollup Visualizer for continuous performance monitoring.
 - **Real-time Event Bus**: Sub-millisecond clinical workflow updates via Supabase Realtime.
 
+## 📊 Product Strategy & Planning (v1.2.1)
+
+**New Integration**: Product-Strategy-Session Skill provides comprehensive market analysis, roadmap planning, and go-to-market strategy support:
+
+```bash
+/product-strategy-session — Develop go-to-market strategy for telemedicine implementation
+/product-strategy-session — Create 3-year financial projections for hospital market expansion
+/product-strategy-session — Build competitive analysis for clinical AI features
+```
+
+**Documentation Hub**: All 32+ project documents consolidated in a single, self-contained skill directory:
+- 📚 [Consolidated Documentation](./github/copilot-instructions.md?region=product-strategy-session) — All business, technical, security, and operational docs
+- 🎯 [Product Strategy Skill](./agents/skills/product-strategy-session/) — Market analysis, roadmap, business cases
+- 🗓️ [Index & Navigation](./agents/skills/product-strategy-session/INDEX.md) — Complete documentation master index
+- 📖 [Implementation Guide](./docs/IMPLEMENTATION_GUIDE.md) — Code patterns and development standards
+
 ---
 
 ## 🚀 Quick Start

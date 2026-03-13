@@ -20,8 +20,13 @@ function useWardCensus(view: 'daily' | 'weekly' | 'monthly') {
   return useQuery({
     queryKey: ['ward-census', hospital?.id, view],
     queryFn: async () => {
+      if (!hospital?.id) {
+        console.warn('[WardCensusDashboard] Hospital context not loaded');
+        return {} as CensusReport;
+      }
+
       const { data, error } = await supabase.functions.invoke('census-reports', {
-        body: { hospital_id: hospital!.id, view },
+        body: { hospital_id: hospital.id, view },
       });
       if (error) throw error;
       return data as CensusReport;

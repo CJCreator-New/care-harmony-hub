@@ -24,7 +24,20 @@ export const LazyAI = {
 // Lazy load heavy dashboards
 export const LazyDashboards = {
   AdminDashboard: lazy(() => import('@/components/dashboard/AdminDashboard').then(m => ({ default: m.AdminDashboard }))),
-  AnalyticsDashboard: lazy(() => import('@/components/admin/AdminDashboard' as any).then((m: any) => ({ default: m.default || m.AnalyticsDashboard }))),
+  AnalyticsDashboard: lazy(() => 
+    import('@/components/admin/AdminDashboard')
+      .then((m) => {
+        const defaultExport = (m as { default?: any; AnalyticsDashboard?: any }).default || (m as { AnalyticsDashboard?: any }).AnalyticsDashboard;
+        if (!defaultExport) {
+          throw new Error('AnalyticsDashboard component not found in AdminDashboard module');
+        }
+        return { default: defaultExport };
+      })
+      .catch((err) => {
+        console.error('[bundleOptimization] Failed to lazy load AnalyticsDashboard:', err);
+        throw err;
+      })
+  ),
   MonitoringDashboard: lazy(() => import('@/components/monitoring/MonitoringDashboard').then(m => ({ default: m.default }))),
 };
 

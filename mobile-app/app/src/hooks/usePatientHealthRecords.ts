@@ -63,8 +63,8 @@ export function usePatientHealthRecords(patientId: string | null) {
     setError(null);
 
     try {
-      // Fetch three resources in parallel
-      const [consultResp, rxResp, labResp] = await Promise.all([
+      // Fetch three resources in parallel with graceful failure handling
+      const results = await Promise.allSettled([
         supabase
           .from('consultations')
           .select(`
@@ -90,9 +90,20 @@ export function usePatientHealthRecords(patientId: string | null) {
           .limit(20),
       ]);
 
-      if (consultResp.error) throw consultResp.error;
-      if (rxResp.error)      throw rxResp.error;
-      if (labResp.error)     throw labResp.error;
+      // Extract results with fallback to empty arrays on failure
+      const consultResp = results[0].status === 'fulfilled' ? results[0].value : { data: [], error: null };
+      const rxResp = results[1].status === 'fulfilled' ? results[1].value : { data: [], error: null };
+      const labResp = results[2].status === 'fulfilled' ? results[2].value : { data: [], error: null };
+
+      if (consultResp.error) {
+        console.warn('[usePatientHealthRecords] Consultation fetch failed:', consultResp.error);
+      }
+      if (rxResp.error) {
+        console.warn('[usePatientHealthRecords] Prescription fetch failed:', rxResp.error);
+      }
+      if (labResp.error) {
+        console.warn('[usePatientHealthRecords] Lab results fetch failed:', labResp.error);
+      }
 
       setRecords({
         consultations: (consultResp.data ?? []).map(c => ({

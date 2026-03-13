@@ -40,7 +40,14 @@ export function useRefillRequests() {
       .eq('user_id', profile.user_id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Failed to get patient ID: ${error.message}`);
+    }
+    
+    if (!patient) {
+      throw new Error('No patient record found for this user');
+    }
+    
     return patient;
   };
 

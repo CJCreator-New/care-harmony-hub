@@ -78,11 +78,24 @@ class SecurityMonitor {
     description: string,
     metadata: Record<string, unknown> = {}
   ): Promise<SecurityEvent | null> {
+    // Safely get user ID from session
+    let userId: string | undefined;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('[securityMonitor] Failed to get session:', error);
+      } else if (data && data.session && data.session.user && data.session.user.id) {
+        userId = data.session.user.id;
+      }
+    } catch (err) {
+      console.error('[securityMonitor] Session access failed:', err instanceof Error ? err.message : String(err));
+    }
+
     const event: SecurityEvent = {
       id: crypto.randomUUID(),
       event_type: eventType,
       severity,
-      user_id: (await supabase.auth.getSession()).data.session?.user?.id,
+      user_id: userId,
       ip_address: metadata.ip_address as string,
       description,
       metadata,
@@ -93,11 +106,17 @@ class SecurityMonitor {
     this.eventLog.push(event);
 
     try {
-      const { data, error } = await supabase.from('activity_logs' as any).insert(event as any).select();
+      const { data, error } = await supabase.from('activity_logs').insert([event]).select();
       if (error) throw error;
-      return (data as any)?.[0] as SecurityEvent ?? event;
+      
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('[securityMonitor] No data returned from insert');
+        return event;
+      }
+      
+      return data[0] as SecurityEvent;
     } catch (error) {
-      console.error('Failed to log security event:', error);
+      console.error('[securityMonitor] Failed to log security event:', error instanceof Error ? error.message : String(error));
       return event;
     }
   }

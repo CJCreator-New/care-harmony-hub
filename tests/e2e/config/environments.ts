@@ -19,7 +19,7 @@ export interface EnvironmentConfig {
 
 export const ENVIRONMENTS: Record<Environment, EnvironmentConfig> = {
   local: {
-    baseURL: 'http://localhost:8080',
+    baseURL: 'http://localhost:8081',
     apiURL: 'http://localhost:3000/api',
     timeout: 30000,
     features: {

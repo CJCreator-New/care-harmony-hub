@@ -405,8 +405,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (currentSession?.user) {
           // Use requestIdleCallback or microtask to avoid deadlock
           queueMicrotask(() => {
-            if (isMounted) {
-              fetchUserData(currentSession.user!.id);
+            if (isMounted && currentSession.user) {
+              fetchUserData(currentSession.user.id);
             }
           });
         } else {

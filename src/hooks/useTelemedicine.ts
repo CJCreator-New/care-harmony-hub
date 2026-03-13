@@ -13,6 +13,33 @@ interface VideoSession {
   status: 'scheduled' | 'active' | 'ended' | 'cancelled';
 }
 
+/**
+ * Validate video session response from Edge Function
+ */
+function validateVideoSession(data: any): VideoSession {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid video session response: data is not an object');
+  }
+
+  if (!data.session_id || typeof data.session_id !== 'string') {
+    throw new Error('Invalid video session response: session_id is missing or invalid');
+  }
+
+  if (!data.room_id || typeof data.room_id !== 'string') {
+    throw new Error('Invalid video session response: room_id is missing or invalid');
+  }
+
+  if (!data.join_url || typeof data.join_url !== 'string') {
+    throw new Error('Invalid video session response: join_url is missing or invalid');
+  }
+
+  if (!data.status || !['scheduled', 'active', 'ended', 'cancelled'].includes(data.status)) {
+    throw new Error('Invalid video session response: status is invalid');
+  }
+
+  return data as VideoSession;
+}
+
 export function useTelemedicine() {
   const { user } = useAuth();
   const { logActivity } = useAudit();
@@ -45,7 +72,7 @@ export function useTelemedicine() {
         }
       });
       if (error) throw error;
-      return data as VideoSession;
+      return validateVideoSession(data);
     },
     onSuccess: (data, variables) => {
       void logActivity({
@@ -74,6 +101,15 @@ export function useTelemedicine() {
         }
       });
       if (error) throw error;
+      
+      // Validate response has token
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid join session response: data is not an object');
+      }
+      if (!data.token || typeof data.token !== 'string') {
+        throw new Error('Invalid join session response: token is missing or invalid');
+      }
+      
       return data;
     },
     onSuccess: (data, variables) => {
