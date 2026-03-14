@@ -1,0 +1,292 @@
+# CareSync Clinical Alerting Rules
+# Prometheus alerting rules for SLO breaches and patient safety incidents
+# 
+# Rule groups:
+# 1. Patient Safety Critical (Immediate escalation)
+# 2. Performance Degradation (Warning escalation)
+# 3. System Health (Infrastructure)
+# 4. Data & Access Control (Security)
+
+groups:
+  # ============================================================================
+  # GROUP 1: PATIENT SAFETY CRITICAL ALERTS
+  # Immediate escalation to on-call physician/pharmacist
+  # ============================================================================
+  - name: patient_safety_critical
+    interval: 30s
+    rules:
+      # Lab Critical Value Alert Delay (SLO: <5 min)
+      - alert: CriticalValueAlertDelayed
+        expr: |
+          histogram_quantile(0.99,
+            rate(caresync_lab_critical_value_latency_ms_bucket[5m])
+          ) > 300000
+        for: 2m
+        labels:
+          severity: critical
+          workflow: lab_critical_value
+          escalation_channel: pagerduty
+        annotations:
+          summary: "Lab critical value alert delayed ({{ .Value | humanize }}ms)"
+          description: "Lab critical value notification exceeded 5-minute SLO for {{ $labels.hospital_id }}"
+          runbook_url: "https://docs.caresync.com/runbooks/critical-value-delay"
+          notify_role: doctor
+          notify_channel: pagerduty
+
+      # Prescription Dispensing Blocked (SLO: <15 min)
+      - alert: PrescriptionDispensingBlocked
+        expr: |
+          increase(caresync_prescription_dispensing_blocked_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          workflow: pharmacy_dispensing
+          escalation_channel: pagerduty
+        annotations:
+          summary: "Prescription blocked from dispensing"
+          description: "Prescription {{ .Labels.prescription_id }} unable to dispense - medication interaction or dosage error detected"
+          runbook_url: "https://docs.caresync.com/runbooks/prescription-blocked"
+          notify_role: pharmacist
+          notify_channel: pagerduty
+
+      # Vital Signs Recording Failure (SLO: <5 sec)
+      - alert: VitalSignsRecordingFailed
+        expr: |
+          rate(caresync_vital_recording_failures_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          workflow: vital_recording
+          escalation_channel: slack
+        annotations:
+          summary: "Vital signs recording failing ({{ .Value | humanizePercentage }})"
+          description: "Patient vital signs unable to save to EMR for {{ $labels.hospital_id }}"
+          runbook_url: "https://docs.caresync.com/runbooks/vitals-recording-failure"
+          notify_role: nurse
+          notify_channel: slack
+
+      # Medication Interaction Detected (Always alert)
+      - alert: MedicationInteractionDetected
+        expr: |
+          increase(caresync_medication_interaction_detected_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          workflow: prescription
+          escalation_channel: pagerduty
+        annotations:
+          summary: "Medication interaction detected"
+          description: "Prescription {{ .Labels.prescription_id }} has dangerous drug interaction for patient {{ .Labels.patient_id }}"
+          runbook_url: "https://docs.caresync.com/runbooks/drug-interaction"
+          notify_role: doctor
+          notify_channel: pagerduty
+
+  # ============================================================================
+  # GROUP 2: SLO WARNING ALERTS
+  # Performance degradation detected - investigate and optimize
+  # ============================================================================
+  - name: slo_warnings
+    interval: 1m
+    rules:
+      # Patient search latency degrading (SLO: <2 sec)
+      - alert: PatientSearchLatencyWarning
+        expr: |
+          histogram_quantile(0.95,
+            rate(caresync_patient_search_latency_ms_bucket[5m])
+          ) > 1500
+        for: 5m
+        labels:
+          severity: warning
+          workflow: patient_search
+          escalation_channel: slack
+        annotations:
+          summary: "Patient search latency elevated ({{ .Value | humanize }}ms)"
+          description: "Patient search for {{ $labels.hospital_id }} exceeds 1.5s target"
+          runbook_url: "https://docs.caresync.com/runbooks/search-latency"
+          notify_role: admin
+          notify_channel: slack
+
+      # Prescription latency warning (SLO: <5 min)
+      - alert: PrescriptionCreationLatencyWarning
+        expr: |
+          histogram_quantile(0.95,
+            rate(caresync_prescription_creation_latency_ms_bucket[5m])
+          ) > 240000
+        for: 5m
+        labels:
+          severity: warning
+          workflow: prescription
+          escalation_channel: slack
+        annotations:
+          summary: "Prescription creation latency elevated"
+          description: "Prescription creation for {{ $labels.hospital_id }} exceeded 4-minute threshold"
+
+      # Lab order registration latency (SLO: <5 min)
+      - alert: LabOrderLatencyWarning
+        expr: |
+          histogram_quantile(0.95,
+            rate(caresync_lab_order_latency_ms_bucket[5m])
+          ) > 240000
+        for: 5m
+        labels:
+          severity: warning
+          workflow: lab_order
+          escalation_channel: slack
+        annotations:
+          summary: "Lab order latency elevated"
+          description: "Lab orders for {{ $labels.hospital_id }} exceeding SLO"
+
+      # Consultation wait time (SLO: <30 min)
+      - alert: ConsultationWaitTimeHigh
+        expr: |
+          histogram_quantile(0.95,
+            rate(caresync_consultation_wait_latency_ms_bucket[5m])
+          ) > 1500000
+        for: 10m
+        labels:
+          severity: warning
+          workflow: consultation
+          escalation_channel: slack
+        annotations:
+          summary: "Consultation wait time exceeded 25 minutes"
+          description: "{{ $labels.hospital_id }} has high waitlist - consider additional resources"
+
+  # ============================================================================
+  # GROUP 3: SYSTEM HEALTH & INFRASTRUCTURE
+  # Database, API, cache performance
+  # ============================================================================
+  - name: system_health
+    interval: 1m
+    rules:
+      # Database connection pool exhausted 
+      - alert: DatabaseConnectionPoolFull
+        expr: |
+          caresync_supabase_connections / caresync_supabase_max_connections > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+          escalation_channel: pagerduty
+        annotations:
+          summary: "PostgreSQL connection pool nearly exhausted"
+          description: "{{ $labels.hospital_id }} using {{ .Value | humanizePercentage }} of DB connections"
+          runbook_url: "https://docs.caresync.com/runbooks/db-connection-pool"
+
+      # RLS policy execution time slow
+      - alert: RLSPolicyExecutionSlow
+        expr: |
+          histogram_quantile(0.95,
+            rate(caresync_rls_policy_execution_ms_bucket[5m])
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "RLS policy execution > 10ms"
+          description: "Hospital-scoped RLS policies taking {{ .Value | humanize }}ms"
+
+      # API error rate elevated
+      - alert: APIErrorRateHigh
+        expr: |
+          rate(caresync_api_errors_total[5m]) > 0.02
+        for: 3m
+        labels:
+          severity: warning
+          component: api
+          escalation_channel: slack
+        annotations:
+          summary: "API error rate elevated ({{ .Value | humanizePercentage }})"
+          description: "{{ $labels.hospital_id }}/{{ $labels.endpoint }} error rate above 2%"
+
+      # Cache hit rate low (indicates thrashing)
+      - alert: CacheLowHitRate
+        expr: |
+          caresync_tanstack_cache_hit_rate < 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "TanStack Query cache hit rate low ({{ .Value | humanizePercentage }})"
+          description: "Cache effectiveness degraded for {{ $labels.hospital_id }}"
+
+  # ============================================================================
+  # GROUP 4: DATA INTEGRITY & AUDIT
+  # Security and compliance checks
+  # ============================================================================
+  - name: audit_security
+    interval: 5m
+    rules:
+      # RLS violations detected (unauthorized access attempt)
+      - alert: RLSViolationDetected
+        expr: |
+          increase(caresync_rls_violation_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+          escalation_channel: pagerduty
+        annotations:
+          summary: "RLS policy violation detected"
+          description: "Unauthorized access attempt in {{ $labels.hospital_id }} by user {{ .Labels.user_id }}"
+          runbook_url: "https://docs.caresync.com/runbooks/rls-violation"
+
+      # Amendment without proper authorization
+      - alert: UnauthorizedAuditAmendment
+        expr: |
+          increase(caresync_unauthorized_amendment_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: audit
+          escalation_channel: pagerduty
+        annotations:
+          summary: "Unauthorized amendment attempt detected"
+          description: "Record {{ .Labels.record_id }} amendment without proper authorization"
+
+      # Encryption key rotation overdue
+      - alert: EncryptionKeyRotationOverdue
+        expr: |
+          (time() - caresync_last_encryption_key_rotation_seconds) > (90 * 24 * 3600)
+        for: 1h
+        labels:
+          severity: warning
+          component: security
+          escalation_channel: slack
+        annotations:
+          summary: "Encryption key rotation overdue (>90 days)"
+          description: "PHI encryption keys for {{ $labels.hospital_id }} not rotated in {{ .Value | humanizeDuration }}"
+
+  # ============================================================================
+  # GROUP 5: QUEUE & ASYNC WORKFLOW MONITORING
+  # Appointment reminders, billing batches, notifications
+  # ============================================================================
+  - name: async_workflows
+    interval: 2m
+    rules:
+      # Appointment reminder queue backing up
+      - alert: AppointmentReminderQueueFull
+        expr: |
+          caresync_appointment_reminder_queue_depth > 1000
+        for: 10m
+        labels:
+          severity: warning
+          workflow: appointment_reminder
+          escalation_channel: slack
+        annotations:
+          summary: "Appointment reminder queue building up ({{ .Value }} pending)"
+          description: "{{ $labels.hospital_id }} has {{ .Value }} reminders queued - investigate delays"
+
+      # Billing batch processing stalled
+      - alert: BillingBatchStalled
+        expr: |
+          (time() - caresync_last_billing_batch_completion_seconds) > 3600
+        for: 30m
+        labels:
+          severity: warning
+          workflow: billing
+          escalation_channel: pagerduty
+        annotations:
+          summary: "Billing batch processing stalled (last run >1 hour ago)"
+          description: "{{ $labels.hospital_id }} billing batch has not completed in {{ .Value | humanizeDuration }}"

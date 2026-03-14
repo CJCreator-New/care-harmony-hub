@@ -1,0 +1,125 @@
+# OpenTelemetry Collector Configuration for CareSync HIMS
+# 
+# Collects spans and metrics from:
+# - React frontend (Browser) via OTLP/HTTP
+# - Edge Functions (Deno) via OTLP/HTTP
+# - PostgreSQL queries (via instrumentation)
+# - Kong API Gateway (via Prometheus scraping)
+#
+# Exports to:
+# - Jaeger (distributed tracing)
+# - Prometheus (metrics)
+# - Grafana Loki (logs)
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+          allowed_headers:
+            - "Content-Type"
+            - "Authorization"
+            - "x-correlation-id"
+            - "x-trace-context"
+
+  # Scrape Prometheus metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'kong'
+          static_configs:
+            - targets: ['localhost:8001']
+          metrics_path: '/metrics'
+        
+        - job_name: 'postgres'
+          static_configs:
+            - targets: ['localhost:9187']
+          metrics_path: '/metrics'
+        
+        - job_name: 'grafana'
+          static_configs:
+            - targets: ['localhost:3000']
+          metrics_path: '/metrics'
+
+processors:
+  # Add medical attributes to spans
+  attributes:
+    actions:
+      - key: service.name
+        value: care-sync
+        action: insert
+      - key: environment
+        value: ${ENVIRONMENT:development}
+        action: insert
+
+  # Batch processing for efficiency
+  batch:
+    send_batch_size: 512
+    timeout: 10s
+    send_batch_max_size: 1024
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # Parse correlation IDs
+  resource_detection:
+    detectors: ['system', 'docker', 'env']
+
+exporters:
+  # Export traces to Jaeger
+  jaeger:
+    endpoint: http://jaeger:14250
+    tls:
+      insecure: true
+
+  # Export metrics to Prometheus
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: caresync
+    const_labels:
+      service: hims
+      environment: ${ENVIRONMENT:development}
+
+  # Export logs to Grafana Loki
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    headers:
+      X-Scope-OrgID: "1"
+
+  # Development logging
+  logging:
+    loglevel: debug
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  pipelines:
+    # Traces: OTLP → Jaeger
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes, batch]
+      exporters: [jaeger]
+
+    # Metrics: Prometheus → (Prometheus) + Logging
+    metrics:
+      receivers: [prometheus, otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, logging]
+
+    # Logs: OTLP → Loki
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [loki, logging]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed

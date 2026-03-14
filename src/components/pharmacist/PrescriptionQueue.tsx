@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { usePrescriptions, useDispensePrescription } from '@/hooks/usePrescriptions';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { useAuth } from '@/contexts/AuthContext';
+import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { PrescriptionDispensingModal } from '@/components/pharmacy/PrescriptionDispensingModal';
+import { AmendmentModal } from '@/components/audit/AmendmentModal';
+import { Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -31,9 +35,13 @@ import { toast } from 'sonner';
 export function PrescriptionQueue() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const [amendmentModalOpen, setAmendmentModalOpen] = useState(false);
+  const [selectedForAmendment, setSelectedForAmendment] = useState<any>(null);
   const { data: prescriptions, isLoading } = usePrescriptions();
   const dispenseMutation = useDispensePrescription();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { primaryRole } = useAuth();
+  const { recordOperation, recordCustomEvent, getCorrelation } = useClinicalMetrics();
 
   const filteredPrescriptions = prescriptions?.filter(p => 
     p.patient?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,20 +60,45 @@ export function PrescriptionQueue() {
     const prescriptionId = selectedPrescription.id as string;
     const patientId = selectedPrescription.patient_id as string | undefined;
     const firstMedName = selectedPrescription.items?.[0]?.medication_name as string | undefined;
+    const itemCount = selectedPrescription.items?.length || 0;
 
-    await dispenseMutation.mutateAsync(prescriptionId);
-
-    // Emit canonical dispense event for downstream patient notification rules.
-    if (patientId && firstMedName) {
-      await triggerWorkflow({
-        type: WORKFLOW_EVENT_TYPES.MEDICATION_DISPENSED,
-        patientId,
-        data: {
-          prescriptionId,
-          medicationName: firstMedName,
+    // Phase 3B: Record prescription dispensing with telemetry
+    await recordOperation(
+      {
+        operationName: 'dispense_prescription',
+        workflowType: 'prescription',
+        attributes: {
+          'prescription.id': prescriptionId,
+          'patient.id': patientId || 'unknown',
+          'medication.name': firstMedName || 'unknown',
+          'item.count': itemCount,
+          'correlation.id': getCorrelation().id,
         },
-      });
-    }
+      },
+      async () => {
+        await dispenseMutation.mutateAsync(prescriptionId);
+
+        // Emit canonical dispense event for downstream patient notification rules.
+        if (patientId && firstMedName) {
+          await triggerWorkflow({
+            type: WORKFLOW_EVENT_TYPES.MEDICATION_DISPENSED,
+            patientId,
+            data: {
+              prescriptionId,
+              medicationName: firstMedName,
+            },
+          });
+        }
+      }
+    );
+
+    // Record custom event for analytics
+    recordCustomEvent('prescription.dispensed', {
+      prescription_id: prescriptionId,
+      patient_id: patientId,
+      medication_name: firstMedName,
+      item_count: itemCount,
+    });
 
     setSelectedPrescription(null);
   };
@@ -152,13 +185,28 @@ export function PrescriptionQueue() {
                     </TableCell>
                     <TableCell>{getStatusBadge(p.status)}</TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedPrescription(p)}
-                      >
-                        Details
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedPrescription(p)}
+                        >
+                          Details
+                        </Button>
+                        {primaryRole === 'doctor' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedForAmendment(p);
+                              setAmendmentModalOpen(true);
+                            }}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Amend
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -193,6 +241,26 @@ export function PrescriptionQueue() {
         }
         onDispense={handleDispense}
         isLoading={dispenseMutation.isPending}
+      />
+
+      {/* Phase 2B: Amendment Modal */}
+      <AmendmentModal
+        isOpen={amendmentModalOpen}
+        onClose={() => {
+          setAmendmentModalOpen(false);
+          setSelectedForAmendment(null);
+        }}
+        prescriptionId={selectedForAmendment?.id || ''}
+        items={selectedForAmendment?.items || []}
+        patientName={selectedForAmendment?.patient ?
+          `${selectedForAmendment.patient.first_name} ${selectedForAmendment.patient.last_name}`
+          : 'Patient'
+        }
+        onAmendmentSuccess={() => {
+          toast.success('Amendment submitted for audit');
+          setAmendmentModalOpen(false);
+          setSelectedForAmendment(null);
+        }}
       />
     </div>
   );

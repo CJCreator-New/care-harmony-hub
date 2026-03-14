@@ -54,6 +54,7 @@
     "test:e2e:roles:comprehensive": "playwright test tests/e2e/role-workflows-comprehensive.spec.ts tests/e2e/cross-role-handoffs.spec.ts --project=chromium --workers=1",
     "test:e2e:all-roles-flow": "playwright test tests/e2e/all-roles-end-to-end-flow.spec.ts --project=chromium --workers=1",
     "test:create-users": "node scripts/create-test-users.js",
+    "seed:test-data": "node scripts/seed-test-data.mjs",
     "test:e2e:update-snapshots": "playwright test --update-snapshots",
     "test:e2e:codegen": "playwright codegen localhost:8080",
     "test:e2e:install": "playwright install --with-deps",
@@ -89,7 +90,9 @@
     "test:e2e:full:phase:auth": "npx playwright test --config=playwright.e2e-full.config.ts --project=auth",
     "test:e2e:full:phase:permissions": "npx playwright test --config=playwright.e2e-full.config.ts --project=permissions",
     "test:e2e:full:phase:workflows": "npx playwright test --config=playwright.e2e-full.config.ts --project=workflows",
-    "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security"
+    "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security",
+    "validate:rls": "node scripts/validate-rls.mjs",
+    "validate:migrations": "node scripts/validate-migrations.mjs"
   },
   "overrides": {
     "serialize-javascript": "^7.0.4",
@@ -99,6 +102,10 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@hookform/resolvers": "^3.10.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-web": "^0.42.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.51.0",
+    "@opentelemetry/sdk-trace-web": "^1.25.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",

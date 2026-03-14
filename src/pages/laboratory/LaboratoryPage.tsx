@@ -46,6 +46,7 @@ import {
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
 import { usePatient } from '@/hooks/usePatients';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveAuthUserIdByProfileId } from '@/services/identityResolver';
@@ -56,6 +57,10 @@ import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 import { Pagination } from '@/components/ui/pagination';
 import { AIResultInterpretation } from '@/components/lab/AIResultInterpretation';
 import { CreateLabOrderModal } from '@/components/lab/CreateLabOrderModal';
+import { AuditTimeline } from '@/components/audit/AuditTimeline';
+import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
+import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
+import { AlertTriangle } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'warning' | 'info' | 'success' | 'destructive' }> = {
   pending: { label: 'Pending', variant: 'warning' },
@@ -94,6 +99,15 @@ export default function LaboratoryPage() {
   const [resultNotes, setResultNotes] = useState('');
   const [isCriticalValue, setIsCriticalValue] = useState(false);
   const [newLabOrderOpen, setNewLabOrderOpen] = useState(false);
+  const { alerts: amendmentAlerts } = useAmendmentAlerts(null);
+  const [showAuditTimeline, setShowAuditTimeline] = useState(false);
+
+  // Check if selected order has recent amendments
+  const getRecentAmendment = (orderId: string) => {
+    return amendmentAlerts.find(
+      (a) => a.recordId === orderId && a.recordType === 'lab_result' && a.unread
+    );
+  };
 
   // Sync tab param to status filter
   useEffect(() => {
@@ -101,6 +115,7 @@ export default function LaboratoryPage() {
   }, [initialTab]);
 
   const { user, hospital } = useAuth();
+  const { recordOperation, recordCustomEvent } = useClinicalMetrics();
 
   // Debounce search term for server-side filtering
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
@@ -161,49 +176,73 @@ export default function LaboratoryPage() {
   const handleUploadResults = async () => {
     if (!selectedOrder) return;
     
-    await updateOrder.mutateAsync({
-      id: selectedOrder.id,
-      updates: {
-        status: 'completed',
-        result_notes: resultNotes,
-        completed_at: new Date().toISOString(),
-        is_critical: isCriticalValue,
-        critical_notified: isCriticalValue,
-        critical_notified_at: isCriticalValue ? new Date().toISOString() : null,
+    // Phase 3B: Record lab result submission with telemetry
+    await recordOperation(
+      {
+        operationName: 'submit_lab_result',
+        workflowType: 'lab',
+        attributes: {
+          'lab_order.id': selectedOrder.id,
+          'test.name': selectedOrder.test_name,
+          'patient.id': selectedOrder.patient_id,
+          'is_critical': isCriticalValue,
+          'has_notes': !!resultNotes,
+        },
       },
-    });
+      async () => {
+        await updateOrder.mutateAsync({
+          id: selectedOrder.id,
+          updates: {
+            status: 'completed',
+            result_notes: resultNotes,
+            completed_at: new Date().toISOString(),
+            is_critical: isCriticalValue,
+            critical_notified: isCriticalValue,
+            critical_notified_at: isCriticalValue ? new Date().toISOString() : null,
+          },
+        });
 
-      // Trigger workflow for lab results ready using the canonical event type
-      // constant so that workflow_rules with trigger_event='lab.results_ready'
-      // are correctly matched.
-      if (selectedOrder.ordered_by) {
-        // Get patient name for workflow
-        const { data: patient } = await supabase
-          .from('patients')
-          .select('first_name, last_name')
-          .eq('id', selectedOrder.patient_id)
-          .single();
+        // Trigger workflow for lab results ready using the canonical event type
+        // constant so that workflow_rules with trigger_event='lab.results_ready'
+        // are correctly matched.
+        if (selectedOrder.ordered_by) {
+          // Get patient name for workflow
+          const { data: patient } = await supabase
+            .from('patients')
+            .select('first_name, last_name')
+            .eq('id', selectedOrder.patient_id)
+            .single();
 
-        if (patient) {
-          // ordered_by is a profile ID in lab_orders; resolve auth user for
-          // recipient-safe downstream notification routing.
-          const orderedByUserId = await resolveAuthUserIdByProfileId(selectedOrder.ordered_by);
-          const patientName = `${patient.first_name} ${patient.last_name}`;
-          await triggerWorkflow({
-            type: WORKFLOW_EVENT_TYPES.LAB_RESULTS_READY,
-            patientId: selectedOrder.patient_id,
-            data: {
-              patientName,
-              testName: selectedOrder.test_name,
-              labOrderId: selectedOrder.id,
-              isCritical: isCriticalValue,
-              orderedBy: selectedOrder.ordered_by,
-              orderedByUserId
-            },
-            priority: isCriticalValue ? 'urgent' : 'normal'
-          });
+          if (patient) {
+            // ordered_by is a profile ID in lab_orders; resolve auth user for
+            // recipient-safe downstream notification routing.
+            const orderedByUserId = await resolveAuthUserIdByProfileId(selectedOrder.ordered_by);
+            const patientName = `${patient.first_name} ${patient.last_name}`;
+            await triggerWorkflow({
+              type: WORKFLOW_EVENT_TYPES.LAB_RESULTS_READY,
+              patientId: selectedOrder.patient_id,
+              data: {
+                patientName,
+                testName: selectedOrder.test_name,
+                labOrderId: selectedOrder.id,
+                isCritical: isCriticalValue,
+                orderedBy: selectedOrder.ordered_by,
+                orderedByUserId
+              },
+              priority: isCriticalValue ? 'urgent' : 'normal'
+            });
+          }
         }
       }
+    );
+
+    // Record custom event for analytics
+    recordCustomEvent('lab_result.submitted', {
+      lab_order_id: selectedOrder.id,
+      test_name: selectedOrder.test_name,
+      patient_id: selectedOrder.patient_id,
+      is_critical: isCriticalValue,
+    });
 
     setResultDialogOpen(false);
     setSelectedOrder(null);
@@ -444,14 +483,44 @@ export default function LaboratoryPage() {
       </div>
 
       {/* Results Dialog */}
-      <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
-        <DialogContent>
+      <Dialog open={resultDialogOpen || showAuditTimeline} onOpenChange={(open) => {
+        if (!open) {
+          setResultDialogOpen(false);
+          setShowAuditTimeline(false);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedOrder?.status === 'completed' ? 'View Results' : 'Upload Results'}
+              {showAuditTimeline 
+                ? 'Lab Result Audit History' 
+                : (selectedOrder?.status === 'completed' ? 'View Results' : 'Upload Results')
+              }
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          {showAuditTimeline && selectedOrder ? (
+            <div className="space-y-4 py-4">
+              {getRecentAmendment(selectedOrder.id) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800">Critical value status was recently amended</p>
+                </div>
+              )}
+              <AuditTimeline recordId={selectedOrder.id} recordType="lab_result" />
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="font-semibold mb-4">Complete Audit History</h4>
+                <div className="max-h-96 overflow-y-auto">
+                  <ForensicTimeline recordId={selectedOrder.id} recordType="lab_result" isOpen={true} onClose={() => setShowAuditTimeline(false)} />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-6">
+                <Button variant="outline" onClick={() => setShowAuditTimeline(false)}>
+                  Back to Results
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
             <div>
               <Label>Test Name</Label>
               <p className="text-sm text-muted-foreground">{selectedOrder?.test_name}</p>
@@ -498,7 +567,13 @@ export default function LaboratoryPage() {
                 Complete & Upload Results
               </Button>
             )}
-          </div>
+            <div className="flex gap-2 pt-4 border-t">
+              <Button variant="ghost" onClick={() => setShowAuditTimeline(true)}>
+                View Audit History
+              </Button>
+            </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

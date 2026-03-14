@@ -13,6 +13,7 @@ import {
   Clock,
   Calendar,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -75,6 +76,7 @@ interface PrescriptionBuilderProps {
   patientId: string
   onSave: (prescription: Prescription) => void
   existingDrugs?: Drug[]
+  patientAllergies?: string[] // NEW: For allergy warning display
 }
 
 const frequencies = [
@@ -304,19 +306,20 @@ function PrescriptionItemCard({
 
           <div className="grid grid-cols-2 gap-4" style={{ gap: "var(--space-4)" }}>
             <div>
-              <label className="text-sm font-medium mb-1 block">Dosage</label>
+              {/* IMPROVEMENT 3: INCREASE DOSAGE LABEL AND MAKE SELECT LARGER */}
+              <label className="text-sm font-semibold mb-2 block text-base">Dosage <span className="text-destructive">*</span></label>
               <Select
                 value={item.dosage}
                 onValueChange={(value) =>
                   onUpdate({ ...item, dosage: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10 text-base font-semibold">
                   <SelectValue placeholder="Select dosage" />
                 </SelectTrigger>
                 <SelectContent>
                   {item.drug.strengths.map((strength) => (
-                    <SelectItem key={strength} value={strength}>
+                    <SelectItem key={strength} value={strength} className="text-base">
                       {strength}
                     </SelectItem>
                   ))}
@@ -410,6 +413,7 @@ export function PrescriptionBuilder({
   patientId,
   onSave,
   existingDrugs = [],
+  patientAllergies = [],
 }: PrescriptionBuilderProps) {
   const [items, setItems] = useState<PrescriptionItem[]>([])
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -521,6 +525,27 @@ export function PrescriptionBuilder({
           <DialogHeader>
             <DialogTitle>Confirm Prescription</DialogTitle>
           </DialogHeader>
+          
+          {/* IMPROVEMENT 1: ADD ALLERGY BANNER AT TOP */}
+          {patientAllergies.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-destructive/10 border-l-4 border-destructive rounded-md p-4 flex gap-3 items-start"
+            >
+              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-destructive text-sm">⚠️ Patient Allergies</p>
+                <p className="text-sm text-destructive/80 mt-1 font-medium">
+                  {patientAllergies.join(", ")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Verify selected medications are NOT contraindicated.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           <div className="py-4">
             <p className="text-muted-foreground mb-4">
               You are about to prescribe {items.length} medication(s). Please review
@@ -547,7 +572,31 @@ export function PrescriptionBuilder({
             >
               Cancel
             </Button>
-            <InteractiveButton onClick={handleSave}>
+            <InteractiveButton 
+              onClick={() => {
+                // IMPROVEMENT 2: CHECK FOR ALLERGY CONFLICTS BEFORE SAVING
+                const allergicDrug = items.find(item =>
+                  patientAllergies.some(allergy =>
+                    item.drug.name.toLowerCase().includes(allergy.toLowerCase()) ||
+                    item.drug.genericName.toLowerCase().includes(allergy.toLowerCase())
+                  )
+                )
+                
+                if (allergicDrug) {
+                  const conflictAllergyList = patientAllergies.filter(a => 
+                    allergicDrug.drug.name.toLowerCase().includes(a.toLowerCase()) || 
+                    allergicDrug.drug.genericName.toLowerCase().includes(a.toLowerCase())
+                  ).join(", ")
+                  toast.error("Allergy Conflict Detected", {
+                    description: `${allergicDrug.drug.name} conflicts with patient allergy: ${conflictAllergyList}`,
+                    duration: 5000,
+                  })
+                  return
+                }
+                
+                handleSave()
+              }}
+            >
               Confirm & Save
             </InteractiveButton>
           </DialogFooter>

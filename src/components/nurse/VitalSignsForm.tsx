@@ -182,26 +182,45 @@ function VitalInputCard({
         </Badge>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          step={type === "temperature" ? "0.1" : "1"}
-          value={localValue}
-          onChange={handleChange}
-          className={cn(
-            "flex-1 h-12 px-4 text-2xl font-bold text-center rounded-lg border bg-background focus:outline-none focus:ring-2",
-            status === "normal" && "border-success focus:ring-success/20",
-            status === "warning" && "border-warning focus:ring-warning/20",
-            status === "critical" && "border-destructive focus:ring-destructive/20 animate-pulse"
-          )}
-          placeholder="--"
-          aria-label={`${label} value`}
-        />
-        <span className="text-lg text-muted-foreground w-16">{unit}</span>
+      {/* IMPROVEMENT: INCREASE VITAL VALUE FONT SIZE FOR BEDSIDE READABILITY */}
+      <div className="flex items-end gap-3 mb-3">
+        <div className="flex-1">
+          <input
+            type="number"
+            step={type === "temperature" ? "0.1" : "1"}
+            value={localValue}
+            onChange={handleChange}
+            className={cn(
+              "w-full px-4 py-3 text-5xl font-bold text-center rounded-lg border bg-background focus:outline-none focus:ring-2 leading-none",
+              status === "normal" && "border-success focus:ring-success/20",
+              status === "warning" && "border-warning focus:ring-warning/20",
+              status === "critical" && "border-destructive focus:ring-destructive/20 animate-pulse"
+            )}
+            placeholder="--"
+            aria-label={`${label} value`}
+          />
+        </div>
+        <span className="text-2xl font-semibold text-muted-foreground w-20 text-center pb-2">{unit}</span>
       </div>
 
+      {/* Status message for non-normal values */}
+      {status !== "normal" && (
+        <motion.div
+          initial={shouldReduceMotion ? {} : { opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            "text-sm font-semibold mb-2 px-3 py-2 rounded",
+            status === "warning" && "bg-warning/10 text-warning border border-warning/20",
+            status === "critical" && "bg-destructive/10 text-destructive border border-destructive/20"
+          )}
+        >
+          {status === "warning" && "⚠️ Value outside normal range"}
+          {status === "critical" && "🚨 Critical value detected"}
+        </motion.div>
+      )}
+
       {/* Trend sparkline placeholder */}
-      <div className="mt-3 h-8 flex items-end gap-1">
+      <div className="mt-2 h-8 flex items-end gap-1">
         {sparklineKeys.map((key) => (
           <div
             key={key}
@@ -396,24 +415,31 @@ export function VitalSignsForm({
         />
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
-        <Button variant="outline" onClick={() => setVitals({
-          temperature: 0,
-          systolic: 0,
-          diastolic: 0,
-          pulse: 0,
-          respiration: 0,
-          spo2: 0,
-        })}>
+      {/* Actions - IMPROVEMENT: WCAG AAA button sizes (min 48px height) */}
+      <div className="flex items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
+        <Button 
+          variant="outline" 
+          size="lg"
+          className="h-12 px-6 text-base"
+          onClick={() => setVitals({
+            temperature: 0,
+            systolic: 0,
+            diastolic: 0,
+            pulse: 0,
+            respiration: 0,
+            spo2: 0,
+          })}
+          aria-label="Cancel vital signs entry"
+        >
           Cancel
         </Button>
         <InteractiveButton
           onClick={handleSave}
           isLoading={isSaving}
-          className="gap-2"
+          className="gap-2 h-12 px-6 text-base"
+          aria-label="Save vital signs"
         >
-          <Check className="w-4 h-4" />
+          <Check className="w-5 h-5" />
           Save Vitals
         </InteractiveButton>
       </div>

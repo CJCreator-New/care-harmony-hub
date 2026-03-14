@@ -373,14 +373,23 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="lg"
+                className="h-12 px-6"
+                onClick={() => handleOpenChange(false)}
+                aria-label="Cancel lab order creation"
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={createOrder.isPending}
+                size="lg"
+                className="h-12 px-6"
               >
-                {createOrder.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {createOrder.isPending && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
                 Create Lab Order
               </Button>
             </div>

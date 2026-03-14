@@ -16,6 +16,7 @@ import { useUpdateConsultation } from '@/hooks/useConsultations';
 import { useCreatePrescription } from '@/hooks/usePrescriptions';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { mapToCanonicalLabPriority, mapToWorkflowPriority } from '@/utils/labPriority';
 import { toast } from 'sonner';
 import { VoiceDocumentation } from '../doctor/VoiceDocumentation';
@@ -53,6 +54,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
   const createPrescription = useCreatePrescription();
   const createLabOrder = useCreateLabOrder();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { recordOperation, recordCustomEvent, recordError } = useClinicalMetrics();
 
   const triggerWorkflowSafely = async (
     event: Parameters<typeof triggerWorkflow>[0],
@@ -107,18 +109,41 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
 
       // Handle prescriptions
       if (prescriptions.length > 0 && notifyPharmacy) {
-        const prescriptionResult = await createPrescription.mutateAsync({
-          patientId: consultation.patient_id,
-          consultationId: consultation.id,
-          items: prescriptions.map((rx: any) => ({
-            medication_name: rx.medication,
-            dosage: rx.dosage,
-            frequency: rx.frequency,
-            duration: rx.duration,
-            instructions: rx.instructions,
-          })),
-          notes,
+        // Phase 3B: Record prescription creation with telemetry
+        const prescriptionResult = await recordOperation(
+          {
+            operationName: 'create_prescription_batch',
+            workflowType: 'prescription',
+            attributes: {
+              'consultation.id': consultation.id,
+              'patient.id': consultation.patient_id,
+              'prescription.count': prescriptions.length,
+              'items_total': prescriptions.reduce((sum: number, rx: any) => sum + 1, 0),
+            },
+          },
+          async () => {
+            return await createPrescription.mutateAsync({
+              patientId: consultation.patient_id,
+              consultationId: consultation.id,
+              items: prescriptions.map((rx: any) => ({
+                medication_name: rx.medication,
+                dosage: rx.dosage,
+                frequency: rx.frequency,
+                duration: rx.duration,
+                instructions: rx.instructions,
+              })),
+              notes,
+            });
+          }
+        );
+
+        recordCustomEvent('prescription_batch.created', {
+          prescription_id: prescriptionResult.id,
+          patient_id: consultation.patient_id,
+          item_count: prescriptions.length,
+          has_notes: !!notes,
         });
+
         await triggerWorkflowSafely({
           type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
           patientId: consultation.patient_id,

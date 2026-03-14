@@ -4,11 +4,18 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pill, Calendar, User, RefreshCw } from 'lucide-react';
 import { usePatientPrescriptions } from '@/hooks/usePatientPortal';
 import { usePatientRefillRequests } from '@/hooks/useRefillRequests';
+import { useAuth } from '@/contexts/AuthContext';
 import { RefillRequestModal } from '@/components/prescriptions/RefillRequestModal';
+import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
+import { AuditTimeline } from '@/components/audit/AuditTimeline';
+import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { format, parseISO } from 'date-fns';
+import { AlertTriangle } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-warning/10 text-warning border-warning/20',
@@ -26,8 +33,17 @@ const refillStatusColors: Record<string, string> = {
 export default function PatientPrescriptionsPage() {
   const { prescriptions = [], loading: isLoading } = usePatientPrescriptions();
   const { refillRequests = [] } = usePatientRefillRequests();
+  const { primaryRole } = useAuth();
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const { alerts: amendmentAlerts } = useAmendmentAlerts(null);
   const skeletonKeys = ['rx-1', 'rx-2', 'rx-3'];
+
+  // Check if any prescription has recent amendments
+  const getRecentAmendment = (rxId: string) => {
+    return amendmentAlerts.find(
+      (a) => a.recordId === rxId && a.recordType === 'prescription' && a.unread
+    );
+  };
 
   const hasPendingRefill = (prescriptionId: string) => {
     return refillRequests.some(
@@ -131,33 +147,60 @@ export default function PatientPrescriptionsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {rx.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 rounded-lg bg-muted/50 border"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-primary/10">
-                              <Pill className="h-4 w-4 text-primary" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{item.medication_name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {item.dosage} • {item.frequency} • {item.duration}
-                              </p>
-                              {item.instructions && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  <span className="font-medium">Instructions:</span> {item.instructions}
+                  <Tabs defaultValue="details" className="mt-6">
+                    <TabsList>
+                      <TabsTrigger value="details">Details</TabsTrigger>
+                      <TabsTrigger value="timeline">Audit Timeline</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="details" className="space-y-3">
+                      {rx.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-lg bg-muted/50 border"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 rounded-lg bg-primary/10">
+                                <Pill className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{item.medication_name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {item.dosage} • {item.frequency} • {item.duration}
                                 </p>
-                              )}
+                                {item.instructions && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    <span className="font-medium">Instructions:</span> {item.instructions}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
+                      ))}
+                    </TabsContent>
+
+                    <TabsContent value="timeline" className="space-y-4">
+                      {getRecentAmendment(rx.id) && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 text-sm">
+                            <p className="font-medium text-amber-900">Prescription recently amended</p>
+                            <p className="text-amber-800">View the timeline below to see all changes</p>
+                          </div>
+                        </div>
+                      )}
+                      <AuditTimeline recordId={rx.id} recordType="prescription" />
+                      <div className="mt-6 pt-6 border-t">
+                        <h4 className="font-semibold mb-4">Complete Audit History</h4>
+                        <ForensicTimeline
+                          prescriptionId={rx.id}
+                          showOwnOnly={primaryRole === 'doctor'}
+                        />
                       </div>
-                    ))}
-                  </div>
+                    </TabsContent>
+                  </Tabs>
                   {rx.notes && (
                     <div className="mt-4 p-3 rounded-lg bg-muted/30 border-l-4 border-primary">
                       <p className="text-sm">

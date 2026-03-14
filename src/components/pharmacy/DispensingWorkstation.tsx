@@ -12,10 +12,13 @@ import {
   User,
   Pill,
   QrCode,
+  History,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ForensicTimeline } from "@/components/audit/ForensicTimeline"
 import {
   Dialog,
   DialogContent,
@@ -267,6 +270,24 @@ export function DispensingWorkstation({
                 </div>
               </label>
             </div>
+
+            {/* Amendment History - Phase 2B */}
+            {prescription && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    Amendment Timeline
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ForensicTimeline
+                    prescriptionId={prescription.id}
+                    showOwnOnly={false}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         )
 

@@ -1,0 +1,446 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "caresync-admin-slos",
+    "title": "CareSync SLO & System Health Dashboard",
+    "description": "Hospital admin view - SLO compliance, system health, RLS policy performance, alerts",
+    "tags": ["admin", "slos", "system-health"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Overall SLO Compliance (24h)",
+        "type": "gauge",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "(\n  count(rate(caresync_slo_met_total[24h]) > 0.95) /\n  count(caresync_slo_target)\n) * 100"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 90
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Patient Safety Critical SLOs",
+        "type": "table",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 18,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "(\n  label_join(\n    histogram_quantile(0.95, rate(caresync_slo_latency_ms_bucket{critical='true'}[5m])),\n    'slo_id', '', '__name__'\n  )\n)",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "ms"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "Database Health",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "caresync_supabase_connections / caresync_supabase_max_connections * 100",
+            "legendFormat": "Connection Pool %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "API Error Rate (5m)",
+        "type": "stat",
+        "gridPos": {
+          "x": 6,
+          "y": 6,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "rate(caresync_api_errors_total[5m]) * 100"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 2
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Cache Hit Rate",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 6,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "caresync_tanstack_cache_hit_rate * 100"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 50
+                },
+                {
+                  "color": "green",
+                  "value": 70
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "RLS Policy Execution Time (p95)",
+        "type": "stat",
+        "gridPos": {
+          "x": 18,
+          "y": 6,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(caresync_rls_policy_execution_ms_bucket[5m]))"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "SLO Compliance by Workflow",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 7
+        },
+        "targets": [
+          {
+            "expr": "rate(caresync_slo_met_total[5m]) * 100",
+            "legendFormat": "{{ workflow }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "custom": {
+              "lineWidth": 2
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 90
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": ["mean", "last"],
+            "displayMode": "table"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Critical Alerts (24h)",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 10,
+          "w": 12,
+          "h": 7
+        },
+        "targets": [
+          {
+            "expr": "increase(ALERTS{severity='critical'}[24h])"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "RLS Violations (5m)",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_rls_violation_total[5m])"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Active Users (Hospitals)",
+        "type": "stat",
+        "gridPos": {
+          "x": 6,
+          "y": 17,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "count(count by (hospital_id) (rate(caresync_api_requests_total[5m])))"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Uptime (%) ",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 17,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "(\n  increase(caresync_uptime_success_total[24h]) /\n  (increase(caresync_uptime_success_total[24h]) + increase(caresync_uptime_failure_total[24h]))\n) * 100"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 99
+                },
+                {
+                  "color": "green",
+                  "value": 99.9
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "overwrite": true
+}

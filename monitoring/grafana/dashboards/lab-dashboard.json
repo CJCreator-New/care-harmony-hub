@@ -1,0 +1,299 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "caresync-lab",
+    "title": "CareSync Laboratory Workflow Dashboard",
+    "description": "Lab technician view - specimen processing, critical values, test result turnaround time",
+    "tags": ["laboratory", "workflows", "lab_technicians"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "20s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Critical Values (Unacknowledged)",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "caresync_lab_critical_values_unacknowledged"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Critical Value Alert Latency (p99)",
+        "type": "stat",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "(histogram_quantile(0.99, rate(caresync_lab_critical_value_latency_ms_bucket[5m])) / 1000)",
+            "legendFormat": "Seconds"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 240
+                },
+                {
+                  "color": "red",
+                  "value": 300
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Specimen Processing Time (p95)",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "(histogram_quantile(0.95, rate(caresync_lab_specimen_processing_latency_ms_bucket[5m])) / 1000 / 60)",
+            "legendFormat": "Minutes"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 30
+                },
+                {
+                  "color": "red",
+                  "value": 60
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Pending Specimens",
+        "type": "gauge",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "caresync_lab_pending_specimens"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "red",
+                  "value": 20
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Critical Values Timeline (24h)",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_lab_critical_values_detected_total[5m])",
+            "legendFormat": "Critical Values",
+            "refId": "A"
+          },
+          {
+            "expr": "increase(caresync_lab_critical_value_alerts_sent_total[5m])",
+            "legendFormat": "Alerts Sent",
+            "refId": "B"
+          },
+          {
+            "expr": "increase(caresync_lab_critical_value_alerts_acknowledged_total[5m])",
+            "legendFormat": "Acknowledged",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "lineWidth": 2
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Processing Latency by Test Type",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 12,
+          "y": 6,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (test_type) (rate(caresync_lab_specimen_processing_latency_ms_bucket[5m]))) / 1000 / 60",
+            "legendFormat": "{{ test_type }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "lineWidth": 2
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": ["mean", "max"],
+            "displayMode": "table"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Critical Value Acknowledgment Time",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "(histogram_quantile(0.95, rate(caresync_lab_critical_value_acknowledgment_latency_ms_bucket[5m])) / 1000)",
+            "legendFormat": "Seconds"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Analyzer Equipment Status",
+        "type": "table",
+        "gridPos": {
+          "x": 12,
+          "y": 12,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "caresync_lab_analyzer_status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "overwrite": true
+}

@@ -5,6 +5,9 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { APPOINTMENT_COLUMNS } from '@/lib/queryColumns';
+import { createClinicalSpan, recordClinicalMetric } from '@/utils/telemetry';
+import { getCorrelationId } from '@/utils/correlationId';
+import { captureException } from '@/utils/errorTracking';
 
 export type AppointmentStatus = 'scheduled' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
 export type PriorityLevel = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
@@ -135,24 +138,48 @@ export function useCreateAppointment() {
     mutationFn: async (appointmentData: AppointmentInsert) => {
       if (!hospital?.id) throw new Error('No hospital context');
 
-      const { data, error } = await supabase
-        .from('appointments')
-        .insert({
-          ...appointmentData,
-          hospital_id: hospital.id,
-          created_by: profile?.id,
-        })
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn, phone)
-        `)
-        .single();
+      const span = createClinicalSpan('appointment.create', {
+        'hospital.id': hospital.id,
+        'patient.id': appointmentData.patient_id,
+        'appointment.type': appointmentData.appointment_type,
+      });
 
-      if (error) throw error;
-      return data as unknown as Appointment;
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .insert({
+            ...appointmentData,
+            hospital_id: hospital.id,
+            created_by: profile?.id,
+          })
+          .select(`
+            *,
+            patient:patients(id, first_name, last_name, mrn, phone)
+          `)
+          .single();
+
+        if (error) throw error;
+        return data as unknown as Appointment;
+      } catch (error) {
+        span.recordException(error as Error);
+        captureException(error as Error, {
+          operationType: 'appointment_create',
+          entityType: 'appointment',
+          severity: 'high',
+        });
+        throw error;
+      } finally {
+        span.end();
+      }
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      
+      const duration = Date.now() - (data.created_at ? new Date(data.created_at).getTime() : 0);
+      recordClinicalMetric('appointment.create.latency', duration, {
+        'hospital.id': hospital?.id || 'unknown',
+        'status': 'success',
+      });
       
       // Log activity
       await logActivity({
@@ -164,13 +191,18 @@ export function useCreateAppointment() {
           patient_mrn: (data.patient as any)?.mrn,
           scheduled_date: data.scheduled_date,
           scheduled_time: data.scheduled_time,
-          appointment_type: data.appointment_type
+          appointment_type: data.appointment_type,
+          correlation_id: getCorrelationId(hospital?.id),
         }
       });
       
       toast.success('Appointment scheduled successfully');
     },
     onError: (error: Error) => {
+      recordClinicalMetric('appointment.create.latency', 0, {
+        'hospital.id': hospital?.id || 'unknown',
+        'status': 'error',
+      });
       toast.error(`Failed to schedule appointment: ${error.message}`);
     },
   });
@@ -178,25 +210,50 @@ export function useCreateAppointment() {
 
 export function useUpdateAppointment() {
   const queryClient = useQueryClient();
+  const { hospital } = useAuth();
   const { logActivity } = useActivityLog();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Appointment> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('appointments')
-        .update(updates)
-        .eq('id', id)
-        .select(`
-          *,
-          patient:patients(id, first_name, last_name, mrn, phone)
-        `)
-        .single();
+      const span = createClinicalSpan('appointment.update', {
+        'hospital.id': hospital?.id,
+        'appointment.id': id,
+        'status': updates.status,
+      });
 
-      if (error) throw error;
-      return data as unknown as Appointment;
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .update(updates)
+          .eq('id', id)
+          .select(`
+            *,
+            patient:patients(id, first_name, last_name, mrn, phone)
+          `)
+          .single();
+
+        if (error) throw error;
+        return data as unknown as Appointment;
+      } catch (error) {
+        span.recordException(error as Error);
+        captureException(error as Error, {
+          operationType: 'appointment_update',
+          entityType: 'appointment',
+          entityId: id,
+          severity: 'medium',
+        });
+        throw error;
+      } finally {
+        span.end();
+      }
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      
+      recordClinicalMetric('appointment.update.latency', 0, {
+        'hospital.id': hospital?.id || 'unknown',
+        'status': 'success',
+      });
       
       // Log activity
       await logActivity({
@@ -206,13 +263,18 @@ export function useUpdateAppointment() {
         details: {
           patient_name: `${(data.patient as any)?.first_name || ''} ${(data.patient as any)?.last_name || ''}`.trim(),
           status: data.status,
-          updated_fields: Object.keys(data)
+          updated_fields: Object.keys(data),
+          correlation_id: getCorrelationId(hospital?.id),
         }
       });
       
       toast.success('Appointment updated');
     },
     onError: (error: Error) => {
+      recordClinicalMetric('appointment.update.latency', 0, {
+        'hospital.id': hospital?.id || 'unknown',
+        'status': 'error',
+      });
       toast.error(`Failed to update appointment: ${error.message}`);
     },
   });
@@ -224,69 +286,101 @@ export function useCheckInAppointment() {
 
   return useMutation({
     mutationFn: async (appointmentId: string) => {
-      if (!hospital?.id) throw new Error('No hospital context');
+      const span = createClinicalSpan('appointment.checkin', {
+        'hospital.id': hospital?.id,
+        'appointment.id': appointmentId,
+      });
 
-      // Get the appointment first to get patient info
-      const { data: appointment, error: aptError } = await supabase
-        .from('appointments')
-        .select(`
-          patient_id, 
-          priority, 
-          doctor_id,
-          patient:patients(first_name, last_name)
-        `)
-        .eq('id', appointmentId)
-        .single();
+      try {
+        if (!hospital?.id) throw new Error('No hospital context');
 
-      if (aptError) throw aptError;
+        // Get the appointment first to get patient info
+        const { data: appointment, error: aptError } = await supabase
+          .from('appointments')
+          .select(`
+            patient_id, 
+            priority, 
+            doctor_id,
+            patient:patients(first_name, last_name)
+          `)
+          .eq('id', appointmentId)
+          .single();
 
-      // Get next queue number
-      const { data: queueNumber, error: queueError } = await supabase
-        .rpc('get_next_queue_number', { p_hospital_id: hospital.id });
+        if (aptError) throw aptError;
 
-      if (queueError) throw queueError;
+        // Get next queue number
+        const { data: queueNumber, error: queueError } = await supabase
+          .rpc('get_next_queue_number', { p_hospital_id: hospital.id });
 
-      // Update appointment status
-      const { data, error } = await supabase
-        .from('appointments')
-        .update({
-          status: 'checked_in' as AppointmentStatus,
-          check_in_time: new Date().toISOString(),
-          queue_number: queueNumber,
-        })
-        .eq('id', appointmentId)
-        .select()
-        .single();
+        if (queueError) throw queueError;
 
-      if (error) throw error;
+        // Update appointment status
+        const { data, error } = await supabase
+          .from('appointments')
+          .update({
+            status: 'checked_in' as AppointmentStatus,
+            check_in_time: new Date().toISOString(),
+            queue_number: queueNumber,
+          })
+          .eq('id', appointmentId)
+          .select()
+          .single();
 
-      // Add patient to the queue
-      const { error: queueInsertError } = await supabase
-        .from('patient_queue')
-        .insert({
-          hospital_id: hospital.id,
-          patient_id: appointment.patient_id,
-          appointment_id: appointmentId,
-          queue_number: queueNumber,
-          priority: appointment.priority || 'normal',
-          status: 'waiting',
-          assigned_to: appointment.doctor_id,
+        if (error) throw error;
+
+        // Add patient to the queue
+        const { error: queueInsertError } = await supabase
+          .from('patient_queue')
+          .insert({
+            hospital_id: hospital.id,
+            patient_id: appointment.patient_id,
+            appointment_id: appointmentId,
+            queue_number: queueNumber,
+            priority: appointment.priority || 'normal',
+            status: 'waiting',
+            assigned_to: appointment.doctor_id,
+          });
+
+        if (queueInsertError) throw queueInsertError;
+
+        // Record metrics
+        recordClinicalMetric('appointment.checkin.latency', 0, {
+          'hospital.id': hospital.id,
+          'status': 'success',
         });
 
-      if (queueInsertError) throw queueInsertError;
-
-      // Return with patient name for notifications
-      return {
-        ...data,
-        patientName: `${(appointment.patient as any)?.first_name || ''} ${(appointment.patient as any)?.last_name || ''}`.trim(),
-      } as Appointment & { patientName: string };
+        // Return with patient name for notifications
+        return {
+          ...data,
+          patientName: `${(appointment.patient as any)?.first_name || ''} ${(appointment.patient as any)?.last_name || ''}`.trim(),
+        } as Appointment & { patientName: string };
+      } catch (error) {
+        span.recordException(error as Error);
+        captureException(error as Error, {
+          operationType: 'appointment_checkin',
+          entityType: 'appointment',
+          entityId: appointmentId,
+          severity: 'high',
+        });
+        throw error;
+      } finally {
+        span.end();
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['queue'] });
+      recordClinicalMetric('appointment.checkin.latency', 0, {
+        'hospital.id': hospital?.id || 'unknown',
+        'status': 'success',
+      });
       toast.success(`Patient checked in - Queue #${data.queue_number}`);
     },
     onError: (error: Error) => {
+      recordClinicalMetric('appointment.checkin.latency', 0, {
+        'hospital.id': hospital?.id || 'unknown',
+        'status': 'error',
+      });
       toast.error(`Failed to check in: ${error.message}`);
     },
   });

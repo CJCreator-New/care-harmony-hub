@@ -3,6 +3,8 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { sanitizeLogMessage } from '@/utils/sanitize';
 import { captureError } from '@/lib/monitoring/sentry';
+import { captureException } from '@/utils/errorTracking';
+import { getCorrelationId } from '@/utils/correlationId';
 
 interface Props {
   children: ReactNode;
@@ -29,23 +31,34 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', sanitizeLogMessage(error.message));
 
+    const correlationId = getCorrelationId();
+
     // Send error to Sentry with component stack and location context
     captureError(error, {
       componentStack: errorInfo.componentStack,
       url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+      correlationId,
+    });
+
+    // Also send to error tracking system
+    captureException(error, {
+      operationType: 'react_error_boundary',
+      entityType: 'ui_component',
+      severity: 'critical',
     });
 
     // Log error for debugging in development
     if (import.meta.env.DEV) {
       console.group('Error Boundary Details');
       console.error('Error:', sanitizeLogMessage(error.message));
+      console.error('Correlation ID:', correlationId);
       console.error('Error Info:', sanitizeLogMessage(errorInfo.componentStack || ''));
       console.groupEnd();
     }
 
     // Log error to monitoring service in production
     if (import.meta.env.PROD) {
-      this.logErrorToService(error, errorInfo);
+      this.logErrorToService(error, errorInfo, correlationId);
     }
 
     this.setState({
@@ -54,7 +67,7 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   }
 
-  private logErrorToService = (error: Error, errorInfo: ErrorInfo) => {
+  private logErrorToService = (error: Error, errorInfo: ErrorInfo, correlationId: string) => {
     try {
       const errorData = {
         message: error.message,
@@ -63,6 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
         timestamp: new Date().toISOString(),
         url: window.location.href,
         userAgent: navigator.userAgent,
+        correlationId,
       };
       // Send to error tracking service (e.g., Sentry, LogRocket)
       console.warn('Error logged:', sanitizeLogMessage(JSON.stringify(errorData)));
@@ -86,6 +100,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const correlationId = getCorrelationId();
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
@@ -100,6 +115,13 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-gray-600 mb-6">
               We're sorry, but something unexpected happened. Please try refreshing the page or contact support if the problem persists.
             </p>
+
+            {correlationId && (
+              <div className="mb-6 p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-600 font-semibold mb-1">Support Reference ID</p>
+                <p className="text-xs text-blue-700 font-mono break-all">{correlationId}</p>
+              </div>
+            )}
 
             {import.meta.env.DEV && this.state.error && !window.location.pathname.startsWith('/patient') && (
               <div className="mb-6 p-4 bg-red-50 rounded-lg text-left">

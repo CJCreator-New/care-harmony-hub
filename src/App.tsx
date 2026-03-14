@@ -9,8 +9,19 @@ import { TestingProvider } from "@/contexts/TestingContext";
 import { RoleProtectedRoute } from "@/components/auth/RoleProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
-import { lazy, Suspense } from "react";
+import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
+import { lazy, Suspense, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+
+// Phase 3A: Clinical Metrics Setup
+import { initializeSentry } from "@/utils/sentry-integration";
+import { initializeMetrics } from "@/services/metrics";
+import { createLogger } from "@/utils/logger";
+
+// Phase 3B: Observability Integration
+import { initializeTelemetry } from "@/utils/telemetry";
+import { registerFetchInterceptor, getCorrelationId } from "@/utils/correlationId";
+import { initErrorTracking } from "@/utils/errorTracking";
 
 // Loading component
 // BUG-32: Full-screen layout-aware skeleton shown while lazy page chunks download,
@@ -733,6 +744,60 @@ function AppRoutes() {
 }
 
 const App = () => {
+  // Initialize observability infrastructure on app startup
+  useEffect(() => {
+    // Phase 3B: Initialize OpenTelemetry
+    const otelEndpoint = import.meta.env.VITE_OTEL_ENDPOINT || 'http://localhost:4318';
+    initializeTelemetry({
+      endpoint: otelEndpoint,
+      serviceName: 'care-harmony-hub',
+      environment: import.meta.env.MODE,
+      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    });
+
+    // Phase 3B: Initialize error tracking with PHI masking
+    initErrorTracking({
+      dsn: import.meta.env.VITE_GLITCHTIP_DSN || import.meta.env.VITE_SENTRY_DSN,
+      environment: import.meta.env.MODE,
+      tracePropagationTargets: [/^\//],
+    });
+
+    // Phase 3B: Register fetch interceptor for automatic correlation ID propagation
+    registerFetchInterceptor();
+
+    // Initialize Sentry error tracking (Phase 3A)
+    initializeSentry(import.meta.env.VITE_SENTRY_DSN, import.meta.env.MODE);
+
+    // Initialize metrics collection (Phase 3A)
+    initializeMetrics();
+
+    // Initialize root logger
+    const logger = createLogger('app-root', { 
+      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+      environment: import.meta.env.MODE 
+    });
+
+    logger.info('CareSync HMS initialized', {
+      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+      environment: import.meta.env.MODE,
+      observability: 'enabled (Phase 3A + 3B)',
+      correlationId: getCorrelationId(),
+      otelEndpoint,
+    });
+
+    // Phase 3B: Setup cleanup for telemetry on app shutdown
+    const handleBeforeUnload = () => {
+      const { shutdownTelemetry } = require('@/utils/telemetry');
+      shutdownTelemetry().catch((err) => console.error('[Telemetry Shutdown]', err));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system">
@@ -768,7 +833,8 @@ const RouteAwareErrorBoundary = ({ children }: { children: React.ReactNode }) =>
 const AppContent = () => {
   // Monitor performance in production - now inside AuthProvider context
   usePerformanceMonitoring();
-  
+  useAmendmentAlert(); // Phase 2B: Real-time amendment alerts for pharmacists
+
   return <AppRoutes />;
 };
 

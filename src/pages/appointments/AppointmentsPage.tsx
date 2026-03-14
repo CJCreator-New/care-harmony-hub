@@ -31,6 +31,7 @@ import {
   User,
   XCircle,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, parseISO } from "date-fns";
@@ -43,6 +44,16 @@ import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { APPOINTMENT_COLUMNS } from "@/lib/queryColumns";
 import { ScheduleAppointmentModal } from "@/components/appointments/ScheduleAppointmentModal";
+import { AuditTimeline } from "@/components/audit/AuditTimeline";
+import { ForensicTimeline } from "@/components/audit/ForensicTimeline";
+import { useAmendmentAlerts } from "@/hooks/useAmendmentAlerts";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,6 +91,16 @@ export default function AppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showAuditDialog, setShowAuditDialog] = useState(false);
+  const { alerts: amendmentAlerts } = useAmendmentAlerts(null);
+
+  // Check if appointment has recent amendments
+  const getRecentAmendment = (aptId: string) => {
+    return amendmentAlerts.find(
+      (a) => a.recordId === aptId && a.recordType === 'appointment' && a.unread
+    );
+  };
 
   // Debounce search term for server-side filtering
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
@@ -318,6 +339,10 @@ export default function AppointmentsPage() {
                           onCancel={handleCancel}
                           onMarkNoShow={handleMarkNoShow}
                           isCheckingIn={checkIn.isPending}
+                          onViewAudit={(apt) => {
+                            setSelectedAppointment(apt);
+                            setShowAuditDialog(true);
+                          }}
                         />
                       ))
                     )}
@@ -359,6 +384,49 @@ export default function AppointmentsPage() {
         onOpenChange={setIsScheduleModalOpen}
         selectedDate={selectedDate}
       />
+
+      {/* Appointment Audit Dialog */}
+      <Dialog open={showAuditDialog} onOpenChange={setShowAuditDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Appointment Audit History</DialogTitle>
+          </DialogHeader>
+          {selectedAppointment && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-muted rounded-lg space-y-2">
+                <h4 className="font-semibold">
+                  {selectedAppointment.patient?.first_name} {selectedAppointment.patient?.last_name}
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  {format(parseISO(selectedAppointment.scheduled_date), 'MMM d, yyyy')} at {selectedAppointment.scheduled_time.slice(0, 5)}
+                </p>
+              </div>
+              
+              {getRecentAmendment(selectedAppointment.id) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800">Appointment was recently rescheduled or cancelled</p>
+                </div>
+              )}
+              
+              <AuditTimeline recordId={selectedAppointment.id} recordType="appointment" />
+              
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="font-semibold mb-4">Complete Audit History</h4>
+                <div className="max-h-96 overflow-y-auto">
+                  <ForensicTimeline recordId={selectedAppointment.id} recordType="appointment" isOpen={true} onClose={() => setShowAuditDialog(false)} />
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAuditDialog(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
@@ -369,6 +437,7 @@ interface AppointmentRowProps {
   onCancel: (id: string) => void;
   onMarkNoShow: (id: string) => void;
   isCheckingIn: boolean;
+  onViewAudit?: (appointment: Appointment) => void;
 }
 
 const AppointmentRow = memo(function AppointmentRow({
@@ -377,6 +446,7 @@ const AppointmentRow = memo(function AppointmentRow({
   onCancel,
   onMarkNoShow,
   isCheckingIn,
+  onViewAudit,
 }: AppointmentRowProps) {
   const status = STATUS_CONFIG[appointment.status] || STATUS_CONFIG.scheduled;
 
@@ -444,6 +514,14 @@ const AppointmentRow = memo(function AppointmentRow({
               No Show
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onViewAudit?.(appointment)}
+            title="View appointment history and amendments"
+          >
+            History
+          </Button>
         </div>
       </TableCell>
     </TableRow>

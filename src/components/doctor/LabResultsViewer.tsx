@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import {
   FlaskConical,
@@ -259,6 +259,7 @@ interface LabResultsViewerProps {
 
 export function LabResultsViewer({ results, className }: LabResultsViewerProps) {
   const [filter, setFilter] = useState<"all" | "abnormal" | "critical">("all")
+  const [soundPlayed, setSoundPlayed] = useState(false)
   const shouldReduceMotion = useReducedMotion()
 
   const filteredResults = results.filter((result) => {
@@ -268,9 +269,61 @@ export function LabResultsViewer({ results, className }: LabResultsViewerProps) 
 
   const abnormalCount = results.filter((r) => r.status === "abnormal").length
   const criticalCount = results.filter((r) => r.status === "critical").length
+  const criticalResults = results.filter((r) => r.status === "critical")
+
+  // IMPROVEMENT 1: PLAY SOUND ALERT FOR CRITICAL VALUES
+  useEffect(() => {
+    if (criticalResults.length > 0 && !soundPlayed) {
+      try {
+        // Create a simple beep using Web Audio API
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const oscillator = audioContext.createOscillator()
+        const gainNode = audioContext.createGain()
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+        oscillator.frequency.value = 800
+        oscillator.type = 'sine'
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.5)
+      } catch (e) {
+        console.log("Audio alert unavailable")
+      }
+      setSoundPlayed(true)
+    }
+  }, [criticalResults.length, soundPlayed])
 
   return (
     <div className={cn("space-y-6", className)} style={{ gap: "var(--space-6)" }}>
+      {/* IMPROVEMENT 2: ADD CRITICAL ALERT BANNER AT TOP */}
+      {criticalResults.length > 0 && (
+        <motion.div
+          initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-destructive/5 border-2 border-destructive rounded-lg p-5 flex gap-4 items-start"
+        >
+          <div className="flex-shrink-0 mt-0.5">
+            <AlertCircle className="h-6 w-6 text-destructive animate-pulse" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-destructive text-lg">🚨 Critical Lab Values Detected</h3>
+            <div className="text-sm text-destructive/80 mt-3 space-y-2">
+              {criticalResults.map((result) => (
+                <div key={result.id}>
+                  <span className="font-semibold">{result.test.name}:</span> {result.value.toFixed(1)} {result.test.unit}
+                  {result.value > result.test.referenceRange.max && " ⬆️ HIGH"}
+                  {result.value < result.test.referenceRange.min && " ⬇️ LOW"}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 italic">
+              Immediate review recommended. Sound alert has been played.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
