@@ -286,6 +286,8 @@ export function useCreatePrescription() {
       }
 
       return prescription;
+        }
+      );
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['prescriptions'] });

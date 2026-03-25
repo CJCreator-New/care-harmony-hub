@@ -191,6 +191,8 @@ export function useCreateLabOrder() {
       }
 
       return data;
+        }
+      );
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['lab-orders'] });

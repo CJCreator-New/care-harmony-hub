@@ -178,7 +178,7 @@ test.describe('HIMS E2E Diagnostic Suite', () => {
         logIssue('CRITICAL', 'RBAC', 'Pharmacist can access restricted route', 
           'Pharmacist was able to access /consultations which should be doctor/nurse only');
       }
-      expect(blocked).toBe(true, 'Pharmacist should not access /consultations');
+      expect(blocked).toBe(true); // Pharmacist should not access /consultations');
     });
 
     test('1.3: Patient cannot access /patients (management)', async ({ page }) => {
@@ -189,7 +189,7 @@ test.describe('HIMS E2E Diagnostic Suite', () => {
         logIssue('CRITICAL', 'RBAC', 'Patient can access patient management',
           'Patient was able to access /patients which should be staff only');
       }
-      expect(blocked).toBe(true, 'Patient should not access /patients');
+      expect(blocked).toBe(true); // Patient should not access /patients');
     });
 
     test('1.4: Lab Tech cannot access /pharmacy', async ({ page }) => {
@@ -200,7 +200,7 @@ test.describe('HIMS E2E Diagnostic Suite', () => {
         logIssue('CRITICAL', 'RBAC', 'Lab Tech can access pharmacy',
           'Lab Tech was able to access /pharmacy which should be pharmacist/admin only');
       }
-      expect(blocked).toBe(true, 'Lab Tech should not access /pharmacy');
+      expect(blocked).toBe(true); // Lab Tech should not access /pharmacy');
     });
 
     test('1.5: Receptionist cannot access /settings (admin only)', async ({ page }) => {
@@ -211,7 +211,7 @@ test.describe('HIMS E2E Diagnostic Suite', () => {
         logIssue('CRITICAL', 'RBAC', 'Receptionist can access admin settings',
           'Receptionist was able to access /settings which should be admin only');
       }
-      expect(blocked).toBe(true, 'Receptionist should not access /settings');
+      expect(blocked).toBe(true); // Receptionist should not access /settings');
     });
 
     test('1.6: Complete route matrix validation', async ({ page }) => {

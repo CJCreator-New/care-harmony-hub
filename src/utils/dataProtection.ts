@@ -59,11 +59,11 @@ class EncryptionKeyManager {
   private async initializeDefaultKey(): Promise<void> {
     if (this.initialized) return;
 
-    let encryptionKey = import.meta.env.VITE_ENCRYPTION_KEY;
+    let encryptionKey = (import.meta as any).env?.VITE_ENCRYPTION_KEY;
     
     // In production, encryption key is required
     if (!encryptionKey) {
-      if (import.meta.env.PROD) {
+      if ((import.meta as any).env?.PROD) {
         throw new Error('VITE_ENCRYPTION_KEY environment variable is required for production. Patient PHI cannot be encrypted without a valid encryption key.');
       }
       // Development fallback with warning
@@ -191,7 +191,7 @@ export class FieldEncryptionService {
   /**
    * Convert ArrayBuffer to base64
    */
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+  private arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
