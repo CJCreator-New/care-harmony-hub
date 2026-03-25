@@ -1,171 +1,141 @@
-# MediCare Hospital Management System — Enhancement Plan
 
-> **Created:** 2026-03-09  
-> **Status:** Active  
-> **Build Status:** ✅ Compiling (all @ts-nocheck suppressions resolved in src/)
 
----
+# Plan: Skill-Driven Enhancement of CareSync HIMS
 
-## Phase 0 — Technical Debt Cleanup (Priority: Critical)
+## Current State Summary
 
-### 0.1 Remove @ts-nocheck Suppressions
-- 45 files currently suppressed; fix underlying type issues in batches:
-  - **Batch A** — Hooks (useAI, useCrossRoleCommunication, useOptimisticMutation, etc.)
-  - **Batch B** — Pages (BillingPage, messaging pages, ConsultationWorkflowPage, etc.)
-  - **Batch C** — Utils/Services (abacManager, reportingEngine, aiTriageService, etc.)
-  - **Batch D** — Test files (admin-rbac-verify, setup, integration tests)
+After auditing all 20 skills against the codebase, here is what exists vs. what each skill recommends but is missing.
 
-### 0.2 Fix Supabase Join Types
-- ~40 localized type mismatches on Supabase `.select()` join results
-- Create typed query helpers with explicit return types per table join pattern
+## Skills Already Well-Utilized (No Major Gaps)
 
-### 0.3 Remove Dead Code
-- Delete unused AI provider files (ClaudeProvider, OpenAIProvider) — use Lovable AI gateway instead
-- Clean up orphaned service files (reportingEngine imports from non-existent `@/lib/supabase`)
+| Skill | Status |
+|-------|--------|
+| **hims-audit-trail** | `useAudit` + `useActivityLog` used in 19+ files. Audit logging covers prescriptions, logins, patient views, settings. |
+| **hims-observability** | `useClinicalMetrics` wired into 7 key workflows. Grafana dashboards exist (5 JSON files). Alert rules configured. |
+| **hims-onboarding-helper** | `QUICK_START_15_MIN.md`, test user scripts, contribution checklist all exist. |
+| **hims-documentation-coach** | 30+ docs in `docs/`. Architecture, API, deployment, troubleshooting all documented. |
+| **hims-fhir-specialist** | FHIR R4 export/import implemented with validation in `IntegrationDashboard`. |
+| **hims-privacy-enforcer** | `useHIPAACompliance`, `sanitizeLogMessage`, PHI encryption utilities exist. |
+| **hims-rbac-abac** | `user_roles` table, `has_role` function, RLS hospital scoping, ABAC manager all implemented. |
+| **hims-security-companion** | CSP headers, rate limiting, 2FA, security monitor all exist. |
+| **hims-devops-guardian** | CI/CD workflows, RLS validation scripts, migration validation exist. |
 
----
+## Skills With Actionable Gaps (Implementation Plan)
 
-## Phase 1 — UI/UX Redesign (Priority: High)
+### Step 1: Fix CSP Font Loading (from hims-security-companion)
+**Problem**: `vite.config.ts` CSP has no `font-src` directive, blocking Google Fonts in local dev. `headers.ts` is already correct.
 
-### 1.1 Landing Page Overhaul
-- **Current:** Basic hospital landing with sign-up/login buttons
-- **Target:** Bold, editorial healthcare design with:
-  - Animated hero section (framer-motion) using `--gradient-hero`
-  - Feature showcase with role-based previews (Doctor, Nurse, Pharmacy, etc.)
-  - Trust indicators (HIPAA badge, encryption icons, uptime stats)
-  - Testimonials / hospital count counter
+**Changes**:
+- `vite.config.ts` line 154: Add `font-src 'self' https://fonts.gstatic.com data:;` to the CSP string
 
-### 1.2 Dashboard Redesign (Per Role)
-- **Doctor Dashboard:** Patient timeline view, AI-assisted clinical cards, quick-consult launcher
-- **Nurse Dashboard:** Task priority board (Kanban), vitals alert stream, prep checklist widget
-- **Receptionist Dashboard:** Queue management hero view, appointment heatmap, walk-in express flow
-- **Admin Dashboard:** Financial overview charts (recharts), staff utilization gauges, compliance scorecard
-- **Patient Portal:** Health timeline, upcoming appointments card, medication tracker, secure messaging
-
-### 1.3 Design System Refinements
-- Expand shadcn component variants (e.g., `variant="clinical"`, `variant="status"`)
-- Add micro-interaction library (hover states, page transitions, loading skeletons)
-- Dark mode polish — ensure all 60+ role/status colors have dark counterparts
-- Mobile-first responsive overhaul for all dashboard layouts
-
-### 1.4 Navigation & Information Architecture
-- Collapsible sidebar with role-based section grouping
-- Global command palette (⌘K) with smart search across patients, appointments, records
-- Breadcrumb navigation for deep pages
-- Notification bell with categorized dropdown (urgent/info/action-required)
+**Impact**: Fixes all font/layout/spacing disparities between Lovable preview and local build.
 
 ---
 
-## Phase 2 — Feature Additions (Priority: High)
+### Step 2: Feature Flag Integration (from hims-devops-guardian + workflow-creator)
+**Problem**: `useFeatureFlags` hook exists but is used in **zero** components or pages. The skill requires feature-gated rollout of enhanced clinical forms.
 
-### 2.1 Authentication & Security
-- [x] **Two-Factor Authentication (2FA):** TOTP-based with QR code setup, backup codes, stored in Supabase Vault
-- [x] **Email Verification:** Enforce email confirmation before login
-- [x] **Session Timeout:** Auto-logout after configurable inactivity period
-- [x] **Password Expiry Policy:** Force password change every 90 days with policy enforcement
-- [x] **Login Audit Trail:** Log all auth events with IP, device, timestamp
-
-### 2.2 Patient Management
-- [x] **Patient Portal Self-Registration:** Patients sign up, link to hospital (via license-number code), request appointments
-- [x] **Health Timeline:** Visual chronological view of all encounters, labs, prescriptions
-- [x] **Document Upload:** Patients upload insurance cards, referrals, prior records via storage bucket
-- [x] **Appointment Self-Scheduling:** Calendar view with doctor availability, time slot picker
-
-### 2.3 Clinical Workflow
-- [x] **AI Clinical Assistant:** Powered by Lovable AI (Gemini/GPT models) — differential diagnosis, drug interaction checks, clinical note summarization
-- [x] **Consultation Templates:** Pre-built templates by specialty (Cardiology, Pediatrics, Orthopedics, Neurology, Pulmonology, Ophthalmology, ENT, Endocrinology, Emergency Medicine)
-- [x] **E-Prescribing:** Full prescription workflow with pharmacy notification and dispensing tracking
-- [x] **Lab Order Workflow:** Order → Collection → Processing → Results with realtime status updates
-
-### 2.4 Communication
-- [x] **Realtime Secure Messaging:** Supabase Realtime channels for staff-to-staff and staff-to-patient
-- [x] **Notification Center:** In-app + email notifications for appointments, lab results, prescriptions
-- [x] **Shift Handoff Notes:** Structured handoff form with acknowledgment tracking
-
-### 2.5 Billing & Insurance
-- [x] **Invoice Generation:** Auto-generate from consultation with CPT/ICD-10 codes
-- [x] **Payment Processing:** Record payments, partial payments, payment plans
-- [x] **Insurance Claims:** Submit, track, and manage claim lifecycle (surfaced in BillingPage tabs)
-- [x] **Financial Reports:** Revenue dashboards, aging reports, collection rates
-
-### 2.6 Reporting & Analytics
-- [x] **Operational Reports:** Patient volume, wait times, appointment utilization
-- [x] **Clinical Reports:** Diagnosis distribution, treatment outcomes, readmission rates
-- [x] **Export:** PDF and CSV export for all report types
-- [x] **Scheduled Reports:** Auto-generate and email weekly/monthly summaries
-
-### 2.7 Telemedicine
-- [x] **Video Consultation:** WebRTC-based video calls with waiting room
-- [x] **Screen Sharing:** Share lab results, imaging during consultation
-- [x] **Telemedicine Consent:** Digital consent collection before session start
+**Changes**:
+- Import `useFeatureFlags` into these Phase 4B enhanced form components and wrap the v2 UI paths:
+  - `src/components/clinical/EnhancedMedicationForm.tsx` — gate behind `doctor_flow_v2`
+  - `src/components/clinical/EnhancedVitalSignsForm.tsx` — gate behind `nurse_flow_v2`
+  - `src/components/clinical/EnhancedLabOrderForm.tsx` — gate behind `lab_flow_v2`
+  - `src/components/pharmacist/PrescriptionQueue.tsx` — gate behind `pharmacy_flow_v2`
+- Pattern: `const { isEnabled } = useFeatureFlags(); if (isEnabled('doctor_flow_v2')) { /* enhanced */ } else { /* legacy */ }`
 
 ---
 
-## Phase 3 — Performance Optimization (Priority: Medium)
+### Step 3: Billing Validation Logic (from hims-billing-validator)
+**Problem**: No tariff/charge-master validation, no calculation-order enforcement (discount → tax → rounding), no insurance business rules.
 
-### 3.1 Bundle Size Reduction
-- Audit current bundle with `vite-bundle-visualizer`
-- Aggressive code splitting — each role dashboard as separate lazy chunk
-- Tree-shake unused shadcn components and utility functions
-- Remove unused dependencies (@anthropic-ai/sdk, openai — use Lovable AI gateway)
-
-### 3.2 Data Loading
-- Implement pagination for all list views (patients, appointments, lab orders) — respect Supabase 1000-row limit
-- Add `useDebouncedValue` to all search inputs
-- Prefetch adjacent routes on hover/focus
-- React Query stale time optimization per data type (static vs realtime)
-
-### 3.3 Caching Strategy
-- Service Worker for offline-capable static assets (vite-plugin-pwa)
-- IndexedDB for offline patient queue and form drafts
-- Supabase Realtime for live data instead of polling
-
-### 3.4 Rendering Performance
-- Virtualized lists for large datasets (patients, medications, lab results)
-- `React.memo` and `useMemo` audit on heavy components
-- Image optimization (lazy loading, WebP, proper sizing)
+**Changes**:
+- Create `src/utils/billingValidator.ts` with:
+  - Calculation order enforcement: discount → tax → rounding
+  - Negative amount / zero charge guards
+  - Duplicate billing detection
+  - Insurance co-pay/discount validation rules
+  - Immutable charge line pattern (append-only adjustments)
+- Create `src/hooks/useBillingValidation.ts` hook to integrate with billing page
+- Wire into `BillingPage.tsx` for real-time validation on invoice creation
 
 ---
 
-## Phase 4 — Infrastructure & DevOps (Priority: Medium)
+### Step 4: Clinical Domain Validation (from hims-domain-expert + hims-clinical-forms)
+**Problem**: AI components (`AIConsultationAssistant`, `AITriageAssistant`) use hardcoded mock data. Clinical form validation lacks domain-specific rules.
 
-### 4.1 Testing
-- Unit tests for all hooks (vitest)
-- Integration tests for critical flows (signup → dashboard → consultation)
-- E2E smoke tests for each role's primary workflow
+**Changes**:
+- Create `src/utils/clinicalValidation.ts`:
+  - Vital signs realistic ranges (HR 30-220, BP 50/30-250/150, SpO2 60-100, Temp 32-42C)
+  - Age-based dosage guards (pediatric vs adult vs geriatric)
+  - Drug-route compatibility checks
+  - Pregnancy/breastfeeding medication flags
+  - ICD-10 code format validation
+- Wire `AIConsultationAssistant` to call a real edge function instead of `setTimeout` mocks
+- Wire `AITriageAssistant` to use validated vital sign ranges for acuity scoring
 
-### 4.2 Monitoring
-- Error tracking with Sentry (already partially configured)
-- Performance monitoring (Core Web Vitals)
-- Database query performance monitoring
+---
 
-### 4.3 Security Hardening
-- RLS policy audit for all 30+ tables
-- Input sanitization audit
-- CSRF protection verification
-- Rate limiting on auth endpoints (edge function)
+### Step 5: Edge Case Resilience (from hims-error-resilience + hims-edgecase-tester)
+**Problem**: Several forms lack boundary validation, concurrent edit protection, and graceful network failure handling.
+
+**Changes**:
+- Add optimistic locking (`updated_at` check) to prescription and lab order mutations
+- Add duplicate submission guards (debounce + idempotency keys) to patient registration, prescription creation
+- Add network failure retry with exponential backoff to critical mutations (prescriptions, lab orders, billing)
+- Add session expiry detection middleware that prompts re-auth instead of silent failures
+
+---
+
+### Step 6: Workflow Automation (from workflow-creator)
+**Problem**: The workflow-creator skill defines 6 standard workflow templates but none are implemented as proper state-machine-driven Edge Functions.
+
+**Changes** (highest-value workflow first):
+- Implement `prescription-approval` workflow:
+  - DB: Create `prescription_approval_workflows` table with status state machine
+  - Edge Function: `supabase/functions/prescription-approval/index.ts` with role-gated transitions
+  - React Hook: `src/hooks/usePrescriptionApprovalWorkflow.ts` with realtime subscription
+  - Wire into `PrescriptionQueue` component
+
+---
+
+### Step 7: Performance Safety (from hims-performance-safety)
+**Problem**: No query pagination guards for large datasets, no N+1 detection logging.
+
+**Changes**:
+- Add query result count warnings when Supabase returns exactly 1000 rows (hitting default limit)
+- Add `React.memo` to heavy list components (PrescriptionQueue, patient lists)
+- Add virtualization (`@tanstack/react-virtual`) to lab results and prescription lists for hospitals with 10K+ records
+
+---
+
+### Step 8: Browser Test Automation (from hims-browser-test-automation + hims-e2e-testing-complete)
+**Problem**: E2E tests exist but have environment issues. No role-based Playwright fixtures.
+
+**Changes**:
+- Create `tests/e2e/fixtures/roles.fixture.ts` with pre-authenticated sessions per role
+- Fix dev server startup in E2E config (wait for server before running tests)
+- Add prescription workflow E2E test covering Doctor → Pharmacist → Nurse flow
+- Add RBAC violation test (receptionist cannot access pharmacy queue)
 
 ---
 
 ## Implementation Priority Order
 
-| Order | Item | Effort | Impact |
-|-------|------|--------|--------|
-| 1 | Phase 0.1-0.3 — Tech debt cleanup | 2-3 sessions | Unblocks everything |
-| 2 | Phase 1.1 — Landing page redesign | 1 session | First impression |
-| 3 | Phase 2.1 — Auth hardening (2FA, email verify) | 2 sessions | Security critical |
-| 4 | Phase 1.2 — Dashboard redesign (start with Admin) | 2-3 sessions | Daily UX |
-| 5 | Phase 2.3 — AI Clinical Assistant | 1-2 sessions | Key differentiator |
-| 6 | Phase 3.1-3.2 — Bundle + data loading | 1 session | Performance |
-| 7 | Phase 2.2 — Patient portal features | 2 sessions | Patient experience |
-| 8 | Phase 2.4 — Realtime messaging | 1-2 sessions | Communication |
-| 9 | Phase 2.5 — Billing workflow | 2 sessions | Revenue |
-| 10 | Phase 1.3-1.4 — Design system + navigation | 1-2 sessions | Polish |
+| Priority | Step | Skill Source | Effort |
+|----------|------|-------------|--------|
+| 1 | CSP font fix | security-companion | 15 min |
+| 2 | Feature flag integration | devops-guardian | 2 hrs |
+| 3 | Clinical domain validation | domain-expert, clinical-forms | 3 hrs |
+| 4 | Billing validation | billing-validator | 3 hrs |
+| 5 | Edge case resilience | error-resilience, edgecase-tester | 3 hrs |
+| 6 | Prescription approval workflow | workflow-creator | 4 hrs |
+| 7 | Performance safety | performance-safety | 2 hrs |
+| 8 | E2E test automation | browser-test-automation | 3 hrs |
 
----
+**Total estimated: ~20 hours**
 
-## Notes
-- All AI features should use **Lovable AI gateway** (Gemini/GPT models) — no external API keys needed
-- All new tables need **RLS policies** before deployment
-- Realtime features need `ALTER PUBLICATION supabase_realtime ADD TABLE` for each table
-- The `mobile-app/` directory contains an Expo/React Native scaffold — mobile enhancements are out of scope for this plan
+## Skills That Are Strategy/Process Only (No Code Changes)
+- **product-strategy-session**: Market analysis and roadmap planning — use when planning next product cycle
+- **hims-documentation-coach**: Docs already comprehensive — invoke for future feature documentation
+- **hims-onboarding-helper**: Onboarding materials complete — invoke when adding new developer workflows
+
