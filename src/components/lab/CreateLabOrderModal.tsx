@@ -50,6 +50,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { usePatients, useSearchPatients } from '@/hooks/usePatients';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 const TEST_CATEGORIES = [
   'Hematology',
@@ -91,9 +92,12 @@ interface CreateLabOrderModalProps {
 
 export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalProps) {
   const { hospital, profile } = useAuth();
+  const { isEnabled } = useFeatureFlags();
   const [patientSearch, setPatientSearch] = useState('');
   const [patientError, setPatientError] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // Feature gate: V2 enhanced lab ordering wraps behind lab_flow_v2 flag
+  // if (isEnabled('lab_flow_v2')) { /* use enhanced v2 UI */ } else { /* legacy UI */ }
   const [selectedPatient, setSelectedPatient] = useState<{
     id: string;
     name: string;

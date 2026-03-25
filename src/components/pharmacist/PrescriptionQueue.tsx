@@ -3,6 +3,7 @@ import { usePrescriptions, useDispensePrescription } from '@/hooks/usePrescripti
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
+import { usePrescriptionApprovalWorkflow } from '@/hooks/usePrescriptionApprovalWorkflow';
 import { PrescriptionDispensingModal } from '@/components/pharmacy/PrescriptionDispensingModal';
 import { AmendmentModal } from '@/components/audit/AmendmentModal';
 import { Edit } from 'lucide-react';
@@ -31,17 +32,31 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 export function PrescriptionQueue() {
+  const { isEnabled } = useFeatureFlags();
+  // Feature gate: V2 enhanced pharmacy queue wraps behind pharmacy_flow_v2 flag
+  // if (isEnabled('pharmacy_flow_v2')) { /* use enhanced v2 UI */ } else { /* legacy UI */ }
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const [amendmentModalOpen, setAmendmentModalOpen] = useState(false);
   const [selectedForAmendment, setSelectedForAmendment] = useState<any>(null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>(undefined);
   const { data: prescriptions, isLoading } = usePrescriptions();
   const dispenseMutation = useDispensePrescription();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { primaryRole } = useAuth();
   const { recordOperation, recordCustomEvent, getCorrelation } = useClinicalMetrics();
+  
+  // Prescription approval workflow integration (new in Priority 6)
+  const {
+    workflow: approvalWorkflow,
+    advanceStep: advanceApprovalStep,
+    canApprove,
+    canReject,
+  } = usePrescriptionApprovalWorkflow(selectedWorkflowId);
 
   const filteredPrescriptions = prescriptions?.filter(p => 
     p.patient?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

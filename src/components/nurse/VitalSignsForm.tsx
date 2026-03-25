@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { motion, useReducedMotion } from "framer-motion"
+import { useFeatureFlags } from "@/hooks/useFeatureFlags"
+import { useClinicalValidation } from "@/hooks/useClinicalValidation"
 import {
   Thermometer,
   Heart,
@@ -267,6 +269,12 @@ export function VitalSignsForm({
   const [isSaving, setIsSaving] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const shouldReduceMotion = useReducedMotion()
+  const { isEnabled } = useFeatureFlags()
+  // Feature gate: V2 enhanced vital monitoring wraps behind nurse_flow_v2 flag
+  // if (isEnabled('nurse_flow_v2')) { /* use enhanced v2 UI */ } else { /* legacy UI */ }
+  
+  // Clinical validation with age-appropriate ranges (requires patient age from props)
+  const { validateVital } = useClinicalValidation()
 
   const handleSave = async () => {
     setIsSaving(true)

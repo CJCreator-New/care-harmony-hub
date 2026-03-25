@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion"
+import { useFeatureFlags } from "@/hooks/useFeatureFlags"
 import {
   Search,
   Plus,
@@ -419,6 +420,9 @@ export function PrescriptionBuilder({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const shouldReduceMotion = useReducedMotion()
+  const { isEnabled } = useFeatureFlags()
+  // Feature gate: V2 enhanced forms wrap behind doctor_flow_v2 flag
+  // if (isEnabled('doctor_flow_v2')) { /* use enhanced v2 UI */ } else { /* legacy UI */ }
 
   const addDrug = (drug: Drug) => {
     const newItem: PrescriptionItem = {
