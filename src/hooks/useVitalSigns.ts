@@ -141,6 +141,8 @@ export function useRecordVitals() {
 
       if (error) throw error;
       return data;
+        }
+      );
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vital-signs', variables.patient_id] });

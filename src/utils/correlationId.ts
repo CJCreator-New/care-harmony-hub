@@ -11,8 +11,6 @@
  * Enables end-to-end request tracing across frontend → backend layers
  */
 
-import { AsyncLocalStorage } from 'async_hooks';
-
 export interface TraceContext {
   traceId: string;
   spanId: string;
@@ -90,7 +88,7 @@ export function clearCorrelationId(): void {
 /**
  * Set trace context (W3C Trace Context format)
  */
-export function setTraceContext(context: TraceContext): void {
+export function setTraceContext(context: Partial<TraceContext>): void {
   currentTraceContext = context;
   
   if (typeof window !== 'undefined') {
@@ -101,7 +99,7 @@ export function setTraceContext(context: TraceContext): void {
 /**
  * Get current trace context
  */
-export function getTraceContext(): TraceContext | null {
+export function getTraceContext(): Partial<TraceContext> | null {
   if (currentTraceContext) {
     return currentTraceContext;
   }

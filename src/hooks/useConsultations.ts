@@ -167,7 +167,7 @@ const isMissingHpiColumnError = (error: PostgrestError | null) =>
   getMissingConsultationColumns(error).some((columnName) => ['hpi_data', 'hpi_notes'].includes(columnName));
 
 const withConsultationHpiFallback = async <T,>(
-  runQuery: (includeHpiColumns: boolean) => Promise<{ data: T | null; error: PostgrestError | null }>
+  runQuery: (includeHpiColumns: boolean) => PromiseLike<{ data: T | null; error: PostgrestError | null }>
 ) => {
   const primaryResult = await runQuery(true);
   if (!isMissingHpiColumnError(primaryResult.error)) {

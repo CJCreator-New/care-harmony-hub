@@ -79,7 +79,7 @@ export function useWorkflowOrchestrator() {
       devLog(`Triggering workflow: ${event.type} for hospital ${hospital.id}`);
 
       // 1. Log the event for audit purposes
-      const { data: eventRecord, error: eventError } = await supabase
+      const { data: eventRecord, error: eventError } = await (supabase as any)
         .from('workflow_events')
         .insert({
           hospital_id: hospital.id,
@@ -94,10 +94,10 @@ export function useWorkflowOrchestrator() {
         .single();
 
       if (eventError) throw eventError;
-      eventRecordId = eventRecord.id;
+      eventRecordId = (eventRecord as any).id;
 
       // 2. Fetch active rules for this event type
-      const { data: rules, error: rulesError } = await supabase
+      const { data: rules, error: rulesError } = await (supabase as any)
         .from('workflow_rules')
         .select('*')
         .eq('hospital_id', hospital.id)
@@ -112,7 +112,7 @@ export function useWorkflowOrchestrator() {
       }
 
       // 3. Execute actions for each rule
-      for (const rule of rules) {
+      for (const rule of rules as any[]) {
         const cooldownMinutes = typeof rule.cooldown_minutes === 'number' ? rule.cooldown_minutes : 0;
         if (cooldownMinutes > 0 && rule.last_triggered) {
           const cooldownStartedAt = new Date(Date.now() - cooldownMinutes * 60 * 1000);
@@ -130,17 +130,17 @@ export function useWorkflowOrchestrator() {
         }
 
         // Update last triggered
-        await supabase
+        await (supabase as any)
           .from('workflow_rules')
           .update({ last_triggered: new Date().toISOString() })
           .eq('id', rule.id);
       }
 
       // 4. Mark event as processed
-      await supabase
+      await (supabase as any)
         .from('workflow_events')
         .update({ processed_at: new Date().toISOString() })
-        .eq('id', eventRecord.id);
+        .eq('id', (eventRecord as any).id);
 
       // 5. Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['workflow-tasks'] });
