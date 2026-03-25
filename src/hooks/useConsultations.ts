@@ -292,7 +292,7 @@ export function useCreateConsultation() {
         if (existing) return existing as unknown as Consultation;
 
         const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
-          supabase
+          (supabase as any)
             .from('consultations')
             .insert({
               patient_id: data.patient_id,
@@ -300,7 +300,7 @@ export function useCreateConsultation() {
               doctor_id: profile.id,
               nurse_id: data.nurse_id ?? null,
               appointment_id: data.appointment_id ?? null,
-              status: 'patient_overview' as ConsultationStatus,
+              status: 'patient_overview',
               current_step: 1,
               started_at: new Date().toISOString(),
             })
@@ -384,13 +384,13 @@ export function useGetOrCreateConsultation() {
 
         // Create new consultation if none exists
         const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
-          supabase
+          (supabase as any)
             .from('consultations')
             .insert({
               patient_id: patientId,
               hospital_id: hospital.id,
               doctor_id: profile.id,
-              status: 'patient_overview' as ConsultationStatus,
+              status: 'patient_overview',
               current_step: 1,
               started_at: new Date().toISOString(),
             })
@@ -465,7 +465,7 @@ export function useUpdateConsultation() {
         let pendingUpdates = { ...updates };
 
         while (true) {
-          const result = await supabase
+          const result = await (supabase as any)
             .from('consultations')
             .update(pendingUpdates)
             .eq('id', id)
@@ -475,7 +475,7 @@ export function useUpdateConsultation() {
           const missingColumns = getMissingConsultationColumns(result.error);
           if (!missingColumns.length) {
             if (result.error) throw result.error;
-            return result.data as Consultation;
+            return result.data as unknown as Consultation;
           }
 
           const nextUpdates = stripUnsupportedConsultationFields(pendingUpdates, missingColumns);

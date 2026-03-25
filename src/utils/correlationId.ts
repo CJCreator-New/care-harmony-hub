@@ -89,7 +89,7 @@ export function clearCorrelationId(): void {
  * Set trace context (W3C Trace Context format)
  */
 export function setTraceContext(context: Partial<TraceContext>): void {
-  currentTraceContext = context;
+  currentTraceContext = context as TraceContext;
   
   if (typeof window !== 'undefined') {
     sessionStorage.setItem('traceContext', JSON.stringify(context));

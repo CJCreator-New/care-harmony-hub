@@ -150,7 +150,7 @@ export function useWorkflowOrchestrator() {
       const message = getErrorMessage(error);
       console.error('Workflow orchestration failed:', sanitizeLogMessage(message), error);
       if (eventRecordId) {
-        await supabase
+        await (supabase as any)
           .from('workflow_events')
           .update({ processing_error: message })
           .eq('id', eventRecordId);
@@ -201,7 +201,7 @@ export function useWorkflowOrchestrator() {
     console.error(`Action ${action.type} failed after ${maxRetries} attempts`);
 
     // Log failed action for admin review
-    await supabase.from('workflow_action_failures').insert({
+    await (supabase as any).from('workflow_action_failures').insert({
       hospital_id: hospital?.id,
       workflow_event_id: event.type,
       action_type: action.type,
@@ -240,7 +240,7 @@ export function useWorkflowOrchestrator() {
         const priorityKey = taskType ?? event.priority ?? 'normal';
         const dueDateHours = TASK_DUE_HOURS[priorityKey] ?? (event.priority === 'urgent' ? 1 : 24);
         const dueDate = new Date(Date.now() + dueDateHours * 60 * 60 * 1_000).toISOString();
-        await supabase.from('workflow_tasks').insert({
+        await (supabase as any).from('workflow_tasks').insert({
           hospital_id: hospital?.id,
           patient_id: event.patientId,
           title: action.message || `Automated task: ${event.type}`,
@@ -274,7 +274,7 @@ export function useWorkflowOrchestrator() {
       case 'update_status':
         // Logic to update patient_status or other entities
         if (event.patientId && action.metadata?.status) {
-          await supabase
+          await (supabase as any)
             .from('patients')
             .update({ status: action.metadata.status })
             .eq('id', event.patientId);
@@ -290,7 +290,7 @@ export function useWorkflowOrchestrator() {
         break;
 
       case 'escalate':
-        await supabase.from('escalations').insert({
+        await (supabase as any).from('escalations').insert({
           hospital_id: hospital?.id,
           related_event_id: event.type,
           patient_id: event.patientId,
@@ -309,7 +309,7 @@ export function useWorkflowOrchestrator() {
     completedBy: string,
     completedByRole: UserRole
   ) => {
-    await supabase.from('workflow_step_completions').insert({
+    await (supabase as any).from('workflow_step_completions').insert({
       hospital_id: hospital?.id,
       patient_id: patientId,
       workflow_type: workflowType,

@@ -18,7 +18,7 @@ export interface NotificationPayload {
 }
 
 export async function sendNotification(payload: NotificationPayload) {
-  const { error } = await supabase.from('notifications').insert({
+  const { error } = await (supabase as any).from('notifications').insert({
     hospital_id: payload.hospital_id,
     recipient_id: payload.recipient_id,
     sender_id: payload.sender_id ?? null,
@@ -28,8 +28,6 @@ export async function sendNotification(payload: NotificationPayload) {
     priority: payload.priority ?? 'normal',
     category: payload.category ?? null,
     action_url: payload.action_url ?? null,
-    related_entity_id: payload.related_entity_id ?? null,
-    related_entity_type: payload.related_entity_type ?? null,
     metadata: payload.metadata ?? {},
   });
 
