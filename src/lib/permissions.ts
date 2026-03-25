@@ -74,12 +74,16 @@ export function hasPermission(role: string | undefined, permission: Permission):
   // Admin has full access
   if (permissions.includes('*')) return true;
   
-  // Check exact permission
+  // Check exact permission match
   if (permissions.includes(permission)) return true;
   
-  // Check wildcard permission (e.g., 'patients' includes 'patients:read')
-  const basePermission = permission.split(':')[0] as Permission;
-  if (permissions.includes(basePermission)) return true;
+  // Check if role has ANY sub-permission matching base
+  // e.g., if checking 'billing' permission and role has 'billing:read', return true
+  const basePermission = permission.split(':')[0];
+  if (permissions.some(p => p.startsWith(`${basePermission}:`))) return true;
+  
+  // Check if role has exact base permission
+  if (permissions.includes(basePermission as Permission)) return true;
   
   return false;
 }

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAudit } from '@/hooks/useAudit';
 import { fieldEncryption } from '@/utils/dataProtection';
@@ -158,6 +159,7 @@ export function useCreatePrescription() {
   const { hospital, profile } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { logActivity } = useAudit();
+  const { recordOperation, recordCustomEvent } = useClinicalMetrics();
 
   return useMutation({
     mutationFn: async ({
@@ -178,7 +180,14 @@ export function useCreatePrescription() {
       }>;
       notes?: string;
     }) => {
-      if (!hospital?.id || !profile?.id) throw new Error('No hospital/profile context');
+      return recordOperation(
+        {
+          workflowType: 'prescription',
+          operationName: 'CreatePrescription',
+          attributes: { patient_id: patientId },
+        },
+        async () => {
+          if (!hospital?.id || !profile?.id) throw new Error('No hospital/profile context');
 
       // Create prescription
       const { data: prescription, error: rxError } = await supabase
@@ -194,10 +203,10 @@ export function useCreatePrescription() {
         .select()
         .single();
 
-      if (rxError) throw rxError;
+          if (rxError) throw rxError;
 
-      // F2.4 — HIPAA §164.312(e)(2)(ii): encrypt PHI fields in prescription items
-      const encryptedItems = await Promise.all(
+          // F2.4 — HIPAA §164.312(e)(2)(ii): encrypt PHI fields in prescription items
+          const encryptedItems = await Promise.all(
         items.map(async (item) => {
           const itemEncMeta: Record<string, any> = {};
           const encItem: any = { ...item };

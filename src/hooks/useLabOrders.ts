@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
@@ -125,10 +126,18 @@ export function useCreateLabOrder() {
   const { toast } = useToast();
   const { hospital, user } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { recordOperation, recordCustomEvent } = useClinicalMetrics();
 
   return useMutation({
     mutationFn: async (order: LabOrderInsert) => {
-      const { data, error } = await supabase
+      return recordOperation(
+        {
+          workflowType: 'lab',
+          operationName: 'CreateLabOrder',
+          attributes: { patient_id: order.patient_id },
+        },
+        async () => {
+          const { data, error } = await supabase
         .from('lab_orders')
         .insert([order])
         .select()

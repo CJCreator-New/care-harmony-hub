@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { sanitizeLogMessage } from '@/utils/sanitize';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
@@ -97,6 +98,7 @@ export function useRecordVitals() {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { recordOperation, recordCustomEvent } = useClinicalMetrics();
 
   return useMutation({
     mutationFn: async (vitals: {
@@ -113,12 +115,19 @@ export function useRecordVitals() {
       pain_level?: number;
       notes?: string;
     }) => {
-      // Calculate BMI if weight and height are provided
-      let bmi = null;
-      if (vitals.weight && vitals.height) {
-        const heightInMeters = vitals.height / 100;
-        bmi = vitals.weight / (heightInMeters * heightInMeters);
-      }
+      return recordOperation(
+        {
+          workflowType: 'vital',
+          operationName: 'RecordVitalSigns',
+          attributes: { patient_id: vitals.patient_id },
+        },
+        async () => {
+          // Calculate BMI if weight and height are provided
+          let bmi = null;
+          if (vitals.weight && vitals.height) {
+            const heightInMeters = vitals.height / 100;
+            bmi = vitals.weight / (heightInMeters * heightInMeters);
+          }
 
       const { data, error } = await supabase
         .from('vital_signs')

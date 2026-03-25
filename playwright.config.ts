@@ -36,7 +36,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --host 0.0.0.0 --port 8080 --mode test',
+    command: 'npx vite --host 0.0.0.0 --port 8080 --mode test',
     url: process.env.E2E_BASE_URL || 'http://localhost:8080',
     reuseExistingServer: !isCI,
     timeout: 180_000,

@@ -1,0 +1,520 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "caresync-clinical-ops",
+    "title": "CareSync Clinical Operations Dashboard",
+    "description": "Real-time monitoring of clinical workflows - prescription queue, vital signs, lab alerts, appointment reminders",
+    "tags": ["clinical", "operations", "workflows", "slo"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Prescription Status (Last Hour)",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_prescription_created_total[1h])",
+            "legendFormat": "Created"
+          },
+          {
+            "expr": "increase(caresync_prescription_rejected_total[1h])",
+            "legendFormat": "Rejected"
+          },
+          {
+            "expr": "increase(caresync_prescription_dispensed_total[1h])",
+            "legendFormat": "Dispensed"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "orientation": "auto",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Prescription Dispense Latency (p95)",
+        "type": "gauge",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(caresync_prescription_dispense_latency_seconds_bucket[5m]))",
+            "legendFormat": "Seconds"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "max": 900,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 600
+                },
+                {
+                  "color": "orange",
+                  "value": 750
+                },
+                {
+                  "color": "red",
+                  "value": 900
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 3,
+        "title": "Pharmacy Queue Depth",
+        "type": "stat",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "caresync_pharmacy_queue_active",
+            "legendFormat": "Active Prescriptions"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 20
+                },
+                {
+                  "color": "red",
+                  "value": 50
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Vital Signs Recording (Last Hour)",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 4,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_vitals_recorded_total[1m])",
+            "legendFormat": "Recordings/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 20,
+              "showPoints": "auto"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": ["last", "mean", "max"],
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Vital Recording Latency (p99)",
+        "type": "gauge",
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(caresync_vital_recording_latency_seconds_bucket[5m]))",
+            "legendFormat": "Seconds"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "max": 60,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 30
+                },
+                {
+                  "color": "red",
+                  "value": 60
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Lab Critical Alerts Queue",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "caresync_critical_alerts_active",
+            "legendFormat": "Active Alerts"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 25
+                },
+                {
+                  "color": "red",
+                  "value": 50
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 7,
+        "title": "Critical Lab Alert Notification Latency (p95)",
+        "type": "gauge",
+        "gridPos": {
+          "x": 8,
+          "y": 10,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(caresync_critical_lab_alert_latency_seconds_bucket[5m]))",
+            "legendFormat": "Seconds"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "max": 300,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 150
+                },
+                {
+                  "color": "orange",
+                  "value": 200
+                },
+                {
+                  "color": "red",
+                  "value": 300
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Lab Orders (Last Hour)",
+        "type": "stat",
+        "gridPos": {
+          "x": 16,
+          "y": 10,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_lab_orders_created_total[1h])",
+            "legendFormat": "Orders Created"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 9,
+        "title": "Lab Result Processing Time (p95)",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(caresync_lab_result_latency_seconds_bucket[5m])) / 3600",
+            "legendFormat": "Hours"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "h",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 20
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 3
+                },
+                {
+                  "color": "red",
+                  "value": 4
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": ["last", "mean", "max"],
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Appointment Reminders Sent (Last Hour)",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 14,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_appointment_reminders_total[1h])",
+            "legendFormat": "Reminders Sent"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 11,
+        "title": "Rejection Rate (Prescriptions) by Reason",
+        "type": "piechart",
+        "gridPos": {
+          "x": 0,
+          "y": 20,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "increase(caresync_prescription_rejected_total[1h])",
+            "legendFormat": "{{reason}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut",
+          "tooltip": {
+            "mode": "single"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "System Health Overview",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 20,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "up{job='caresync-api'}",
+            "legendFormat": "API Health"
+          },
+          {
+            "expr": "pg_up{job='postgres_exporter'}",
+            "legendFormat": "Database Health"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            },
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  },
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background"
+        }
+      }
+    ]
+  },
+  "overwrite": true,
+  "dashboard_revision": 1
+}

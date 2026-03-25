@@ -1,7 +1,7 @@
 // Input Validation Schemas for Edge Functions
 // BE-002: Add Zod schema validation
 
-import { z } from 'zod';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 // Common schemas
 export const uuidSchema = z.string().uuid();
