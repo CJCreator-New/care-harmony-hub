@@ -98,6 +98,9 @@ const MobileConsultationPage = lazy(() => import("./pages/consultations/MobileCo
 const AppointmentsPage = lazy(() => import("./pages/appointments/AppointmentsPage"));
 const LaboratoryPage = lazy(() => import("./pages/laboratory/LaboratoryPage"));
 const PharmacyPage = lazy(() => import("./pages/pharmacy/PharmacyPage"));
+const PharmacyQueuePage = lazy(() => import("./pages/pharmacy/PharmacyQueuePage"));
+const DoctorDashboard = lazy(() => import("./pages/doctor/DoctorDashboard"));
+const NurseMedicationsPage = lazy(() => import("./pages/nurse/NurseMedicationsPage"));
 const QueueManagementPage = lazy(() => import("./pages/queue/QueueManagementPage"));
 const BillingPage = lazy(() => import("./pages/billing/BillingPage"));
 const InventoryPage = lazy(() => import("./pages/inventory/InventoryPage"));
@@ -416,6 +419,31 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowedRoles={['admin', 'pharmacist']} requiredPermission="pharmacy">
             <PharmacyPage />
+          </RoleProtectedRoute>
+        }
+      />
+      {/* Test-compatible dashboards for E2E testing */}
+      <Route
+        path="/hospital/doctor/dashboard"
+        element={
+          <RoleProtectedRoute allowedRoles={['doctor']}>
+            <DoctorDashboard />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/hospital/pharmacy/queue"
+        element={
+          <RoleProtectedRoute allowedRoles={['pharmacist']}>
+            <PharmacyQueuePage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/hospital/nurse/medications"
+        element={
+          <RoleProtectedRoute allowedRoles={['nurse']}>
+            <NurseMedicationsPage />
           </RoleProtectedRoute>
         }
       />
