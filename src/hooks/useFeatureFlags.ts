@@ -1,9 +1,10 @@
 /**
  * useFeatureFlags — per-hospital runtime feature flag hook (T-87).
  *
- * Controls the six v2 code-path rollout flags:
+ * Controls runtime rollout flags across workflow upgrades and guarded route tiers:
  *   doctor_flow_v2 | lab_flow_v2 | nurse_flow_v2 |
- *   pharmacy_flow_v2 | reception_flow_v2 | patient_portal_v2
+ *   pharmacy_flow_v2 | reception_flow_v2 | patient_portal_v2 |
+ *   ai_demo | ai_clinical_tools | ai_analytics | testing_dashboard
  *
  * Usage:
  *   const { flags, isEnabled } = useFeatureFlags();
@@ -24,7 +25,11 @@ export type FeatureFlagName =
   | 'nurse_flow_v2'
   | 'pharmacy_flow_v2'
   | 'reception_flow_v2'
-  | 'patient_portal_v2';
+  | 'patient_portal_v2'
+  | 'ai_demo'
+  | 'ai_clinical_tools'
+  | 'ai_analytics'
+  | 'testing_dashboard';
 
 export type FeatureFlags = Record<FeatureFlagName, boolean>;
 
@@ -36,6 +41,10 @@ const DEFAULT_FLAGS: FeatureFlags = {
   pharmacy_flow_v2: false,
   reception_flow_v2: false,
   patient_portal_v2: false,
+  ai_demo: false,
+  ai_clinical_tools: false,
+  ai_analytics: false,
+  testing_dashboard: false,
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

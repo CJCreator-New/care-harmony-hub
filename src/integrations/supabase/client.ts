@@ -5,9 +5,7 @@ import type { Database } from './types';
 const _url = import.meta.env.VITE_SUPABASE_URL;
 const _key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// In test environments NODE_ENV=test, use stub values so the module loads
-// without throwing. All Supabase calls are intercepted by vi.mock in tests.
-const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+const isTest = import.meta.env.MODE === 'test';
 const SUPABASE_URL = _url || (isTest ? 'https://stub.supabase.co' : '');
 const SUPABASE_PUBLISHABLE_KEY = _key || (isTest ? 'stub-anon-key' : '');
 
@@ -45,12 +43,60 @@ const safeFetch = async (input: RequestInfo, init?: RequestInit): Promise<Respon
   }
 };
 
+type PersistedSupabaseSession = {
+  expires_at?: number;
+  refresh_token?: string | null;
+};
+
+const isBrowser = typeof window !== 'undefined';
+
+const safeStorage: Storage = {
+  get length() {
+    return isBrowser ? window.localStorage.length : 0;
+  },
+  clear() {
+    if (isBrowser) window.localStorage.clear();
+  },
+  getItem(key: string) {
+    if (!isBrowser) return null;
+
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+
+    try {
+      const parsed = JSON.parse(raw) as PersistedSupabaseSession;
+      const nowInSeconds = Math.floor(Date.now() / 1000);
+      const isExpired = typeof parsed.expires_at === 'number' && parsed.expires_at <= nowInSeconds;
+      const hasRefreshToken = typeof parsed.refresh_token === 'string' && parsed.refresh_token.length > 0;
+
+      if (isExpired || !hasRefreshToken) {
+        window.localStorage.removeItem(key);
+        return null;
+      }
+    } catch {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return raw;
+  },
+  key(index: number) {
+    return isBrowser ? window.localStorage.key(index) : null;
+  },
+  removeItem(key: string) {
+    if (isBrowser) window.localStorage.removeItem(key);
+  },
+  setItem(key: string, value: string) {
+    if (isBrowser) window.localStorage.setItem(key, value);
+  },
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: safeStorage,
     persistSession: true,
     autoRefreshToken: true,
   },

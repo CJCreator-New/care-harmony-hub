@@ -2,8 +2,7 @@ import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
-import { hasAnyRole } from '@/hooks/usePermissions';
-import { hasPermission, Permission } from '@/lib/permissions';
+import { hasAnyAllowedRole, hasPermissionForAnyRole, Permission } from '@/lib/permissions';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -53,9 +52,9 @@ export function RoleProtectedRoute({
     return <Navigate to="/hospital/login" state={{ from: location }} replace />;
   }
 
-  const hasRoleAccess = hasAnyRole(roles, allowedRoles);
+  const hasRoleAccess = hasAnyAllowedRole(roles, allowedRoles);
   const hasRequiredPermission = requiredPermission
-    ? roles.some((role) => hasPermission(role, requiredPermission))
+    ? hasPermissionForAnyRole(roles, requiredPermission)
     : true;
 
   if (!hasRoleAccess || !hasRequiredPermission) {

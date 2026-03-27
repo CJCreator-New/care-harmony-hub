@@ -430,9 +430,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setIsLoading(false);
     }).catch((err) => {
-      // Network or SDK failure — unblock the UI so routes can render
+      // Clear stale auth state and unblock the UI so routes can render.
       if (!isMounted) return;
       console.error('getSession failed:', sanitizeLogMessage(err instanceof Error ? err.message : String(err)));
+      void supabase.auth.signOut().catch(() => undefined);
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setHospital(null);
+      setRoles([]);
       setIsProfileReady(true);
       setIsLoading(false);
     });

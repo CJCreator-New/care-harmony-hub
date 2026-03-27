@@ -38,10 +38,10 @@
     "test:e2e:patient": "playwright test tests/e2e/tests/roles/patient/",
     "test:e2e:all-roles": "playwright test tests/e2e/tests/roles/",
     "test:e2e:chrome": "playwright test --project=chromium",
-    "test:e2e:firefox": "playwright test --project=chromium",
-    "test:e2e:safari": "playwright test --project=chromium",
-    "test:e2e:mobile": "playwright test --project=chromium",
-    "test:e2e:cross-browser": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:safari": "playwright test --project=webkit",
+    "test:e2e:mobile": "playwright test --project=mobile-chrome --project=mobile-safari",
+    "test:e2e:cross-browser": "playwright test --project=chromium --project=firefox --project=webkit",
     "test:e2e:ci": "playwright test --reporter=junit,html,json",
     "test:e2e:parallel": "playwright test --workers=8",
     "test:e2e:roles:auth": "playwright test --config=playwright.roles.config.ts --project=setup-roles",
@@ -92,7 +92,8 @@
     "test:e2e:full:phase:workflows": "npx playwright test --config=playwright.e2e-full.config.ts --project=workflows",
     "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security",
     "validate:rls": "node scripts/validate-rls.mjs",
-    "validate:migrations": "node scripts/validate-migrations.mjs"
+    "validate:migrations": "node scripts/validate-migrations.mjs",
+    "test:release:gates": "npm run lint && npm run type-check && npm run test:unit && npm run test:integration && npm run test:api && npm run test:security && npm run test:accessibility && npm run test:e2e:smoke && npm run test:e2e:roles && npm run test:e2e:full"
   },
   "overrides": {
     "serialize-javascript": "^7.0.4",
@@ -190,7 +191,7 @@
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
     "axe-core": "^4.11.1",
-    "eslint": "^9.0.0",
+    "eslint": "^10.1.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",

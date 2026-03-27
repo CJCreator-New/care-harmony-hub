@@ -1,59 +1,48 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ROLE_PERMISSIONS, hasPermission, hasAnyPermission, Permission, UserRole, PermissionCategory } from '@/types/rbac';
+import {
+  getEffectivePermissions,
+  hasAnyAllowedRole,
+  hasPermission,
+  hasPermissionForAnyRole,
+  type Permission,
+} from '@/lib/permissions';
+import type { UserRole } from '@/types/auth';
 
 export function usePermissions() {
   const { primaryRole, roles } = useAuth();
 
-  // Memoize permission set for current role
   const currentPermissions = useMemo(() => {
-    if (!primaryRole) return new Set<Permission>();
-    return new Set(ROLE_PERMISSIONS[primaryRole] || []);
+    return new Set(getEffectivePermissions(primaryRole ? [primaryRole] : []));
   }, [primaryRole]);
 
-  // Memoize all permissions across all roles
   const allPermissions = useMemo(() => {
-    const perms = new Set<Permission>();
-    roles.forEach(role => {
-      (ROLE_PERMISSIONS[role] || []).forEach(p => perms.add(p));
-    });
-    return perms;
+    return new Set(getEffectivePermissions(roles));
   }, [roles]);
 
-  const can = (permission: Permission) => {
-    return currentPermissions.has(permission);
-  };
-
-  const canAny = (permissions: Permission[]) => {
-    return permissions.some(p => currentPermissions.has(p));
-  };
-
-  const canAll = (permissions: Permission[]) => {
-    return permissions.every(p => currentPermissions.has(p));
-  };
-
-  const canInAnyRole = (permission: Permission) => {
-    return allPermissions.has(permission);
-  };
+  const can = (permission: Permission) => hasPermissionForAnyRole(roles, permission);
+  const canAny = (permissions: Permission[]) => permissions.some((permission) => can(permission));
+  const canAll = (permissions: Permission[]) => permissions.every((permission) => can(permission));
+  const canInPrimaryRole = (permission: Permission) => hasPermission(primaryRole, permission);
+  const canInAnyRole = (permission: Permission) => hasPermissionForAnyRole(roles, permission);
 
   return {
     can,
     canAny,
     canAll,
     canInAnyRole,
+    canInPrimaryRole,
     permissions: currentPermissions,
     allPermissions,
-    // Convenience helpers used across components
-    canCreatePatients: can(PermissionCategory.PATIENT_WRITE),
-    canViewPatients: can(PermissionCategory.PATIENT_READ),
-    canManageStaff: can(PermissionCategory.STAFF_MANAGE),
-    canViewReports: can(PermissionCategory.REPORTS_READ),
-    canManageQueue: can(PermissionCategory.QUEUE_WRITE),
-    canRecordVitals: can(PermissionCategory.VITALS_WRITE),
+    canCreatePatients: can('patients:write'),
+    canViewPatients: can('patients:read'),
+    canManageStaff: can('staff-management'),
+    canViewReports: can('reports:read'),
+    canManageQueue: can('queue:write'),
+    canRecordVitals: can('vitals:write'),
   };
 }
 
 export function hasAnyRole(userRoles: UserRole[], requiredRoles: UserRole[]): boolean {
-  if (!requiredRoles || requiredRoles.length === 0) return false;
-  return requiredRoles.some(role => userRoles.includes(role));
+  return hasAnyAllowedRole(userRoles, requiredRoles);
 }

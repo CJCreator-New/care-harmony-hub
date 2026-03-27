@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { flatRouteManifest } from '@/config/routeManifest';
 
 interface BreadcrumbItem {
   label: string;
@@ -77,6 +78,10 @@ const PHARMACY_INVENTORY_ROUTES = new Set([
   '/inventory',
 ]);
 
+const manifestRouteLabels = Object.fromEntries(
+  flatRouteManifest.map((route) => [route.href, route.label]),
+);
+
 export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
   const location = useLocation();
   const { hospital } = useAuth();
@@ -114,7 +119,7 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
 
     for (const segment of pathSegments) {
       currentPath += `/${segment}`;
-      const label = routeLabels[currentPath];
+      const label = routeLabels[currentPath] || manifestRouteLabels[currentPath];
 
       // Dynamic segments (UUIDs / numeric IDs) must be checked first regardless of routeLabels
       if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
@@ -211,7 +216,7 @@ export function useBreadcrumbs() {
 
     for (const segment of pathSegments) {
       currentPath += `/${segment}`;
-      const label = routeLabels[currentPath];
+      const label = routeLabels[currentPath] || manifestRouteLabels[currentPath];
 
       if (label) {
         breadcrumbs.push({ label, href: currentPath });

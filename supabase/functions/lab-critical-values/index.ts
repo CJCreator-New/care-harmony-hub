@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { authorize, getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
@@ -94,6 +94,14 @@ const handler = async (req: Request): Promise<Response> => {
   if (authError) return authError;
 
   try {
+    const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'lab_technician', 'super_admin']);
+    if (response || !actor) {
+      return response ?? new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     console.log("Starting critical value check...");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -133,6 +141,10 @@ const handler = async (req: Request): Promise<Response> => {
       `)
       .eq('status', 'completed')
       .eq('is_critical', false);
+
+    if (actor.hospitalId) {
+      query = query.eq('hospital_id', actor.hospitalId);
+    }
 
     if (labOrderId) {
       query = query.eq('id', labOrderId);

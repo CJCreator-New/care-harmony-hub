@@ -269,7 +269,7 @@ if (typeof window !== 'undefined' && !isInitialized) {
       hospitalId: (window as any).__HOSPITAL_ID,
       userId: (window as any).__USER_ID,
       userRole: (window as any).__USER_ROLE,
-      environment: (process.env.VITE_ENV as any) || 'development',
+      environment: (import.meta.env.VITE_ENV as any) || import.meta.env.MODE || 'development',
     };
     
     try {

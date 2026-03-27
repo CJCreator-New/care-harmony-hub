@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from '../_shared/cors.ts'
-import { authorize } from '../_shared/authorize.ts'
+import { authorize, getAuthorizedActor } from '../_shared/authorize.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
 import { validateRequest } from '../_shared/validation.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
@@ -42,6 +42,9 @@ const handler = async (req: Request): Promise<Response> => {
   if (authErr) return authErr
 
   try {
+    const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'super_admin'])
+    if (response || !actor) return response ?? new Response('Unauthorized', { status: 401, headers: corsHeaders })
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -55,19 +58,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     const { action, data } = validation.data;
+    const scopedData = {
+      ...(data ?? {}),
+      hospital_id: actor.hospitalId ?? data?.hospital_id ?? null,
+    };
 
     switch (action) {
       case 'process_workflow_rules':
-        return await processWorkflowRules(supabaseClient, data)
+        return await processWorkflowRules(supabaseClient, scopedData)
 
       case 'auto_assign_tasks':
-        return await autoAssignTasks(supabaseClient, data)
+        return await autoAssignTasks(supabaseClient, scopedData)
 
       case 'calculate_metrics':
-        return await calculateWorkflowMetrics(supabaseClient, data)
+        return await calculateWorkflowMetrics(supabaseClient, scopedData)
 
       case 'send_bulk_notifications':
-        return await sendBulkNotifications(supabaseClient, data)
+        return await sendBulkNotifications(supabaseClient, scopedData)
 
       default:
         throw new Error(`Unknown action: ${action}`)
@@ -86,6 +93,12 @@ serve((req) => withRateLimit(req, handler));
 
 async function processWorkflowRules(supabaseClient: any, data: any) {
   const { trigger_event, record_data, hospital_id } = data
+  if (!hospital_id) {
+    return new Response(JSON.stringify({ error: 'hospital_id is required for workflow processing' }), {
+      status: 400,
+      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   // Get active workflow rules for this trigger event
   const { data: rules, error: rulesError } = await supabaseClient
@@ -389,6 +402,12 @@ function checkTriggerConditions(conditions: any, recordData: any) {
 
 async function autoAssignTasks(supabaseClient: any, data: any) {
   const { hospital_id, workflow_type, limit = 10 } = data
+  if (!hospital_id) {
+    return new Response(JSON.stringify({ error: 'hospital_id is required for task assignment' }), {
+      status: 400,
+      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   // Get unassigned tasks
   const { data: unassignedTasks, error } = await supabaseClient
@@ -436,6 +455,12 @@ async function autoAssignTasks(supabaseClient: any, data: any) {
 
 async function calculateWorkflowMetrics(supabaseClient: any, data: any) {
   const { hospital_id, timeframe_days = 30 } = data
+  if (!hospital_id) {
+    return new Response(JSON.stringify({ error: 'hospital_id is required for metrics calculation' }), {
+      status: 400,
+      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - timeframe_days)
@@ -491,6 +516,12 @@ async function calculateWorkflowMetrics(supabaseClient: any, data: any) {
 
 async function sendBulkNotifications(supabaseClient: any, data: any) {
   const { hospital_id, recipient_roles, subject, content, priority = 'normal', message_type = 'broadcast' } = data
+  if (!hospital_id) {
+    return new Response(JSON.stringify({ error: 'hospital_id is required for notifications' }), {
+      status: 400,
+      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   // Get recipient profiles
   const { data: recipients, error } = await supabaseClient

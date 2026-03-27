@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { authorize, getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest, validationErrorResponse } from "../_shared/validation.ts";
 
@@ -129,34 +129,25 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function getActorContext(req: Request, supabase: ReturnType<typeof createClient>) {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return null;
-
-  const token = authHeader.replace("Bearer ", "");
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token);
-
-  if (!user) return null;
+  const { actor, response } = await getAuthorizedActor(
+    req,
+    ["doctor", "pharmacist", "receptionist", "nurse", "admin"],
+  );
+  if (response || !actor) return null;
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("user_id, hospital_id, first_name, last_name")
-    .eq("user_id", user.id)
+    .eq("user_id", actor.userId)
     .maybeSingle();
-
-  const { data: roles } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id);
 
   if (!profile) return null;
 
   return {
-    userId: user.id,
-    hospitalId: profile.hospital_id as string,
+    userId: actor.userId,
+    hospitalId: (profile.hospital_id as string | null) ?? actor.hospitalId ?? '',
     fullName: `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || "Unknown User",
-    roles: (roles || []).map((item) => item.role as string),
+    roles: actor.assignedRoles,
   };
 }
 
