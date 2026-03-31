@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 import { usePermissionAudit } from '@/hooks/usePermissionAudit';
+import { checkRouteAccess } from '@/middleware/routeGuard';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -57,6 +58,37 @@ export function RoleProtectedRoute({
   }
 
   const effectiveRoles = persistedTestRole ? [persistedTestRole] : (primaryRole ? [primaryRole] : roles);
+
+  // NEW: Middleware-level route guard check (BEFORE component render)
+  const middlewareCheck = checkRouteAccess(location.pathname, effectiveRoles);
+  if (!middlewareCheck.allowed) {
+    logPermissionDenial({
+      path: location.pathname,
+      attemptedBy: user?.email || user?.id || null,
+      userRole: primaryRole,
+      allowedRoles,
+      severity: 'critical',
+      detail: middlewareCheck.denyReason,
+    }).catch(() => {});
+
+    if (showUnauthorized) {
+      return (
+        <DashboardLayout>
+          <div className="min-h-[70vh] flex items-center justify-center bg-background">
+            <div className="text-center max-w-md mx-auto px-4">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+                <ShieldAlert className="h-8 w-8 text-destructive" />
+              </div>
+              <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+              <p className="text-muted-foreground mb-6">{middlewareCheck.denyReason}</p>
+              <Button onClick={() => window.history.back()}>Go Back</Button>
+            </div>
+          </div>
+        </DashboardLayout>
+      );
+    }
+    return <Navigate to={redirectTo} replace />;
+  }
 
   const hasRoleAccess = hasAnyAllowedRole(effectiveRoles, allowedRoles);
   const hasRequiredPermission = requiredPermission
