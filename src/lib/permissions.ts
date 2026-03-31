@@ -40,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   doctor: [
     'patients',
     'patients:read',
+    'patients:write',
     'appointments',
     'appointments:read',
     'consultations',
@@ -56,7 +57,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'telemedicine:write',
     'queue:read',
     'vitals:read',
-            'ai-demo',
+    'ai-demo',
     'differential-diagnosis',
     'treatment-recommendations',
     'treatment-plan-optimization',
