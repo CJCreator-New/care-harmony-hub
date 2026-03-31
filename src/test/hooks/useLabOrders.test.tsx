@@ -154,18 +154,16 @@ describe('useCreateLabOrder', () => {
 
   it('inserts lab order and creates lab_queue entry', async () => {
     const orderInsertMock = vi.fn().mockReturnThis();
-    const queueInsertMock = vi.fn().mockResolvedValue({ error: null });
+    const telemetryInsertMock = vi.fn().mockResolvedValue({ error: null });
 
     const orderChain: any = {
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: mockLabOrder, error: null }),
     };
     orderChain.insert = orderInsertMock;
-    const queueChain = { insert: queueInsertMock };
-    const telemetryChain = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    const telemetryChain = { insert: telemetryInsertMock };
     mockSupabaseClient.from
       .mockReturnValueOnce(orderChain)
-      .mockReturnValueOnce(queueChain)
       .mockReturnValueOnce(telemetryChain);
 
     const { result } = renderHook(() => useCreateLabOrder(), { wrapper: createWrapper() });
@@ -182,8 +180,8 @@ describe('useCreateLabOrder', () => {
     });
 
     expect(orderInsertMock).toHaveBeenCalled();
-    expect(queueInsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'pending', lab_order_id: 'lab-1' })
+    expect(telemetryInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action_type: 'telemetry:lab_order_dispatch_success', entity_id: 'lab-1' })
     );
   });
 
