@@ -78,6 +78,7 @@ export interface PaymentMethod {
 }
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeLogMessage } from './sanitize';
+import { formatCurrency as globalFormatCurrency } from '@/lib/currency';
 
 // Payment Service for CareSync HMS
 export class PaymentService {
@@ -382,11 +383,8 @@ export class PaymentService {
   }
 
   // Format currency amount
-  formatAmount(amount: number, currency: string = 'USD'): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency.toUpperCase()
-    }).format(amount);
+  formatAmount(amount: number, currency?: string): string {
+    return globalFormatCurrency(amount);
   }
 }
 

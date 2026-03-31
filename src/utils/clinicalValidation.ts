@@ -164,7 +164,7 @@ export function checkPregnancyContraindication(
 
 // ─── Drug-Route Compatibility ────────────────────────────────────────────────
 
-export type Route = 'PO' | 'IV' | 'IM' | 'SC' | 'PR' | 'Inhaled' | 'Topical' | 'SL';
+export type Route = 'PO' | 'IV' | 'IV (slow)' | 'IM' | 'SC' | 'PR' | 'Inhaled' | 'Topical' | 'SL';
 
 /**
  * Known route restrictions for high-risk drugs.

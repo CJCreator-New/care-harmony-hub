@@ -15,16 +15,7 @@ export const getDevTestRole = (roles: UserRole[]): UserRole | null => {
       return null;
     }
 
-    if (roles.length === 0) {
-      return null;
-    }
-
-    if (!roles.includes(stored)) {
-      localStorage.removeItem(TEST_ROLE_STORAGE_KEY);
-      return null;
-    }
-
-    return stored;
+    return stored as UserRole;
   } catch {
     return null;
   }

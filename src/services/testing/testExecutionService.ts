@@ -61,12 +61,11 @@ export class TestExecutionService {
 
       const result: TestExecutionResult = {
         id: executionId,
-        scriptId: options.script.id,
-        status: 'Passed' as any,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
+        testCaseId: options.script.id,
+        runAt: new Date(),
+        status: 'Passed',
         duration: 1000,
-        steps: [],
+        logs: 'Simulated execution completed successfully.',
       };
       return result;
 

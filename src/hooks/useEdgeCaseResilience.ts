@@ -19,7 +19,7 @@ import {
   detectConcurrentModification,
   getSessionState,
   handleAuthError,
-  require,
+  requireValue,
   validateId,
   CircuitBreaker,
 } from '@/utils/edgeCaseResilience';
@@ -38,16 +38,16 @@ interface MutationOptions extends RetryOptions {
  * Wraps retry logic, idempotency, and error handling.
  */
 export function useEdgeCaseResilience() {
-  const { profile, auth } = useAuth();
+  const { profile, session } = useAuth();
   const circuitBreakerRef = useRef(new CircuitBreaker());
 
   // ─── Session Monitoring ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!auth?.session?.expires_at) return;
+    if (!session?.expires_at) return;
 
     const checkSession = () => {
-      const state = getSessionState(new Date(auth.session.expires_at));
+      const state = getSessionState(new Date(session.expires_at * 1000));
       if (!state.isValid) {
         // Session expired; trigger re-auth
         console.warn('Session expired, re-authentication required');
@@ -59,7 +59,7 @@ export function useEdgeCaseResilience() {
 
     const interval = setInterval(checkSession, 60000); // Check every minute
     return () => clearInterval(interval);
-  }, [auth?.session?.expires_at]);
+  }, [session?.expires_at]);
 
   // ─── Idempotent Mutation with Retry ──────────────────────────────────────────
 
@@ -85,7 +85,7 @@ export function useEdgeCaseResilience() {
 
       try {
         const key = idempotencyKey || generateIdempotencyKey(
-          require(profile?.id, 'User ID required for idempotency'),
+          requireValue(profile?.id, 'User ID required for idempotency'),
           'mutation',
           Date.now().toString()
         );

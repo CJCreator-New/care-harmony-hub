@@ -246,14 +246,18 @@ export function AdminDashboard() {
 }
 
 function MetricCard({ title, value, icon, trend }: { title: string; value: string | number; icon: React.ReactNode; trend: string }) {
+  const isErrorRate = title.toLowerCase().includes('error');
+  const isHighError = isErrorRate && (parseFloat(value.toString()) > 5 || trend.toLowerCase().includes('high') || trend.toLowerCase().includes('up'));
+  const trendColor = isHighError ? 'text-red-600' : 'text-green-600';
+
   return (
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-600">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-green-600 mt-1">{trend}</p>
+            <p className={`text-2xl font-bold ${isHighError ? 'text-red-600' : ''}`}>{value}</p>
+            <p className={`text-xs mt-1 ${trendColor}`}>{trend}</p>
           </div>
           <div className="text-gray-400">{icon}</div>
         </div>

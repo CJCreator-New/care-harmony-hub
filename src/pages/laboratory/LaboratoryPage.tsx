@@ -145,12 +145,14 @@ export default function LaboratoryPage() {
     searchColumn: 'test_name,test_category',
     orderBy: { column: 'ordered_at', ascending: false },
     pageSize: 50,
+      enabled: !!hospital?.id,
   });
 
   const { data: stats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const queryClient = useQueryClient();
+  const typedOrders: LabOrder[] = (orders as unknown as LabOrder[]) || [];
 
   const handleCollectSample = (order: LabOrder) => {
     updateOrder.mutate({
@@ -366,7 +368,7 @@ export default function LaboratoryPage() {
                   Retry
                 </Button>
               </div>
-            ) : orders?.length === 0 ? (
+            ) : typedOrders.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <TestTube2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium mb-1">No lab orders found</p>
@@ -395,7 +397,7 @@ export default function LaboratoryPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders?.map((order) => (
+                    {typedOrders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">
                           <PatientName patientId={order.patient_id} />
@@ -510,7 +512,7 @@ export default function LaboratoryPage() {
               <div className="mt-6 pt-4 border-t">
                 <h4 className="font-semibold mb-4">Complete Audit History</h4>
                 <div className="max-h-96 overflow-y-auto">
-                  <ForensicTimeline recordId={selectedOrder.id} recordType="lab_result" isOpen={true} onClose={() => setShowAuditTimeline(false)} />
+                  <ForensicTimeline prescriptionId={selectedOrder.id} />
                 </div>
               </div>
               <div className="flex gap-2 mt-6">

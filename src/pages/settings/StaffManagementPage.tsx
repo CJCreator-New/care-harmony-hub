@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { AdminProtectedPage } from '@/components/auth/ProtectedPage';
 import { StaffInviteModal } from '@/components/staff/StaffInviteModal';
 import { useStaffInvitations, StaffInvitation } from '@/hooks/useStaffInvitations';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,7 +75,7 @@ const invitationStatusColors = {
   cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
-export default function StaffManagementPage() {
+function StaffManagementPageContent() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const {
@@ -511,5 +512,14 @@ export default function StaffManagementPage() {
         onSuccess={loadStaffMembers}
       />
     </DashboardLayout>
+  );
+}
+
+// Export wrapped with protection layer to prevent unauthorized direct access
+export default function StaffManagementPage() {
+  return (
+    <AdminProtectedPage label="Staff Management">
+      <StaffManagementPageContent />
+    </AdminProtectedPage>
   );
 }

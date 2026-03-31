@@ -85,6 +85,7 @@ program
 
       // Override config for quick check
       config.categories = {
+        ...config.categories,
         security: { enabled: true, filePatterns: ['**/*.{ts,tsx,js,jsx}'] },
         compliance: { enabled: true, filePatterns: ['**/*.{ts,tsx,js,jsx}'] },
       };
@@ -173,6 +174,7 @@ program
         groupByCategory: true,
         showProgress: true,
         maxIssuesPerFile: 50,
+        includeHealthcareContext: true,
       },
     };
 
@@ -238,4 +240,4 @@ process.on('unhandledRejection', (error) => {
 });
 
 // Parse command line arguments
-program.parse();
+program.parse(process.argv);

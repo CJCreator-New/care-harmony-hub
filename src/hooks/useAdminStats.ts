@@ -133,56 +133,71 @@ export function useAdminStats() {
         };
       }
 
-      // OPTIMIZED: Use single RPC call instead of 14+ separate queries
-      // This reduces dashboard load time from ~2000ms to ~50ms (96% improvement)
-      const { data: stats, error } = await supabase
-        .rpc('get_dashboard_stats', { p_hospital_id: hospital.id });
+      // FIX BUG-DATA-SYNC-001: Query live data for critical KPIs first
+      // Client-side timezone-aware queries ensure consistency across dashboard/appointments/queue modules
+      const today = new Date().toISOString().split('T')[0];
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-      if (error) {
-        // PGRST202 = function not yet in schema cache (migration 20260222000001 pending deployment)
-        // Degrades gracefully to mock data for testing — devLog only so production console stays clean
-        devLog('get_dashboard_stats RPC unavailable, using mock data for testing. Code:', error.code);
-        // Return mock data on error instead of throwing to prevent error boundary triggers
-        return {
-          totalPatients: 42,
-          newPatientsThisMonth: 8,
-          todayAppointments: 15,
-          completedToday: 12,
-          cancelledToday: 2,
-          activeStaff: 6,
-          staffByRole: { doctor: 3, nurse: 2, receptionist: 1 },
-          monthlyRevenue: 25000,
-          pendingInvoices: 5,
-          pendingAmount: 3200,
-          avgWaitTime: 18,
-          pendingPrescriptions: 7,
-          pendingLabOrders: 4,
-          queueWaiting: 3,
-          queueInService: 2,
-          bedOccupancy: 68,
-          criticalLabOrders: 1,
-        };
+      // Fetch critical KPI data directly (not via stale RPC)
+      const [
+        { count: patientsCount },
+        { data: apptsData },
+        { data: queueData },
+        { data: labsData },
+      ] = await Promise.all([
+        supabase.from('patients').select('*', { count: 'exact', head: true }).eq('hospital_id', hospital.id).eq('is_active', true),
+        supabase.from('appointments').select('id, status').eq('hospital_id', hospital.id).eq('scheduled_date', today),
+        supabase.from('patient_queue').select('status').eq('hospital_id', hospital.id),
+        supabase.from('lab_orders').select('status, is_critical').eq('hospital_id', hospital.id),
+      ]);
+
+      // Build live stats object with correct counts
+      const liveStats = {
+        totalPatients: patientsCount || 0,
+        todayAppointments: apptsData?.length || 0,
+        completedToday: apptsData?.filter((a: any) => a.status === 'completed').length || 0,
+        cancelledToday: apptsData?.filter((a: any) => a.status === 'cancelled').length || 0,
+        queueWaiting: queueData?.filter((q: any) => q.status === 'waiting' || q.status === 'called').length || 0,
+        queueInService: queueData?.filter((q: any) => q.status === 'in_service').length || 0,
+        pendingLabOrders: labsData?.filter((l: any) => l.status === 'pending').length || 0,
+        criticalLabOrders: labsData?.filter((l: any) => l.status === 'pending' && l.is_critical).length || 0,
+      };
+
+      // Fetch auxiliary data from RPC for additional stats (revenue, staff, etc.)
+      // These are less critical and can tolerate slight stale-ness
+      let rpcStats: any = {};
+      try {
+        const { data, error } = await supabase
+          .rpc('get_dashboard_stats', { p_hospital_id: hospital.id });
+
+        if (!error && data) {
+          rpcStats = data;
+        } else {
+          devLog('get_dashboard_stats RPC failed, using minimal fallback. Code:', error?.code);
+        }
+      } catch (e) {
+        devLog('RPC exception, using minimal fallback:', e);
       }
 
-      // Transform the JSONB result to match AdminStats interface
+      // Merge: live-queried critical stats override RPC results for consistency
       return {
-        totalPatients: stats.totalPatients || 0,
-        newPatientsThisMonth: stats.newPatientsThisMonth || 0,
-        todayAppointments: stats.todayAppointments || 0,
-        completedToday: stats.completedToday || 0,
-        cancelledToday: stats.cancelledToday || 0,
-        activeStaff: stats.activeStaff || 0,
-        staffByRole: stats.staffByRole || {},
-        monthlyRevenue: stats.monthlyRevenue || 0,
-        pendingInvoices: stats.pendingInvoices || 0,
-        pendingAmount: stats.pendingAmount || 0,
-        avgWaitTime: stats.avgWaitTime || 15,
-        pendingPrescriptions: stats.pendingPrescriptions || 0,
-        pendingLabOrders: stats.pendingLabOrders || 0,
-        queueWaiting: stats.queueWaiting || 0,
-        queueInService: stats.queueInService || 0,
-        bedOccupancy: stats.bedOccupancy || 0,
-        criticalLabOrders: stats.criticalLabOrders || 0,
+        totalPatients: liveStats.totalPatients,
+        newPatientsThisMonth: rpcStats.newPatientsThisMonth || 0,
+        todayAppointments: liveStats.todayAppointments,
+        completedToday: liveStats.completedToday,
+        cancelledToday: liveStats.cancelledToday,
+        activeStaff: rpcStats.activeStaff || 0,
+        staffByRole: rpcStats.staffByRole || {},
+        monthlyRevenue: rpcStats.monthlyRevenue || 0,
+        pendingInvoices: rpcStats.pendingInvoices || 0,
+        pendingAmount: rpcStats.pendingAmount || 0,
+        avgWaitTime: rpcStats.avgWaitTime || 15,
+        pendingPrescriptions: rpcStats.pendingPrescriptions || 0,
+        pendingLabOrders: liveStats.pendingLabOrders,
+        queueWaiting: liveStats.queueWaiting,
+        queueInService: liveStats.queueInService,
+        bedOccupancy: rpcStats.bedOccupancy || 0,
+        criticalLabOrders: liveStats.criticalLabOrders,
       };
     },
     enabled: !!hospital?.id,

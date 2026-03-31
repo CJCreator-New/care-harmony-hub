@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { createHash } from 'crypto';
 import { logger } from '../utils/logger';
 import { connectDatabase } from '../config/database';
 import { connectRedis } from '../config/redis';
@@ -733,8 +734,7 @@ export class WorkflowStateManager {
   }
 
   private generateChecksum(data: any): string {
-    const crypto = require('crypto');
-    const hash = crypto.createHash('sha256');
+    const hash = createHash('sha256');
     hash.update(JSON.stringify(data));
     return hash.digest('hex');
   }

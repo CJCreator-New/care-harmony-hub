@@ -35,6 +35,7 @@ import {
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useCreateInvoice } from '@/hooks/useBilling';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { mapToCanonicalLabPriority, mapToWorkflowPriority } from '@/utils/labPriority';
 import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
@@ -91,6 +92,7 @@ export default function ConsultationWorkflowPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: consultation, isLoading, error } = useConsultation(id);
+  const { logActivity } = useActivityLog();
   const updateConsultation = useUpdateConsultation();
   const advanceStep = useAdvanceConsultationStep();
   const createPrescription = useCreatePrescription();
@@ -241,6 +243,15 @@ export default function ConsultationWorkflowPage() {
         id,
         ...cleanedData,
       });
+      
+      // Log the activity
+      await logActivity({
+        actionType: 'consultation_update',
+        entityType: 'consultation',
+        entityId: id,
+        details: { step: CONSULTATION_STEPS[activeStep - 1] },
+      });
+      
       toast.success("Progress saved");
     } catch (error) {
       // Error is handled by the hook
@@ -249,6 +260,31 @@ export default function ConsultationWorkflowPage() {
 
   const handleNextStep = async () => {
     if (!id || !consultation) return;
+
+    // Validation for DR-WF-02
+    if (activeStep === 1 && (!formData.chief_complaint || formData.chief_complaint.trim() === '')) {
+      toast.error('Chief Complaint is required.');
+      return;
+    }
+    
+    // Validate Physical Examination step (step 2)
+    if (activeStep === 2) {
+      const physExam = formData.physical_examination;
+      const hasPhysicalData = physExam && Object.values(physExam).some(v => v);
+      if (!hasPhysicalData) {
+        toast.error('At least one physical examination finding must be documented.');
+        return;
+      }
+    }
+    
+    if (activeStep === 3 && (!formData.final_diagnosis || formData.final_diagnosis.trim() === '')) {
+      toast.error('Diagnosis is required to proceed.');
+      return;
+    }
+    if (activeStep === 4 && (!formData.treatment_plan || formData.treatment_plan.trim() === '')) {
+      toast.error('Treatment Plan is required.');
+      return;
+    }
 
     try {
       // Clean up date fields - convert empty strings to null
@@ -267,10 +303,33 @@ export default function ConsultationWorkflowPage() {
           consultationId: id,
           currentStep: activeStep,
         });
+        
+        // Log the step advancement
+        await logActivity({
+          actionType: 'consultation_advance',
+          entityType: 'consultation',
+          entityId: id,
+          details: { 
+            from_step: CONSULTATION_STEPS[activeStep - 1],
+            to_step: CONSULTATION_STEPS[activeStep],
+          },
+        });
+        
         setActiveStep((prev) => prev + 1);
       } else {
         // Complete consultation
         setIsCompleting(true);
+        
+        // Log consultation completion
+        await logActivity({
+          actionType: 'consultation_complete',
+          entityType: 'consultation',
+          entityId: id,
+          details: { 
+            patient_id: consultation?.patient_id,
+            doctor_id: consultation?.doctor_id,
+          },
+        });
         
         // Generate clean summary without duplication
         const patientSummary = `CONSULTATION SUMMARY
@@ -323,6 +382,11 @@ ${formData.soap_plan || 'Not documented'}`;
           pharmacy_notified: formData.prescriptions?.length > 0 ? true : formData.pharmacy_notified,
           lab_notified: formData.lab_orders?.length > 0 ? true : formData.lab_notified,
         });
+
+        // Update patient queue
+        if (consultation?.patient_id) {
+          await supabase.from('patient_queue').update({ status: 'completed', service_end_time: new Date().toISOString() }).eq('patient_id', consultation.patient_id).in('status', ['in_service', 'called', 'waiting']);
+        }
 
         // Best-effort generated document record. Older schemas require file metadata and do not support inline content.
         const { error: documentError } = await supabase.from('documents').insert({
@@ -785,7 +849,7 @@ ${formData.soap_plan || 'Not documented'}`;
               <Button
                 variant="outline"
                 onClick={handleSaveStep}
-                disabled={updateConsultation.isPending}
+                disabled={updateConsultation.isPending || consultation?.status === 'completed'}
               >
                 {updateConsultation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -794,7 +858,7 @@ ${formData.soap_plan || 'Not documented'}`;
               </Button>
               <Button
                 onClick={handleNextStep}
-                disabled={updateConsultation.isPending || advanceStep.isPending || isCompleting || isCompleted}
+                disabled={updateConsultation.isPending || advanceStep.isPending || isCompleting || isCompleted || consultation?.status === 'completed'}
               >
                 {(updateConsultation.isPending || advanceStep.isPending || isCompleting) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -864,3 +928,5 @@ ${formData.soap_plan || 'Not documented'}`;
     </DashboardLayout>
   );
 }
+
+

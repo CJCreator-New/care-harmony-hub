@@ -10,7 +10,7 @@
  * - Revenue leakage prevention
  */
 
-import type { UUID } from '@/integrations/supabase/types';
+type UUID = string;
 
 // ─── Domain Types ───────────────────────────────────────────────────────────
 

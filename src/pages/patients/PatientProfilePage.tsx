@@ -27,6 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
 import { usePatientVitalSigns } from '@/hooks/useVitalSigns';
 import { usePatient } from '@/hooks/usePatients';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { EditPatientModal } from '@/components/patients/EditPatientModal';
 import { differenceInYears, format as formatDate } from 'date-fns';
 import { toast } from 'sonner';
@@ -34,12 +36,17 @@ import { toast } from 'sonner';
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { primaryRole } = useAuth();
+  const { canCreatePatients } = usePermissions();
   const [consultationModalOpen, setConsultationModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id);
 
   const { data: vitalSigns = [] } = usePatientVitalSigns(id || '');
+
+  // Only admin and receptionist can edit patient demographics
+  const canEditDemographics = primaryRole === 'admin' || primaryRole === 'receptionist';
 
   if (isLoading) {
     return (
@@ -70,9 +77,11 @@ export default function PatientProfilePage() {
             </div>
           </div>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setEditModalOpen(true)}>
-              Edit Details
-            </Button>
+            {canEditDemographics && (
+              <Button variant="outline" className="gap-2" onClick={() => setEditModalOpen(true)}>
+                Edit Details
+              </Button>
+            )}
             <Button
               variant="outline"
               className="gap-2"

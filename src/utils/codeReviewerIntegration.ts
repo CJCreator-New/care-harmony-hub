@@ -28,6 +28,7 @@ export class CodeReviewerIntegration {
     const quickConfig = {
       ...this.config,
       categories: {
+        ...this.config.categories,
         security: { enabled: true, filePatterns: ['**/*.{ts,tsx,js,jsx}'] },
         compliance: { enabled: true, filePatterns: ['**/*.{ts,tsx,js,jsx}'] },
       },

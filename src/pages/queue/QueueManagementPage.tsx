@@ -85,7 +85,7 @@ export default function QueueManagementPage() {
 
   const avgWaitTime = waitingPatients.length > 0
     ? Math.round(
-        waitingPatients.reduce((acc, p) => acc + differenceInMinutes(new Date(), new Date(p.check_in_time)), 0) / waitingPatients.length
+        waitingPatients.reduce((acc, p) => acc + Math.max(0, differenceInMinutes(new Date(), new Date(p.check_in_time))), 0) / waitingPatients.length
       )
     : 0;
 

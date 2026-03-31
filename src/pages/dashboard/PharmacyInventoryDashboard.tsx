@@ -79,7 +79,7 @@ function KPIStat({ label, value, icon: Icon, variant = 'default' }: {
   label: string; value: number; icon: React.ElementType;
   variant?: 'default' | 'warning' | 'critical';
 }) {
-  const animated = useCountUp(value, { duration: 700 });
+  const animated = useCountUp(value, 700);
   const variantClass = variant === 'critical' ? 'cs-stat-card cs-critical' :
                        variant === 'warning'  ? 'cs-stat-card border-warning-200' : 'cs-stat-card';
   return (

@@ -1,8 +1,9 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { AdminProtectedPage } from '@/components/auth/ProtectedPage';
 import { AuditLogViewer } from '@/components/audit/AuditLogViewer';
 import { DataExportTool } from '@/components/audit/DataExportTool';
 
-export default function ActivityLogsPage() {
+function ActivityLogsPageContent() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -23,5 +24,14 @@ export default function ActivityLogsPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+// Export wrapped with protection layer to prevent unauthorized direct access
+export default function ActivityLogsPage() {
+  return (
+    <AdminProtectedPage label="Activity Logs">
+      <ActivityLogsPageContent />
+    </AdminProtectedPage>
   );
 }

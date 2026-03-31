@@ -64,7 +64,10 @@ function useLabTATData(filter: 'today' | 'week' | 'month') {
 
       if (error) throw error;
 
-      return (data ?? []).map(o => ({
+      return (data ?? []).map(o => {
+        const orderingPhysician = (o as any).ordering_physician;
+        return ({
+        // Supabase nested selects can return arrays for joined relations.
         id: o.id,
         test_name: o.test_name,
         status: o.status,
@@ -73,9 +76,14 @@ function useLabTATData(filter: 'today' | 'week' | 'month') {
         ordered_at: o.ordered_at,
         completed_at: (o as { completed_at?: string }).completed_at ?? null,
         hospital_id: o.hospital_id,
-        patient: o.patients as LabOrderSummary['patient'],
-        ordered_by_profile: (o as { ordering_physician?: LabOrderSummary['ordered_by_profile'] }).ordering_physician ?? null,
-      })) as LabOrderSummary[];
+        patient: Array.isArray(o.patients)
+          ? ((o.patients[0] as LabOrderSummary['patient']) ?? null)
+          : ((o.patients as LabOrderSummary['patient']) ?? null),
+        ordered_by_profile: Array.isArray(orderingPhysician)
+          ? ((orderingPhysician[0] as LabOrderSummary['ordered_by_profile']) ?? null)
+          : ((orderingPhysician as LabOrderSummary['ordered_by_profile']) ?? null),
+      });
+      }) as LabOrderSummary[];
     },
     enabled: !!hospital?.id,
     staleTime: 3 * 60 * 1000,
@@ -109,7 +117,7 @@ function KPIStat({ label, value, unit, icon: Icon, sub, variant = 'default' }: {
   label: string; value: number; unit?: string; icon: React.ElementType;
   sub?: string; variant?: 'default' | 'warning' | 'critical';
 }) {
-  const animated = useCountUp(value, { duration: 700 });
+  const animated = useCountUp(value, 700);
   const base = variant === 'critical' ? 'cs-stat-card cs-critical' :
                variant === 'warning'  ? 'cs-stat-card border-warning-200' : 'cs-stat-card';
   return (

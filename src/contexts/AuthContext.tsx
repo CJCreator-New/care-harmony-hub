@@ -8,6 +8,7 @@ import { passwordPolicyManager } from '@/utils/passwordPolicy';
 import { biometricAuthManager } from '@/utils/biometricAuth';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
+import { getDevTestRole } from '@/utils/devRoleSwitch';
 
 interface Profile {
   id: string;
@@ -245,13 +246,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: 'admin@testgeneral.com',
       license_number: 'LIC-E2E-001',
     });
-    setRoles([mockUser.role]);
-    setPreferredRole(mockUser.role);
+    
+    // Check for dev test role override in localStorage
+    let effectiveRole = mockUser.role;
+    try {
+      const testRoleOverride = window.localStorage.getItem('testRole');
+      if (testRoleOverride) {
+        effectiveRole = testRoleOverride as UserRole;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    
+    setRoles([effectiveRole]);
+    setPreferredRole(effectiveRole);
     setIsProfileReady(true);
 
     try {
       window.localStorage.setItem(E2E_MOCK_AUTH_STORAGE_KEY, email.trim().toLowerCase());
-      window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, mockUser.role);
+      window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, effectiveRole);
     } catch {
       // Ignore storage errors in mock mode
     }
@@ -348,16 +361,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (rolesData) {
         const userRoles = rolesData.map(r => r.role as UserRole);
-        setRoles(userRoles);
+        const devTestRole = getDevTestRole(userRoles);
+        const effectiveRoles = devTestRole ? [devTestRole] : userRoles;
+
+        setRoles(effectiveRoles);
 
         // If user has multiple roles and hasn't picked one this session,
         // gate them at the role-selection screen (mirrors mock auth behaviour).
         const stored = getStoredPreferredRole();
-        const storedIsValid = stored && userRoles.includes(stored);
-        if (userRoles.length > 1 && !storedIsValid) {
+        const storedIsValid = stored && effectiveRoles.includes(stored);
+        if (effectiveRoles.length > 1 && !storedIsValid) {
           setPendingRoleSelection(true);
         } else {
           setPendingRoleSelection(false);
+        }
+
+        if (devTestRole) {
+          setPreferredRole(devTestRole);
+          try {
+            window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, devTestRole);
+          } catch {
+            // Ignore storage errors
+          }
         }
       }
     } catch (error) {

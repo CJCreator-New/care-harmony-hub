@@ -294,7 +294,32 @@ export function useSearchPatients(searchTerm: string) {
         .limit(20);
 
       if (error) throw error;
-      return data as Patient[];
+
+      // FIX BUG-SEARCH-001: Sort results to prioritize first-name matches over last-name substring matches
+      // "Sarah Johnson" should not appear when searching "John" but John Davis should
+      const searchLower = safeTerm.toLowerCase();
+      const results = (data as Patient[]).sort((a, b) => {
+        // Score based on match type: first name start = highest priority
+        const aFirstStart = a.first_name?.toLowerCase().startsWith(searchLower) ? 3 : 0;
+        const aFirstContains = a.first_name?.toLowerCase().includes(searchLower) ? 2 : 0;
+        const aLastStart = a.last_name?.toLowerCase().startsWith(searchLower) ? 1 : 0;
+        const aLastContains = a.last_name?.toLowerCase().includes(searchLower) ? 0.5 : 0;
+        const aMrnPhone = (a.mrn?.toLowerCase().includes(searchLower) || a.phone?.includes(searchLower)) ? 1 : 0;
+
+        const aScore = aFirstStart + aFirstContains + aLastStart + aLastContains + aMrnPhone;
+
+        const bFirstStart = b.first_name?.toLowerCase().startsWith(searchLower) ? 3 : 0;
+        const bFirstContains = b.first_name?.toLowerCase().includes(searchLower) ? 2 : 0;
+        const bLastStart = b.last_name?.toLowerCase().startsWith(searchLower) ? 1 : 0;
+        const bLastContains = b.last_name?.toLowerCase().includes(searchLower) ? 0.5 : 0;
+        const bMrnPhone = (b.mrn?.toLowerCase().includes(searchLower) || b.phone?.includes(searchLower)) ? 1 : 0;
+
+        const bScore = bFirstStart + bFirstContains + bLastStart + bLastContains + bMrnPhone;
+
+        return bScore - aScore; // Higher scores first
+      });
+
+      return results;
     },
     enabled: !!hospital?.id && searchTerm.length >= 2,
   });

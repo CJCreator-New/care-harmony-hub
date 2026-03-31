@@ -11,6 +11,10 @@ import {
   Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ActivityItem {
   id: string;
@@ -49,7 +53,39 @@ const statusIcons = {
   pending: Clock,
 };
 
-export function RecentActivity({ activities = [] }: RecentActivityProps) {
+export function RecentActivity({ activities: propActivities }: RecentActivityProps) {
+  const { hospital } = useAuth();
+  
+  const { data: fetchActivities } = useQuery({
+    queryKey: ['recent-activities', hospital?.id],
+    queryFn: async () => {
+      if (!hospital?.id) return [];
+      const { data } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('hospital_id', hospital.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      if (!data) return [];
+      
+      return data.map((log: any) => ({
+        id: log.id,
+        title: log.action_type?.replace(/_/g, ' ') || 'Activity',
+        description: typeof log.details === 'string' ? log.details : (log.details?.reason || log.details?.notes || log.entity_type || 'System action'),
+        time: formatDistanceToNow(new Date(log.created_at), { addSuffix: true }),
+        type: log.entity_type === 'patients' ? 'patient_registered' : 
+              log.entity_type === 'consultation' ? 'consultation' : 
+              log.entity_type === 'prescription' ? 'prescription' : 
+              log.entity_type === 'lab_order' ? 'lab_order' : 'alert',
+        status: log.severity === 'error' ? 'warning' : 'success'
+      }));
+    },
+    enabled: !!hospital?.id && (!propActivities || propActivities.length === 0)
+  });
+
+  const activities = (propActivities && propActivities.length > 0) ? propActivities : (fetchActivities || []);
+  
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
       <div className="p-4 border-b border-border">

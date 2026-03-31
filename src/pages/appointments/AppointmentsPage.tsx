@@ -32,6 +32,7 @@ import {
   XCircle,
   Loader2,
   AlertTriangle,
+  MoreVertical,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, parseISO } from "date-fns";
@@ -45,7 +46,6 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { APPOINTMENT_COLUMNS } from "@/lib/queryColumns";
 import { ScheduleAppointmentModal } from "@/components/appointments/ScheduleAppointmentModal";
 import { AuditTimeline } from "@/components/audit/AuditTimeline";
-import { ForensicTimeline } from "@/components/audit/ForensicTimeline";
 import { useAmendmentAlerts } from "@/hooks/useAmendmentAlerts";
 import {
   Dialog,
@@ -54,6 +54,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -411,13 +417,6 @@ export default function AppointmentsPage() {
               
               <AuditTimeline recordId={selectedAppointment.id} recordType="appointment" />
               
-              <div className="mt-6 pt-4 border-t">
-                <h4 className="font-semibold mb-4">Complete Audit History</h4>
-                <div className="max-h-96 overflow-y-auto">
-                  <ForensicTimeline recordId={selectedAppointment.id} recordType="appointment" isOpen={true} onClose={() => setShowAuditDialog(false)} />
-                </div>
-              </div>
-              
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowAuditDialog(false)}>
                   Close
@@ -485,7 +484,8 @@ const AppointmentRow = memo(function AppointmentRow({
         )}
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
+        {/* Desktop: Individual buttons */}
+        <div className="hidden sm:flex justify-end gap-2">
           {appointment.status === "scheduled" && (
             <>
               <Button
@@ -522,6 +522,37 @@ const AppointmentRow = memo(function AppointmentRow({
           >
             History
           </Button>
+        </div>
+
+        {/* Mobile: Dropdown menu */}
+        <div className="flex sm:hidden justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {appointment.status === "scheduled" && (
+                <>
+                  <DropdownMenuItem onClick={() => onCheckIn(appointment.id)} disabled={isCheckingIn}>
+                    Check In
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCancel(appointment.id)}>
+                    Cancel
+                  </DropdownMenuItem>
+                </>
+              )}
+              {appointment.status === "checked_in" && (
+                <DropdownMenuItem onClick={() => onMarkNoShow(appointment.id)}>
+                  No Show
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => onViewAudit?.(appointment)}>
+                View History
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </TableCell>
     </TableRow>

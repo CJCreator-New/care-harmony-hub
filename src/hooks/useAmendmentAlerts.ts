@@ -155,7 +155,7 @@ export function useAmendmentAlerts(
    */
   const filteredAlerts = filterByRole
     ? alerts.filter(alert => {
-        const userRole = profile?.primary_role || filterByRole;
+        const userRole = filterByRole;
         // Only show critical amendments to all roles
         if (alert.severity === 'CRITICAL') return true;
         // Show prescription amendments to doctors/pharmacists

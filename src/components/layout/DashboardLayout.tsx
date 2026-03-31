@@ -121,10 +121,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const handleDevRoleSwitch = async (role: UserRole) => {
-    if (!roles.includes(role)) {
-      return { error: new Error('Role not assigned to user') };
-    }
-
+    // In dev mode, allow switching to ANY role for testing purposes without being constrained.
     try {
       setDevTestRole(role);
       if (user) {

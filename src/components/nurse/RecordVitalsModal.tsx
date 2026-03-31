@@ -157,7 +157,7 @@ export function RecordVitalsModal({
   const calculateBMI = () => {
     const weight = parseFloat(vitals.weight);
     const height = parseFloat(vitals.height);
-    if (weight && height) {
+    if (!isNaN(weight) && !isNaN(height) && height > 0 && weight > 0) {
       const heightInMeters = height / 100;
       return (weight / (heightInMeters * heightInMeters)).toFixed(1);
     }
@@ -181,10 +181,14 @@ export function RecordVitalsModal({
     try {
       const bmi = calculateBMI();
       
+      if (!profile?.id) {
+        throw new Error('User profile not loaded. Please log in again.');
+      }
+      
       const { error } = await supabase.from('vital_signs').insert({
         patient_id: selectedPatient.id,
         consultation_id: consultationId || null,
-        recorded_by: profile?.id,
+        recorded_by: profile.id,
         blood_pressure_systolic: vitals.blood_pressure_systolic ? parseInt(vitals.blood_pressure_systolic) : null,
         blood_pressure_diastolic: vitals.blood_pressure_diastolic ? parseInt(vitals.blood_pressure_diastolic) : null,
         heart_rate: vitals.heart_rate ? parseInt(vitals.heart_rate) : null,
@@ -195,24 +199,25 @@ export function RecordVitalsModal({
         height: vitals.height ? parseFloat(vitals.height) : null,
         pain_level: vitals.pain_level ? parseInt(vitals.pain_level) : null,
         bmi: bmi ? parseFloat(bmi) : null,
-        notes: vitals.notes || null,
-        // Additional patient preparation data
-        chief_complaint: vitals.chief_complaint || null,
-        allergies: vitals.allergies || null,
-        current_medications: vitals.current_medications || null,
-        nurse_notes: vitals.nurse_notes || null,
-        // Structured observations
-        patient_anxious: vitals.patient_anxious,
-        language_barrier: vitals.language_barrier,
-        family_present: vitals.family_present,
-        requires_assistance: vitals.requires_assistance,
-        pain_management_needed: vitals.pain_management_needed,
-        mobility_concerns: vitals.mobility_concerns,
-        mark_critical: vitals.mark_critical,
-        requires_followup: vitals.requires_followup,
+          notes: [
+            vitals.notes ? `Notes: ${vitals.notes}` : null,
+            vitals.chief_complaint ? `Chief Complaint: ${vitals.chief_complaint}` : null,
+            vitals.allergies ? `Allergies: ${vitals.allergies}` : null,
+            vitals.current_medications ? `Current Medications: ${vitals.current_medications}` : null,
+            vitals.nurse_notes ? `Nurse Notes: ${vitals.nurse_notes}` : null,
+            vitals.patient_anxious ? `Observation: Patient appears anxious` : null,
+            vitals.language_barrier ? `Observation: Language barrier present` : null,
+            vitals.family_present ? `Observation: Family present` : null,
+            vitals.requires_assistance ? `Observation: Requires assistance` : null,
+            vitals.pain_management_needed ? `Observation: Pain management needed` : null,
+            vitals.mobility_concerns ? `Observation: Mobility concerns` : null,
+            vitals.mark_critical ? `CRITICAL STATUS MARKED` : null,
+            vitals.requires_followup ? `Requires Follow-up` : null,
+          ].filter(Boolean).join('\n') || null,
       });
 
       if (error) {
+        console.error('Supabase insert error:', error);
         const errorMessage = error.message || 'Failed to record vitals';
         throw new Error(errorMessage);
       }
@@ -220,6 +225,7 @@ export function RecordVitalsModal({
       toast.success('Vitals recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['vital-signs'] });
       queryClient.invalidateQueries({ queryKey: ['patients'] });
+      queryClient.invalidateQueries({ queryKey: ['consultations'] });
       
       setVitals({
         blood_pressure_systolic: '',
@@ -250,7 +256,7 @@ export function RecordVitalsModal({
       onOpenChange(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error recording vitals:', error);
+      console.error('Error recording vitals:', errorMessage, error);
       toast.error(`Failed to record vitals: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
@@ -736,4 +742,5 @@ export function RecordVitalsModal({
     </Dialog>
   );
 }
+
 

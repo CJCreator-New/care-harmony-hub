@@ -132,7 +132,7 @@ export function WorkflowDashboard() {
 
       const [prescriptionQueueResult, labQueueResult] = await Promise.all([
         supabase.from('prescription_queue').select('id', { count: 'exact', head: true }).eq('hospital_id', hospital.id),
-        supabase.from('lab_queue').select('id', { count: 'exact', head: true }).eq('hospital_id', hospital.id),
+        supabase.from('lab_orders').select('id', { count: 'exact', head: true }).eq('hospital_id', hospital.id),
       ]);
 
       return {

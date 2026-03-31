@@ -1,4 +1,5 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { AdminProtectedPage } from '@/components/auth/ProtectedPage';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,7 +34,7 @@ const roleColors: Record<string, string> = {
 
 const skeletonRowKeys = ['row-1', 'row-2', 'row-3'];
 
-export default function StaffPerformancePage() {
+function StaffPerformancePageContent() {
   const { data: performance, isLoading } = useStaffPerformance();
 
   // Calculate totals
@@ -245,5 +246,14 @@ export default function StaffPerformancePage() {
         </Card>
       </div>
     </DashboardLayout>
+  );
+}
+
+// Export wrapped with protection layer to prevent unauthorized direct access
+export default function StaffPerformancePage() {
+  return (
+    <AdminProtectedPage label="Staff Performance">
+      <StaffPerformancePageContent />
+    </AdminProtectedPage>
   );
 }

@@ -50,8 +50,8 @@ export function PatientQueue() {
   };
 
   // Check if patient has prep checklist completed
-  const isPatientReady = (patientId: string) => {
-    return checklists.some(c => c.patient_id === patientId && c.ready_for_doctor);
+  const isPatientReady = (patientId: string, status: string) => {
+    return status === 'waiting' && checklists.some(c => c.patient_id === patientId && c.ready_for_doctor);
   };
 
   // Limit to first 5 entries for dashboard view
@@ -99,7 +99,7 @@ export function PatientQueue() {
                     {getInitials(entry.patient?.first_name || '', entry.patient?.last_name || '')}
                   </AvatarFallback>
                 </Avatar>
-                {isPatientReady(entry.patient_id) && (
+                {isPatientReady(entry.patient_id, entry.status) && (
                   <CheckCircle2 className="absolute -bottom-1 -right-1 h-4 w-4 text-success bg-background rounded-full" />
                 )}
               </div>
@@ -118,7 +118,7 @@ export function PatientQueue() {
                   <span>{entry.patient?.mrn}</span>
                   <span>•</span>
                   <span>{entry.department || 'General'}</span>
-                  {isPatientReady(entry.patient_id) && (
+                  {isPatientReady(entry.patient_id, entry.status) && (
                     <>
                       <span>•</span>
                       <span className="text-success font-medium">Ready for Doctor</span>

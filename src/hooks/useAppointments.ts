@@ -163,9 +163,11 @@ export function useCreateAppointment() {
       } catch (error) {
         span.recordException(error as Error);
         captureException(error as Error, {
-          operationType: 'appointment_create',
-          entityType: 'appointment',
-          severity: 'high',
+          context: 'appointment.create',
+          severity: 'error',
+          attributes: {
+            entityType: 'appointment',
+          },
         });
         throw error;
       } finally {
@@ -237,10 +239,12 @@ export function useUpdateAppointment() {
       } catch (error) {
         span.recordException(error as Error);
         captureException(error as Error, {
-          operationType: 'appointment_update',
-          entityType: 'appointment',
-          entityId: id,
-          severity: 'medium',
+          context: 'appointment.update',
+          severity: 'warning',
+          attributes: {
+            entityType: 'appointment',
+            entityId: id,
+          },
         });
         throw error;
       } finally {
@@ -357,10 +361,12 @@ export function useCheckInAppointment() {
       } catch (error) {
         span.recordException(error as Error);
         captureException(error as Error, {
-          operationType: 'appointment_checkin',
-          entityType: 'appointment',
-          entityId: appointmentId,
-          severity: 'high',
+          context: 'appointment.checkin',
+          severity: 'error',
+          attributes: {
+            entityType: 'appointment',
+            entityId: appointmentId,
+          },
         });
         throw error;
       } finally {

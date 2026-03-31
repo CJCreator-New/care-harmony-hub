@@ -70,7 +70,7 @@ function KPIStat({
   icon: React.ElementType;
   variant?: 'default' | 'success' | 'warning' | 'critical';
 }) {
-  const animated = useCountUp(value, { duration: 800 });
+  const animated = useCountUp(value, 800);
 
   const variantClass = {
     default:  'cs-stat-card',

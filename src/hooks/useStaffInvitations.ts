@@ -79,6 +79,29 @@ export function useStaffInvitations() {
         throw new Error('An invitation for this email already exists');
       }
 
+      // Handle E2E Mock Auth where the profile ID doesn't exist in the database
+      const isE2EMockMode = import.meta.env.DEV && 
+        (import.meta.env.VITE_E2E_MOCK_AUTH === 'true' || 
+         (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user')));
+      
+      if (isE2EMockMode) {
+        return {
+          data: {
+            id: 'mock-invitation-id',
+            hospital_id: profile.hospital_id,
+            email: email.toLowerCase(),
+            role,
+            invited_by: profile.id,
+            status: 'pending',
+            token: 'mock-token',
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            created_at: new Date().toISOString(),
+            accepted_at: null
+          },
+          error: null
+        };
+      }
+
       const { data, error: insertError } = await supabase
         .from('staff_invitations')
         .insert({
@@ -213,3 +236,4 @@ export function useStaffInvitations() {
     acceptInvitation,
   };
 }
+

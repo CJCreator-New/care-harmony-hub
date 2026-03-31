@@ -273,7 +273,7 @@ export function safeGet<T>(
  * Require a value; throw error if null or undefined.
  * Prevents silent failures in critical paths.
  */
-export function require<T>(
+export function requireValue<T>(
   value: T | null | undefined,
   message: string
 ): T {

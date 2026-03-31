@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Calendar, Clock, Video, MapPin, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTodayAppointments } from '@/hooks/useAppointments';
 
 interface Appointment {
   id: string;
@@ -26,7 +27,20 @@ const statusStyles = {
 } as const;
 
 export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingAppointmentsProps>(
-  ({ appointments = [] }, ref) => {
+  ({ appointments: propAppointments }, ref) => {
+    const { data: dbAppointments = [], isLoading } = useTodayAppointments();
+
+    const appointments: Appointment[] = propAppointments || dbAppointments.map((apt: any) => ({
+      id: apt.id,
+      patientName: apt.patient?.first_name ? `${apt.patient.first_name} ${apt.patient.last_name}` : 'Unknown Patient',
+      time: apt.scheduled_time?.slice(0, 5) || '12:00',
+      duration: `${apt.duration_minutes || 30} min`,
+      type: apt.appointment_type === 'video' ? 'video' : 'in-person',
+      reason: apt.reason_for_visit || 'General Consultation',
+      status: (apt.status === 'scheduled' || apt.status === 'checked_in') ? 'confirmed' :
+              apt.status === 'cancelled' ? 'cancelled' : 'pending'
+    }));
+
     const getInitials = (name: string) => {
       return name
         .split(' ')

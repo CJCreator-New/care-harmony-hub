@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { PatientQueue } from './PatientQueue';
 import { UpcomingAppointments } from './UpcomingAppointments';
+import { RecentActivity } from './RecentActivity';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +91,7 @@ export function DoctorDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
-              {getGreeting()}, Dr. {profile?.last_name?.trim() || 'Doctor'}!
+              {getGreeting()}, Dr. {profile?.first_name || 'Doctor'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Your patient schedule and consultations for today.

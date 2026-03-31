@@ -59,7 +59,8 @@ export const routeManifest: AppRouteManifestGroup[] = [
       { label: 'Dashboard', href: '/dashboard', icon: Home, allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'], releaseTier: 'tier1', testOwner: 'e2e' },
       { label: 'Patients', href: '/patients', icon: Users, allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist'], requiredPermission: 'patients', releaseTier: 'tier1', testOwner: 'integration' },
       { label: 'Appointments', href: '/appointments', icon: Calendar, allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist'], requiredPermission: 'appointments', releaseTier: 'tier1', testOwner: 'integration' },
-      { label: 'Smart Scheduler', href: '/scheduler', icon: Clock, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'appointments', releaseTier: 'tier2', testOwner: 'e2e' },
+      // Temporarily disabled: feature incomplete (BUG-005)
+        // { label: 'Smart Scheduler', href: '/scheduler', icon: Clock, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'appointments', releaseTier: 'tier2', testOwner: 'e2e' },
       { label: 'Queue Management', href: '/queue', icon: ClipboardList, allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist'], requiredPermission: 'queue:read', releaseTier: 'tier1', testOwner: 'integration' },
     ],
   },
@@ -151,3 +152,4 @@ export const flatRouteManifest = routeManifest.flatMap((group) =>
     group: group.label,
   })),
 );
+

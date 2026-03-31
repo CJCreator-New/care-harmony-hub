@@ -101,11 +101,11 @@ export async function getHealth(): Promise<HealthResponse> {
 export async function getReady(): Promise<ReadyResponse> {
   const startTime = performance.now();
   const timestamp = new Date().toISOString();
-  const checks = {
-    database: 'ok' as const,
-    rls: 'ok' as const,
-    cache: 'ok' as const,
-    auth: 'ok' as const,
+  const checks: ReadyResponse['checks'] = {
+    database: 'ok',
+    rls: 'ok',
+    cache: 'ok',
+    auth: 'ok',
   };
   const warnings: string[] = [];
 

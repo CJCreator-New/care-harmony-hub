@@ -220,9 +220,9 @@ async function staleWhileRevalidate(request: Request, cacheName: string, duratio
  * Handle fetch event with appropriate strategy
  */
 export async function handleFetch(request: Request): Promise<Response> {
-  const { shouldCache, cacheName, duration } = shouldCache(request);
+  const { shouldCache: cacheable, cacheName, duration } = shouldCache(request);
   
-  if (!shouldCache) {
+  if (!cacheable) {
     return fetch(request);
   }
   

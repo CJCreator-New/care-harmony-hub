@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatCurrency as globalFormatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -169,12 +170,7 @@ export default function TreatmentPlanOptimizationEngine() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+    return globalFormatCurrency(amount, 0);
   };
 
   const formatPercentage = (value: number) => {

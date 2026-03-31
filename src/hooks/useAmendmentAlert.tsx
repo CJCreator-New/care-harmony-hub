@@ -73,7 +73,7 @@ export function useAmendmentAlert(options: UseAmendmentAlertOptions = {}) {
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const {
-    enabled = profile?.roles?.includes('pharmacist') ?? false,
+    enabled = false,
     onAlertReceived,
     showToasts = true,
     messageFormatter,

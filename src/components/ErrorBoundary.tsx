@@ -42,9 +42,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Also send to error tracking system
     captureException(error, {
-      operationType: 'react_error_boundary',
-      entityType: 'ui_component',
-      severity: 'critical',
+      context: 'react.error_boundary',
+      severity: 'fatal',
+      attributes: {
+        entityType: 'ui_component',
+      },
     });
 
     // Log error for debugging in development

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
@@ -6,6 +6,8 @@ import { hasAnyAllowedRole, hasPermissionForAnyRole, Permission } from '@/lib/pe
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { getDevTestRole } from '@/utils/devRoleSwitch';
+import { usePermissionAudit } from '@/hooks/usePermissionAudit';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -22,10 +24,12 @@ export function RoleProtectedRoute({
   redirectTo = '/dashboard',
   showUnauthorized = true,
 }: RoleProtectedRouteProps) {
-  const { isAuthenticated, isLoading, roles } = useAuth();
+  const { isAuthenticated, isLoading, roles, primaryRole, user } = useAuth();
   const location = useLocation();
+  const { logPermissionDenial } = usePermissionAudit();
+  const persistedTestRole = getDevTestRole(roles);
 
-  if (isLoading || (isAuthenticated && roles.length === 0)) {
+  if (isLoading || (isAuthenticated && roles.length === 0 && !persistedTestRole)) {
     if (isAuthenticated) {
       return (
         <DashboardLayout>
@@ -52,12 +56,41 @@ export function RoleProtectedRoute({
     return <Navigate to="/hospital/login" state={{ from: location }} replace />;
   }
 
-  const hasRoleAccess = hasAnyAllowedRole(roles, allowedRoles);
+  const effectiveRoles = persistedTestRole ? [persistedTestRole] : (primaryRole ? [primaryRole] : roles);
+
+  const hasRoleAccess = hasAnyAllowedRole(effectiveRoles, allowedRoles);
   const hasRequiredPermission = requiredPermission
-    ? hasPermissionForAnyRole(roles, requiredPermission)
+    ? hasPermissionForAnyRole(effectiveRoles, requiredPermission)
     : true;
 
+  // Debug logging for RBAC enforcement
+  if (import.meta.env.DEV) {
+    const accessLogData = {
+      path: location.pathname,
+      effectiveRoles,
+      allowedRoles,
+      hasRoleAccess,
+      requiredPermission,
+      hasRequiredPermission,
+      granted: hasRoleAccess && hasRequiredPermission,
+    };
+    if (!hasRoleAccess || !hasRequiredPermission) {
+      console.warn('[RBAC] Access Denied:', accessLogData);
+    }
+  }
+
   if (!hasRoleAccess || !hasRequiredPermission) {
+    // Audit log the unauthorized access attempt
+    logPermissionDenial({
+      path: location.pathname,
+      attemptedBy: user?.email || user?.id || null,
+      userRole: primaryRole,
+      allowedRoles,
+      severity: requiredPermission ? 'critical' : 'warning',
+    }).catch(() => {
+      // Silently fail if audit logging fails - don't block the access denial UI
+    });
+
     if (showUnauthorized) {
       return (
         <DashboardLayout>
@@ -83,3 +116,4 @@ export function RoleProtectedRoute({
 
   return <>{children}</>;
 }
+

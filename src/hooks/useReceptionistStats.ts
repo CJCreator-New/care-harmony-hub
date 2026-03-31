@@ -162,7 +162,7 @@ export function useReceptionistStats() {
         const totalWaitMs = completedWithTimes.reduce((sum, q) => {
           const checkIn = new Date(q.check_in_time!).getTime();
           const serviceStart = new Date(q.service_start_time!).getTime();
-          return sum + (serviceStart - checkIn);
+          return sum + Math.max(0, serviceStart - checkIn);
         }, 0);
         avgWaitTime = Math.round(totalWaitMs / completedWithTimes.length / 60000); // minutes
       }

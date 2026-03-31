@@ -105,11 +105,15 @@ export function useClinicalMetrics() {
         }, 'error');
 
         captureException(error instanceof Error ? error : new Error(String(error)), {
-          'workflow.type': options.workflowType,
-          'operation.name': options.operationName,
-          'correlation.id': correlationId,
-          'hospital.id': hospital?.id,
-          ...options.attributes,
+          context: options.operationName,
+          severity: 'error',
+          attributes: {
+            workflowType: options.workflowType,
+            operationName: options.operationName,
+            correlationId,
+            hospitalId: hospital?.id,
+            ...options.attributes,
+          },
         });
 
         throw error;
@@ -156,17 +160,21 @@ export function useClinicalMetrics() {
       const errorObj = typeof error === 'string' ? new Error(error) : error;
       
       captureException(errorObj, {
-        'hospital.id': hospital?.id,
-        'user.role': primaryRole,
-        'correlation.id': getCorrelationId(hospital?.id),
-        ...context,
+        context: 'clinical.metrics.recordError',
+        severity: 'error',
+        attributes: {
+          hospitalId: hospital?.id,
+          userRole: primaryRole,
+          correlationId: getCorrelationId(hospital?.id),
+          ...context,
+        },
       });
 
       logClinicalEvent('error.recorded', {
         error: errorObj.message,
         level,
         ...context,
-      }, level);
+      }, level === 'warning' ? 'warn' : 'error');
     },
     [hospital?.id, primaryRole]
   );
@@ -216,7 +224,7 @@ export function useTimedOperation() {
         return await recordOperation(
           {
             operationName,
-            workflowType: 'unknown',
+            workflowType: 'consultation',
           },
           fn
         );

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCallback } from 'react';
@@ -270,8 +270,7 @@ export function useAuditAnomalies(hoursSince: number = 24) {
  *   await refetch(); // reload after amendment submitted
  */
 export function useRefreshAmendmentChain() {
-  const queryClient = require('@tanstack/react-query').useQueryClient;
-  const qc = queryClient();
+  const qc = useQueryClient();
 
   const refreshPrescriptionChain = useCallback(
     (prescriptionId: string) => {
@@ -302,3 +301,5 @@ export function useRefreshAmendmentChain() {
 
   return { refreshPrescriptionChain, refreshInvoiceTrail, refreshLabHistory };
 }
+
+

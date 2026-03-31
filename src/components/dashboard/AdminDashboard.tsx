@@ -45,7 +45,7 @@ export function AdminDashboardComponent() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="font-display font-normal text-2xl md:text-3xl leading-tight">
-              {greeting}, {profile?.first_name?.trim() || 'Admin'}!
+              {greeting}, {profile?.first_name?.split("'")[0]?.trim() || 'Admin'}!
             </h1>
             <p className="text-muted-foreground mt-1">
               Hospital overview and management dashboard.

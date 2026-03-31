@@ -347,7 +347,6 @@ export function TestingProvider({ children }: TestingProviderProps) {
               id: 'auth-workflow-tests',
               name: 'User Registration & Authentication Tests',
               category: 'Security & Compliance',
-              description: 'Complete test suite for user registration, login, password reset, and role-based access control' as any,
               code: `from playwright.sync_api import sync_playwright, expect
 import pytest
 import time
@@ -427,7 +426,6 @@ if __name__ == "__main__":
               id: 'doctor-workflow-tests',
               name: 'Doctor Workflow Tests',
               category: 'Care Coordination',
-              description: 'Complete doctor workflow including consultations, prescriptions, lab orders, and appointment management',
               code: `from playwright.sync_api import sync_playwright, expect
 import pytest
 import time
@@ -533,7 +531,6 @@ if __name__ == "__main__":
               id: 'nurse-workflow-tests',
               name: 'Nurse Workflow Tests',
               category: 'Care Coordination',
-              description: 'Complete nurse workflow including vital signs, medication administration, patient assessment, and emergency response',
               code: `from playwright.sync_api import sync_playwright, expect
 import pytest
 import time
@@ -634,7 +631,6 @@ if __name__ == "__main__":
               id: 'pharmacy-workflow-tests',
               name: 'Pharmacy Workflow Tests',
               category: 'Pharmacy Operations',
-              description: 'Complete pharmacy workflow including prescription processing, dispensing, inventory management, and drug interactions',
               code: `from playwright.sync_api import sync_playwright, expect
 import pytest
 import time
@@ -725,7 +721,7 @@ if __name__ == "__main__":
               lastRun: null,
               executionCount: 0,
             },
-          ];
+          ] as any;
 
           // Merge existing scripts with defaults (ensure pre-built scripts are always available)
           const mergedScripts = [...existingScripts];

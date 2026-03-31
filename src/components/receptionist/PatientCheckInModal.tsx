@@ -127,9 +127,25 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
     );
     if (appointments.length === 1) {
       setSelectedAppointment(appointments[0]);
+      setIsWalkIn(false);
+    } else if (appointments.length === 0) {
+      // Auto-enable walk-in for patients with no scheduled appointment.
+      setIsWalkIn(true);
     }
     setStep('verify');
   };
+
+  useEffect(() => {
+    if (!selectedPatient) return;
+
+    const hasScheduledAppointment = todayAppointments.some(
+      (apt) => apt.patient_id === selectedPatient.id && apt.status === 'scheduled'
+    );
+
+    if (!hasScheduledAppointment) {
+      setIsWalkIn(true);
+    }
+  }, [selectedPatient, todayAppointments]);
 
   const handleVerifyIdentity = () => {
     if (!identityVerified) {
@@ -162,8 +178,14 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         });
         setCompletedQueueNumber(queueNumber);
       } else {
-        toast.error('No appointment selected. Mark as walk-in to continue.');
-        return;
+        // Safety fallback: if no appointment is available, continue as walk-in.
+        setIsWalkIn(true);
+        const queueNumber = await checkIn({
+          patient: selectedPatient,
+          priority,
+          isWalkIn: true,
+        });
+        setCompletedQueueNumber(queueNumber);
       }
       setStep('complete');
     } catch (error) {
@@ -443,7 +465,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="copayAmount">Co-Pay Amount ($)</Label>
+              <Label htmlFor="copayAmount">Co-Pay Amount ({CURRENCY_SYMBOL})</Label>
               <Input
                 id="copayAmount"
                 type="number"
@@ -460,7 +482,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                 onCheckedChange={(checked) => setCopayCollected(checked as boolean)}
               />
               <Label htmlFor="copayCollected" className="text-sm">
-                {copayAmount ? `Co-pay of $${copayAmount} collected` : 'No co-pay required / Skip'}
+                {copayAmount ? `Co-pay of ${CURRENCY_SYMBOL}${copayAmount} collected` : 'No co-pay required / Skip'}
               </Label>
             </div>
           </div>

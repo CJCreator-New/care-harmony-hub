@@ -13,6 +13,7 @@ interface PaginatedQueryOptions {
   orderBy?: { column: string; ascending?: boolean };
   pageSize?: number;
   debounceMs?: number;
+  enabled?: boolean;
 }
 
 export function usePaginatedQuery({
@@ -24,16 +25,18 @@ export function usePaginatedQuery({
   orderBy = { column: 'created_at', ascending: false },
   pageSize = 50,
   debounceMs = 300,
+  enabled = true,
 }: PaginatedQueryOptions) {
   const [currentPage, setCurrentPage] = useState(0);
   const debouncedSearch = useDebouncedValue(searchQuery || '', debounceMs);
 
   const { data, isLoading, error } = useQuery({
     queryKey: [table, 'paginated', currentPage, filters, debouncedSearch, orderBy],
+    enabled,
     queryFn: async () => {
       let query = supabase
         .from(table)
-        .select(select, { count: 'exact' })
+        .select(select, { count: 'estimated' })
         .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1)
         .order(orderBy.column, { ascending: orderBy.ascending });
 
@@ -68,6 +71,7 @@ export function usePaginatedQuery({
       const { data, error, count } = await query;
 
       if (error) {
+          console.error('USEPAGINATEDQUERY ERROR:', error);
         // Gracefully handle missing relations (PGRST204) or other common missing schema errors
         if (error.code === 'PGRST204' || error.code === '42P01') {
           console.warn(`Table "${table}" not found in Supabase. Returning empty mock result.`);
@@ -112,3 +116,5 @@ export function usePaginatedQuery({
     resetPage: () => setCurrentPage(0),
   };
 }
+
+

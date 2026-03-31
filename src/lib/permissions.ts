@@ -24,14 +24,15 @@ const PERMISSION_ALIASES: Record<string, Permission> = {
   'staff:invite': 'staff-management',
   'settings:read': 'settings',
   'settings:write': 'settings',
-  'hospital:settings': 'settings',
-  'reports:generate': 'reports:write',
+  'hospital:settings': 'hospital:settings',
+  'reports:generate': 'reports',
+  'reports:write': 'reports',
   'workflow:read': 'workflow-dashboard',
   'workflow:manage': 'workflow-dashboard',
   'activity_logs:read': 'activity-logs',
   'portal:access': 'portal',
   'audit:logs': 'activity-logs',
-  'compliance:reports': 'reports:read',
+  'compliance:reports': 'compliance-reports',
 };
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -39,7 +40,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   doctor: [
     'patients',
     'patients:read',
-    'patients:write',
     'appointments',
     'appointments:read',
     'consultations',
@@ -56,9 +56,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'telemedicine:write',
     'queue:read',
     'vitals:read',
-    'reports:read',
-    'settings',
-    'ai-demo',
+            'ai-demo',
     'differential-diagnosis',
     'treatment-recommendations',
     'treatment-plan-optimization',
@@ -235,3 +233,4 @@ export function getAccessibleRoutes(role: UserRole | string | undefined): string
 
   return routes;
 }
+

@@ -84,7 +84,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
   const hasAccessToItem = (item: AppRouteManifestItem) => {
     return hasAnyAllowedRole(resolvedRoles, item.allowedRoles) &&
       (!item.requiredPermission || hasPermissionForAnyRole(resolvedRoles, item.requiredPermission)) &&
-      (!item.featureFlag || (!flagsLoading && isEnabled(item.featureFlag)));
+      (!item.featureFlag || (!flagsLoading && isEnabled(item.featureFlag as any)));
   };
 
   const allNavHrefs = routeManifest.flatMap(g => g.items.map(i => i.href));

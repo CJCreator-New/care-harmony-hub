@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,26 +7,38 @@ import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
-import type { PostgrestError } from '@supabase/supabase-js';
 
 export type LabOrder = Tables<'lab_orders'>;
 export type LabOrderInsert = TablesInsert<'lab_orders'>;
 export type LabOrderUpdate = TablesUpdate<'lab_orders'>;
 
-const isMissingLabQueueSchemaError = (error: PostgrestError | null) => {
-  if (!error) return false;
-
-  const message = error.message || '';
-  return (
-    /relation ["']?public\.lab_queue["']? does not exist/i.test(message) ||
-    /relation ["']?lab_queue["']? does not exist/i.test(message) ||
-    /column .* of relation ["']?lab_queue["']? does not exist/i.test(message) ||
-    /could not find the '([a-zA-Z0-9_]+)' column of 'lab_queue' in the schema cache/i.test(message)
-  );
-};
-
 export function useLabOrders(status?: string) {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!profile?.hospital_id) return;
+
+    const channel = supabase
+      .channel(`lab-orders-${profile.hospital_id}-${status || 'all'}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'lab_orders',
+          filter: `hospital_id=eq.${profile.hospital_id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.hospital_id, status, queryClient]);
 
   return useQuery({
     queryKey: ['lab-orders', profile?.hospital_id, status],
@@ -138,59 +151,13 @@ export function useCreateLabOrder() {
         },
         async () => {
           const { data, error } = await supabase
-        .from('lab_orders')
-        .insert([order])
-        .select()
-        .single();
+            .from('lab_orders')
+            .insert([order])
+            .select()
+            .single();
 
-      if (error) throw error;
-      // Create durable lab queue entry for processing/collection
-      const { error: queueError } = await supabase
-        .from('lab_queue')
-        .insert({
-          hospital_id: data.hospital_id,
-          lab_order_id: data.id,
-          patient_id: data.patient_id,
-          status: 'pending',
-          priority: order.priority || 'normal',
-          metadata: { test_name: data.test_name }
-        });
-
-      if (queueError) {
-        if (!isMissingLabQueueSchemaError(queueError)) {
-          throw queueError;
-        }
-
-        const { error: fallbackTaskError } = await supabase
-          .from('workflow_tasks')
-          .insert({
-            hospital_id: data.hospital_id,
-            patient_id: data.patient_id,
-            title: `Manual lab queue follow-up: ${data.test_name}`,
-            description: 'lab_queue was unavailable when this lab order was created. Review and route manually.',
-            assigned_to: order.ordered_by ?? null,
-            priority: 'high',
-            status: 'pending',
-            workflow_type: 'lab_order',
-            metadata: {
-              degraded_queue: 'lab_queue',
-              lab_order_id: data.id,
-              test_name: data.test_name,
-              original_error: queueError.message,
-            },
-          });
-
-        if (fallbackTaskError) {
-          throw fallbackTaskError;
-        }
-
-        console.warn('lab_queue unavailable; lab order created without durable queue entry', {
-          labOrderId: data.id,
-          error: queueError.message,
-        });
-      }
-
-      return data;
+          if (error) throw error;
+          return data;
         }
       );
     },

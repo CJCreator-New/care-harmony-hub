@@ -246,7 +246,7 @@ export class DataMaskingService {
     },
     {
       field: 'phone',
-      pattern: /[\+\d][\d\s\-\.\(\)]{3,}/,
+      pattern: /[+\d][\d\s\-()]{3,}/,
       maskFunction: (value: string) => value.replace(/\d{3}$/, 'XXX')
     }
   ];

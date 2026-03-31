@@ -237,7 +237,7 @@ describe('Request Validator', () => {
 
   it('should validate phone number', () => {
     const phone = '+1-555-123-4567';
-    const isValid = /^[\d\s\-\+\(\)]{10,}$/.test(phone);
+    const isValid = /^[\d\s+()-]{10,}$/.test(phone);
     expect(isValid).toBe(true);
   });
 });

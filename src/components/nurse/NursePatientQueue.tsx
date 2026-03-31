@@ -26,7 +26,7 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   // Fetch patients in queue assigned to nurses
-  const { data: queuePatients, isLoading, refetch } = useQuery({
+  const { data: queuePatients = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ['nurse-queue', hospital?.id],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +48,7 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
   });
 
   // Fetch prep status for patients
-  const { data: prepStatuses } = useQuery({
+  const { data: prepStatuses = [] } = useQuery<any[]>({
     queryKey: ['prep-statuses', hospital?.id],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,14 +64,18 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
     refetchInterval: 10000
   });
 
-  const filteredPatients = queuePatients?.filter(entry =>
-    entry.patient?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.patient?.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.patient?.mrn.toLowerCase().includes(searchTerm.toLowerCase())
+  const uniqueQueuePatients = Array.from(
+    new Map(queuePatients.map((item: any) => [item.patient_id, item])).values()
+  );
+
+  const filteredPatients = uniqueQueuePatients.filter((entry: any) =>
+    entry.patient?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    entry.patient?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    entry.patient?.mrn?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getDisplayQueueNumber = (entry: any, index: number) => {
-    const duplicates = (queuePatients || []).filter((item) => item.queue_number === entry.queue_number).length;
+    const duplicates = queuePatients.filter((item: any) => item.queue_number === entry.queue_number).length;
     return duplicates > 1 ? index + 1 : entry.queue_number;
   };
 
@@ -90,7 +94,7 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
     score += priorityWeights[entry.priority] || 0;
 
     // Wait time factor (longer wait = higher priority)
-    const waitTimeMinutes = differenceInMinutes(new Date(), new Date(entry.check_in_time));
+    const waitTimeMinutes = getSafeWaitMinutes(entry);
     score += Math.min(waitTimeMinutes * 0.5, 30); // Cap at 30 points
 
     // Age factor (elderly patients get slight boost)
@@ -113,14 +117,14 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
   };
 
   // Sort patients by predictive priority
-  const prioritizedPatients = filteredPatients?.sort((a, b) => {
+  const prioritizedPatients = [...filteredPatients].sort((a: any, b: any) => {
     const scoreA = calculatePriorityScore(a);
     const scoreB = calculatePriorityScore(b);
     return scoreB - scoreA; // Higher score = higher priority
   });
 
   const isPrepCompleted = (queueId: string) => {
-    return prepStatuses?.some(status => status.queue_entry_id === queueId);
+    return prepStatuses.some((status: any) => status.queue_entry_id === queueId);
   };
 
   const getStatusBadge = (entry: any) => {

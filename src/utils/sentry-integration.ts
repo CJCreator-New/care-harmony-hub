@@ -56,7 +56,7 @@ export function initializeSentry(
       // Event filtering and sanitization
       beforeSend(event, hint) {
         // Sanitize all data before sending
-        const sanitized = sanitizeEvent(event);
+        const sanitized = sanitizeEvent(event as Sentry.ErrorEvent);
 
         // Filter out low-severity events in production
         if (
@@ -83,8 +83,8 @@ export function initializeSentry(
       beforeSendTransaction(transaction) {
         // Filter out very fast transactions
         const duration =
-          (transaction.endTimestamp || transaction.timestamp || 0) -
-          (transaction.startTimestamp || transaction.start_timestamp || 0);
+          (transaction.timestamp || 0) -
+          (transaction.start_timestamp || 0);
 
         if (duration < 0.1) {
           return null; // Skip sub-100ms transactions
@@ -256,7 +256,7 @@ export function clearUserContext(): void {
  * Sanitize event to remove any PHI
  * @internal
  */
-function sanitizeEvent(event: Sentry.Event): Sentry.Event {
+function sanitizeEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
   if (event.message) {
     event.message = sanitizeString(event.message);
   }
@@ -317,7 +317,7 @@ function sanitizeString(value: string): string {
   sanitized = sanitized.replace(/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[REDACTED]');
 
   // Email addresses
-  sanitized = sanitized.replace(/[\w\.-]+@[\w\.-]+\.\w+/g, '[REDACTED]');
+  sanitized = sanitized.replace(/[\w.-]+@[\w.-]+\.\w+/g, '[REDACTED]');
 
   // Medical terms in patient context
   if (sanitized.match(/diagnosis|symptom|medication|drug|allergy/i)) {

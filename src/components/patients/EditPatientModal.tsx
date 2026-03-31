@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,11 @@ interface EditPatientModalProps {
 }
 
 export function EditPatientModal({ open, onOpenChange, patient }: EditPatientModalProps) {
+  const { primaryRole } = useAuth();
   const updatePatient = useUpdatePatient();
+
+  // Only admin and receptionist can edit patient demographics
+  const canEditDemographics = primaryRole === 'admin' || primaryRole === 'receptionist';
 
   const form = useForm<EditPatientFormData>({
     resolver: zodResolver(editPatientSchema),
@@ -140,7 +145,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -153,7 +158,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -169,7 +174,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -182,7 +187,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -197,7 +202,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} disabled={!canEditDemographics} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -212,7 +217,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -225,7 +230,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>State</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -238,7 +243,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>ZIP</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -254,7 +259,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>Insurance Provider</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -267,7 +272,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                   <FormItem>
                     <FormLabel>Policy Number</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!canEditDemographics} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

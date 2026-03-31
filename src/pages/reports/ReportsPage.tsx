@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CURRENCY_SYMBOL } from '@/lib/currency';
+import { CURRENCY_SYMBOL, formatCurrency as globalFormatCurrency } from '@/lib/currency';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -124,10 +124,7 @@ export default function ReportsPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    return globalFormatCurrency(amount);
   };
 
   const chartData = dailyData?.map((day) => ({

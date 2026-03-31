@@ -16,6 +16,7 @@ interface AnalysisRequest {
 
 interface AnalysisResponse {
   type: 'result' | 'error';
+  requestId: string;
   data?: SecurityAlert[];
   error?: string;
 }
@@ -121,7 +122,7 @@ class SecurityWorkerManager {
   /**
    * Handle messages from the worker
    */
-  private handleMessage(response: AnalysisResponse & { requestId: string }): void {
+  private handleMessage(response: AnalysisResponse): void {
     const { requestId, type, data, error } = response;
     const pending = this.pendingRequests.get(requestId);
 

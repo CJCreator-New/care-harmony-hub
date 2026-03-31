@@ -228,6 +228,20 @@ export function useCompleteService() {
 
   return useMutation({
     mutationFn: async (queueEntryId: string) => {
+      // Find appointment to mark it complete
+      const { data: queueEntry } = await supabase
+        .from('patient_queue')
+        .select('appointment_id')
+        .eq('id', queueEntryId)
+        .single();
+        
+      if (queueEntry?.appointment_id) {
+        await supabase
+          .from('appointments')
+          .update({ status: 'completed' })
+          .eq('id', queueEntry.appointment_id);
+      }
+
       return updateQueue.mutateAsync({
         id: queueEntryId,
         status: 'completed' as QueueStatus,

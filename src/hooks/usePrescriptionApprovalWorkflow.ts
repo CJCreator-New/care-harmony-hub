@@ -11,7 +11,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
-import { logActivity } from '@/utils/auditLogger';
 import { toast } from 'sonner';
 
 interface WorkflowState {
@@ -152,8 +151,8 @@ export function usePrescriptionApprovalWorkflow(workflowId?: string) {
         // Log activity
         await recordActivity({
           actionType: `prescription_approval_${action}`,
-          resourceType: 'prescription_approval_workflow',
-          resourceId: workflowId,
+          entityType: 'prescription_approval_workflow',
+          entityId: workflowId,
           details: {
             status: updatedWorkflow.status,
             step: updatedWorkflow.current_step,

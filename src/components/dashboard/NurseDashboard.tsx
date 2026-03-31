@@ -43,8 +43,13 @@ export function NurseDashboard() {
   const { checklists = [] } = usePatientChecklists();
 
   // Count ALL active queue entries (waiting, called, in_service) for the KPI
-  const waitingPatients = activeQueue || [];
-  const readyForDoctor = checklists.filter(c => c.ready_for_doctor).length;
+  const waitingPatients = activeQueue || [];  const patientsInPrepCount = waitingPatients.filter(q => {
+    const checklist = checklists.find(c => c.patient_id === q.patient_id);
+    return !checklist?.ready_for_doctor && !checklist?.vitals_completed;
+  }).length;  const readyForDoctor = waitingPatients.filter(q => 
+    (q.status === 'waiting' || q.status === 'called') && 
+    checklists.some(c => c.patient_id === q.patient_id && c.ready_for_doctor)
+  ).length;
 
   return (
     <DashboardPageTransition className="space-y-8">
@@ -139,9 +144,9 @@ export function NurseDashboard() {
           <TabsTrigger value="prep-station" className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4" />
             Prep Station
-            {waitingPatients.length > 0 && (
+            {patientsInPrepCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                {waitingPatients.length}
+                {patientsInPrepCount}
               </Badge>
             )}
           </TabsTrigger>

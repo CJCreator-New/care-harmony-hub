@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SettingsProtectedPage } from '@/components/auth/ProtectedPage';
 import { 
   Building2, 
   Phone, 
@@ -50,7 +51,8 @@ const defaultSettings: HospitalSettings = {
   appointmentDuration: 30,
 };
 
-export default function HospitalSettingsPage() {
+// Internal component - wrapped with ProtectedPage for admin-only access
+function HospitalSettingsPageContent() {
   const { hospital } = useAuth();
   const { logActivity } = useActivityLog();
   const { toast } = useToast();
@@ -434,5 +436,14 @@ export default function HospitalSettingsPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+// Export wrapped with protection layer to prevent unauthorized direct access
+export default function HospitalSettingsPage() {
+  return (
+    <SettingsProtectedPage label="Hospital Settings">
+      <HospitalSettingsPageContent />
+    </SettingsProtectedPage>
   );
 }

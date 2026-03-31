@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -546,77 +547,61 @@ export const usePatientChecklists = (hospitalId?: string) => {
 
 // Shift Handover Hooks
 export const useCreateHandover = () => {
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  const mutateAsync = async (data: Partial<ShiftHandover>) => {
-    setLoading(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (data: Partial<ShiftHandover>) => {
       const { data: result, error } = await supabase
         .from('shift_handovers')
         .insert(data)
         .select()
         .single();
-
       if (error) throw error;
       return result;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-handovers'] });
+    },
+  });
 
   return {
-    mutateAsync,
-    isPending: loading
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending
   };
 };
 
 export const usePendingHandovers = (nurseId?: string) => {
-  const [handovers, setHandovers] = useState<ShiftHandover[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadHandovers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase
+  const query = useQuery({
+    queryKey: ['pending-handovers', nurseId],
+    queryFn: async () => {
+      let q = supabase
         .from('shift_handovers')
         .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
-
       if (nurseId) {
-        query = query.eq('incoming_nurse_id', nurseId);
+        q = q.eq('incoming_nurse_id', nurseId);
       }
-
-      const { data, error } = await query;
+      const { data, error } = await q;
       if (error) throw error;
-      setHandovers(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load handovers');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadHandovers();
-  }, [nurseId]);
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
 
   return {
-    handovers,
-    loading,
-    error,
-    refetch: loadHandovers
+    handovers: query.data || [],
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch
   };
 };
 
 export const useAcknowledgeHandover = () => {
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  const mutateAsync = async (handoverId: string) => {
-    setLoading(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async (handoverId: string) => {
       const { data, error } = await supabase
         .from('shift_handovers')
         .update({
@@ -626,17 +611,17 @@ export const useAcknowledgeHandover = () => {
         .eq('id', handoverId)
         .select()
         .single();
-
       if (error) throw error;
       return data;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-handovers'] });
+    },
+  });
 
   return {
-    mutateAsync,
-    isPending: loading
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending
   };
 };
 

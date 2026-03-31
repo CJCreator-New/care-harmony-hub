@@ -23,9 +23,9 @@ export const CONSULTATION_COLUMNS = {
 };
 
 export const LAB_ORDER_COLUMNS = {
-  list: 'id, order_number, test_name, status, priority, ordered_at, patient_id, ordered_by',
-  detail: 'id, order_number, test_name, status, priority, ordered_at, completed_at, results, notes, patient_id, ordered_by, completed_by',
-  pending: 'id, order_number, test_name, priority, ordered_at, patient_id',
+  list: 'id, test_name, status, priority, ordered_at, patient_id, ordered_by',
+  detail: 'id, test_name, status, priority, ordered_at, completed_at, results, patient_id, ordered_by, processed_by',
+  pending: 'id, test_name, priority, ordered_at, patient_id',
 };
 
 export const MEDICATION_COLUMNS = {

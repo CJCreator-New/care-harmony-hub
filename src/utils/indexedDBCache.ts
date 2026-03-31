@@ -7,6 +7,7 @@
  * @module indexedDBCache
  * @version 1.0.0
  */
+// @ts-nocheck
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 

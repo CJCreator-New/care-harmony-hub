@@ -365,7 +365,7 @@ export class DataValidationService {
   private isValidPhone(phone: string): boolean {
     // Basic phone validation - adjust based on your requirements
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+    return phoneRegex.test(phone.replace(/[\s\-()]/g, ''));
   }
 
   private isValidDate(date: string): boolean {

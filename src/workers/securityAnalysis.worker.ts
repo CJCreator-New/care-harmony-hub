@@ -80,7 +80,7 @@ function generateAlertId(): string {
 /**
  * Analyze security logs for threats
  */
-function analyzeLogs(logs: Array<Record<string, unknown>>, timeRange: { start: Date; end: Date }): SecurityAlert[] {
+function analyzeLogs(logs: Array<any>, timeRange: { start: Date; end: Date }): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   // Group logs by user
@@ -214,7 +214,7 @@ function analyzeLogs(logs: Array<Record<string, unknown>>, timeRange: { start: D
 /**
  * Detect anomalies in user behavior
  */
-function detectAnomalies(userData: Array<Record<string, unknown>>): SecurityAlert[] {
+function detectAnomalies(userData: Array<any>): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   // Calculate baseline statistics
@@ -267,7 +267,7 @@ function detectAnomalies(userData: Array<Record<string, unknown>>): SecurityAler
 /**
  * Calculate user statistics for baseline
  */
-function calculateUserStats(logs: Array<Record<string, unknown>>): {
+function calculateUserStats(logs: Array<any>): {
   avgRequestsPerDay: number;
   commonActions: string[];
   typicalHours: number[];
@@ -314,7 +314,7 @@ function calculateUserStats(logs: Array<Record<string, unknown>>): {
 /**
  * Check for specific security patterns
  */
-function checkPatterns(logs: Array<Record<string, unknown>>, patterns: string[]): SecurityAlert[] {
+function checkPatterns(logs: Array<any>, patterns: string[]): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   patterns.forEach(pattern => {
@@ -354,15 +354,15 @@ self.onmessage = (event: MessageEvent<SecurityAnalysisRequest>) => {
     
     switch (type) {
       case 'analyzeLogs':
-        result = analyzeLogs(data.logs, data.timeRange);
+        result = analyzeLogs(data.logs as any[], data.timeRange as { start: Date; end: Date });
         break;
         
       case 'detectAnomalies':
-        result = detectAnomalies(data.userData);
+        result = detectAnomalies(data.userData as any[]);
         break;
         
       case 'checkPatterns':
-        result = checkPatterns(data.logs, data.patterns);
+        result = checkPatterns(data.logs as any[], data.patterns as string[]);
         break;
         
       default:

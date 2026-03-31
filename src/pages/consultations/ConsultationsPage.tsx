@@ -248,7 +248,7 @@ export default function ConsultationsPage() {
                           size="sm"
                           onClick={() => navigate(`/consultations/${consultation.id}`)}
                         >
-                          Continue
+                          {consultation.status === 'completed' ? 'View' : 'Continue'}
                         </Button>
                       </TableCell>
                     </TableRow>

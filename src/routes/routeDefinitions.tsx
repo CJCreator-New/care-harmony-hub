@@ -6,6 +6,7 @@ import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import type { Permission } from '@/lib/permissions';
 import type { UserRole } from '@/types/auth';
+import { getDevTestRole } from '@/utils/devRoleSwitch';
 
 const LandingPage = lazy(() => import('../pages/hospital/LandingPage'));
 const LoginPage = lazy(() => import('../pages/hospital/LoginPage'));
@@ -79,6 +80,8 @@ export type RouteDefinition = {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles, pendingRoleSelection } = useAuth();
+  const persistedTestRole = getDevTestRole(roles);
+  const effectiveRoleCount = persistedTestRole ? 1 : roles.length;
 
   if (isLoading) {
     if (isAuthenticated) {
@@ -108,8 +111,31 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const needsSetup = !profile || !hospital || roles.length === 0;
+  const needsSetup = !profile || !hospital;
   if (needsSetup) return <Navigate to="/hospital/account-setup" replace />;
+
+  if (effectiveRoleCount === 0) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+          <div className="bg-destructive/10 text-destructive p-3 rounded-full mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <path d="M12 9v4"/>
+              <path d="M12 17h.01"/>
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-2">No Active Roles</h2>
+          <p className="text-muted-foreground mb-4 max-w-md">
+            You don't have any roles assigned yet, or your role is unknown. 
+            <br />
+            Please use the Test Mode indicator to switch roles, or contact your administrator.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (pendingRoleSelection) return <Navigate to="/hospital/select-role" replace />;
 
   return <>{children}</>;
@@ -241,7 +267,7 @@ export const protectedRoutes: RouteDefinition[] = [
   { path: '/laboratory/automation', element: withRoleAccess(<LabAutomationPage />, ['admin', 'lab_technician']) },
   { path: '/billing', element: withRoleAccess(<BillingPage />, ['admin', 'receptionist'], 'billing:read') },
   { path: '/inventory', element: withRoleAccess(<InventoryPage />, ['admin', 'pharmacist'], 'inventory:read') },
-  { path: '/reports', element: withRoleAccess(<ReportsPage />, ['admin', 'doctor'], 'reports') },
+  { path: '/reports', element: withRoleAccess(<ReportsPage />, ['admin'], 'reports') },
   { path: '/patient/appointments', element: withRoleAccess(<PatientAppointmentsPage />, ['patient'], 'appointments:read') },
   { path: '/patient/prescriptions', element: withRoleAccess(<PatientPrescriptionsPage />, ['patient'], 'prescriptions:read') },
   { path: '/patient/lab-results', element: withRoleAccess(<PatientLabResultsPage />, ['patient'], 'lab:read') },
@@ -266,6 +292,7 @@ export const protectedRoutes: RouteDefinition[] = [
   { path: '/suppliers', element: withRoleAccess(<SuppliersPage />, ['admin', 'pharmacist']) },
   { path: '/scheduling', element: withRoleAccess(<SchedulingPage />, ['admin', 'doctor', 'receptionist']) },
   { path: '/documents', element: withRoleAccess(<DocumentsPage />, ['admin', 'doctor', 'nurse', 'receptionist']) },
+  { path: '/scheduler', element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']) },
   { path: '/receptionist/smart-scheduler', element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']) },
   { path: '/nurse/protocols', element: withRoleAccess(<NurseCareProtocolsPage />, ['admin', 'nurse']) },
   { path: '/integration/workflow', element: withRoleAccess(<WorkflowDashboard />, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'], 'workflow-dashboard') },

@@ -189,7 +189,7 @@ class PasswordPolicyManager {
     }
 
     // Ensure at least one of each type by replacing characters if needed
-    const charTypes = [/[A-Z]/, /[a-z]/, /[0-9]/, /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?]/];
+    const charTypes = [/[A-Z]/, /[a-z]/, /[0-9]/, /[!@#$%^&*()_+\-=[\]{}|;:'"<>?.,]/];
     const typeChars = [uppercase, lowercase, numbers, symbols];
     
     // Replace first 4 characters with one from each type

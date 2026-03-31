@@ -29,14 +29,7 @@
 import * as Sentry from '@sentry/react';
 import { getCorrelationId } from './correlationId';
 
-// Conditionally import BrowserTracing if available
-let BrowserTracing: any = null;
-try {
-  const sentryTracing = require('@sentry/tracing');
-  BrowserTracing = sentryTracing.BrowserTracing;
-} catch (e) {
-  // @sentry/tracing not available - that's ok, it's optional
-}
+const BrowserTracing = null;
 
 export type ErrorSeverity = 'fatal' | 'error' | 'warning' | 'info' | 'debug';
 
@@ -73,8 +66,8 @@ export function initErrorTracking(
   } = {}
 ): void {
   const {
-    dsn = process.env.VITE_SENTRY_DSN,
-    environment = (process.env.VITE_ENV as any) || 'development',
+    dsn = import.meta.env.VITE_SENTRY_DSN,
+    environment = (import.meta.env.VITE_ENV as any) || 'development',
     tracesSampleRate = environment === 'production' ? 0.1 : 1.0,
     debug = environment === 'development',
   } = options;
@@ -103,7 +96,7 @@ export function initErrorTracking(
 
     // Sanitize data before sending
     beforeSend(event, hint) {
-      return sanitizeEvent(event, hint);
+      return sanitizeEvent(event as Sentry.ErrorEvent, hint);
     },
 
     // Sanitize breadcrumbs (request logs)
@@ -132,19 +125,20 @@ export function initErrorTracking(
       'Plugin error',
       'Cannot read property',
     ],
-
-    // Report only errors and warn level by default
-    logLevel: debug ? 'debug' : 'error',
   });
 
   // Set up error handler for uncaught exceptions
   window.addEventListener('error', (event) => {
     // Skip if already captured by Sentry
-    if (event.error && event.error.__sentry_captured__) {
+    if (event.error && (event.error as any).__sentry_captured__) {
       return;
     }
 
-    captureException(event.error, {
+    const error = event.error instanceof Error
+      ? event.error
+      : new Error(event.message || 'Unknown window error');
+
+    captureException(error, {
       context: 'uncaught.exception',
       severity: 'error',
     });
@@ -152,7 +146,11 @@ export function initErrorTracking(
 
   // Unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
-    captureException(event.reason, {
+    const error = event.reason instanceof Error
+      ? event.reason
+      : new Error(typeof event.reason === 'string' ? event.reason : 'Unhandled promise rejection');
+
+    captureException(error, {
       context: 'unhandled.promise_rejection',
       severity: 'error',
     });
@@ -169,14 +167,14 @@ export function initErrorTracking(
  * - Lab values
  */
 function sanitizeEvent(
-  event: Sentry.Event,
+  event: Sentry.ErrorEvent,
   hint: Sentry.EventHint
-): Sentry.Event | null {
+): Sentry.ErrorEvent | null {
   if (!event) return event;
 
   // Sanitize exception message
-  if (event.exception) {
-    for (const exc of event.exception) {
+  if (event.exception?.values) {
+    for (const exc of event.exception.values) {
       if (exc.value) {
         exc.value = sanitizeString(exc.value);
       }
@@ -461,3 +459,4 @@ export default {
   setErrorTrackingUser,
   clearErrorTrackingUser,
 };
+
