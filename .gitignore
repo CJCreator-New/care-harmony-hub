@@ -98,6 +98,11 @@ temp/
 test-results/
 playwright-report/
 playwright/.cache/
+tests/e2e/.recordings/
+tests/e2e/.auth/
+.auth/
+*.webm
+*-report.html
 
 # Supabase
 .supabase/
