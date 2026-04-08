@@ -22,7 +22,7 @@ describe('Phase 4: Break-Glass Override System', () => {
         reason: 'Patient experiencing critical hypertension - emergency treatment required immediately due to cardiac risk',
         emergency_level: 'critical',
         approved_by_role: 'emergency_physician',
-        related_patient_id: 'patient-123',
+        related_patient_id: '123e4567-e89b-12d3-a456-426614174000',
         override_type: 'clinical_judgment_override',
       });
 
@@ -36,10 +36,10 @@ describe('Phase 4: Break-Glass Override System', () => {
           reason: 'Too short',
           emergency_level: 'critical',
           approved_by_role: 'emergency_physician',
-          related_patient_id: 'patient-123',
+          related_patient_id: '123e4567-e89b-12d3-a456-426614174000',
           override_type: 'clinical_judgment_override',
         })
-      ).toThrow('minimum');
+      ).toThrow('min 20 characters');
     });
 
     it('should reject placeholder/test reasons', () => {
@@ -48,7 +48,7 @@ describe('Phase 4: Break-Glass Override System', () => {
           reason: 'test123 this is just a test string for testing purposes',
           emergency_level: 'critical',
           approved_by_role: 'emergency_physician',
-          related_patient_id: 'patient-123',
+          related_patient_id: '123e4567-e89b-12d3-a456-426614174000',
           override_type: 'clinical_judgment_override',
         })
       ).toThrow('placeholder');
@@ -60,7 +60,7 @@ describe('Phase 4: Break-Glass Override System', () => {
           reason: 'Valid clinical emergency reason for override request now',
           emergency_level: 'invalid' as any,
           approved_by_role: 'emergency_physician',
-          related_patient_id: 'patient-123',
+          related_patient_id: '123e4567-e89b-12d3-a456-426614174000',
           override_type: 'clinical_judgment_override',
         })
       ).toThrow();
@@ -109,7 +109,7 @@ describe('Phase 4: Break-Glass Override System', () => {
     it('should restrict icu_nurse from discharge overrides', () => {
       const result = canApproveBreakGlass('icu_nurse', 'critical_discharge');
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('Not authorized');
+      expect(result.reason).toContain("Role 'icu_nurse' cannot approve");
     });
 
     it('should allow head_pharmacist only for medication/system overrides', () => {

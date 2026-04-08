@@ -7,6 +7,7 @@ import { devLog } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
 import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
+import { hasPermission } from '@/lib/permissions';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { useAudit } from '@/hooks/useAudit';
 import { fieldEncryption } from '@/utils/dataProtection';
@@ -270,12 +271,15 @@ export function useConsultation(consultationId: string | undefined) {
 
 export function useCreateConsultation() {
   const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
+  const { hospital, profile, primaryRole } = useAuth();
   const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async (data: ConsultationInsert) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
+      if (!hasPermission(primaryRole, 'consultations:write')) {
+        throw new Error('You do not have permission to create consultations');
+      }
 
       return withConsultationRateLimit(async () => {
         // Idempotency guard: return existing non-completed consultation if present
@@ -349,13 +353,16 @@ export function useCreateConsultation() {
 
 export function useGetOrCreateConsultation() {
   const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
+  const { hospital, profile, primaryRole } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async (patientId: string) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
+      if (!hasPermission(primaryRole, 'consultations:write')) {
+        throw new Error('You do not have permission to start consultations');
+      }
 
       return withConsultationRateLimit(async () => {
         // First, try to find existing consultation
@@ -439,11 +446,16 @@ export function useGetOrCreateConsultation() {
 
 export function useUpdateConsultation() {
   const queryClient = useQueryClient();
+  const { primaryRole } = useAuth();
   const { logActivity } = useAudit();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) =>
-      withConsultationRateLimit(async () => {
+    mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) => {
+      if (!hasPermission(primaryRole, 'consultations:write')) {
+        throw new Error('You do not have permission to update consultations');
+      }
+
+      return withConsultationRateLimit(async () => {
         // F2.3 — HIPAA §164.312(a)(2)(iv): encrypt clinical narrative PHI fields before storage
         const clinicalPHIFields = [
           'chief_complaint', 'history_of_present_illness', 'treatment_plan',
@@ -485,7 +497,8 @@ export function useUpdateConsultation() {
 
           pendingUpdates = nextUpdates;
         }
-      }),
+      });
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['consultation', data.id] });
@@ -507,10 +520,15 @@ export function useUpdateConsultation() {
 export function useAdvanceConsultationStep() {
   const updateConsultation = useUpdateConsultation();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const { primaryRole } = useAuth();
   const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async ({ consultationId, currentStep }: { consultationId: string; currentStep: number }) => {
+      if (!hasPermission(primaryRole, 'consultations:write')) {
+        throw new Error('You do not have permission to advance consultations');
+      }
+
       const nextStep = currentStep + 1;
       const nextStatus = CONSULTATION_STEPS[nextStep - 1]?.status || 'completed';
 

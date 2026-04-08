@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { hasAnyAllowedRole } from '@/lib/permissions';
 
 export interface DoctorAvailability {
   id: string;
@@ -86,11 +87,14 @@ export function useDoctorAvailability(doctorId?: string) {
 
 export function useCreateAvailability() {
   const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
+  const { hospital, profile, roles } = useAuth();
 
   return useMutation({
     mutationFn: async (availability: Partial<DoctorAvailability>) => {
       if (!hospital?.id || !profile?.id) throw new Error('No hospital or profile');
+      if (!hasAnyAllowedRole(roles, ['admin', 'doctor', 'receptionist'])) {
+        throw new Error('You do not have permission to manage scheduling availability');
+      }
       
       const { data, error } = await supabase
         .from('doctor_availability')
@@ -121,9 +125,14 @@ export function useCreateAvailability() {
 
 export function useDeleteAvailability() {
   const queryClient = useQueryClient();
+  const { roles } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
+      if (!hasAnyAllowedRole(roles, ['admin', 'doctor', 'receptionist'])) {
+        throw new Error('You do not have permission to manage scheduling availability');
+      }
+
       const { error } = await supabase
         .from('doctor_availability')
         .update({ is_active: false })
@@ -176,11 +185,14 @@ export function useTimeSlots(date?: string, doctorId?: string) {
 
 export function useGenerateTimeSlots() {
   const queryClient = useQueryClient();
-  const { hospital } = useAuth();
+  const { hospital, roles } = useAuth();
 
   return useMutation({
     mutationFn: async ({ doctorId, date }: { doctorId: string; date: string }) => {
       if (!hospital?.id) throw new Error('No hospital');
+      if (!hasAnyAllowedRole(roles, ['admin', 'doctor', 'receptionist'])) {
+        throw new Error('You do not have permission to generate time slots');
+      }
 
       const targetDate = new Date(date);
       const dayOfWeek = targetDate.getDay();
@@ -200,13 +212,15 @@ export function useGenerateTimeSlots() {
       }
 
       // Delete existing slots for this date
-      await supabase
+      const { error: deleteError } = await supabase
         .from('time_slots')
         .delete()
         .eq('hospital_id', hospital.id)
         .eq('doctor_id', doctorId)
         .eq('slot_date', date)
         .eq('is_booked', false);
+      
+      if (deleteError) throw deleteError;
 
       // Generate new slots
       const slots: Array<{

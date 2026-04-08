@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pill, Calendar, User, RefreshCw } from 'lucide-react';
 import { usePatientPrescriptions } from '@/hooks/usePatientPortal';
 import { usePatientRefillRequests } from '@/hooks/useRefillRequests';
-import { useAuth } from '@/contexts/AuthContext';
 import { RefillRequestModal } from '@/components/prescriptions/RefillRequestModal';
 import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
 import { AuditTimeline } from '@/components/audit/AuditTimeline';
@@ -33,7 +32,6 @@ const refillStatusColors: Record<string, string> = {
 export default function PatientPrescriptionsPage() {
   const { prescriptions = [], loading: isLoading } = usePatientPrescriptions();
   const { refillRequests = [] } = usePatientRefillRequests();
-  const { primaryRole } = useAuth();
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const { alerts: amendmentAlerts } = useAmendmentAlerts(null);
   const skeletonKeys = ['rx-1', 'rx-2', 'rx-3'];
@@ -196,7 +194,7 @@ export default function PatientPrescriptionsPage() {
                         <h4 className="font-semibold mb-4">Complete Audit History</h4>
                         <ForensicTimeline
                           prescriptionId={rx.id}
-                          showOwnOnly={primaryRole === 'doctor'}
+                          showOwnOnly
                         />
                       </div>
                     </TabsContent>

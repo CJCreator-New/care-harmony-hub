@@ -341,12 +341,13 @@ export default function QueueManagementPage() {
                               size="sm" 
                               onClick={() => handleCallNext(entry.id)}
                               className="bg-success hover:bg-success/90"
+                              disabled={!canManageQueue}
                             >
                               <Bell className="h-4 w-4 mr-1" />
                               Call for Consultation
                             </Button>
                           )}
-                          {!isReady && (
+                          {!isReady && canManageQueue && (
                             <Button 
                               size="sm" 
                               variant="outline"
@@ -397,6 +398,7 @@ export default function QueueManagementPage() {
                             size="sm"
                             className="w-full bg-success hover:bg-success/90"
                             onClick={() => handleCallNext(entry.id)}
+                            disabled={!canManageQueue}
                           >
                             <Bell className="h-4 w-4 mr-1" />
                             Call for Consultation
@@ -440,6 +442,7 @@ export default function QueueManagementPage() {
                           size="sm"
                           className="w-full"
                           onClick={() => handleStartService(entry.id)}
+                          disabled={!canManageQueue}
                         >
                           <Play className="h-4 w-4 mr-1" />
                           Start Service
@@ -483,6 +486,7 @@ export default function QueueManagementPage() {
                           variant="outline"
                           className="w-full"
                           onClick={() => handleComplete(entry.id)}
+                          disabled={!canManageQueue}
                         >
                           <CheckCircle2 className="h-4 w-4 mr-1" />
                           Complete
@@ -514,7 +518,7 @@ export default function QueueManagementPage() {
       />
 
       {/* Complete Service Confirmation */}
-      <AlertDialog open={!!confirmCompleteId} onOpenChange={(open) => !open && setConfirmCompleteId(null)}>
+      <AlertDialog open={canManageQueue && !!confirmCompleteId} onOpenChange={(open) => !open && setConfirmCompleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Complete Service?</AlertDialogTitle>

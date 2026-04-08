@@ -37,7 +37,7 @@ export default function PharmacistMessagesPage() {
 
   const { data: allMessages } = useMessages();
   const { data: conversationMessages } = useConversation(selectedContact?.id || '');
-  const { data: rawContacts } = useMessageContacts();
+  const { data: rawContacts } = useMessageContacts({ includePatients: true, includeStaff: true });
   const sendMessage = useSendMessage();
   const markAsRead = useMarkAsRead();
 
@@ -146,7 +146,7 @@ export default function PharmacistMessagesPage() {
                     <div
                       key={contact.id}
                       onClick={() => setSelectedContact({
-                        id: contact.id,
+                        id: contact.user_id || contact.id,
                         name: contact.name,
                         type: contact.role || 'staff'
                       })}

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { sanitizeLogMessage } from '@/utils/sanitize';
+import { getDevTestRole } from '@/utils/devRoleSwitch';
 
 export interface Message {
   id: string;
@@ -32,6 +33,11 @@ export interface SendMessageParams {
   subject?: string;
   content: string;
   parent_message_id?: string;
+}
+
+interface MessageContactOptions {
+  includePatients?: boolean;
+  includeStaff?: boolean;
 }
 
 // Hook to fetch all messages for current user
@@ -150,16 +156,20 @@ export function useSendMessage() {
 
 // Hook to mark messages as read
 export function useMarkAsRead() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (messageIds: string[]) => {
+      if (!user?.id) throw new Error('No user context');
+
       const { error } = await supabase
         .from('messages')
         .update({
           is_read: true,
           read_at: new Date().toISOString(),
         })
+        .eq('recipient_id', user.id)
         .in('id', messageIds);
 
       if (error) throw error;
@@ -225,12 +235,16 @@ export function useMessagesRealtime() {
 }
 
 // Hook to get available contacts (staff for patients, patients for staff)
-export function useMessageContacts() {
+export function useMessageContacts(options: MessageContactOptions = {}) {
   const { user, hospital, roles } = useAuth();
-  const isPatient = roles.includes('patient');
+  const persistedTestRole = getDevTestRole(roles);
+  const effectiveRoles = persistedTestRole ? [persistedTestRole] : roles;
+  const isPatient = effectiveRoles.includes('patient');
+  const includePatients = options.includePatients ?? !isPatient;
+  const includeStaff = options.includeStaff ?? isPatient;
 
   return useQuery({
-    queryKey: ['message-contacts', user?.id, hospital?.id, isPatient],
+    queryKey: ['message-contacts', user?.id, hospital?.id, isPatient, includePatients, includeStaff],
     queryFn: async () => {
       if (!user?.id) throw new Error('No user context');
 
@@ -271,15 +285,72 @@ export function useMessageContacts() {
         const clinicalStaffIds = new Set(rolesData?.map(r => r.user_id) || []);
         return data?.filter(p => p.user_id && clinicalStaffIds.has(p.user_id)) || [];
       } else {
-        // Staff can message patients linked to their hospital
-        const { data: patients, error } = await supabase
-          .from('patients')
-          .select('id, user_id, first_name, last_name, email, mrn')
-          .eq('hospital_id', hospital?.id || '')
-          .not('user_id', 'is', null);
+        const contacts: Array<Record<string, unknown>> = [];
 
-        if (error) throw error;
-        return patients || [];
+        if (includePatients) {
+          const { data: patients, error } = await supabase
+            .from('patients')
+            .select('id, user_id, first_name, last_name, email, mrn')
+            .eq('hospital_id', hospital?.id || '')
+            .not('user_id', 'is', null);
+
+          if (error) throw error;
+
+          contacts.push(
+            ...((patients || []).map((patient) => ({
+              ...patient,
+              role: 'patient',
+            })))
+          );
+        }
+
+        if (includeStaff) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, user_id, first_name, last_name, email')
+            .eq('hospital_id', hospital?.id || '');
+
+          if (profilesError) throw profilesError;
+
+          const staffUserIds = (profiles || [])
+            .map((profile) => profile.user_id)
+            .filter((id): id is string => !!id && id !== user.id);
+
+          if (staffUserIds.length > 0) {
+            const { data: rolesData, error: rolesError } = await supabase
+              .from('user_roles')
+              .select('user_id, role')
+              .in('user_id', staffUserIds);
+
+            if (rolesError) throw rolesError;
+
+            const staffRoleMap = new Map<string, string>();
+            (rolesData || []).forEach((entry) => {
+              if (!staffRoleMap.has(entry.user_id) && entry.role !== 'patient') {
+                staffRoleMap.set(entry.user_id, entry.role);
+              }
+            });
+
+            contacts.push(
+              ...((profiles || [])
+                .filter((profile) => profile.user_id && profile.user_id !== user.id && staffRoleMap.has(profile.user_id))
+                .map((profile) => ({
+                  ...profile,
+                  role: staffRoleMap.get(profile.user_id!) || 'staff',
+                })))
+            );
+          }
+        }
+
+        const dedupedContacts = new Map<string, Record<string, unknown>>();
+        contacts.forEach((contact) => {
+          const key = String(contact.user_id ?? contact.id);
+          if (!dedupedContacts.has(key)) {
+            dedupedContacts.set(key, contact);
+          }
+        });
+
+        return Array.from(dedupedContacts.values());
       }
     },
     enabled: !!user?.id && !!hospital?.id,

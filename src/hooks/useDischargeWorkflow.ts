@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasAnyAllowedRole } from '@/lib/permissions';
 
 export type DischargeWorkflowStep =
   | 'doctor'
@@ -141,6 +142,11 @@ export function useDischargeWorkflow(
       action: WorkflowAction;
       payload: WorkflowActionPayload;
     }) => {
+      const allowedRoles = ['doctor', 'pharmacist', 'receptionist', 'admin', 'nurse'] as const;
+      if (!hasAnyAllowedRole(primaryRole ? [primaryRole] : [], [...allowedRoles])) {
+        throw new Error('You do not have permission to act on discharge workflows');
+      }
+
       const { data, error } = await supabase.functions.invoke('discharge-workflow', {
         body: {
           action,

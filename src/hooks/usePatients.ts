@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
 import { PATIENT_COLUMNS } from '@/lib/queryColumns';
 import { useHIPAACompliance } from './useDataProtection';
+import { hasPermission } from '@/lib/permissions';
 
 export interface Patient {
   id: string;
@@ -158,12 +159,15 @@ export function usePatient(patientId: string | undefined) {
 
 export function useCreatePatient() {
   const queryClient = useQueryClient();
-  const { hospital } = useAuth();
+  const { hospital, primaryRole } = useAuth();
   const { encryptPHI } = useHIPAACompliance();
 
   return useMutation({
     mutationFn: async (patientData: Omit<PatientInsert, 'hospital_id'>) => {
       if (!hospital?.id) throw new Error('No hospital context');
+      if (!hasPermission(primaryRole, 'patients:write')) {
+        throw new Error('You do not have permission to create patients');
+      }
 
       // Generate MRN
       const { data: mrn, error: mrnError } = await supabase
@@ -202,10 +206,15 @@ export function useCreatePatient() {
 
 export function useUpdatePatient() {
   const queryClient = useQueryClient();
+  const { primaryRole } = useAuth();
   const { encryptPHI, decryptPHI } = useHIPAACompliance();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Patient> & { id: string }) => {
+      if (!hasPermission(primaryRole, 'patients:write')) {
+        throw new Error('You do not have permission to update patients');
+      }
+
       // Get current patient data including encryption metadata
       const { data: currentPatient, error: fetchError } = await supabase
         .from('patients')

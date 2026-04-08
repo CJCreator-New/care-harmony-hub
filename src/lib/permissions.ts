@@ -65,6 +65,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'length-of-stay-forecasting',
     'resource-utilization-optimization',
     'voice-clinical-notes',
+    'workflow-dashboard',
   ],
   nurse: [
     'patients:read',
@@ -81,6 +82,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'telemedicine:read',
     'lab:read',
     'voice-clinical-notes',
+    'workflow-dashboard',
   ],
   receptionist: [
     'patients',
@@ -93,6 +95,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'queue:read',
     'queue:write',
     'billing:read',
+    'workflow-dashboard',
   ],
   pharmacist: [
     'pharmacy',
@@ -106,6 +109,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'inventory:write',
     'clinical-pharmacy',
     'patients:read',
+    'workflow-dashboard',
   ],
   lab_technician: [
     'laboratory',
@@ -114,6 +118,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'lab-orders',
     'samples',
     'patients:read',
+    'workflow-dashboard',
   ],
   patient: [
     'portal',
@@ -202,6 +207,10 @@ export function getEffectivePermissions(roles: Array<UserRole | string>): Permis
 export function getAccessibleRoutes(role: UserRole | string | undefined): string[] {
   if (!role) return ['/'];
 
+  if (role === 'patient') {
+    return ['/dashboard', '/patient/portal'];
+  }
+
   const routes: string[] = ['/dashboard'];
 
   if (hasPermission(role, 'patients')) routes.push('/patients');
@@ -234,4 +243,3 @@ export function getAccessibleRoutes(role: UserRole | string | undefined): string
 
   return routes;
 }
-

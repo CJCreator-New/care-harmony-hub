@@ -56,6 +56,7 @@ import { usePaymentPlans } from "@/hooks/usePaymentPlans";
 import { usePatients } from "@/hooks/usePatients";
 import { CreateInvoiceModal } from "@/components/billing/CreateInvoiceModal";
 import { formatCurrency } from "@/lib/currency";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pending", variant: "destructive" },
@@ -82,6 +83,7 @@ const PLAN_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "
 
 export default function BillingPage() {
   useBillingRealtime();
+  const permissions = usePermissions();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -118,7 +120,7 @@ export default function BillingPage() {
               Manage patient invoices, insurance claims, and payment plans
             </p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Button onClick={() => setIsCreateModalOpen(true)} disabled={!permissions.can('billing:read')}>
             <Plus className="mr-2 h-4 w-4" />
             Create Invoice
           </Button>
@@ -284,7 +286,7 @@ export default function BillingPage() {
                           <Badge variant={status.variant}>{status.label}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {invoice.status !== "paid" && invoice.status !== "cancelled" && (
+                          {invoice.status !== "paid" && invoice.status !== "cancelled" && permissions.can('billing:read') && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -511,6 +513,7 @@ function PaymentModal({
   onOpenChange: (open: boolean) => void;
   invoice: Invoice | null;
 }) {
+  const permissions = usePermissions();
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [referenceNumber, setReferenceNumber] = useState("");
@@ -646,7 +649,7 @@ function PaymentModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={recordPayment.isPending || !amount || parseFloat(amount) <= 0}
+            disabled={!permissions.can('billing:read') || recordPayment.isPending || !amount || parseFloat(amount) <= 0}
             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
           >
             {recordPayment.isPending ? (

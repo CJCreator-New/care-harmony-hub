@@ -45,13 +45,13 @@ import {
   Medication,
 } from "@/hooks/useMedications";
 import { ReorderSystemCard } from "@/components/inventory/ReorderSystemCard";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 export default function InventoryPage() {
   useMedicationsRealtime();
-  const { primaryRole } = useAuth();
-  const canAddMedication = primaryRole === 'admin' || primaryRole === 'pharmacist';
+  const permissions = usePermissions();
+  const canAddMedication = permissions.can('inventory:write');
 
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<string>("all");
@@ -259,6 +259,7 @@ export default function InventoryPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => setAdjustModal({ open: true, medication })}
+                            disabled={!canAddMedication}
                           >
                             Adjust Stock
                           </Button>

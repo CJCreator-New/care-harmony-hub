@@ -60,6 +60,7 @@ import { CreateLabOrderModal } from '@/components/lab/CreateLabOrderModal';
 import { AuditTimeline } from '@/components/audit/AuditTimeline';
 import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
 import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
+import { usePermissions } from '@/hooks/usePermissions';
 import { AlertTriangle } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'warning' | 'info' | 'success' | 'destructive' }> = {
@@ -115,7 +116,9 @@ export default function LaboratoryPage() {
   }, [initialTab]);
 
   const { user, hospital } = useAuth();
+  const permissions = usePermissions();
   const { recordOperation, recordCustomEvent } = useClinicalMetrics();
+  const canManageLabOrders = permissions.can('lab:write');
 
   // Debounce search term for server-side filtering
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
@@ -267,7 +270,7 @@ export default function LaboratoryPage() {
             <h1 className="text-2xl md:text-3xl font-bold">Laboratory</h1>
             <p className="text-muted-foreground">Manage lab orders and test results</p>
           </div>
-          <Button onClick={() => setNewLabOrderOpen(true)}>
+          <Button onClick={() => setNewLabOrderOpen(true)} disabled={!canManageLabOrders}>
             <Plus className="h-4 w-4 mr-2" />
             New Lab Order
           </Button>
@@ -424,6 +427,7 @@ export default function LaboratoryPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleCollectSample(order)}
+                                disabled={!canManageLabOrders}
                               >
                                 <Clock className="h-4 w-4 mr-1" />
                                 Collect
@@ -434,6 +438,7 @@ export default function LaboratoryPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleStartProcessing(order)}
+                                disabled={!canManageLabOrders}
                               >
                                 <Play className="h-4 w-4 mr-1" />
                                 Start
@@ -443,6 +448,7 @@ export default function LaboratoryPage() {
                               <Button
                                 size="sm"
                                 onClick={() => openResultDialog(order)}
+                                disabled={!canManageLabOrders}
                               >
                                 <Upload className="h-4 w-4 mr-1" />
                                 Results
@@ -549,7 +555,7 @@ export default function LaboratoryPage() {
               />
             )}
 
-            {selectedOrder?.status !== 'completed' && (
+            {selectedOrder?.status !== 'completed' && canManageLabOrders && (
               <div className="flex items-center space-x-2 p-3 rounded-lg border border-destructive/20 bg-destructive/5">
                 <input
                   type="checkbox"
@@ -563,7 +569,7 @@ export default function LaboratoryPage() {
                 </label>
               </div>
             )}
-            {selectedOrder?.status !== 'completed' && (
+            {selectedOrder?.status !== 'completed' && canManageLabOrders && (
               <Button onClick={handleUploadResults} className="w-full">
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 Complete & Upload Results

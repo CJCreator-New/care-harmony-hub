@@ -24,7 +24,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useConsultations, CONSULTATION_STEPS, useGetOrCreateConsultation } from "@/hooks/useConsultations";
 import { format } from "date-fns";
 import { StartConsultationModal } from "@/components/consultations/StartConsultationModal";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function ConsultationsPage() {
   const navigate = useNavigate();
@@ -34,9 +34,9 @@ export default function ConsultationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
-  const { primaryRole } = useAuth();
+  const permissions = usePermissions();
   const quickStartHandledRef = useRef<string | null>(null);
-  const canStartConsultation = primaryRole === 'admin' || primaryRole === 'doctor';
+  const canStartConsultation = permissions.can('consultations:write');
 
   useEffect(() => {
     const patientId = searchParams.get('patientId');

@@ -1,7 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { PrescriptionBuilder } from '@/components/doctor/PrescriptionBuilder';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PrescriptionBuilder } from '@/components/doctor/PrescriptionBuilder';  
+
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: vi.fn().mockReturnValue({
+    user: { id: 'doctor-1' },
+    profile: { id: 'doc-prof-1', first_name: 'Dr', last_name: 'Smith' },
+    hospital: { id: 'hospital-1' },
+    primaryRole: 'doctor'
+  })
+}));
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
+const renderWithContext = (ui: React.ReactElement) => {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+};
 
 describe('PrescriptionBuilder Integration Tests', () => {
   const mockDrugs = [
@@ -20,7 +41,7 @@ describe('PrescriptionBuilder Integration Tests', () => {
   });
 
   it('renders medication search and save actions', () => {
-    render(
+    renderWithContext(
       <PrescriptionBuilder
         patientId="patient-123"
         onSave={vi.fn()}
@@ -33,7 +54,7 @@ describe('PrescriptionBuilder Integration Tests', () => {
   });
 
   it('renders safely when allergies are provided', async () => {
-    render(
+    renderWithContext(
       <PrescriptionBuilder
         patientId="patient-123"
         onSave={vi.fn()}

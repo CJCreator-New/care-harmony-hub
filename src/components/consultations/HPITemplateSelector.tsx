@@ -10,6 +10,7 @@ import { HPIData, TemplateField } from '@/types/soap';
 interface HPITemplateSelectorProps {
   value: HPIData;
   onChange: (hpi: HPIData) => void;
+  showErrors?: boolean;
 }
 
 const TEMPLATES = {
@@ -41,7 +42,7 @@ const TEMPLATES = {
   }
 };
 
-export const HPITemplateSelector: React.FC<HPITemplateSelectorProps> = ({ value, onChange }) => {
+export const HPITemplateSelector: React.FC<HPITemplateSelectorProps> = ({ value, onChange, showErrors }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<'OLDCARTS' | 'OPQRST'>(value.template_type || 'OLDCARTS');
 
   const handleTemplateChange = (template: 'OLDCARTS' | 'OPQRST') => {
@@ -100,15 +101,22 @@ export const HPITemplateSelector: React.FC<HPITemplateSelectorProps> = ({ value,
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {TEMPLATES[selectedTemplate].fields.map((field) => (
+        {TEMPLATES[selectedTemplate].fields.map((field) => {
+          const fieldValue = value[field.key as keyof HPIData] || '';
+          const hasError = showErrors && field.required && (!fieldValue || fieldValue.toString().trim() === '');
+          return (
           <div key={field.key} className="space-y-2">
             <Label htmlFor={field.key} className="flex items-center gap-2">
               {field.label}
               {field.required && <Badge variant="destructive" className="text-xs">Required</Badge>}
             </Label>
             {renderField(field)}
+            {hasError && (
+              <p className="text-sm font-medium text-destructive mt-1">{field.label} is required.</p>
+            )}
           </div>
-        ))}
+        );
+        })}
       </CardContent>
     </Card>
   );

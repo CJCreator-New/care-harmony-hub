@@ -78,9 +78,9 @@ export const routeManifest: AppRouteManifestGroup[] = [
   {
     label: 'Pharmacy & Inventory',
     icon: Pill,
-    allowedRoles: ['admin', 'pharmacist', 'doctor', 'nurse'],
+    allowedRoles: ['admin', 'pharmacist'],
     items: [
-      { label: 'Pharmacy', href: '/pharmacy', icon: Pill, allowedRoles: ['admin', 'pharmacist', 'doctor'], requiredPermission: 'pharmacy', releaseTier: 'tier1', testOwner: 'integration' },
+      { label: 'Pharmacy', href: '/pharmacy', icon: Pill, allowedRoles: ['admin', 'pharmacist'], requiredPermission: 'pharmacy', releaseTier: 'tier1', testOwner: 'integration' },
       { label: 'Clinical Pharmacy', href: '/pharmacy/clinical', icon: Stethoscope, allowedRoles: ['admin', 'pharmacist'], requiredPermission: 'clinical-pharmacy', releaseTier: 'tier2', testOwner: 'integration' },
       { label: 'Inventory', href: '/inventory', icon: Package, allowedRoles: ['admin', 'pharmacist'], requiredPermission: 'inventory:read', releaseTier: 'tier2', testOwner: 'integration' },
     ],
@@ -123,12 +123,12 @@ export const routeManifest: AppRouteManifestGroup[] = [
   {
     label: 'Business Operations',
     icon: BarChart3,
-    allowedRoles: ['admin', 'receptionist'],
+    allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
     items: [
       { label: 'Billing', href: '/billing', icon: CreditCard, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'billing:read', releaseTier: 'tier1', testOwner: 'integration' },
       { label: 'Kiosk', href: '/kiosk', icon: Building, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'patients', releaseTier: 'tier2', testOwner: 'e2e' },
       { label: 'Reports', href: '/reports', icon: BarChart3, allowedRoles: ['admin'], requiredPermission: 'reports', releaseTier: 'tier2', testOwner: 'integration' },
-      { label: 'Workflow Dashboard', href: '/integration/workflow', icon: Zap, allowedRoles: ['admin'], requiredPermission: 'workflow-dashboard', releaseTier: 'tier1', testOwner: 'api-security' },
+      { label: 'Workflow Dashboard', href: '/integration/workflow', icon: Zap, allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'], requiredPermission: 'workflow-dashboard', releaseTier: 'tier1', testOwner: 'api-security' },
     ],
   },
   {

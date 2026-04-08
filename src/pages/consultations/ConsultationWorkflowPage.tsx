@@ -47,6 +47,7 @@ import { PatientSidebar } from "@/components/consultations/PatientSidebar";
 import { AIConsultationAssistant } from "@/components/consultations/AIConsultationAssistant";
 import { ConsultationTemplateSelector, ConsultationTemplate } from "@/components/consultations/ConsultationTemplateSelector";
 import { EnhancedTaskManagement } from "@/components/workflow/EnhancedTaskManagement";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];
@@ -99,12 +100,15 @@ export default function ConsultationWorkflowPage() {
   const createLabOrder = useCreateLabOrder();
   const createInvoice = useCreateInvoice();
   const { triggerWorkflow } = useWorkflowOrchestrator();
+  const permissions = usePermissions();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isCompleting, setIsCompleting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showStep1Errors, setShowStep1Errors] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+  const canEditConsultation = permissions.can('consultations:write');
 
   const triggerWorkflowSafely = async (
     event: Parameters<typeof triggerWorkflow>[0],
@@ -168,6 +172,7 @@ export default function ConsultationWorkflowPage() {
   // Keyboard shortcuts for consultation workflow
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!canEditConsultation) return;
       // Ctrl+S to save draft
       if (event.ctrlKey && event.key === 's' && !event.shiftKey) {
         event.preventDefault();
@@ -187,9 +192,10 @@ export default function ConsultationWorkflowPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [formData, id]);
+  }, [canEditConsultation, formData, id]);
 
   const handleUpdateField = (field: string, value: any) => {
+    if (!canEditConsultation) return;
     setFormData((prev) => {
       if (field === "diagnoses") {
         return {
@@ -218,6 +224,7 @@ export default function ConsultationWorkflowPage() {
   };
 
   const handleApplyAIRecommendation = (type: string, value: any) => {
+    if (!canEditConsultation) return;
     if (type === 'diagnosis') {
       const currentDiagnoses = formData.final_diagnosis || [];
       if (typeof value === 'string' && !currentDiagnoses.includes(value)) {
@@ -231,12 +238,16 @@ export default function ConsultationWorkflowPage() {
 
   const handleSaveStep = async () => {
     if (!id) return;
+    if (!canEditConsultation) {
+      toast.error("You have read-only access to this consultation");
+      return;
+    }
 
     try {
       // Clean up date fields - convert empty strings to null
       const cleanedData = {
         ...formData,
-        follow_up_date: formData.follow_up_date?.trim() || null,
+        follow_up_date: (typeof formData.follow_up_date === 'string' ? formData.follow_up_date.trim() : formData.follow_up_date) || null,
       };
 
       await updateConsultation.mutateAsync({
@@ -260,6 +271,10 @@ export default function ConsultationWorkflowPage() {
 
   const handleNextStep = async () => {
     if (!id || !consultation) return;
+    if (!canEditConsultation) {
+      toast.error("You do not have permission to modify this consultation");
+      return;
+    }
 
     // Validation for DR-WF-02
     if (activeStep === 1 && (!formData.chief_complaint || formData.chief_complaint.trim() === '')) {
@@ -277,11 +292,11 @@ export default function ConsultationWorkflowPage() {
       }
     }
     
-    if (activeStep === 3 && (!formData.final_diagnosis || formData.final_diagnosis.trim() === '')) {
+    if (activeStep === 3 && (!formData.final_diagnosis || (typeof formData.final_diagnosis === 'string' && formData.final_diagnosis.trim() === '') || (Array.isArray(formData.final_diagnosis) && formData.final_diagnosis.length === 0))) {
       toast.error('Diagnosis is required to proceed.');
       return;
     }
-    if (activeStep === 4 && (!formData.treatment_plan || formData.treatment_plan.trim() === '')) {
+    if (activeStep === 4 && (!formData.treatment_plan || typeof formData.treatment_plan !== 'string' || formData.treatment_plan.trim() === '')) {
       toast.error('Treatment Plan is required.');
       return;
     }
@@ -290,7 +305,7 @@ export default function ConsultationWorkflowPage() {
       // Clean up date fields - convert empty strings to null
       const cleanedData = {
         ...formData,
-        follow_up_date: formData.follow_up_date?.trim() || null,
+        follow_up_date: (typeof formData.follow_up_date === 'string' ? formData.follow_up_date.trim() : formData.follow_up_date) || null,
       };
 
       await updateConsultation.mutateAsync({
@@ -776,31 +791,36 @@ ${formData.soap_plan || 'Not documented'}`;
           {/* Step Content */}
           <Card>
             <CardContent className="pt-6">
+              {!canEditConsultation && (
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Read-only mode: you can review this consultation, but only users with consultation write access can change steps or complete the workflow.
+                </div>
+              )}
               <Tabs value={String(activeStep)} className="w-full">
                 <TabsContent value="1" className="mt-0">
                   <ChiefComplaintStep
                     data={formData}
-                    onUpdate={handleUpdateField}
+                    onUpdate={canEditConsultation ? handleUpdateField : () => {}}
                     patient={consultation.patient}
                   />
                 </TabsContent>
                 <TabsContent value="2" className="mt-0">
                   <PhysicalExamStep
                     data={formData}
-                    onUpdate={handleUpdateField}
+                    onUpdate={canEditConsultation ? handleUpdateField : () => {}}
                   />
                 </TabsContent>
                 <TabsContent value="3" className="mt-0">
                   <DiagnosisStepEnhanced
                     data={formData}
-                    onUpdate={handleUpdateField}
+                    onUpdate={canEditConsultation ? handleUpdateField : () => {}}
                     patientId={consultation.patient_id}
                   />
                 </TabsContent>
                 <TabsContent value="4" className="mt-0">
                   <TreatmentPlanStep
                     data={formData}
-                    onUpdate={handleUpdateField}
+                    onUpdate={canEditConsultation ? handleUpdateField : () => {}}
                     patientId={consultation.patient_id}
                     consultationId={consultation.id}
                     patientAllergies={consultation.patient?.allergies || []}
@@ -810,7 +830,7 @@ ${formData.soap_plan || 'Not documented'}`;
                 <TabsContent value="5" className="mt-0">
                   <SummaryStep
                     data={formData}
-                    onUpdate={handleUpdateField}
+                    onUpdate={canEditConsultation ? handleUpdateField : () => {}}
                     consultation={consultation}
                   />
                 </TabsContent>
@@ -834,6 +854,7 @@ ${formData.soap_plan || 'Not documented'}`;
                 size="sm"
                 onClick={() => setTemplateSelectorOpen(true)}
                 className="px-3"
+                disabled={!canEditConsultation}
               >
                 <Layers className="h-4 w-4 mr-1" />
                 Template
@@ -849,7 +870,7 @@ ${formData.soap_plan || 'Not documented'}`;
               <Button
                 variant="outline"
                 onClick={handleSaveStep}
-                disabled={updateConsultation.isPending || consultation?.status === 'completed'}
+                disabled={!canEditConsultation || updateConsultation.isPending || consultation?.status === 'completed'}
               >
                 {updateConsultation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -858,7 +879,7 @@ ${formData.soap_plan || 'Not documented'}`;
               </Button>
               <Button
                 onClick={handleNextStep}
-                disabled={updateConsultation.isPending || advanceStep.isPending || isCompleting || isCompleted || consultation?.status === 'completed'}
+                disabled={!canEditConsultation || updateConsultation.isPending || advanceStep.isPending || isCompleting || isCompleted || consultation?.status === 'completed'}
               >
                 {(updateConsultation.isPending || advanceStep.isPending || isCompleting) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { getDevTestRole } from '@/utils/devRoleSwitch';
 
 export interface CommunicationMessage {
   id: string;
@@ -52,15 +53,27 @@ export interface NotificationSettings {
 }
 
 export function useCrossRoleCommunication() {
-  const { profile, hospital, primaryRole } = useAuth();
+  const { profile, hospital, primaryRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
+  const persistedTestRole = getDevTestRole(roles);
+  const effectiveRoles = persistedTestRole
+    ? [persistedTestRole]
+    : roles.length > 0
+      ? roles
+      : (primaryRole ? [primaryRole] : ((profile as any)?.role ? [(profile as any).role] : []));
+  const roleRecipientClause = effectiveRoles.length > 0
+    ? `recipient_role.in.(${effectiveRoles.join(',')})`
+    : '';
+  const recipientFilter = [profile?.id ? `recipient_id.eq.${profile.id}` : '', roleRecipientClause]
+    .filter(Boolean)
+    .join(',');
 
   // Get messages for current user
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['communication-messages', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return [];
+      if (!profile?.id || !recipientFilter) return [];
 
       const { data, error } = await supabase
         .from('communication_messages')
@@ -69,7 +82,7 @@ export function useCrossRoleCommunication() {
           sender:sender_id(name, role),
           recipient:recipient_id(name, role)
         `)
-        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? (profile as any)?.role}`)
+        .or(recipientFilter)
         .eq('hospital_id', hospital?.id)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -85,12 +98,12 @@ export function useCrossRoleCommunication() {
   const { data: unreadCount } = useQuery({
     queryKey: ['unread-messages-count', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return 0;
+      if (!profile?.id || !recipientFilter) return 0;
 
       const { count, error } = await supabase
         .from('communication_messages')
         .select('*', { count: 'exact', head: true })
-        .or(`recipient_id.eq.${profile.id},recipient_role.eq.${primaryRole ?? (profile as any)?.role}`)
+        .or(recipientFilter)
         .eq('read', false)
         .eq('hospital_id', hospital?.id);
 
@@ -151,7 +164,7 @@ export function useCrossRoleCommunication() {
       const messageData = {
         ...message,
         sender_id: profile.id,
-        sender_role: primaryRole ?? (profile as any)?.role,
+        sender_role: persistedTestRole ?? primaryRole ?? (profile as any)?.role,
         sender_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
         hospital_id: hospital.id,
         read: false,
@@ -243,7 +256,7 @@ export function useCrossRoleCommunication() {
       const messages = recipientRoles.map(role => ({
         ...message,
         sender_id: profile.id,
-        sender_role: primaryRole ?? (profile as any)?.role,
+        sender_role: persistedTestRole ?? primaryRole ?? (profile as any)?.role,
         sender_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
         recipient_role: role,
         hospital_id: hospital.id,
@@ -287,7 +300,7 @@ export function useCrossRoleCommunication() {
           // Check if message is for current user
           const message = payload.new as CommunicationMessage;
           const isForMe = message.recipient_id === profile.id ||
-                         message.recipient_role === (primaryRole ?? (profile as any)?.role);
+                         (!!message.recipient_role && effectiveRoles.includes(message.recipient_role as any));
 
           if (isForMe) {
             queryClient.invalidateQueries({ queryKey: ['communication-messages'] });
@@ -312,7 +325,7 @@ export function useCrossRoleCommunication() {
     return () => {
       channel.unsubscribe();
     };
-  }, [profile?.id, (profile as any)?.role, hospital?.id, queryClient]);
+  }, [effectiveRoles, profile?.id, hospital?.id, queryClient]);
 
   // Get messages by type
   const getMessagesByType = (type: CommunicationMessage['message_type']) => {

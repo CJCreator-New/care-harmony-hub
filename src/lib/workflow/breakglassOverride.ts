@@ -180,21 +180,11 @@ export function shouldEscalateToAdmin(createdAt: string, completedAt?: string): 
  * Used to verify reason wasn't modified after approval
  */
 export async function hashBreakGlassReason(reason: string): Promise<string> {
-  if (typeof window === 'undefined') {
-    // Node.js environment (server-side)
-    const crypto = require('crypto');
-    return crypto
-      .createHash('sha256')
-      .update(reason)
-      .digest('hex');
-  } else {
-    // Browser environment
-    const encoder = new TextEncoder();
-    const data = encoder.encode(reason);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
+  const encoder = new TextEncoder();
+  const data = encoder.encode(reason);
+  const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

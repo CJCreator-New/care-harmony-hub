@@ -4,6 +4,7 @@ import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkfl
 import { useAuth } from '@/contexts/AuthContext';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { usePrescriptionApprovalWorkflow } from '@/hooks/usePrescriptionApprovalWorkflow';
+import { usePermissions } from '@/hooks/usePermissions';
 import { PrescriptionDispensingModal } from '@/components/pharmacy/PrescriptionDispensingModal';
 import { AmendmentModal } from '@/components/audit/AmendmentModal';
 import { Edit } from 'lucide-react';
@@ -48,7 +49,9 @@ export function PrescriptionQueue() {
   const dispenseMutation = useDispensePrescription();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { primaryRole } = useAuth();
+  const permissions = usePermissions();
   const { recordOperation, recordCustomEvent, getCorrelation } = useClinicalMetrics();
+  const canManagePrescriptions = permissions.can('prescriptions:write');
   
   // Prescription approval workflow integration (new in Priority 6)
   const {
@@ -208,7 +211,7 @@ export function PrescriptionQueue() {
                         >
                           Details
                         </Button>
-                        {primaryRole === 'doctor' && (
+                        {permissions.can('consultations:write') && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -255,7 +258,7 @@ export function PrescriptionQueue() {
             : null
         }
         onDispense={handleDispense}
-        isLoading={dispenseMutation.isPending}
+        isLoading={dispenseMutation.isPending || !canManagePrescriptions}
       />
 
       {/* Phase 2B: Amendment Modal */}

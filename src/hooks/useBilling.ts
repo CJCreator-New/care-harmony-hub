@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
+import { hasPermission } from '@/lib/permissions';
 
 export type InvoiceStatus = 'pending' | 'partial' | 'paid' | 'cancelled';
 
@@ -226,7 +227,7 @@ export function useInvoiceStats() {
 }
 
 export function useCreateInvoice() {
-  const { hospital, profile } = useAuth();
+  const { hospital, profile, primaryRole } = useAuth();
   const queryClient = useQueryClient();
   const { triggerWorkflow } = useWorkflowOrchestrator();
 
@@ -251,6 +252,9 @@ export function useCreateInvoice() {
       notes?: string;
       dueDate?: string;
     }) => {
+      if (!hasPermission(primaryRole, 'billing:read')) {
+        throw new Error('You do not have permission to create invoices');
+      }
       if (!hospital?.id) throw new Error('No hospital context');
 
       return withBillingRateLimit(async () => {
@@ -324,7 +328,7 @@ export function useCreateInvoice() {
 }
 
 export function useRecordPayment() {
-  const { hospital, profile } = useAuth();
+  const { hospital, profile, primaryRole } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -341,6 +345,9 @@ export function useRecordPayment() {
       referenceNumber?: string | null;
       notes?: string;
     }) => {
+      if (!hasPermission(primaryRole, 'billing:read')) {
+        throw new Error('You do not have permission to record payments');
+      }
       if (!hospital?.id) throw new Error('No hospital context');
 
       return withBillingRateLimit(async () => {

@@ -75,6 +75,7 @@ export default function SchedulingPage() {
 
   const { hospital, roles, profile } = useAuth();
   const isDoctor = roles.includes('doctor');
+  const canManageScheduling = roles.includes('admin') || roles.includes('doctor') || roles.includes('receptionist');
   const doctorId = isDoctor ? profile?.id : selectedDoctorId;
 
   // Fetch all doctors
@@ -221,7 +222,7 @@ export default function SchedulingPage() {
                 </div>
                 <Dialog open={isAddAvailabilityOpen} onOpenChange={setIsAddAvailabilityOpen}>
                   <DialogTrigger asChild>
-                    <Button disabled={!doctorId}>
+                    <Button disabled={!doctorId || !canManageScheduling}>
                       <Plus className="mr-2 h-4 w-4" />
                       Add Availability
                     </Button>
@@ -254,29 +255,32 @@ export default function SchedulingPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Start Time</Label>
-                          <Input
-                            type="time"
-                            value={newAvailability.start_time}
-                            onChange={(e) =>
-                              setNewAvailability({ ...newAvailability, start_time: e.target.value })
-                            }
+                            <Input
+                              type="time"
+                              value={newAvailability.start_time}
+                              disabled={!canManageScheduling}
+                              onChange={(e) =>
+                                setNewAvailability({ ...newAvailability, start_time: e.target.value })
+                              }
                           />
                         </div>
                         <div className="space-y-2">
                           <Label>End Time</Label>
-                          <Input
-                            type="time"
-                            value={newAvailability.end_time}
-                            onChange={(e) =>
-                              setNewAvailability({ ...newAvailability, end_time: e.target.value })
-                            }
+                            <Input
+                              type="time"
+                              value={newAvailability.end_time}
+                              disabled={!canManageScheduling}
+                              onChange={(e) =>
+                                setNewAvailability({ ...newAvailability, end_time: e.target.value })
+                              }
                           />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label>Slot Duration (minutes)</Label>
-                        <Select
-                          value={String(newAvailability.slot_duration_minutes)}
+                          <Select
+                            disabled={!canManageScheduling}
+                            value={String(newAvailability.slot_duration_minutes)}
                           onValueChange={(v) =>
                             setNewAvailability({ ...newAvailability, slot_duration_minutes: parseInt(v) })
                           }
@@ -299,12 +303,13 @@ export default function SchedulingPage() {
                         </div>
                         <Switch
                           checked={newAvailability.is_telemedicine}
+                          disabled={!canManageScheduling}
                           onCheckedChange={(checked) =>
                             setNewAvailability({ ...newAvailability, is_telemedicine: checked })
                           }
                         />
                       </div>
-                      <Button onClick={handleAddAvailability} className="w-full" disabled={createAvailability.isPending}>
+                      <Button onClick={handleAddAvailability} className="w-full" disabled={!canManageScheduling || createAvailability.isPending}>
                         {createAvailability.isPending ? 'Adding...' : 'Add Availability'}
                       </Button>
                     </div>
@@ -365,6 +370,7 @@ export default function SchedulingPage() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={!canManageScheduling}
                               onClick={() => deleteAvailability.mutate(avail.id)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -395,7 +401,7 @@ export default function SchedulingPage() {
                   <Button
                     className="w-full mt-4"
                     onClick={handleGenerateSlots}
-                    disabled={!doctorId || generateSlots.isPending}
+                    disabled={!doctorId || !canManageScheduling || generateSlots.isPending}
                   >
                     <RefreshCw className={`mr-2 h-4 w-4 ${generateSlots.isPending ? 'animate-spin' : ''}`} />
                     Generate Slots

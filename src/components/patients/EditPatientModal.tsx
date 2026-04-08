@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useUpdatePatient, type Patient } from '@/hooks/usePatients';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const editPatientSchema = z.object({
   first_name: z.string().min(2, 'First name must be at least 2 characters'),
@@ -51,11 +51,10 @@ interface EditPatientModalProps {
 }
 
 export function EditPatientModal({ open, onOpenChange, patient }: EditPatientModalProps) {
-  const { primaryRole } = useAuth();
+  const permissions = usePermissions();
   const updatePatient = useUpdatePatient();
 
-  // Only admin and receptionist can edit patient demographics
-  const canEditDemographics = primaryRole === 'admin' || primaryRole === 'receptionist';
+  const canEditDemographics = permissions.can('patients:write');
 
   const form = useForm<EditPatientFormData>({
     resolver: zodResolver(editPatientSchema),
@@ -287,7 +286,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea rows={3} {...field} />
+                    <Textarea rows={3} {...field} disabled={!canEditDemographics} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -298,7 +297,7 @@ export function EditPatientModal({ open, onOpenChange, patient }: EditPatientMod
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updatePatient.isPending}>
+              <Button type="submit" disabled={!canEditDemographics || updatePatient.isPending}>
                 {updatePatient.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Save Changes
               </Button>

@@ -123,7 +123,7 @@ describe('getAccessibleRoutes', () => {
     expect(routes).toContain('/pharmacy');
     expect(routes).toContain('/billing');
     expect(routes).toContain('/laboratory');
-    expect(routes).toContain('/staff');
+    expect(routes).toContain('/settings/staff');
     expect(routes).toContain('/ai-demo');
   });
 
@@ -143,7 +143,7 @@ describe('getAccessibleRoutes', () => {
 
   it('lab_technician routes include lab automation', () => {
     const routes = getAccessibleRoutes('lab_technician');
-    expect(routes).toContain('/lab/automation');
+    expect(routes).toContain('/laboratory/automation');
     expect(routes).not.toContain('/pharmacy');
   });
 });

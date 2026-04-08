@@ -34,7 +34,7 @@ export default function DoctorMessagesPage() {
 
   const { data: allMessages } = useMessages();
   const { data: conversationMessages } = useConversation(selectedContact?.id || '');
-  const { data: contacts } = useMessageContacts();
+  const { data: contacts } = useMessageContacts({ includePatients: true, includeStaff: false });
   const sendMessage = useSendMessage();
   const markAsRead = useMarkAsRead();
   

@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { LAB_ORDER_COLUMNS } from '@/lib/queryColumns';
+import { hasPermission } from '@/lib/permissions';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 
 export type LabOrder = Tables<'lab_orders'>;
@@ -100,10 +101,15 @@ export function useLabOrderStats() {
 export function useUpdateLabOrder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { primaryRole } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: LabOrderUpdate }) => {
+      if (!hasPermission(primaryRole, 'lab:write')) {
+        throw new Error('You do not have permission to update lab orders');
+      }
+
       const { data, error } = await supabase
         .from('lab_orders')
         .update(updates)
@@ -137,12 +143,16 @@ export function useUpdateLabOrder() {
 export function useCreateLabOrder() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { hospital, user } = useAuth();
+  const { hospital, user, primaryRole } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { recordOperation, recordCustomEvent } = useClinicalMetrics();
 
   return useMutation({
     mutationFn: async (order: LabOrderInsert) => {
+      if (!hasPermission(primaryRole, 'lab:write')) {
+        throw new Error('You do not have permission to create lab orders');
+      }
+
       return recordOperation(
         {
           workflowType: 'lab',

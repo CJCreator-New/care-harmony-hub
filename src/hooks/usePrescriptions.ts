@@ -7,6 +7,7 @@ import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAudit } from '@/hooks/useAudit';
 import { fieldEncryption } from '@/utils/dataProtection';
+import { hasPermission } from '@/lib/permissions';
 
 export interface Prescription {
   id: string;
@@ -156,7 +157,7 @@ export function usePrescriptionStats() {
 
 export function useCreatePrescription() {
   const queryClient = useQueryClient();
-  const { hospital, profile } = useAuth();
+  const { hospital, profile, primaryRole } = useAuth();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { logActivity } = useAudit();
   const { recordOperation, recordCustomEvent } = useClinicalMetrics();
@@ -187,6 +188,9 @@ export function useCreatePrescription() {
           attributes: { patient_id: patientId },
         },
         async () => {
+          if (!hasPermission(primaryRole, 'prescriptions:write')) {
+            throw new Error('You do not have permission to create prescriptions');
+          }
           if (!hospital?.id || !profile?.id) throw new Error('No hospital/profile context');
 
       // Create prescription
@@ -347,11 +351,14 @@ export function usePrescriptionsRealtime() {
 
 export function useDispensePrescription() {
   const queryClient = useQueryClient();
-  const { profile, hospital } = useAuth();
+  const { profile, hospital, primaryRole } = useAuth();
   const { logActivity } = useAudit();
 
   return useMutation({
     mutationFn: async (prescriptionId: string) => {
+      if (!hasPermission(primaryRole, 'prescriptions:write')) {
+        throw new Error('You do not have permission to dispense prescriptions');
+      }
       if (!profile?.id || !hospital?.id) throw new Error('No profile/hospital context');
 
       const { error } = await supabase

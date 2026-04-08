@@ -28,7 +28,6 @@ import { StartConsultationModal } from '@/components/consultations/StartConsulta
 import { usePatientVitalSigns } from '@/hooks/useVitalSigns';
 import { usePatient } from '@/hooks/usePatients';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/contexts/AuthContext';
 import { EditPatientModal } from '@/components/patients/EditPatientModal';
 import { differenceInYears, format as formatDate } from 'date-fns';
 import { toast } from 'sonner';
@@ -36,8 +35,7 @@ import { toast } from 'sonner';
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { primaryRole } = useAuth();
-  const { canCreatePatients } = usePermissions();
+  const permissions = usePermissions();
   const [consultationModalOpen, setConsultationModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
@@ -45,8 +43,8 @@ export default function PatientProfilePage() {
 
   const { data: vitalSigns = [] } = usePatientVitalSigns(id || '');
 
-  // Only admin and receptionist can edit patient demographics
-  const canEditDemographics = primaryRole === 'admin' || primaryRole === 'receptionist';
+  const canEditDemographics = permissions.can('patients:write');
+  const canCreateConsultation = permissions.can('consultations:write');
 
   if (isLoading) {
     return (
@@ -99,7 +97,7 @@ export default function PatientProfilePage() {
               <FileText className="h-4 w-4" />
               EMR Export
             </Button>
-            <Button className="gap-2" onClick={() => setConsultationModalOpen(true)}>
+            <Button className="gap-2" onClick={() => setConsultationModalOpen(true)} disabled={!canCreateConsultation}>
               <Plus className="h-4 w-4" />
               New Consultation
             </Button>

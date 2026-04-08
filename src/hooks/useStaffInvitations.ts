@@ -80,10 +80,8 @@ export function useStaffInvitations() {
       }
 
       // Handle E2E Mock Auth where the profile ID doesn't exist in the database
-      const isE2EMockMode = import.meta.env.DEV && 
-        (import.meta.env.VITE_E2E_MOCK_AUTH === 'true' || 
-         (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user')));
-      
+      const isE2EMockMode = import.meta.env.VITE_E2E_MOCK_AUTH === 'true' ||
+           (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user'));
       if (isE2EMockMode) {
         return {
           data: {

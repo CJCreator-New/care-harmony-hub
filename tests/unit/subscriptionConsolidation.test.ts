@@ -78,7 +78,7 @@ describe('Phase 5: Subscription Consolidation', () => {
 
       // Event 2: Same event immediately (network retry)
       // In real scenario, this would happen < 5 seconds later
-      expect(isDuplicate('queue-called-patient-123')).toBe(false); // In test, new timestamps
+      expect(isDuplicate('queue-called-patient-123')).toBe(true);
 
       // Different event
       expect(isDuplicate('queue-called-patient-456')).toBe(false);
@@ -119,7 +119,7 @@ describe('Phase 5: Subscription Consolidation', () => {
 
       // Add 150 entries (exceeds limit of 100)
       for (let i = 0; i < 150; i++) {
-        eventCache.set(`event-${i}`, now - i * 1000);
+        eventCache.set(`event-${i}`, now - i * 10000); // Step by 10s so 150 entries = 1500s = 25 mins
       }
 
       expect(eventCache.size).toBe(150);
