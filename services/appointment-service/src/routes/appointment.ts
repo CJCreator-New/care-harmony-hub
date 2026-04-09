@@ -20,11 +20,31 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
   ): Promise<ApiResponse<AppointmentResponse>> => {
     try {
       const appointmentData = request.body as CreateAppointment;
-      // For now, we'll use a mock user ID - in production this would come from JWT
-      const createdBy = '550e8400-e29b-41d4-a716-446655440001';
+      const hospitalId = (request as any).user?.hospital_id;
+      const createdBy = (request as any).user?.id || '550e8400-e29b-41d4-a716-446655440001';
+
+      if (!hospitalId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Hospital context required',
+          success: false,
+        });
+      }
+
+      // Ensure hospital_id from appointment data matches authenticated hospital context
+      if (appointmentData.hospital_id && appointmentData.hospital_id !== hospitalId) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'Hospital context mismatch',
+          success: false,
+        });
+      }
 
       const appointment = await appointmentService.createAppointment({
         ...appointmentData,
+        hospital_id: hospitalId,
+        created_by: createdBy,
+        updated_by: createdBy,
       });
 
       logger.info({ msg: 'Appointment created successfully', appointmentId: appointment.id });
@@ -59,8 +79,17 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
   ): Promise<ApiResponse<AppointmentResponse>> => {
     try {
       const { id } = request.params as { id: string };
+      const hospitalId = (request as any).user?.hospital_id;
 
-      const appointment = await appointmentService.getAppointmentById(id);
+      if (!hospitalId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Hospital context required',
+          success: false,
+        });
+      }
+
+      const appointment = await appointmentService.getAppointmentById(id, hospitalId);
 
       if (!appointment) {
         return reply.code(404).send({
@@ -94,12 +123,17 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
     try {
       const { id } = request.params as { id: string };
       const updateData = request.body as UpdateAppointment;
-      // For now, we'll use a mock user ID - in production this would come from JWT
-      const updatedBy = '550e8400-e29b-41d4-a716-446655440001';
+      const hospitalId = (request as any).user?.hospital_id;
 
-      const appointment = await appointmentService.updateAppointment(id, {
-        ...updateData,
-      });
+      if (!hospitalId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Hospital context required',
+          success: false,
+        });
+      }
+
+      const appointment = await appointmentService.updateAppointment(id, updateData, hospitalId);
 
       if (!appointment) {
         return reply.code(404).send({
@@ -126,6 +160,14 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      if (error.message.includes('Hospital context mismatch')) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'You do not have access to this appointment',
+          success: false,
+        });
+      }
+
       return reply.code(500).send({
         error: 'Internal Server Error',
         message: 'Failed to update appointment',
@@ -141,8 +183,17 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
   ): Promise<ApiResponse<{ data: { message: string }; success: true }>> => {
     try {
       const { id } = request.params as { id: string };
+      const hospitalId = (request as any).user?.hospital_id;
 
-      const cancelled = await appointmentService.deleteAppointment(id);
+      if (!hospitalId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Hospital context required',
+          success: false,
+        });
+      }
+
+      const cancelled = await appointmentService.deleteAppointment(id, hospitalId);
 
       if (!cancelled) {
         return reply.code(404).send({
@@ -175,7 +226,20 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
   ): Promise<ApiResponse<AppointmentsResponse>> => {
     try {
       const searchParams = request.query as AppointmentSearch;
-      const result = await appointmentService.searchAppointments(searchParams);
+      const hospitalId = (request as any).user?.hospital_id;
+
+      if (!hospitalId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Hospital context required',
+          success: false,
+        });
+      }
+
+      const result = await appointmentService.searchAppointments({
+        ...searchParams,
+        hospital_id: hospitalId,
+      });
 
       return {
         data: result.appointments,
@@ -202,10 +266,20 @@ export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
     try {
       const { patientId } = request.params as { patientId: string };
       const searchParams = request.query as Omit<AppointmentSearch, 'patient_id'>;
+      const hospitalId = (request as any).user?.hospital_id;
+
+      if (!hospitalId) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Hospital context required',
+          success: false,
+        });
+      }
 
       const result = await appointmentService.searchAppointments({
         ...searchParams,
         patient_id: patientId,
+        hospital_id: hospitalId,
       });
 
       return {

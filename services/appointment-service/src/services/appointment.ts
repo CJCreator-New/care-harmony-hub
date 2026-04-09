@@ -136,17 +136,35 @@ export class AppointmentService {
     }
   }
 
-  async getAppointmentById(id: string): Promise<Appointment | null> {
+  async getAppointmentById(id: string, hospitalId?: string): Promise<Appointment | null> {
     // Try cache first
     const cached = await getCache<Appointment>(`appointment:${id}`);
-    if (cached) return cached;
+    if (cached) {
+      // Verify hospital scoping if provided
+      if (hospitalId && cached.hospital_id !== hospitalId) {
+        return null;
+      }
+      return cached;
+    }
 
     const { getClient } = await import('../config/database');
     const client = await getClient();
 
     try {
-      const query = 'SELECT * FROM appointments WHERE id = $1';
-      const result = await client.query(query, [id]);
+      let query: string;
+      let params: any[];
+
+      if (hospitalId) {
+        // Hospital-scoped query (secure, preferred)
+        query = 'SELECT * FROM appointments WHERE id = $1 AND hospital_id = $2';
+        params = [id, hospitalId];
+      } else {
+        // Fallback for internal calls only (e.g., from updateAppointment)
+        query = 'SELECT * FROM appointments WHERE id = $1';
+        params = [id];
+      }
+
+      const result = await client.query(query, params);
 
       if (result.rows.length === 0) return null;
 
@@ -164,14 +182,20 @@ export class AppointmentService {
 
   async updateAppointment(
     id: string,
-    updateData: UpdateAppointment
+    updateData: UpdateAppointment,
+    hospitalId: string
   ): Promise<Appointment | null> {
     const { transaction } = await import('../config/database');
 
     return transaction(async (client) => {
-      // Check if appointment exists
-      const existing = await this.getAppointmentById(id);
+      // Check if appointment exists AND belongs to hospital
+      const existing = await this.getAppointmentById(id, hospitalId);
       if (!existing) return null;
+
+      // Verify hospital scoping consistency
+      if (existing.hospital_id !== hospitalId) {
+        throw new Error('Hospital context mismatch - security violation');
+      }
 
       // Check for conflicts if time-related fields are being updated
       if (updateData.scheduled_at || updateData.duration) {
@@ -194,11 +218,11 @@ export class AppointmentService {
       const query = `
         UPDATE appointments
         SET ${setClause}, updated_at = NOW()
-        WHERE id = $1
+        WHERE id = $1 AND hospital_id = $2
         RETURNING *
       `;
 
-      const result = await client.query(query, [id, ...values]);
+      const result = await client.query(query, [id, hospitalId, ...values]);
       if (result.rows.length === 0) return null;
 
       const appointment = result.rows[0];
@@ -219,20 +243,35 @@ export class AppointmentService {
     });
   }
 
-  async deleteAppointment(id: string): Promise<boolean> {
+  async deleteAppointment(id: string, hospitalId?: string): Promise<boolean> {
     const { getClient } = await import('../config/database');
     const client = await getClient();
 
     try {
-      // Soft delete by setting status to cancelled
-      const query = `
-        UPDATE appointments
-        SET status = 'cancelled', updated_at = NOW()
-        WHERE id = $1 AND status NOT IN ('completed', 'in-progress')
-        RETURNING id
-      `;
+      let query: string;
+      let params: any[];
 
-      const result = await client.query(query, [id]);
+      if (hospitalId) {
+        // Hospital-scoped delete (secure, preferred)
+        query = `
+          UPDATE appointments
+          SET status = 'cancelled', updated_at = NOW()
+          WHERE id = $1 AND hospital_id = $2 AND status NOT IN ('completed', 'in-progress')
+          RETURNING id
+        `;
+        params = [id, hospitalId];
+      } else {
+        // Fallback (legacy support only)
+        query = `
+          UPDATE appointments
+          SET status = 'cancelled', updated_at = NOW()
+          WHERE id = $1 AND status NOT IN ('completed', 'in-progress')
+          RETURNING id
+        `;
+        params = [id];
+      }
+
+      const result = await client.query(query, params);
       const deleted = result.rows.length > 0;
 
       if (deleted) {

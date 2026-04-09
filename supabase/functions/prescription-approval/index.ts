@@ -108,7 +108,17 @@ async function performDURCheck(
     if (error || !prescription) {
       return { passed: false, warnings: ["Prescription not found"] };
     }
+    // ✅ CRITICAL: Verify hospital_id from workflow matches prescription
+    // This prevents cross-hospital prescription access
+    const { data: workflow, error: wfError } = await supabase
+      .from("prescription_approval_workflows")
+      .select("hospital_id")
+      .eq("prescription_id", prescriptionId)
+      .single();
 
+    if (wfError || !workflow || prescription.hospital_id !== workflow.hospital_id) {
+      return { passed: false, warnings: ["Hospital context mismatch - security violation"] };
+    }
     const warnings: string[] = [];
 
     // DUR Check 1: Duplicate therapy
@@ -196,6 +206,15 @@ serve(async (req: Request) => {
 
     if (workflowError || !workflow) {
       return new Response(JSON.stringify({ error: "Workflow not found" }), { status: 404 });
+    }
+
+    // ✅ Extract hospital_id from workflow for all subsequent queries
+    const hospitalId = workflow.hospital_id;
+    if (!hospitalId) {
+      return new Response(
+        JSON.stringify({ error: "Hospital context required for prescription workflow" }),
+        { status: 400 }
+      );
     }
 
     // ─── RBAC Check ──────────────────────────────────────────────────────────────

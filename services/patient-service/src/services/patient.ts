@@ -10,6 +10,12 @@ import {
 } from '../types/patient';
 import { logger, logDatabaseOperation } from '../utils/logger';
 import { encryptData, decryptData } from '../utils/encryption';
+import {
+  validateHospitalContext,
+  withHospitalScopingParam,
+  validateQueryResult,
+  createAuditLogEntry,
+} from '../utils/hospitalScoping';
 
 export class PatientService {
   private readonly CACHE_TTL = 3600; // 1 hour
@@ -17,6 +23,11 @@ export class PatientService {
 
   async createPatient(patientData: CreatePatient & { created_by: string; updated_by: string }): Promise<Patient> {
     try {
+      // CRITICAL: Validate hospital context in patient data
+      if (!patientData.hospital_id) {
+        throw new Error('Hospital ID is required for patient creation (HIPAA-mandated)');
+      }
+
       const id = uuidv4();
       const now = new Date().toISOString();
 
@@ -85,44 +96,64 @@ export class PatientService {
     }
   }
 
-  async getPatientById(id: string): Promise<Patient | null> {
+  async getPatientById(id: string, hospitalId: string): Promise<Patient | null> {
     try {
+      // CRITICAL: Validate hospital context
+      if (!hospitalId) {
+        throw new Error('Hospital ID is required for patient data access (HIPAA-mandated)');
+      }
+
       // Check cache first
-      const cacheKey = `${this.CACHE_PREFIX}${id}`;
+      const cacheKey = `${this.CACHE_PREFIX}${id}:${hospitalId}`;
       const cached = await getCache<Patient>(cacheKey);
       if (cached) {
-        logger.debug({ msg: 'Patient retrieved from cache', patientId: id });
+        logger.debug({ msg: 'Patient retrieved from cache', patientId: id, hospitalId });
         return cached;
       }
 
+      // ✅ CRITICAL FIX: Include hospital_id in WHERE clause
       const result = await query(
-        'SELECT * FROM patients WHERE id = $1 AND status != $2',
-        [id, 'deleted']
+        'SELECT * FROM patients WHERE id = $1 AND hospital_id = $2 AND status != $3',
+        [id, hospitalId, 'deleted']
       );
 
       if (result.rows.length === 0) {
+        logger.warn({ 
+          msg: 'Patient not found (or belongs to different hospital)',
+          patientId: id,
+          hospitalId,
+        });
         return null;
       }
 
       const patient = this.mapDbRowToPatient(result.rows[0]);
 
+      // Double-check: Verify result belongs to expected hospital (defense-in-depth)
+      validateQueryResult(patient, hospitalId);
+
       // Cache the result
       await setCache(cacheKey, patient, this.CACHE_TTL);
 
-      logDatabaseOperation('SELECT', 'patients', { id }, patient);
+      logDatabaseOperation('SELECT', 'patients', { id, hospitalId }, patient);
 
       return patient;
     } catch (error) {
-      logger.error({ msg: 'Failed to get patient by ID', error, patientId: id });
+      logger.error({ msg: 'Failed to get patient by ID', error, patientId: id, hospitalId });
       throw error;
     }
   }
 
   async updatePatient(
     id: string,
+    hospitalId: string,
     updateData: UpdatePatient & { updated_by: string }
   ): Promise<Patient | null> {
     try {
+      // CRITICAL: Validate hospital context
+      if (!hospitalId) {
+        throw new Error('Hospital ID is required for patient data updates (HIPAA-mandated)');
+      }
+
       const now = new Date().toISOString();
 
       // Encrypt sensitive data if present
@@ -217,8 +248,9 @@ export class PatientService {
           paramIndex++;
         }
 
-        queryText += `, ${updates.join(', ')} WHERE id = $${paramIndex} AND status != 'deleted' RETURNING *`;
-        values.push(id);
+        // ✅ CRITICAL FIX: Include hospital_id in WHERE clause
+        queryText += `, ${updates.join(', ')} WHERE id = $${paramIndex} AND hospital_id = $${paramIndex + 1} AND status != 'deleted' RETURNING *`;
+        values.push(id, hospitalId);
 
         const result = await client.query(queryText, values);
         return result.rows[0] || null;
@@ -230,8 +262,11 @@ export class PatientService {
 
       const patient = this.mapDbRowToPatient(result);
 
+      // Double-check: Verify result belongs to expected hospital
+      validateQueryResult(patient, hospitalId);
+
       // Invalidate cache
-      await deleteCache(`${this.CACHE_PREFIX}${id}`);
+      await deleteCache(`${this.CACHE_PREFIX}${id}:${hospitalId}`);
 
       // Publish patient updated event
       await publishMessage('patient.updated', {
@@ -241,20 +276,26 @@ export class PatientService {
         timestamp: now,
       });
 
-      logDatabaseOperation('UPDATE', 'patients', { id }, patient);
+      logDatabaseOperation('UPDATE', 'patients', { id, hospitalId }, patient);
 
       return patient;
     } catch (error) {
-      logger.error({ msg: 'Failed to update patient', error, patientId: id, updateData });
+      logger.error({ msg: 'Failed to update patient', error, patientId: id, hospitalId });
       throw error;
     }
   }
 
-  async deletePatient(id: string): Promise<boolean> {
+  async deletePatient(id: string, hospitalId: string): Promise<boolean> {
     try {
+      // CRITICAL: Validate hospital context
+      if (!hospitalId) {
+        throw new Error('Hospital ID is required for patient data deletion (HIPAA-mandated)');
+      }
+
+      // ✅ CRITICAL FIX: Include hospital_id in WHERE clause
       const result = await query(
-        "UPDATE patients SET status = 'deleted', updated_at = $1 WHERE id = $2 AND status != 'deleted'",
-        [new Date().toISOString(), id]
+        "UPDATE patients SET status = 'deleted', updated_at = $1 WHERE id = $2 AND hospital_id = $3 AND status != 'deleted'",
+        [new Date().toISOString(), id, hospitalId]
       );
 
       if (result.rowCount === 0) {
@@ -262,32 +303,40 @@ export class PatientService {
       }
 
       // Invalidate cache
-      await deleteCache(`${this.CACHE_PREFIX}${id}`);
+      await deleteCache(`${this.CACHE_PREFIX}${id}:${hospitalId}`);
 
       // Publish patient deleted event
       await publishMessage('patient.deleted', {
         patientId: id,
+        hospitalId,
         timestamp: new Date().toISOString(),
       });
 
-      logDatabaseOperation('UPDATE', 'patients', { id, status: 'deleted' });
+      logDatabaseOperation('UPDATE', 'patients', { id, hospitalId, status: 'deleted' });
 
       return true;
     } catch (error) {
-      logger.error({ msg: 'Failed to delete patient', error, patientId: id });
+      logger.error({ msg: 'Failed to delete patient', error, patientId: id, hospitalId });
       throw error;
     }
   }
 
-  async searchPatients(searchParams: PatientSearch): Promise<{
+  async searchPatients(
+    searchParams: PatientSearch,
+    hospitalId: string
+  ): Promise<{
     patients: Patient[];
     total: number;
     limit: number;
     offset: number;
   }> {
     try {
+      // CRITICAL: Validate hospital context
+      if (!hospitalId) {
+        throw new Error('Hospital ID is required for patient search (HIPAA-mandated)');
+      }
+
       const {
-        hospital_id,
         medical_record_number,
         first_name,
         last_name,
@@ -301,15 +350,10 @@ export class PatientService {
         sort_order = 'desc',
       } = searchParams;
 
-      const conditions: string[] = ['status != $1'];
-      const values: any[] = ['deleted'];
-      let paramIndex = 2;
-
-      if (hospital_id) {
-        conditions.push(`hospital_id = $${paramIndex}`);
-        values.push(hospital_id);
-        paramIndex++;
-      }
+      // ✅ CRITICAL FIX: Start with hospital_id as mandatory filter
+      const conditions: string[] = ['status != $1', 'hospital_id = $2'];
+      const values: any[] = ['deleted', hospitalId];
+      let paramIndex = 3;
 
       if (medical_record_number) {
         conditions.push(`medical_record_number ILIKE $${paramIndex}`);
@@ -374,7 +418,7 @@ export class PatientService {
 
       const patients = dataResult.rows.map(row => this.mapDbRowToPatient(row));
 
-      logDatabaseOperation('SELECT', 'patients', searchParams, { total, limit, offset });
+      logDatabaseOperation('SELECT', 'patients', { ...searchParams, hospitalId }, { total, limit, offset });
 
       return {
         patients,
@@ -383,7 +427,7 @@ export class PatientService {
         offset,
       };
     } catch (error) {
-      logger.error({ msg: 'Failed to search patients', error, searchParams });
+      logger.error({ msg: 'Failed to search patients', error, searchParams, hospitalId });
       throw error;
     }
   }
