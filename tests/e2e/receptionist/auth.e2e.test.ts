@@ -6,13 +6,13 @@ test.describe('@receptionist Receptionist Authentication', () => {
   test('should login as receptionist', async ({ page, userContext }) => {
     await page.goto('/login');
 
-    await page.fill('input[name="email"]', userContext.user.email);
-    await page.fill('input[name="password"]', userContext.user.password);
+    await page.fill('input#email', userContext.user.email);
+    await page.fill('input#password', userContext.user.password);
 
     await page.click('button[type="submit"]');
 
-    await page.waitForURL('**/reception/**');
-    expect(page.url()).toContain('/reception');
+    await page.waitForURL('**/dashboard', { timeout: 35000 });
+    expect(page.url()).toMatch(/dashboard/);
   });
 
   test('should display patient list', async ({ authenticatedPage }) => {

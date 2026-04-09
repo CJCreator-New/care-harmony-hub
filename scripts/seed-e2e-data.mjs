@@ -17,16 +17,10 @@ const TEST_ROLES = ['patient', 'doctor', 'pharmacy', 'laboratory', 'receptionist
 const TEST_HOSPITAL_ID = process.env.TEST_HOSPITAL_ID || 'hp1';
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'TestPass123!';
 
-interface TestUserConfig {
-  role: string;
-  email: string;
-  full_name: string;
-}
-
 async function seedTestUsers() {
   console.log('🌱 Seeding E2E test data...\n');
 
-  const testUsers: TestUserConfig[] = TEST_ROLES.map((role) => ({
+  const testUsers = TEST_ROLES.map((role) => ({
     role,
     email: `test-${role}@caresync.local`,
     full_name: `Test ${role.charAt(0).toUpperCase() + role.slice(1)}`,

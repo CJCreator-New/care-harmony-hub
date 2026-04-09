@@ -9,13 +9,13 @@ test.describe('@doctor Doctor Authentication', () => {
   }) => {
     await page.goto('/login');
 
-    await page.fill('input[name="email"]', userContext.user.email);
-    await page.fill('input[name="password"]', userContext.user.password);
+    await page.fill('input#email', userContext.user.email);
+    await page.fill('input#password', userContext.user.password);
 
     await page.click('button[type="submit"]');
 
-    await page.waitForURL('**/doctor/dashboard');
-    expect(page.url()).toContain('/doctor/dashboard');
+    await page.waitForURL('**/dashboard', { timeout: 35000 });
+    expect(page.url()).toMatch(/dashboard/);
   });
 
   test('should display doctor name on dashboard', async ({

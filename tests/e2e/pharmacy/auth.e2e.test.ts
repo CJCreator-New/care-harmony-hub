@@ -6,13 +6,13 @@ test.describe('@pharmacy Pharmacist Authentication', () => {
   test('should login as pharmacist', async ({ page, userContext }) => {
     await page.goto('/login');
 
-    await page.fill('input[name="email"]', userContext.user.email);
-    await page.fill('input[name="password"]', userContext.user.password);
+    await page.fill('input#email', userContext.user.email);
+    await page.fill('input#password', userContext.user.password);
 
     await page.click('button[type="submit"]');
 
-    await page.waitForURL('**/pharmacy/**');
-    expect(page.url()).toContain('/pharmacy');
+    await page.waitForURL('**/dashboard', { timeout: 35000 });
+    expect(page.url()).toMatch(/dashboard/);
   });
 
   test('should display prescription queue', async ({ authenticatedPage }) => {

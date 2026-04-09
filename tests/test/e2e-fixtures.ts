@@ -32,11 +32,11 @@ export const test = base.extend<TestFixtures>({
   },
 
   userContext: async ({ userRole }, use) => {
-    // Mock user context - in actual tests, this would seed from database
+    // Mock user context - matches mock auth credentials in LoginPage.tsx
     const testUsers: Record<string, any> = {
       patient: {
         id: 'patient-001',
-        email: 'test.patient@caresync.local',
+        email: 'patient@testgeneral.com',
         password: 'TestPass123!',
         role: 'patient',
         hospital_id: 'hp1',
@@ -44,7 +44,7 @@ export const test = base.extend<TestFixtures>({
       },
       doctor: {
         id: 'doctor-001',
-        email: 'test.doctor@caresync.local',
+        email: 'doctor@testgeneral.com',
         password: 'TestPass123!',
         role: 'doctor',
         hospital_id: 'hp1',
@@ -52,7 +52,7 @@ export const test = base.extend<TestFixtures>({
       },
       pharmacy: {
         id: 'pharmacist-001',
-        email: 'test.pharmacist@caresync.local',
+        email: 'pharmacy@testgeneral.com',
         password: 'TestPass123!',
         role: 'pharmacy',
         hospital_id: 'hp1',
@@ -60,7 +60,7 @@ export const test = base.extend<TestFixtures>({
       },
       laboratory: {
         id: 'lab-tech-001',
-        email: 'test.labtech@caresync.local',
+        email: 'lab@testgeneral.com',
         password: 'TestPass123!',
         role: 'laboratory',
         hospital_id: 'hp1',
@@ -68,7 +68,7 @@ export const test = base.extend<TestFixtures>({
       },
       receptionist: {
         id: 'receptionist-001',
-        email: 'test.receptionist@caresync.local',
+        email: 'reception@testgeneral.com',
         password: 'TestPass123!',
         role: 'receptionist',
         hospital_id: 'hp1',
@@ -76,7 +76,7 @@ export const test = base.extend<TestFixtures>({
       },
       admin: {
         id: 'admin-001',
-        email: 'test.admin@caresync.local',
+        email: 'admin@testgeneral.com',
         password: 'TestPass123!',
         role: 'admin',
         hospital_id: 'hp1',
