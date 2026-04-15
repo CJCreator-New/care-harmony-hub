@@ -1,0 +1,266 @@
+name: Continuous Integration Pipeline
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ========================================
+  # UNIT TESTS: 2-3 minute execution
+  # ========================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: caresync_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript check
+        run: npm run typecheck
+
+      - name: Run linter
+        run: npm run lint -- --format json > lint-report.json || true
+
+      - name: Run unit tests
+        run: npm run test:unit -- --coverage --reporter=json --outputFile=coverage.json
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/caresync_test
+          NODE_ENV: test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.json
+          flags: unit
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-results
+          path: |
+            coverage.json
+            lint-report.json
+
+  # ========================================
+  # SECURITY SCANNING: 2-4 minute execution
+  # ========================================
+  security-scan:
+    name: Security Scan (OWASP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (dependencies)
+        run: npm audit --json > npm-audit.json || true
+
+      - name: Run SAST (SonarQube scanner)
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=caresync-hims
+            -Dsonar.sources=src
+            -Dsonar.exclusions=**/*.test.ts,**/node_modules/**
+
+      - name: Check security regressions
+        run: npm run test:security
+
+      - name: Upload security results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scan-results
+          path: npm-audit.json
+
+  # ========================================
+  # ACCESSIBILITY SCAN: 1-2 minute execution
+  # ========================================
+  accessibility-scan:
+    name: Accessibility Scan (WCAG 2.1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for accessibility testing
+        run: npm run build
+
+      - name: Run accessibility tests
+        run: npm run test:accessibility -- --reporter=json > a11y-results.json || true
+
+      - name: Upload accessibility results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: accessibility-results
+          path: a11y-results.json
+
+  # ========================================
+  # BUILD VALIDATION: 1-2 minute execution
+  # ========================================
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [ unit-tests, security-scan ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+
+      - name: Verify bundle size
+        run: |
+          SIZE=$(du -sh dist | cut -f1)
+          echo "📦 Bundle size: $SIZE"
+          if [ $(echo "dist/" | du -sh | cut -d' ' -f1 | sed 's/M//') -gt 5 ]; then
+            echo "⚠️ Warning: Bundle size exceeds 5MB"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: dist/
+          retention-days: 7
+
+  # ========================================
+  # DOCKER BUILD & PUSH: 3-5 minute execution
+  # ========================================
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    needs: [ build ]
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          File: ./Dockerfile.prod
+
+  # ========================================
+  # CI SUMMARY: Final status check
+  # ========================================
+  ci-summary:
+    name: CI Pipeline Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [ unit-tests, security-scan, accessibility-scan, build, docker-build ]
+
+    steps:
+      - name: Check CI Success
+        run: |
+          echo "✅ CI Pipeline Summary"
+          echo "- Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "- Security: ${{ needs.security-scan.result }}"
+          echo "- Accessibility: ${{ needs.accessibility-scan.result }}"
+          echo "- Build: ${{ needs.build.result }}"
+          echo "- Docker: ${{ needs.docker-build.result }}"
+
+      - name: Fail on any failure
+        if: |
+          needs.unit-tests.result == 'failure' ||
+          needs.security-scan.result == 'failure' ||
+          needs.build.result == 'failure'
+        run: exit 1

@@ -1,0 +1,409 @@
+---
+# Datadog Agent Configuration for CareSync HIMS
+# Deploy via Kubernetes DaemonSet or manual installation
+# Version: 7.53.0+
+# Documentation: https://docs.datadoghq.com/agent/basic_agent_usage/
+
+# ============================================================================
+# 1. CORE AGENT CONFIGURATION
+# ============================================================================
+agent:
+  enabled: true
+  
+  # Datadog site (US=datadoghq.com, EU=datadoghq.eu)
+  site: datadoghq.com
+  
+  # API Key (retrieve from environment variable or Kubernetes secret)
+  api_key: ${DD_API_KEY}
+  
+  # Environment tags for all metrics/logs/traces
+  env: staging  # Automatically updated for production
+  service: caresync-hims
+  version: 1.0.0
+
+# ============================================================================
+# 2. LOGS COLLECTION
+# ============================================================================
+logs_enabled: true
+log_level: info
+
+logs:
+  # Application logs from Docker/K8s containers
+  - type: file
+    path: /var/log/containers/*.log
+    service: caresync-hims
+    source: kubernetes
+    source_category: application
+    
+    # Parse JSON logs
+    parser: json
+    
+    # Extract important fields for indexing
+    processing_rules:
+      - type: extract_field
+        field: request_id
+        key: trace_id
+      - type: extract_field
+        field: user_id
+        key: user_id
+        
+  # Infrastructure logs
+  - type: journald
+    path: /run/log/journal
+    service: caresync-infrastructure
+    source: systemd
+    
+  # Database slow query logs
+  - type: file
+    path: /var/log/postgresql/slow.log
+    service: caresync-database
+    source: postgresql
+    
+  # Nginx access logs
+  - type: file
+    path: /var/log/nginx/access.log
+    service: caresync-frontend
+    source: nginx
+    custom_parser: nginx_parser
+
+# ============================================================================
+# 3. DISTRIBUTED TRACING (APM)
+# ============================================================================
+apm_enabled: true
+apm_config:
+  enabled: true
+  
+  # Agent listens on localhost:8126/tcp for trace data
+  apm_port: 8126
+  apm_address: 0.0.0.0:8126
+  
+  # Enable trace sampling for cost optimization
+  # (production: 1.0 = 100%, staging: 0.1 = 10%)
+  trace_sample_rate: 0.1
+  
+  # Environment-specific trace retention
+  max_trace_limit: 1000
+  
+  # Trace features
+  config_features:
+    - trace_agent_apm_disabled: false
+    - live_debugging_enabled: true
+    - database_monitoring: true
+    - continuous_profiling: true
+    
+  # Service name mapping (normalize across teams)
+  service_name_mapping:
+    "auth-service": "caresync-auth"
+    "patient-api": "caresync-patients"
+    "telehealth-api": "caresync-telehealth"
+    "billing-api": "caresync-billing"
+    "clinical-api": "caresync-clinical"
+
+# ============================================================================
+# 4. PROFILING & CONTINUOUS PROFILING
+# ============================================================================
+profiling_enabled: true
+profiling_config:
+  enabled: true
+  
+  # CPU profiling
+  cpu_profiling_enabled: true
+  
+  # Heap profiling (memory)
+  heap_profiling_enabled: true
+  
+  # Goroutine profiling (Go services)
+  goroutine_profiling_enabled: true
+  
+  # Mutex profiling (lock contention)
+  mutex_profiling_enabled: true
+  
+  profile_interval: 60s
+  
+# ============================================================================
+# 5. CUSTOM METRICS COLLECTION
+# ============================================================================
+custom_metrics:
+  enabled: true
+  
+  # StatsD listener for application metrics
+  statsd_port: 8125
+  statsd_addr: 0.0.0.0:8125
+  
+  metrics:
+    # Telehealth domain metrics
+    - name: telehealth.session.duration
+      unit: second
+      type: gauge
+      tags:
+        - service:telehealth
+        
+    - name: telehealth.session.quality
+      unit: percent
+      type: gauge
+      tags:
+        - service:telehealth
+        
+    # Billing domain metrics
+    - name: billing.invoice.processing_time
+      unit: millisecond
+      type: histogram
+      tags:
+        - service:billing
+        
+    - name: billing.claim.rejected_rate
+      unit: percent
+      type: gauge
+      tags:
+        - service:billing
+        
+    # Clinical domain metrics
+    - name: clinical.note.signature_time
+      unit: millisecond
+      type: histogram
+      tags:
+        - service:clinical
+        
+    - name: clinical.drug_interaction.cache_hit_rate
+      unit: percent
+      type: gauge
+      tags:
+        - service:clinical
+
+# ============================================================================
+# 6. INTEGRATIONS
+# ============================================================================
+integrations:
+  # Kubernetes integration
+  - name: kubernetes
+    config:
+      kubernetes_kubeconfig_path: /run/secrets/kubernetes.io/serviceaccount/config
+      kubernetes_namespace_name_as_tag: true
+      kubernetes_pod_labels_as_tags:
+        - app
+        - version
+        - team
+        
+  # PostgreSQL integration with custom queries
+  - name: postgres
+    config:
+      host: postgres-primary.databases.svc.cluster.local
+      port: 5432
+      username: ${DD_POSTGRES_USER}
+      password: ${DD_POSTGRES_PASSWORD}
+      database: caresync
+      
+      # Custom query metrics
+      custom_queries:
+        - metric_prefix: postgres.caresync
+          queries:
+            # RLS policy enforcement query
+            - name: users_per_role
+              query: |
+                SELECT role, COUNT(*) as count 
+                FROM auth_users 
+                GROUP BY role
+              columns:
+                - {name: role, type: tag}
+                - {name: count, type: gauge}
+                
+            # Clinical audit trail growth
+            - name: audit_log_per_day
+              query: |
+                SELECT DATE(created_at) as date, COUNT(*) as entries 
+                FROM audit_log 
+                WHERE created_at >= NOW() - INTERVAL '7 days'
+                GROUP BY DATE(created_at)
+              columns:
+                - {name: date, type: tag}
+                - {name: entries, type: gauge}
+      
+      # Schema to monitor
+      schemas:
+        - patients
+        - appointments
+        - prescriptions
+        - invoices
+        - clinical_notes
+        - audit_log
+        
+  # Redis integration
+  - name: redis
+    config:
+      host: redis-cache.databases.svc.cluster.local
+      port: 6379
+      password: ${DD_REDIS_PASSWORD}
+      db: 0
+      
+  # RabbitMQ integration
+  - name: rabbitmq
+    config:
+      host: rabbitmq.databases.svc.cluster.local
+      port: 15672
+      username: ${DD_RABBITMQ_USER}
+      password: ${DD_RABBITMQ_PASSWORD}
+      
+  # Prometheus integration (scrape Prometheus metrics)
+  - name: prometheus
+    config:
+      prometheus_url: http://prometheus:9090
+      namespace: caresync
+      metrics:
+        - http_requests_total
+        - http_request_duration_seconds
+        - custom_metrics_*
+
+# ============================================================================
+# 7. CONTAINER MONITORING
+# ============================================================================
+container_monitoring:
+  enabled: true
+  
+  # Docker daemon monitoring
+  docker_enabled: true
+  docker_socket: /var/run/docker.sock
+  
+  # Kubernetes pod monitoring
+  kubernetes_enabled: true
+  
+  # Collect container metrics
+  container_metrics:
+    - cpu
+    - memory
+    - disk
+    - network
+    - io
+
+# ============================================================================
+# 8. SECURITY & COMPLIANCE
+# ============================================================================
+security:
+  # Process User & Group for isolation
+  process_user: dd-agent
+  
+  # TLS for agent communication
+  tls:
+    enabled: true
+    verify: true
+    ca_path: /etc/ssl/certs/ca-bundle.crt
+    cert_path: /etc/datadog-agent/certs/agent.crt
+    key_path: /etc/datadog-agent/certs/agent.key
+    
+  # Disable potentially sensitive metrics
+  disabled_metrics:
+    - system.processes
+    - io.read_bytes  # May contain PHI-related patterns
+    - io.write_bytes
+    
+  # Obfuscate resources for privacy
+  resource_obfuscation: true
+
+# ============================================================================
+# 9. ENVIRONMENT-SPECIFIC SETTINGS
+# ============================================================================
+
+# Staging Environment (low volume)
+staging_config:
+  enabled: true
+  
+  # Lower collection frequency
+  collection_interval: 60s
+  
+  # Sample 10% of traces
+  trace_sample_rate: 0.1
+  
+  # Shorter retention
+  metrics_retention: 7d
+  logs_retention: 3d
+
+# Production Environment (high volume)
+production_config:
+  enabled: false  # Activated when deployed to prod
+  
+  # Higher collection frequency
+  collection_interval: 30s
+  
+  # Sample 1% of traces (cost optimization)
+  trace_sample_rate: 0.01
+  
+  # Longer retention
+  metrics_retention: 30d
+  logs_retention: 15d
+  
+  # Additional high-volume filtering
+  exclude_patterns:
+    - health_check  # Exclude health check endpoint noise
+    - metrics_scrape
+  
+  # PIHhash/obfuscate sensitive data
+  obfuscation:
+    http_headers:
+      - Authorization
+      - X-API-Key
+      - Cookie
+    json_fields:
+      - ssn
+      - mrn
+      - insurance_id
+      - credit_card
+
+# ============================================================================
+# 10. PERFORMANCE TUNING
+# ============================================================================
+performance:
+  # Memory limits
+  mem_limit: 500MB
+  max_memory_usage: 80%
+  
+  # CPU limits
+  cpu_limit: 2
+  
+  # Flush interval for metrics
+  flush_interval: 10s
+  
+  # Connection pool sizing
+  connection_pool_size: 100
+  
+  # Batch processing
+  batch_size: 50
+  batch_timeout: 10s
+
+# ============================================================================
+# 11. ALERTING & NOTIFICATIONS
+# ============================================================================
+notifications:
+  # Pagerduty integration for critical issues
+  pagerduty_enabled: true
+  pagerduty_api_key: ${DD_PAGERDUTY_API_KEY}
+  
+  # Slack notifications
+  slack_enabled: true
+  slack_webhook_url: ${DD_SLACK_WEBHOOK}
+  
+  # Email notifications
+  email_enabled: true
+  email_recipients:
+    - devops-team@caresync.local
+    - sre-team@caresync.local
+
+# ============================================================================
+# 12. DASHBOARDS & MONITORS (Created in Datadog UI)
+# ============================================================================
+# Note: These are defined in Datadog UI, not agent config
+# Key dashboards to create:
+#   1. CareSync HIMS Overview (all services)
+#   2. Telehealth Session Quality (real-time video metrics)
+#   3. Billing Performance (invoice processing, claim rates)
+#   4. Clinical Workflow (audit trails, signatures)
+#   5. Infrastructure Health (K8s, PostgreSQL, Redis)
+#   6. HIPAA Compliance (encryption, RLS, data access)
+#   7. Incident Response (error rates, latency spikes)
+#
+# Create monitors for:
+#   1. Availability < 99.9%
+#   2. P95 latency > 500ms
+#   3. Error rate > 0.1%
+#   4. Database replication lag > 60s
+#   5. RLS violations (any)
+#   6. Encryption failures (any)
+#   7. Backup failure rate > 1%

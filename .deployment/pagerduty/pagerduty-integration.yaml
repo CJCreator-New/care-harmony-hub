@@ -1,0 +1,649 @@
+---
+# PagerDuty Integration Configuration for CareSync HIMS
+# Purpose: Incident management, on-call routing, escalation policies
+# Environment: Staging (Apr 16-May 6) & Production (May 1+)
+
+# ============================================================================
+# 1. SERVICE DEFINITIONS
+# ============================================================================
+
+services:
+  # Frontend Service
+  - id: caresync-frontend-svc
+    name: CareSync Frontend
+    description: React patient/doctor web interface
+    escalation_policy_id: policy-frontend-oncall
+    alert_threshold: 2  # 2 alerts before escalation
+    alert_timeout: 600  # 10 minutes
+    auto_resolve_timeout: 900  # 15 minutes
+    teams:
+      - Frontend Team
+    
+  # Backend API Service
+  - id: caresync-api-svc
+    name: CareSync Backend API
+    description: Core business logic, patient data access
+    escalation_policy_id: policy-backend-oncall
+    alert_threshold: 1  # Immediate escalation for API
+    alert_timeout: 300  # 5 minutes
+    auto_resolve_timeout: 600  # 10 minutes
+    teams:
+      - Backend Team
+      - DevOps Team
+    urgency_rules:
+      - selector: "severity:critical"
+        urgency: high
+      - selector: "severity:warning"
+        urgency: low
+    
+  # Telehealth Service
+  - id: caresync-telehealth-svc
+    name: CareSync Telehealth
+    description: Real-time video sessions, patient-doctor interactions
+    escalation_policy_id: policy-telehealth-oncall
+    alert_threshold: 1
+    alert_timeout: 300
+    auto_resolve_timeout: 600
+    teams:
+      - Clinical Team
+      - Backend Team
+    acknowledgement_timeout: 300  # 5 min ack window
+    
+  # Billing Service
+  - id: caresync-billing-svc
+    name: CareSync Billing
+    description: Invoice processing, insurance claims
+    escalation_policy_id: policy-billing-oncall
+    alert_threshold: 2
+    alert_timeout: 600
+    auto_resolve_timeout: 1800  # 30 min (less critical)
+    teams:
+      - Backend Team
+      - Finance Team
+    
+  # Database Service
+  - id: caresync-database-svc
+    name: CareSync Database
+    description: PostgreSQL primary + replica, data persistence
+    escalation_policy_id: policy-database-oncall
+    alert_threshold: 1
+    alert_timeout: 180  # 3 minutes (critical infrastructure)
+    auto_resolve_timeout: 600
+    teams:
+      - DevOps Team
+    critical_ackowledgement_timeout: 60  # Must ack within 1 min
+    
+  # Infrastructure Service
+  - id: caresync-infrastructure-svc
+    name: CareSync Infrastructure
+    description: Kubernetes, load balancer, DNS
+    escalation_policy_id: policy-infrastructure-oncall
+    alert_threshold: 1
+    alert_timeout: 180
+    auto_resolve_timeout: 600
+    teams:
+      - DevOps Team
+    
+  # Security Service
+  - id: caresync-security-svc
+    name: CareSync Security
+    description: RLS violations, encryption failures, unauthorized access
+    escalation_policy_id: policy-security-oncall
+    alert_threshold: 1  # Any security issue is critical
+    alert_timeout: 60   # Must acknowledge within 1 minute
+    auto_resolve_timeout: 300
+    teams:
+      - Security Team
+      - DevOps Team
+    severity_rule: "All security alerts are HIGH urgency"
+
+# ============================================================================
+# 2. ESCALATION POLICIES - Define who gets paged in what order
+# ============================================================================
+
+escalation_policies:
+  # Frontend Team Escalation (less critical)
+  - id: policy-frontend-oncall
+    name: Frontend On-Call Escalation
+    escalation_level_1:
+      id: schedule-frontend-primary
+      delay_minutes: 10
+      escalation_targets:
+        - user_id: user-sarah-frontend
+          notification_rule: email  # Start with email
+        - user_id: user-mike-frontend
+    
+    escalation_level_2:
+      id: schedule-frontend-backup
+      delay_minutes: 15
+      escalation_targets:
+        - user_id: user-john-lead
+          notification_rule: sms  # SMS if not acked
+    
+    escalation_level_3:
+      contact: frontend-team-lead@caresync.local
+      delay_minutes: 20
+  
+  # Backend API Escalation (critical)
+  - id: policy-backend-oncall
+    name: Backend On-Call Escalation
+    escalation_level_1:
+      id: schedule-backend-primary
+      delay_minutes: 5  # Fast escalation for API
+      escalation_targets:
+        - user_id: user-james-backend
+          notification_rule: phone  # Direct phone for API issues
+    
+    escalation_level_2:
+      id: schedule-backend-backup
+      delay_minutes: 10
+      escalation_targets:
+        - user_id: user-alice-backend
+          notification_rule: sms
+        - user_id: user-bob-devops
+          notification_rule: phone
+    
+    escalation_level_3:
+      contact: backend-team-lead@caresync.local
+      delay_minutes: 15
+    
+    escalation_level_4:
+      contact: engineering-director@caresync.local
+      delay_minutes: 20
+  
+  # Telehealth Escalation (patient-critical)
+  - id: policy-telehealth-oncall
+    name: Telehealth On-Call Escalation
+    escalation_level_1:
+      id: schedule-telehealth-primary
+      delay_minutes: 3  # Very fast - affects patient care
+      escalation_targets:
+        - user_id: user-clinical-lead
+          notification_rule: phone
+    
+    escalation_level_2:
+      id: schedule-engineering-backup
+      delay_minutes: 8
+      escalation_targets:
+        - user_id: user-james-backend
+          notification_rule: phone
+    
+    escalation_level_3:
+      contact: cto@caresync.local
+      delay_minutes: 15
+  
+  # Billing Escalation (moderate)
+  - id: policy-billing-oncall
+    name: Billing On-Call Escalation
+    escalation_level_1:
+      id: schedule-billing-primary
+      delay_minutes: 10
+      escalation_targets:
+        - user_id: user-finance-ops
+          notification_rule: email
+    
+    escalation_level_2:
+      id: schedule-backend-backup
+      delay_minutes: 15
+      escalation_targets:
+        - user_id: user-james-backend
+          notification_rule: sms
+    
+    escalation_level_3:
+      contact: billing-director@caresync.local
+      delay_minutes: 20
+  
+  # Database Escalation (critical infrastructure)
+  - id: policy-database-oncall
+    name: Database On-Call Escalation
+    escalation_level_1:
+      id: schedule-devops-primary
+      delay_minutes: 2  # Immediate for database
+      escalation_targets:
+        - user_id: user-bob-devops
+          notification_rule: phone
+        - user_id: user-carlos-dba
+          notification_rule: phone
+    
+    escalation_level_2:
+      id: schedule-devops-backup
+      delay_minutes: 5
+      escalation_targets:
+        - user_id: user-ops-manager
+          notification_rule: phone
+    
+    escalation_level_3:
+      contact: infrastructure-lead@caresync.local
+      delay_minutes: 10
+    
+    escalation_level_4:
+      contact: cto@caresync.local
+      delay_minutes: 15
+  
+  # Infrastructure Escalation (critical)
+  - id: policy-infrastructure-oncall
+    name: Infrastructure On-Call Escalation
+    escalation_level_1:
+      id: schedule-devops-primary
+      delay_minutes: 3  # K8s issues are critical
+      escalation_targets:
+        - user_id: user-bob-devops
+          notification_rule: phone
+    
+    escalation_level_2:
+      id: schedule-devops-backup
+      delay_minutes: 8
+      escalation_targets:
+        - user_id: user-carlos-dba
+          notification_rule: phone
+    
+    escalation_level_3:
+      contact: infrastructure-lead@caresync.local
+      delay_minutes: 15
+  
+  # Security Escalation (immediate, all hands)
+  - id: policy-security-oncall
+    name: Security On-Call Escalation
+    escalation_level_1:
+      id: schedule-security
+      delay_minutes: 1  # IMMEDIATE for security
+      escalation_targets:
+        - user_id: user-sarah-security
+          notification_rule: phone
+        - user_id: user-frank-ciso
+          notification_rule: phone
+    
+    escalation_level_2:
+      delay_minutes: 2
+      conference_bridge: true  # Start bridge call
+      escalation_targets:
+        - user_id: user-cto
+          notification_rule: phone
+        - user_id: user-legal
+          notification_rule: phone
+    
+    escalation_level_3:
+      contact: executive-escalation@caresync.local
+      delay_minutes: 5
+
+# ============================================================================
+# 3. ON-CALL SCHEDULES
+# ============================================================================
+
+schedules:
+  # Frontend Team Primary (Weekly rotation)
+  - id: schedule-frontend-primary
+    name: Frontend Primary On-Call
+    timezone: America/Chicago
+    escalation_policy_id: policy-frontend-oncall
+    rotation:
+      - user_id: user-sarah-frontend
+        start_date: "2026-04-16"
+        duration_days: 7
+      - user_id: user-mike-frontend
+        start_date: "2026-04-23"
+        duration_days: 7
+      - user_id: user-john-frontend
+        start_date: "2026-04-30"
+        duration_days: 7
+    
+    overrides:  # Holiday coverage
+      - user_id: user-john-lead
+        start_date: "2026-05-27"
+        end_date: "2026-05-31"
+        reason: "Memorial Day weekend coverage"
+  
+  # Backend Team Primary (3-day rotation - higher burden)
+  - id: schedule-backend-primary
+    name: Backend Primary On-Call
+    timezone: America/Chicago
+    escalation_policy_id: policy-backend-oncall
+    rotation:
+      - user_id: user-james-backend
+        start_date: "2026-04-16"
+        duration_days: 3
+      - user_id: user-alice-backend
+        start_date: "2026-04-19"
+        duration_days: 3
+      - user_id: user-david-backend
+        start_date: "2026-04-22"
+        duration_days: 3
+    
+    handoff_notifications: true
+    handoff_time: "09:00:00"
+  
+  # DevOps Team (24x7 on-call, 7-day rotation)
+  - id: schedule-devops-primary
+    name: DevOps Primary On-Call
+    timezone: America/Chicago
+    escalation_policy_id: policy-database-oncall
+    rotation:
+      - user_id: user-bob-devops
+        start_date: "2026-04-16"
+        duration_days: 7
+      - user_id: user-carlos-dba
+        start_date: "2026-04-23"
+        duration_days: 7
+      - user_id: user-ops-manager
+        start_date: "2026-04-30"
+        duration_days: 7
+    
+    restricted_on_call_days:  # No 2 people on-call during holidays
+      - "2026-05-27"  # Memorial Day
+      - "2026-07-04"  # Independence Day
+  
+  # Security Team (Always on-call for critical incidents)
+  - id: schedule-security
+    name: Security On-Call (Primary)
+    timezone: America/Chicago
+    escalation_policy_id: policy-security-oncall
+    rotation:
+      - user_id: user-sarah-security
+        start_date: "2026-04-16"
+        duration_days: 7
+      - user_id: user-frank-ciso  # CISO backup
+        start_date: "2026-04-23"
+        duration_days: 7
+    
+    always_on_call_users:
+      - user_id: user-cto
+        reason: "Security escalations always include CTO"
+
+# ============================================================================
+# 4. INCIDENT TEMPLATES - Auto-template for common incident types
+# ============================================================================
+
+incident_templates:
+  # Database Replication Lag Incident
+  - id: template-db-replication-lag
+    title_template: "🚨 Database Replication Lag: {{ current_lag_seconds }}s"
+    urgency: high
+    service_id: caresync-database-svc
+    assigned_policy_id: policy-database-oncall
+    tags:
+      - database
+      - replication
+      - infrastructure
+    escalation_after_minutes: 5
+    custom_fields:
+      - name: "current_lag_seconds"
+      - name: "threshold_seconds"
+        default_value: "60"
+      - name: "replica_host"
+  
+  # RLS Violation Incident
+  - id: template-security-rls-violation
+    title_template: "🔴 SECURITY ALERT: Unauthorized Data Access"
+    urgency: high
+    service_id: caresync-security-svc
+    assigned_policy_id: policy-security-oncall
+    tags:
+      - security
+      - rls-violation
+      - hipaa-critical
+    escalation_after_minutes: 1
+    auto_conference_bridge: true
+    notify_stakeholders:
+      - legal@caresync.local
+      - compliance@caresync.local
+    runbook_url: "https://wiki.caresync.local/incident-response/rls-violation"
+  
+  # Service Unavailable
+  - id: template-service-down
+    title_template: "🚨 {{ service_name }} - SERVICE DOWN"
+    urgency: high
+    assigned_policy_id: policy-engineering-critical
+    tags:
+      - outage
+      - critical
+    escalation_after_minutes: 3
+    auto_incident_commander: true
+  
+  # Performance Degradation
+  - id: template-performance-degradation
+    title_template: "⚠️  {{ service_name }} - Performance Degraded (P95: {{ latency_ms }}ms)"
+    urgency: medium
+    tags:
+      - performance
+      - warning
+    escalation_after_minutes: 10
+
+# ============================================================================
+# 5. NOTIFICATION RULES - How users get notified
+# ============================================================================
+
+notification_rules:
+  # Critical P1 incidents: Phone (no question)
+  - target_type: phone
+    triggers:
+      - incident_urgency: high
+        assigned_service:
+          - caresync-database-svc
+          - caresync-security-svc
+          - caresync-telehealth-svc
+      - alert_severity: critical
+    notification_channels:
+      - phone_primary
+      - sms_fallback
+    do_not_call_after: "22:00"
+    do_not_call_before: "07:00"
+    fallback_channel: sms
+  
+  # Warning P2 incidents: SMS + Email
+  - target_type: sms_and_email
+    triggers:
+      - incident_urgency: medium
+        alert_severity: warning
+    notification_channels:
+      - sms
+      - email
+  
+  # Low priority: Email only
+  - target_type: email
+    triggers:
+      - incident_urgency: low
+        alert_severity: info
+    notification_channels:
+      - email
+    batch_notification: true  # Batch hourly digests
+
+# ============================================================================
+# 6. RESPONSE PLAYBOOKS & RUNBOOKS
+# ============================================================================
+
+response_playbooks:
+  - incident_type: "Database Replication Lag"
+    severity: critical
+    estimated_time_to_resolve: 15  # minutes
+    steps:
+      - step_1: "Check replica status: SELECT * FROM pg_stat_replication;"
+      - step_2: "Check network latency between primary and replica"
+      - step_3: "If lag > 5 min, trigger failover procedure"
+      - step_4: "Notify billing/clinical teams of potential data loss window"
+    contact_escalation: infrastructure-lead@caresync.local
+  
+  - incident_type: "RLS Policy Violation"
+    severity: critical
+    estimated_time_to_resolve: 30
+    steps:
+      - step_1: "Acknowledge incident immediately"
+      - step_2: "Check audit logs: SELECT * FROM audit_log WHERE rls_violation = true ORDER BY created_at DESC LIMIT 100;"
+      - step_3: "Identify affected user and data accessed"
+      - step_4: "Revoke user session immediately"
+      - step_5: "Notify CISO and legal team"
+      - step_6: "Generate PIAs (Privacy Impact Assessment)"
+    contact_escalation: cso@caresync.local
+  
+  - incident_type: "Telehealth Session Failure"
+    severity: high
+    estimated_time_to_resolve: 5
+    steps:
+      - step_1: "Check Zoom/Twilio failover status"
+      - step_2: "Verify provider and patient still connected"
+      - step_3: "Attempt automatic reconnection"
+      - step_4: "Re-establish video session"
+    contact_escalation: clinical-ops@caresync.local
+
+# ============================================================================
+# 7. ALERTING RULES - Map Prometheus/Datadog alerts to PagerDuty
+# ============================================================================
+
+alert_routing:
+  # Critical alerts -> immediate page
+  - alert_pattern: "Availability_Below_999|LatencyP95_Exceeds_500ms|DatabaseConnectionPoolExhausted|RLSPolicyViolationDetected"
+    service_id: caresync-database-svc
+    urgency: high
+    escalation_policy_id: policy-database-oncall
+    auto_escalate: true
+  
+  # Telehealth alerts -> clinical escalation
+  - alert_pattern: "ServiceDown_Telehealth"
+    service_id: caresync-telehealth-svc
+    urgency: high
+    escalation_policy_id: policy-telehealth-oncall
+    notification_rule: phone
+  
+  # Billing alerts -> finance escalation
+  - alert_pattern: "ServiceDown_Billing"
+    service_id: caresync-billing-svc
+    urgency: medium
+    escalation_policy_id: policy-billing-oncall
+    notification_rule: email
+  
+  # Infrastructure alerts -> DevOps
+  - alert_pattern: "DiskUsageHigh|MemoryUsageHigh"
+    service_id: caresync-infrastructure-svc
+    urgency: medium
+    escalation_policy_id: policy-infrastructure-oncall
+  
+  # Warning level -> Low urgency
+  - alert_pattern: "LatencyP95_Degrading|ErrorRateElevated|CacheHitRateLow"
+    service_id: caresync-api-svc
+    urgency: low
+    escalation_policy_id: policy-backend-oncall
+
+# ============================================================================
+# 8. CONFERENCE BRIDGE SETUP
+# ============================================================================
+
+conference_bridges:
+  - id: bridge-critical-incidents
+    name: "CareSync - Critical Incident Bridge"
+    provider: "Zoom"
+    bridge_number: "+1-312-555-0123"
+    access_code: "123456789"
+    recording_enabled: true
+    auto_start_on_p1: true
+    max_participants: 50
+    
+  - id: bridge-daily-standups
+    name: "CareSync - Daily DevOps Standup"
+    provider: "Google Meet"
+    bridge_url: "https://meet.google.com/xyz-abcd-efg"
+    scheduled_time: "09:00 America/Chicago"
+    recurring: daily
+    recording_enabled: true
+
+# ============================================================================
+# 9. INTEGRATION WITH SLACK
+# ============================================================================
+
+slack_integration:
+  enabled: true
+  workspace_id: "T123456789"
+  channels:
+    # Critical incidents channel
+    - name: "#caresync-incidents"
+      incident_urgency: high
+      notification_type: "immediate"
+      thread_conversations: true
+      
+    # Warnings/info channel
+    - name: "#caresync-alerts"
+      incident_urgency: medium
+      notification_type: "threaded_summary"
+      
+    # Dev team channel
+    - name: "#backend-team"
+      services:
+        - caresync-api-svc
+        - caresync-backend-svc
+      notification_type: "mention_on_escalation"
+  
+  incident_commands:
+    - command: "/pagerduty-incident"
+      action: "create_incident"
+    - command: "/pagerduty-ack"
+      action: "acknowledge_incident"
+    - command: "/pagerduty-resolve"
+      action: "resolve_incident"
+
+# ============================================================================
+# 10. MOBILE APP INTEGRATION
+# ============================================================================
+
+mobile_app:
+  enabled: true
+  push_notifications: true
+  critical_incident_bypass_do_not_disturb: true
+  
+  # Force phone call for critical alerts even if on DND
+  override_notifications:
+    - incident_urgency: high
+      services:
+        - caresync-database-svc
+        - caresync-security-svc
+      action: "phone_call"
+
+# ============================================================================
+# 11. DEPLOYMENT NOTES
+# ============================================================================
+
+# Deploy this configuration via:
+# 1. PagerDuty Terraform provider (IaC recommended)
+# 2. PagerDuty API: https://api.pagerduty.com
+# 3. PagerDuty Web Console (manual - less recommended)
+
+# Key deployment steps:
+# 1. Create services for each component
+# 2. Create escalation policies defining who gets paged
+# 3. Create on-call schedules with rotations
+# 4. Integrate with Prometheus/Datadog/Slack
+# 5. Test escalation paths (dry run)
+# 6. Train team on incident response
+
+# Test escalation command (via PagerDuty API):
+# curl -X POST "https://api.pagerduty.com/incidents" \
+#   -H "Authorization: Token token=YOUR_API_KEY" \
+#   -d '{"incident": {...}}'
+
+# Verify testing completed by:
+# 1. Apr 17: All users can receive notifications (phone + SMS verified)
+# 2. Apr 18: Test escalation chain (L1 -> L2 -> L3)
+# 3. Apr 19: Verify Slack/email integrations working
+# 4. Apr 20: Team trained on incident response procedures
+
+# ============================================================================
+# TEAM & CONTACT INFO
+# ============================================================================
+
+# Team Leads
+team_leads:
+  frontend: "Sarah Kim (sarah@caresync.local) - 555-0101"
+  backend: "James Chen (james@caresync.local) - 555-0102"
+  devops: "Bob Martinez (bob@caresync.local) - 555-0103"
+  security: "Sarah Johnson (sarah.j@caresync.local) - 555-0104"
+  clinical: "Dr. Michael Torres (m.torres@caresync.local) - 555-0105"
+
+# Executives
+escalation_contacts:
+  vp_engineering: "engineering-director@caresync.local"
+  cto: "cto@caresync.local"
+  ciso: "cso@caresync.local"
+  ceo: "ceo@caresync.local"
+
+# Compliance
+compliance_contacts:
+  hipaa_officer: "hipaa-compliance@caresync.local"
+  legal: "legal@caresync.local"
+  data_protection: "data-protection@caresync.local"

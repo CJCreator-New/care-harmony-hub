@@ -1,0 +1,319 @@
+# prometheus-alerts.yml
+# Alert rules for CareSync HIMS production monitoring
+# Severity Levels: critical (P1), warning (P2), info (P3)
+
+groups:
+  - name: caresync_slo_alerts
+    interval: 30s
+    rules:
+
+      # ========================================================================
+      # P1 CRITICAL ALERTS (Immediate Page)
+      # ========================================================================
+
+      - alert: Availability_Below_999
+        expr: |
+          (1 - (increase(http_requests_total{status=~"5.."}[5m]) / increase(http_requests_total[5m])))
+          < 0.999
+        for: 1m
+        labels:
+          severity: critical
+          slo: availability
+          team: oncall
+        annotations:
+          summary: "🚨 CRITICAL: Availability dropped below 99.9%"
+          description: |
+            Current availability: {{ $value | humanizePercentage }}
+            This violates our SLO target of 99.9% (43.2 min/month max downtime)
+            Immediate action required - check error logs and database status
+          runbook: "https://wiki.caresync.local/runbooks/availability-slo-miss"
+
+      - alert: LatencyP95_Exceeds_500ms
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          slo: performance
+          team: backend
+        annotations:
+          summary: "🚨 CRITICAL: P95 latency exceeds 500ms"
+          description: |
+            Current P95: {{ $value | humanizeDuration }}
+            SLO violation - target is <500ms
+            Check database load, connection pool, or slow queries
+          runbook: "https://wiki.caresync.local/runbooks/latency-degradation"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_activity_count > 80  # Connection pool size is 100
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          team: devops
+        annotations:
+          summary: "🚨 CRITICAL: Database connection pool nearly exhausted"
+          description: |
+            Active connections: {{ $value }}
+            Max pool size: 100
+            This indicates possible connection leak or sustained high load
+            Investigate long-running queries and application connection handling
+          runbook: "https://wiki.caresync.local/runbooks/db-connection-exhaustion"
+
+      - alert: DatabaseReplicationLagCritical
+        expr: walreceiver_latest_wal_time_seconds - walreceiver_write_latest_wal_time_seconds > 60
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          team: devops
+        annotations:
+          summary: "🚨 CRITICAL: Database replication lag > 60 seconds"
+          description: |
+            Current lag: {{ $value | humanizeDuration }}
+            RPO target: <5 minutes (this is well within, but trending badly)
+            If lag exceeds 5 minutes, failover may lose data
+          runbook: "https://wiki.caresync.local/runbooks/db-replication-lag"
+
+      - alert: RLSPolicyViolationDetected
+        expr: audit_log_rls_violation_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+          team: security
+        annotations:
+          summary: "🚨 CRITICAL: RLS policy violation detected"
+          description: |
+            Unauthorized data access attempts: {{ $value }}
+            Possible security breach - check audit logs immediately
+            User may have accessed unauthorized patient data
+          runbook: "https://wiki.caresync.local/runbooks/rls-violation"
+
+      - alert: PHIEncryptionFailure
+        expr: audit_log_encryption_failures_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+          team: security
+        annotations:
+          summary: "🚨 CRITICAL: PHI encryption failure detected"
+          description: |
+            Encryption errors: {{ $value }}
+            HIPAA compliance violation - patient data may be unencrypted
+            Immediate manual intervention required
+          runbook: "https://wiki.caresync.local/runbooks/encryption-failure"
+
+      - alert: ServiceDown_Telehealth
+        expr: up{job="caresync-telehealth"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: telehealth
+          team: oncall
+        annotations:
+          summary: "🚨 CRITICAL: Telehealth service unreachable"
+          description: |
+            Telehealth endpoint is down
+            Active sessions may be affected
+            Check container health and restart if necessary
+          runbook: "https://wiki.caresync.local/runbooks/service-restart"
+
+      - alert: ServiceDown_Billing
+        expr: up{job="caresync-billing"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: billing
+          team: oncall
+        annotations:
+          summary: "🚨 CRITICAL: Billing service unreachable"
+          description: |
+            Billing endpoint is down
+            Revenue operations and claim processing affected
+          runbook: "https://wiki.caresync.local/runbooks/service-restart"
+
+      # ========================================================================
+      # P2 WARNING ALERTS (15-min escalation)
+      # ========================================================================
+
+      - alert: ErrorRateElevated
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m])
+          /
+          rate(http_requests_total[5m])
+          > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          slo: reliability
+          team: backend
+        annotations:
+          summary: "⚠️  WARNING: error rate elevated to > 1%"
+          description: |
+            Current error rate: {{ $value | humanizePercentage }}
+            SLO threshold: < 0.1%
+            Investigate error logs and trending patterns
+          runbook: "https://wiki.caresync.local/runbooks/error-rate-spike"
+
+      - alert: LatencyP95_Degrading
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          slo: performance
+          team: backend
+        annotations:
+          summary: "⚠️  WARNING: P95 latency trending toward SLO violation"
+          description: |
+            Current P95: {{ $value | humanizeDuration }}
+            SLO: <500ms
+            Monitor query performance and resource utilization
+          runbook: "https://wiki.caresync.local/runbooks/latency-degradation"
+
+      - alert: DatabaseReplicationLagWarning
+        expr: walreceiver_latest_wal_time_seconds - walreceiver_write_latest_wal_time_seconds > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: devops
+        annotations:
+          summary: "⚠️  WARNING: Database replication lag increasing"
+          description: |
+            Current lag: {{ $value | humanizeDuration }}
+            RPO target: <5 minutes
+            Investigate replica health and network connectivity
+          runbook: "https://wiki.caresync.local/runbooks/db-replication-lag"
+
+      - alert: DiskUsageHigh
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+          team: devops
+        annotations:
+          summary: "⚠️  WARNING: Disk usage above 80%"
+          description: |
+            Available space: {{ $value | humanizePercentage }}
+            May need to expand disk or clean up old data
+          runbook: "https://wiki.caresync.local/runbooks/disk-space-critical"
+
+      - alert: MemoryUsageHigh
+        expr: process_resident_memory_bytes / process_virtual_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+          team: backend
+        annotations:
+          summary: "⚠️  WARNING: Memory usage above 80%"
+          description: |
+            Current usage: {{ $value | humanizePercentage }}
+            May indicate memory leak - monitor for gradual increase
+          runbook: "https://wiki.caresync.local/runbooks/memory-leak-investigation"
+
+      - alert: CacheHitRateLow
+        expr: |
+          (redis_keyspace_hits_total)
+          /
+          (redis_keyspace_hits_total + redis_keyspace_misses_total)
+          < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+          team: backend
+        annotations:
+          summary: "⚠️  WARNING: Redis cache hit rate below 70%"
+          description: |
+            Current hit rate: {{ $value | humanizePercentage }}
+            May indicate suboptimal caching strategy or hot data not cached
+          runbook: "https://wiki.caresync.local/runbooks/cache-optimization"
+
+      - alert: SlowDatabaseQuery
+        expr: rate(pg_stat_user_tables_seq_scan_relname[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: backend
+        annotations:
+          summary: "⚠️  WARNING: Slow sequential scans detected"
+          description: |
+            Sequential scans per minute: {{ $value }}
+            Index optimization may improve performance
+          runbook: "https://wiki.caresync.local/runbooks/slow-query-analysis"
+
+      # ========================================================================
+      # P3 INFO ALERTS (Monitoring purposes, no page)
+      # ========================================================================
+
+      - alert: HighConcurrencyApproaching
+        expr: rate(http_requests_total[5m]) > 80
+        for: 10m
+        labels:
+          severity: info
+          slo: capacity
+        annotations:
+          summary: "ℹ️  INFO: High request rate detected"
+          description: |
+            Requests per second: {{ $value }}
+            Approaching capacity threshold - monitor trends
+
+      - alert: UnusualAccessPatternDetected
+        expr: rate(audit_log_entries_total[1h]) > avg_over_time(rate(audit_log_entries_total[1h] offset 7d)[1h:1h])
+        for: 5m
+        labels:
+          severity: info
+          component: security
+        annotations:
+          summary: "ℹ️  INFO: Unusual access pattern detected"
+          description: |
+            Current traffic vs 7-day average indicates potential anomaly
+            Verify this is expected (new feature launch, training session, etc.)
+
+      - alert: BackupSuccessRate
+        expr: (increase(backup_successful_total[1d]) / increase(backup_total[1d])) < 0.99
+        for: 1h
+        labels:
+          severity: info
+          component: backup
+        annotations:
+          summary: "ℹ️  INFO: Backup success rate below 99%"
+          description: |
+            Success rate: {{ $value | humanizePercentage }}
+            Check backup logs for any issues
+          runbook: "https://wiki.caresync.local/runbooks/backup-failure"
+
+---
+
+# Alert routes for Alertmanager
+# (Integration with PagerDuty/Slack configured separately)
+
+alert_routes:
+
+  # Critical alerts: Immediate page
+  - match:
+      severity: critical
+    receiver: pagerduty-critical
+    repeat_interval: 5m
+    group_wait: 0s      # Send immediately
+    group_interval: 5m
+
+  # Warnings: Slack alert after 15m
+  - match:
+      severity: warning
+    receiver: slack-warnings
+    repeat_interval: 15m
+    group_wait: 5m
+    group_interval: 10m
+
+  # Info: Email digest
+  - match:
+      severity: info
+    receiver: email-digest
+    repeat_interval: 1h
+    group_wait: 15m
+    group_interval: 30m

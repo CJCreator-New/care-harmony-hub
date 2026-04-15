@@ -1,0 +1,326 @@
+# prometheus.yml
+# Prometheus configuration for CareSync HIMS monitoring
+# Deploys to: kubernetes namespace/prometheus-config (ConfigMap)
+# Scrape interval: 30 seconds
+# Evaluation interval: 30 seconds
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    cluster: caresync-prod
+    environment: staging
+    service: hims
+
+# Alert rules
+rule_files:
+  - '/etc/prometheus/rules/caresync-alerts.yml'
+
+# Alertmanager config
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+---
+
+# SCRAPE CONFIGS
+# Each scrape target represents a monitored component
+
+scrape_configs:
+  # ============================================================================
+  # KUBERNETES CLUSTER METRICS
+  # ============================================================================
+  
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+
+  # ============================================================================
+  # CARESYNC APPLICATION METRICS
+  # ============================================================================
+
+  - job_name: 'caresync-frontend'
+    static_configs:
+      - targets: ['localhost:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'frontend-01'
+
+  - job_name: 'caresync-backend-api'
+    static_configs:
+      - targets: ['api-service:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'api-backend'
+
+  - job_name: 'caresync-job-processor'
+    static_configs:
+      - targets: ['job-processor-service:3002']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'job-processor'
+
+  # ============================================================================
+  # DATABASE METRICS (PostgreSQL)
+  # ============================================================================
+
+  - job_name: 'postgres-primary'
+    static_configs:
+      - targets: ['postgres-exporter-primary:9187']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'postgres-primary'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'primary'
+
+  - job_name: 'postgres-replica'
+    static_configs:
+      - targets: ['postgres-exporter-replica:9187']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'postgres-replica'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'replica'
+
+  # ============================================================================
+  # CACHE METRICS (Redis)
+  # ============================================================================
+
+  - job_name: 'redis-cache'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'redis-cache'
+
+  # ============================================================================
+  # MESSAGE QUEUE METRICS (RabbitMQ)
+  # ============================================================================
+
+  - job_name: 'rabbitmq-queue'
+    static_configs:
+      - targets: ['rabbitmq-prometheus:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'rabbitmq-01'
+
+  # ============================================================================
+  # EDGE FUNCTION METRICS (Supabase)
+  # ============================================================================
+
+  - job_name: 'supabase-edge-functions'
+    static_configs:
+      - targets: ['supabase-exporter:9091']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'edge-functions'
+
+  # ============================================================================
+  # STORAGE METRICS
+  # ============================================================================
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'node-01'
+
+  # ============================================================================
+  # CUSTOM APPLICATION METRICS (CareSync-Specific)
+  # ============================================================================
+
+  # Telehealth session metrics
+  - job_name: 'caresync-telehealth'
+    static_configs:
+      - targets: ['localhost:3001']
+    metrics_path: '/metrics/telehealth'
+    scrape_interval: 30s
+    params:
+      filter: ['telehealth']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'telehealth'
+
+  # Billing transaction metrics
+  - job_name: 'caresync-billing'
+    static_configs:
+      - targets: ['localhost:3001']
+    metrics_path: '/metrics/billing'
+    scrape_interval: 30s
+    params:
+      filter: ['billing']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'billing'
+
+  # Clinical workflow metrics
+  - job_name: 'caresync-clinical'
+    static_configs:
+      - targets: ['localhost:3001']
+    metrics_path: '/metrics/clinical'
+    scrape_interval: 30s
+    params:
+      filter: ['clinical']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'clinical'
+
+  # Security & audit metrics
+  - job_name: 'caresync-security'
+    static_configs:
+      - targets: ['localhost:3001']
+    metrics_path: '/metrics/security'
+    scrape_interval: 30s
+    params:
+      filter: ['security']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'security'
+
+---
+
+# RECORDING RULES (Pre-computed aggregations for dashboard performance)
+
+RECORDING_RULES:
+
+  # API Response Time Percentiles
+  - name: api:request_duration_seconds:p50
+    expr: histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))
+    interval: 1m
+
+  - name: api:request_duration_seconds:p95
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+    interval: 1m
+
+  - name: api:request_duration_seconds:p99
+    expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+    interval: 1m
+
+  # Error Rate
+  - name: api:error_rate:5m
+    expr: |
+      rate(http_requests_total{status=~"5.."}[5m])
+      /
+      rate(http_requests_total[5m])
+    interval: 1m
+
+  # Database Replication Lag
+  - name: database:replication_lag_seconds:max
+    expr: max(walreceiver_latest_wal_time_seconds - walreceiver_write_latest_wal_time_seconds)
+    interval: 1m
+
+  # Memory Usage
+  - name: process:memory_usage_mb
+    expr: process_resident_memory_bytes / 1024 / 1024
+    interval: 1m
+
+  # Disk I/O
+  - name: node:disk_io_read_bytes:1m
+    expr: rate(node_disk_read_bytes_total[1m])
+    interval: 1m
+
+  - name: node:disk_io_write_bytes:1m
+    expr: rate(node_disk_write_bytes_total[1m])
+    interval: 1m
+
+  # Cache Hit Rate
+  - name: redis:hit_rate:percent
+    expr: |
+      (redis_keyspace_hits_total)
+      /
+      (redis_keyspace_hits_total + redis_keyspace_misses_total)
+      * 100
+    interval: 1m
+
+---
+
+# EXTERNAL LABELS (Added to all metrics)
+
+external_labels:
+  environment: 'staging'        # Will be 'production' post go-live
+  cluster: 'caresync-prod'
+  region: 'us-east-1'
+  team: 'devops'
+  alertmanager: 'true'
+
+---
+
+# RETENTION & STORAGE
+
+retention:
+  size: 100GB                    # Prometheus storage limit
+  time: 15d                      # Retention period (15 days for staging)
+
+# For production: 30d retention, 500GB storage

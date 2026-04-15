@@ -1,0 +1,728 @@
+---
+# Kubernetes Deployment Manifests for CareSync HIMS
+# Environment: Staging (Apr 16-May 6, 2026)
+# Namespace: caresync-staging (production uses caresync-prod)
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: caresync-staging
+  labels:
+    environment: staging
+    product: caresync-hims
+
+---
+# ============================================================================
+# 1. CONFIGMAP - Environment Configuration
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caresync-config
+  namespace: caresync-staging
+data:
+  # Application settings
+  APP_ENV: "staging"
+  APP_LOG_LEVEL: "info"
+  API_PORT: "3000"
+  
+  # Database configuration
+  DB_HOST: "postgres-primary.caresync-staging.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "caresync"
+  
+  # Redis cache
+  REDIS_HOST: "redis-cache.caresync-staging.svc.cluster.local"
+  REDIS_PORT: "6379"
+  
+  # RabbitMQ message queue
+  RABBITMQ_HOST: "rabbitmq.caresync-staging.svc.cluster.local"
+  RABBITMQ_PORT: "5672"
+  
+  # Supabase Edge Functions
+  SUPABASE_URL: "https://staging.supabase.co"
+  SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
+  
+  # Datadog APM
+  DD_AGENT_HOST: "datadog-agent.caresync-staging.svc.cluster.local"
+  DD_AGENT_PORT: "8126"
+  DD_SERVICE: "caresync-hims"
+  DD_ENV: "staging"
+  DD_TRACE_ENABLED: "true"
+
+---
+# ============================================================================
+# 2. SECRET - Sensitive Credentials
+# ============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: caresync-secrets
+  namespace: caresync-staging
+type: Opaque
+stringData:
+  # Database credentials
+  DB_USER: admin
+  DB_PASSWORD: ${DB_PASSWORD}
+  
+  # API keys
+  SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+  HIPAA_ENCRYPTION_KEY: ${HIPAA_ENCRYPTION_KEY}
+  JWT_SECRET: ${JWT_SECRET}
+  
+  # Third-party integrations
+  ZOOM_API_KEY: ${ZOOM_API_KEY}
+  TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+  TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+  
+  # Datadog and monitoring
+  DD_API_KEY: ${DD_API_KEY}
+  
+  # Backup encryption
+  BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+
+---
+# ============================================================================
+# 3. DEPLOYMENT - Frontend (React SPA)
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caresync-frontend
+  namespace: caresync-staging
+  labels:
+    app: caresync-frontend
+    team: frontend
+spec:
+  replicas: 2  # HA for staging
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+      
+  selector:
+    matchLabels:
+      app: caresync-frontend
+      
+  template:
+    metadata:
+      labels:
+        app: caresync-frontend
+        team: frontend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+        
+    spec:
+      # Pod disruption budget for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - caresync-frontend
+                topologyKey: kubernetes.io/hostname
+      
+      serviceAccountName: caresync-frontend
+      
+      containers:
+        - name: frontend
+          image: ghcr.io/caresync-hims/frontend:1.0.0-staging
+          imagePullPolicy: IfNotPresent
+          
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: metrics
+              containerPort: 3001
+              protocol: TCP
+          
+          # Environment variables
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: caresync-config
+                  key: APP_ENV
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: caresync-config
+                  key: APP_LOG_LEVEL
+            - name: API_URL
+              value: "http://caresync-api:3000"
+            - name: SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: caresync-config
+                  key: SUPABASE_URL
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: caresync-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+          
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          
+          # Resource limits
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.next/cache
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+
+---
+# ============================================================================
+# 4. SERVICE - Frontend (ClusterIP)
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: caresync-frontend
+  namespace: caresync-staging
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: caresync-frontend
+
+---
+# ============================================================================
+# 5. DEPLOYMENT - Backend API
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caresync-api
+  namespace: caresync-staging
+  labels:
+    app: caresync-api
+    team: backend
+spec:
+  replicas: 3  # HA for staging
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+      
+  selector:
+    matchLabels:
+      app: caresync-api
+      
+  template:
+    metadata:
+      labels:
+        app: caresync-api
+        team: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+        dd.trace.enabled: "true"
+        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - caresync-api
+                topologyKey: kubernetes.io/hostname
+      
+      serviceAccountName: caresync-api
+      
+      containers:
+        - name: api
+          image: ghcr.io/caresync-hims/backend:1.0.0-staging
+          imagePullPolicy: IfNotPresent
+          
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: metrics
+              containerPort: 3001
+              protocol: TCP
+          
+          # Environment variables
+          envFrom:
+            - configMapRef:
+                name: caresync-config
+            - secretRef:
+                name: caresync-secrets
+          
+          env:
+            - name: NODE_ENV
+              value: "staging"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: WORKER_THREADS
+              value: "4"
+            
+            # Datadog tracing
+            - name: DD_AGENT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: caresync-config
+                  key: DD_AGENT_HOST
+            - name: DD_AGENT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: caresync-config
+                  key: DD_AGENT_PORT
+          
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          
+          # Resource requests/limits
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/logs
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+
+---
+# ============================================================================
+# 6. SERVICE - Backend API (ClusterIP)
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: caresync-api
+  namespace: caresync-staging
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: caresync-api
+
+---
+# ============================================================================
+# 7. DEPLOYMENT - Job Processor (Background jobs)
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caresync-job-processor
+  namespace: caresync-staging
+  labels:
+    app: caresync-job-processor
+    team: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+      
+  selector:
+    matchLabels:
+      app: caresync-job-processor
+      
+  template:
+    metadata:
+      labels:
+        app: caresync-job-processor
+        team: backend
+      annotations:
+        dd.trace.enabled: "true"
+        
+    spec:
+      serviceAccountName: caresync-job-processor
+      
+      containers:
+        - name: job-processor
+          image: ghcr.io/caresync-hims/job-processor:1.0.0-staging
+          imagePullPolicy: IfNotPresent
+          
+          # Environment variables
+          envFrom:
+            - configMapRef:
+                name: caresync-config
+            - secretRef:
+                name: caresync-secrets
+          
+          # Resource requests/limits
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+---
+# ============================================================================
+# 8. DEPLOYMENT - Datadog Agent (DaemonSet would be used for prod)
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent
+  namespace: caresync-staging
+  labels:
+    app: datadog-agent
+    team: sre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datadog-agent
+      
+  template:
+    metadata:
+      labels:
+        app: datadog-agent
+        team: sre
+        
+    spec:
+      serviceAccountName: datadog-agent
+      
+      containers:
+        - name: datadog-agent
+          image: gcr.io/datadoghq/agent:7.53.0
+          imagePullPolicy: IfNotPresent
+          
+          ports:
+            - name: metrics
+              containerPort: 8125
+              protocol: UDP
+            - name: traces
+              containerPort: 8126
+              protocol: TCP
+            - name: process
+              containerPort: 6062
+              protocol: TCP
+          
+          # Environment variables for Datadog
+          env:
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: caresync-secrets
+                  key: DD_API_KEY
+            - name: DD_SITE
+              value: datadoghq.com
+            - name: DD_ENV
+              value: staging
+            - name: DD_SERVICE
+              value: caresync-hims
+            - name: DD_TRACE_ENABLED
+              value: "true"
+            - name: DD_APM_ENABLED
+              value: "true"
+            - name: DD_LOGS_ENABLED
+              value: "true"
+            - name: DD_CONTAINER_EXCLUDE_LOGS
+              value: "name:datadog-agent"
+          
+          # Resource limits
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+
+---
+# ============================================================================
+# 9. SERVICE - Datadog Agent (ClusterIP)
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-agent
+  namespace: caresync-staging
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 8125
+      targetPort: metrics
+      protocol: UDP
+    - name: traces
+      port: 8126
+      targetPort: traces
+      protocol: TCP
+    - name: process
+      port: 6062
+      targetPort: process
+      protocol: TCP
+  selector:
+    app: datadog-agent
+
+---
+# ============================================================================
+# 10. SERVICEACCOUNT - Frontend
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: caresync-frontend
+  namespace: caresync-staging
+
+---
+# ============================================================================
+# 11. SERVICEACCOUNT - Backend API
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: caresync-api
+  namespace: caresync-staging
+
+---
+# ============================================================================
+# 12. SERVICEACCOUNT - Job Processor
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: caresync-job-processor
+  namespace: caresync-staging
+
+---
+# ============================================================================
+# 13. SERVICEACCOUNT - Datadog Agent
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: datadog-agent
+  namespace: caresync-staging
+
+---
+# ============================================================================
+# 14. ROLE - Kubernetes monitoring access
+# ============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: datadog-agent
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+      - services
+      - endpoints
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+
+---
+# ============================================================================
+# 15. ROLEBINDING - Datadog Agent cluster access
+# ============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: datadog-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: datadog-agent
+subjects:
+  - kind: ServiceAccount
+    name: datadog-agent
+    namespace: caresync-staging
+
+---
+# ============================================================================
+# 16. INGRESS - HTTP routing
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: caresync-ingress
+  namespace: caresync-staging
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.caresync.local
+      secretName: caresync-tls-staging
+  rules:
+    - host: staging.caresync.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: caresync-api
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: caresync-frontend
+                port:
+                  number: 80
+
+---
+# ============================================================================
+# 17. PODDISRUPTIONBUDGET - High availability
+# ============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: caresync-api-pdb
+  namespace: caresync-staging
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: caresync-api
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: caresync-frontend-pdb
+  namespace: caresync-staging
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: caresync-frontend
