@@ -115,7 +115,10 @@ describe('usePatient', () => {
   }
 
 describe('useCreatePatient', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('calls rpc generate_mrn then inserts patient with encryption_metadata', async () => {
     const insertMock = vi.fn().mockReturnThis();

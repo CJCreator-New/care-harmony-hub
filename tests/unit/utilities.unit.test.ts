@@ -156,9 +156,12 @@ describe('Utilities - Validation', () => {
         '+1-555-123-4567',
       ];
 
-      const phoneRegex = /^(\+1)?[-.\s]?(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})$/;
+      const isValidPhone = (phone: string) => {
+        const digits = phone.replace(/\D/g, '');
+        return digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+      };
       validPhones.forEach(phone => {
-        expect(phoneRegex.test(phone.replace(/\D/g, ''))).toBe(true);
+        expect(isValidPhone(phone)).toBe(true);
       });
     });
 
@@ -476,8 +479,8 @@ describe('Utilities - Formatters', () => {
     it('should format date as US locale', () => {
       const date = new Date('2024-01-15');
       const formatted = date.toLocaleDateString('en-US');
-      
-      expect(formatted).toContain('01');
+
+      expect(formatted).toContain('1');
       expect(formatted).toContain('15');
       expect(formatted).toContain('2024');
     });

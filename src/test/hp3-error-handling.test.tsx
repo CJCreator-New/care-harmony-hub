@@ -8,6 +8,7 @@ import {
   showErrorNotification,
   createApplicationError,
   handleApiError,
+  asyncHandler,
   ErrorSeverity,
   ApplicationError,
 } from '@/lib/errorHandling';
@@ -256,16 +257,15 @@ describe('HP-3 PR3: Error Boundary & Handling', () => {
     });
 
     it('asyncHandler catches and handles errors', async () => {
-      const result = await new Promise<string | null>(resolve => {
-        (async () => {
-          const res = await handleError((async () => {
-            throw new Error('Async error');
-          })()).catch(e => null);
-          resolve(null);
-        })();
-      });
+      // Async handler should catch async errors without unhandled rejection
+      const result = await asyncHandler(
+        async () => {
+          throw new Error('Async error');
+        },
+        'TestContext'
+      );
 
-      // Error was caught (no unhandled promise rejection)
+      // Should return null when error is caught
       expect(result).toBeNull();
     });
   });

@@ -128,7 +128,10 @@ describe('useLabOrderStats', () => {
   }
 
 describe('useUpdateLabOrder', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('updates lab order by id', async () => {
     const updateMock = vi.fn().mockReturnThis();
@@ -158,7 +161,10 @@ describe('useUpdateLabOrder', () => {
   }
 
 describe('useCreateLabOrder', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('inserts lab order and creates lab_queue entry', async () => {
     const orderInsertMock = vi.fn().mockReturnThis();

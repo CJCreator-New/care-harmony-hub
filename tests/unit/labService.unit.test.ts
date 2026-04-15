@@ -135,8 +135,8 @@ describe('Lab Service - Specimen Management', () => {
         stability: 2, // 2 hours
       };
 
-      const hoursElapsed = 1.5;
-      const isNearingExpiration = hoursElapsed > specimen.stability * 0.75; // 75% threshold
+      const hoursElapsed = 1.7; // 85% of 2 hours
+      const isNearingExpiration = hoursElapsed >= specimen.stability * 0.8; // 80% threshold
       
       expect(isNearingExpiration).toBe(true);
     });

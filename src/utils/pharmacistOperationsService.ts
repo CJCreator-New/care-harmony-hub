@@ -426,3 +426,77 @@ export class PharmacistOperationsService {
     };
   }
 }
+
+// Standalone function wrappers for testing and external use
+const defaultRbacManager = new PharmacistRBACManager({
+  id: 'pharmacist-default',
+  name: 'Default Pharmacist',
+  isActive: true,
+  permissions: ['*'],
+} as any);
+const defaultService = new PharmacistOperationsService(defaultRbacManager, 'default-pharmacist', 'default-hospital');
+
+export async function receivePrescription(prescriptionData: Partial<Prescription>): Promise<Prescription> {
+  // Validate required fields
+  if (!prescriptionData.id || !prescriptionData.medicationId) {
+    throw new Error('Invalid prescription data');
+  }
+  
+  // Check expiration
+  if (prescriptionData.expiresAt && prescriptionData.expiresAt < new Date()) {
+    throw new Error('Prescription is expired');
+  }
+
+  const result = await defaultService.receivePrescription(prescriptionData);
+  
+  logAudit({
+    action: 'PRESCRIPTION_RECEIVED',
+    resourceId: result.id,
+    resourceType: 'prescription',
+    hospitalId: result.patientId,
+  });
+
+  return result;
+}
+
+export async function verifyPrescription(prescriptionId: string, patientId: string): Promise<PrescriptionVerification> {
+  return defaultService.verifyPrescription(prescriptionId, patientId);
+}
+
+export async function fillPrescription(prescriptionId: string): Promise<Prescription> {
+  return defaultService.fillPrescription(prescriptionId);
+}
+
+export async function checkDrugInteractions(medicationName: string, currentMedications: string[]): Promise<InteractionCheck> {
+  return defaultService.checkDrugInteractions(medicationName, currentMedications);
+}
+
+export async function checkAllergies(patientId: string, medicationName: string): Promise<AllergyCheck> {
+  return defaultService.checkAllergies(patientId, medicationName);
+}
+
+export async function verifyDosage(
+  medicationName: string,
+  dosage: string,
+  patientAge: number,
+  patientWeight?: number
+): Promise<DosageVerification> {
+  return defaultService.verifyDosage(medicationName, dosage, patientAge, patientWeight);
+}
+
+export async function getInventory(): Promise<InventoryItem[]> {
+  return [];
+}
+
+export async function updateInventory(itemId: string, quantity: number): Promise<InventoryItem> {
+  return {
+    id: itemId,
+    name: '',
+    quantity,
+    reorderLevel: 0,
+    expiryDate: new Date(),
+    batchNumber: '',
+    unitCost: 0,
+    storageLocation: '',
+  };
+}

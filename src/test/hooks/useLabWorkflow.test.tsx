@@ -57,7 +57,7 @@ const useLabWorkflow = () => {
   const generateSpecimenLabel = (patientId: string) => {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `SPEC-${patientId.substring(0, 3)}-${timestamp}-${random}`;
+    return `SPEC-${patientId.substring(0, 3).toUpperCase()}-${timestamp}-${random}`;
   };
 
   const checkCriticalValue = (testName: string, value: number) => {
