@@ -25,10 +25,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { useDoctorQueue } from '@/hooks/useDoctorStats';
-import { useTodayAppointments } from '@/hooks/useAppointments';
+import { useTodayAppointments } from '@/lib/hooks/appointments';
 import { useGetOrCreateConsultation } from '@/hooks/useConsultations';
-import { usePatients } from '@/hooks/usePatients';
-import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
+import { usePatients, usePatientsReadyForDoctor } from '@/lib/hooks/patients';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format, differenceInYears, differenceInMinutes } from 'date-fns';

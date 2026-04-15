@@ -28,10 +28,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockQueueEntry = {
   id: 'queue-1',
   hospital_id: mockHospital.id,
@@ -52,7 +48,10 @@ const mockQueueEntry = {
 };
 
 describe('useQueue', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns empty array when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
@@ -93,7 +92,10 @@ describe('useQueue', () => {
 });
 
 describe('useActiveQueue', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('filters for active statuses', async () => {
     const inMock = vi.fn().mockReturnThis();
@@ -113,7 +115,10 @@ describe('useActiveQueue', () => {
 });
 
 describe('useAddToQueue', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns existing entry if patient already in queue', async () => {
     mockSupabaseClient.from
@@ -175,7 +180,10 @@ describe('useAddToQueue', () => {
 });
 
 describe('useUpdateQueueEntry', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('updates queue entry by id', async () => {
     const updateMock = vi.fn().mockReturnThis();
@@ -202,7 +210,10 @@ describe('useUpdateQueueEntry', () => {
 });
 
 describe('useCallNextPatient', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('sets status to called with called_time and assigned_to', async () => {
     const updateMock = vi.fn().mockReturnThis();
@@ -230,7 +241,10 @@ describe('useCallNextPatient', () => {
 });
 
 describe('useCompleteService', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('sets status to completed with service_end_time', async () => {
     const updateMock = vi.fn().mockReturnThis();

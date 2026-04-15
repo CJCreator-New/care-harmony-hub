@@ -22,7 +22,7 @@ import {
   Truck,
   Clock3
 } from 'lucide-react';
-import { useMedications, useMedicationStats } from '@/hooks/useMedications';
+import { useMedications, useMedicationStats } from '@/lib/hooks/pharmacy';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import {

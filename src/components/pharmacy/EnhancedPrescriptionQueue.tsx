@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { usePrescriptions } from '@/hooks/usePrescriptions';
+import { usePrescriptions } from '@/lib/hooks/pharmacy';
 import { useDrugUtilizationReview } from '@/hooks/useDrugUtilizationReview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

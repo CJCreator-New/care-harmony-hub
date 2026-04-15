@@ -49,7 +49,7 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
-import { usePatients, useSearchPatients } from '@/hooks/usePatients';
+import { usePatients, useSearchPatients } from '@/lib/hooks/patients';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 const TEST_CATEGORIES = [

@@ -34,10 +34,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockInvoice = {
   id: 'inv-1',
   hospital_id: mockHospital.id,
@@ -54,7 +50,10 @@ const mockInvoice = {
 };
 
 describe('useInvoices', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns empty array when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
@@ -79,7 +78,10 @@ describe('useInvoices', () => {
 });
 
 describe('useInvoice', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('is disabled when no invoiceId', () => {
     const { result } = renderHook(() => useInvoice(undefined), { wrapper: createWrapper() });
@@ -98,7 +100,10 @@ describe('useInvoice', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.id).toBe('inv-1');
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useInvoiceStats', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -124,7 +129,10 @@ describe('useInvoiceStats', () => {
     expect(result.current.data?.paid).toBe(1);
     expect(result.current.data?.totalOutstanding).toBe(200);
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useCreateInvoice', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -162,7 +170,10 @@ describe('useCreateInvoice', () => {
     );
     expect(itemsInsertMock).toHaveBeenCalled();
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useRecordPayment', () => {
   beforeEach(() => vi.clearAllMocks());

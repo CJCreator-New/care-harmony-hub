@@ -65,7 +65,7 @@ interface SecurityAlert {
   severity: AlertSeverity;
   message: string;
   timestamp: number;
-  details: Record<string, any>;
+  details: Record<string, string | number | boolean>;
   affectedUsers?: string[];
   affectedResources?: string[];
 }
@@ -78,13 +78,26 @@ function generateAlertId(): string {
 }
 
 /**
+ * Audit log entry interface
+ */
+interface AuditLog {
+  user_id?: string;
+  action_type?: string;
+  timestamp?: number;
+  resource_id?: string;
+  ip_address?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Analyze security logs for threats
  */
-function analyzeLogs(logs: Array<any>, timeRange: { start: Date; end: Date }): SecurityAlert[] {
+function analyzeLogs(logs: AuditLog[], timeRange: { start: Date; end: Date }): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   // Group logs by user
-  const userLogs = new Map<string, any[]>();
+  const userLogs = new Map<string, AuditLog[]>();
   logs.forEach(log => {
     const userId = log.user_id || 'anonymous';
     if (!userLogs.has(userId)) {
@@ -214,7 +227,7 @@ function analyzeLogs(logs: Array<any>, timeRange: { start: Date; end: Date }): S
 /**
  * Detect anomalies in user behavior
  */
-function detectAnomalies(userData: Array<any>): SecurityAlert[] {
+function detectAnomalies(userData: AuditLog[]): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   // Calculate baseline statistics
@@ -267,7 +280,7 @@ function detectAnomalies(userData: Array<any>): SecurityAlert[] {
 /**
  * Calculate user statistics for baseline
  */
-function calculateUserStats(logs: Array<any>): {
+function calculateUserStats(logs: AuditLog[]): {
   avgRequestsPerDay: number;
   commonActions: string[];
   typicalHours: number[];
@@ -314,7 +327,7 @@ function calculateUserStats(logs: Array<any>): {
 /**
  * Check for specific security patterns
  */
-function checkPatterns(logs: Array<any>, patterns: string[]): SecurityAlert[] {
+function checkPatterns(logs: AuditLog[], patterns: string[]): SecurityAlert[] {
   const alerts: SecurityAlert[] = [];
   
   patterns.forEach(pattern => {
@@ -350,19 +363,22 @@ self.onmessage = (event: MessageEvent<SecurityAnalysisRequest>) => {
   const { type, data, requestId } = event.data;
   
   try {
-    let result: any;
+    let result: SecurityAlert[];
     
     switch (type) {
       case 'analyzeLogs':
-        result = analyzeLogs(data.logs as any[], data.timeRange as { start: Date; end: Date });
+        result = analyzeLogs(
+          data.logs as AuditLog[],
+          data.timeRange as { start: Date; end: Date }
+        );
         break;
         
       case 'detectAnomalies':
-        result = detectAnomalies(data.userData as any[]);
+        result = detectAnomalies(data.userData as AuditLog[]);
         break;
         
       case 'checkPatterns':
-        result = checkPatterns(data.logs as any[], data.patterns as string[]);
+        result = checkPatterns(data.logs as AuditLog[], data.patterns as string[]);
         break;
         
       default:

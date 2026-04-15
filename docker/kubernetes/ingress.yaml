@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: care-harmony-hub-ingress
+  namespace: default
+  labels:
+    app: care-harmony-hub
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - care-harmony-hub.local
+        - api.care-harmony-hub.local
+      secretName: care-harmony-hub-tls
+  rules:
+    - host: care-harmony-hub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: care-harmony-hub
+                port:
+                  number: 80
+    - host: api.care-harmony-hub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: care-harmony-hub
+                port:
+                  number: 80

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNurseWorkflow } from '@/hooks/useNurseWorkflow';
 import { useVitalSigns } from '@/hooks/useVitalSigns';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
-import { usePatient } from '@/hooks/usePatients';
+import { usePatient } from '@/lib/hooks/patients';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

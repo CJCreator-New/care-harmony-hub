@@ -130,7 +130,7 @@ export interface RiskScore {
   score_value: number;
   risk_category?: 'low' | 'moderate' | 'high' | 'very_high';
   calculated_date: string;
-  factors_considered?: Record<string, any>;
+  factors_considered?: Record<string, string | number | boolean>;
   recommendations: string[];
   valid_until?: string;
   hospital_id: string;

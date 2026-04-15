@@ -7,7 +7,7 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
-import { usePermissionAudit } from '@/hooks/usePermissionAudit';
+import { usePermissionAudit } from '@/lib/hooks';
 import { checkRouteAccess } from '@/middleware/routeGuard';
 
 interface RoleProtectedRouteProps {

@@ -25,8 +25,8 @@ import {
   Play,
 } from 'lucide-react';
 import { VideoCallModal } from '@/components/telemedicine/VideoCallModal';
-import { useAppointments } from '@/hooks/useAppointments';
-import { usePatients } from '@/hooks/usePatients';
+import { useAppointments } from '@/lib/hooks/appointments';
+import { usePatients } from '@/lib/hooks/patients';
 import { format, parseISO, isToday } from 'date-fns';
 import { toast } from 'sonner';
 

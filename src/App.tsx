@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -125,7 +125,11 @@ const AppContent = () => {
   usePerformanceMonitoring();
   useAmendmentAlert();
 
-  return <AppRoutes />;
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <AppRoutes />
+    </Suspense>
+  );
 };
 
 export default App;

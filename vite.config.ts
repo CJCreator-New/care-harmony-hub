@@ -83,6 +83,9 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
         manualChunks: {
           // Router
           router: ['react-router-dom'],

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@/lib/hooks';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';

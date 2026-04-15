@@ -46,7 +46,7 @@ import {
   useTimeSlots,
   useGenerateTimeSlots,
   getDayName,
-} from '@/hooks/useDoctorAvailability';
+} from '@/lib/hooks/appointments';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';

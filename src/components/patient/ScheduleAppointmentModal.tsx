@@ -11,7 +11,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useAppointmentRequests } from '@/hooks/useAppointmentRequests';
+import { useAppointmentRequests } from '@/lib/hooks/appointments';
 
 interface ScheduleAppointmentModalProps {
   open: boolean;

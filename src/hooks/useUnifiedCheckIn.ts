@@ -1,5 +1,5 @@
 import { useAddToQueue, PriorityLevel } from '@/hooks/useQueue';
-import { useCheckInAppointment } from '@/hooks/useAppointments';
+import { useCheckInAppointment } from '@/lib/hooks/appointments';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { toast } from 'sonner';
 

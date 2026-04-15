@@ -30,10 +30,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockVitals = {
   id: 'vitals-1',
   patient_id: 'patient-1',
@@ -54,7 +50,10 @@ const mockVitals = {
 };
 
 describe('usePatientVitalSigns', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('is disabled when no patientId', () => {
     const { result } = renderHook(() => usePatientVitalSigns(''), { wrapper: createWrapper() });
@@ -93,7 +92,10 @@ describe('usePatientVitalSigns', () => {
 });
 
 describe('useLatestVitals', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns null when no vitals exist (PGRST116)', async () => {
     mockSupabaseClient.from.mockReturnValue({
@@ -127,7 +129,10 @@ describe('useLatestVitals', () => {
 });
 
 describe('useTodayVitalsCount', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns 0 when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ profile: { ...mockProfile, hospital_id: null } }));
@@ -150,7 +155,10 @@ describe('useTodayVitalsCount', () => {
 });
 
 describe('useRecordVitals', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('calculates BMI when weight and height provided', async () => {
     const insertMock = vi.fn().mockReturnThis();

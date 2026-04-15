@@ -32,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaffPerformanceMetrics } from "@/components/analytics/StaffPerformanceMetrics";
 import { useUnreadMessagesCount } from '@/hooks/useSecureMessaging';
 import { useDoctorStats } from '@/hooks/useDoctorStats';
-import { usePatientsReadyForDoctor } from '@/hooks/usePatientsReadyForDoctor';
+import { usePatientsReadyForDoctor } from '@/lib/hooks/patients';
 import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
 import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 import { differenceInMinutes } from 'date-fns';

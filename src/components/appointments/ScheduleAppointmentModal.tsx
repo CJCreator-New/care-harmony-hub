@@ -54,8 +54,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { useSearchPatients, usePatients } from "@/hooks/usePatients";
-import { useCreateAppointment } from "@/hooks/useAppointments";
+import { useSearchPatients, usePatients } from "@/lib/hooks/patients";
+import { useCreateAppointment, useAppointments } from "@/lib/hooks/appointments";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";

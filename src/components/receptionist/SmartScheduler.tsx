@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useAppointmentOptimization } from '@/hooks/useAppointmentOptimization';
-import { useTimeSlots } from '@/hooks/useDoctorAvailability';
-import { useCreateAppointment } from '@/hooks/useAppointments';
+import { useTimeSlots, useCreateAppointment } from '@/lib/hooks/appointments';
 import { Calendar, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 

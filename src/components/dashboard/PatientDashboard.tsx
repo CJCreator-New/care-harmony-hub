@@ -25,8 +25,8 @@ import {
   usePatientAppointments,
   usePatientPrescriptions,
   usePatientLabResults,
-} from '@/hooks/usePatientPortal';
-import { PrescriptionItem } from '@/hooks/usePrescriptions';
+} from '@/lib/hooks/patients';
+import { type PrescriptionItem } from '@/lib/hooks/pharmacy';
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 
 const statusColors: Record<string, string> = {

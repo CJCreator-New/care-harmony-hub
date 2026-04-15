@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 import { useSuppliers, useCreatePurchaseOrder } from '@/hooks/useSuppliers';
-import { useMedications } from '@/hooks/useMedications';
+import { useMedications } from '@/lib/hooks/pharmacy';
 
 interface OrderItem {
   medication_id: string | null;

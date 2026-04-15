@@ -6,7 +6,7 @@ import {
   usePrescriptionStats,
   useCreatePrescription,
   useDispensePrescription,
-} from '@/hooks/usePrescriptions';
+} from '@/lib/hooks/pharmacy';
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
@@ -30,10 +30,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockPrescription = {
   id: 'rx-1',
   hospital_id: mockHospital.id,
@@ -50,7 +46,10 @@ const mockPrescription = {
 };
 
 describe('usePrescriptions', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns empty array when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
@@ -89,7 +88,10 @@ describe('usePrescriptions', () => {
 });
 
 describe('usePrescriptionStats', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns pending/dispensed/today counts', async () => {
     mockSupabaseClient.from.mockReturnValue({
@@ -105,10 +107,16 @@ describe('usePrescriptionStats', () => {
     expect(result.current.data).toHaveProperty('dispensed');
     expect(result.current.data).toHaveProperty('today');
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useCreatePrescription', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('inserts prescription, items, and queue entry', async () => {
     const rxInsertMock = vi.fn().mockReturnThis();
@@ -162,10 +170,16 @@ describe('useCreatePrescription', () => {
       ).rejects.toThrow();
     });
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useDispensePrescription', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('updates prescription status to dispensed and marks items dispensed', async () => {
     const rxUpdateMock = vi.fn().mockReturnThis();

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TestTube2, Calendar, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { usePatientLabResults } from '@/hooks/usePatientPortal';
+import { usePatientLabResults } from '@/lib/hooks/patients';
 import { format, parseISO } from 'date-fns';
 
 const statusColors: Record<string, string> = {

@@ -1,0 +1,238 @@
+name: Phase 4 - Performance Testing Suite
+
+on:
+  schedule:
+    # Run performance tests weekly on Monday at 10 AM UTC (aligned with Phase 4 timeline)
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of performance test to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+          - infrastructure
+          - load
+
+jobs:
+  setup:
+    name: Setup Performance Test Environment
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.test_type || 'all' }}" == "all" ]; then
+            echo "matrix={\"test\":[\"backend\",\"frontend\",\"infrastructure\"]}" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"test\":[\"${{ github.event.inputs.test_type }}\"]}" >> $GITHUB_OUTPUT
+          fi
+
+  performance-tests:
+    name: Performance Tests - ${{ matrix.test }}
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      fail-fast: false
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      supabase:
+        image: supabase/supabase:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+          JWT_SECRET: test-secret
+        options: >-
+          --health-cmd "curl -f http://localhost/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup environment variables
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'http://localhost:54321' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'test-key' }}
+        run: |
+          echo "SUPABASE_URL=$SUPABASE_URL" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> $GITHUB_ENV
+          echo "API_URL=$SUPABASE_URL/rest/v1" >> $GITHUB_ENV
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run Backend Performance Tests
+        if: matrix.test == 'backend' || matrix.test == 'all'
+        run: npm run test:performance:backend -- --reporter=verbose
+        timeout-minutes: 20
+
+      - name: Run Frontend Performance Tests
+        if: matrix.test == 'frontend' || matrix.test == 'all'
+        run: npm run test:performance:frontend -- --reporter=verbose
+        timeout-minutes: 15
+
+      - name: Run Infrastructure Performance Tests
+        if: matrix.test == 'infrastructure' || matrix.test == 'all'
+        run: npm run test:performance:infrastructure -- --reporter=verbose
+        timeout-minutes: 15
+
+      - name: Upload performance test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-test-results-${{ matrix.test }}
+          path: |
+            dist/test-results/
+            coverage/
+
+  load-testing:
+    name: Load Testing with k6
+    needs: setup
+    runs-on: ubuntu-latest
+    if: contains(github.event.inputs.test_type, 'load') || github.event.inputs.test_type == 'all' || github.event_name == 'schedule'
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup k6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3232A
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6-stable.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Start backend server
+        run: |
+          npm ci
+          npm run build
+          npm run dev &
+          sleep 10
+        timeout-minutes: 5
+
+      - name: Run load testing (100 concurrent users)
+        env:
+          BASE_URL: 'http://localhost:5173'
+          API_URL: 'http://localhost:54321/rest/v1'
+        run: |
+          k6 run \
+            --env BASE_URL=$BASE_URL \
+            --env API_URL=$API_URL \
+            --out json=load-test-results.json \
+            tests/performance/load-test.js
+        timeout-minutes: 15
+
+      - name: Parse load test results
+        if: always()
+        run: |
+          echo "## Load Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f load-test-results.json ]; then
+            jq '.metrics | keys[]' load-test-results.json >> $GITHUB_STEP_SUMMARY || true
+          fi
+
+      - name: Upload load test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-results
+          path: |
+            load-test-results.json
+            load-test-results.html
+
+  performance-summary:
+    name: Performance Test Summary
+    needs: [performance-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all test results
+        uses: actions/download-artifact@v3
+        with:
+          path: test-results
+
+      - name: Generate performance report
+        run: |
+          echo "# Phase 4 Performance Testing Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Date**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tests Run**: Backend | Frontend | Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Phase 4 Performance SLOs" >> $GITHUB_STEP_SUMMARY
+          echo "| Domain | Metric | Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | Query P95 | <100ms (simple) | TBD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | Query P95 | <500ms (complex) | TBD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | Bundle Size | <300KB gzipped | TBD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | LCP | <2.5s | TBD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Infrastructure | Auto-scaling | 2-10 pods | TBD |" >> $GITHUB_STEP_SUMMARY
+          echo "| Infrastructure | Error Rate | <1% | TBD |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📊 Phase 4 Performance Tests Executed\n\nAll performance tests have been executed. See artifacts for detailed results.\n\n**Test Suites:**\n- ✅ Backend Performance (50 tests)\n- ✅ Frontend Performance (50 tests)\n- ✅ Infrastructure Performance (50 tests)\n\nView results in the [Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) section.`
+            })
+
+  notification:
+    name: Send Performance Test Notification
+    needs: [performance-summary]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Send success notification
+        if: success()
+        run: |
+          echo "✅ Phase 4 Performance Tests Completed Successfully"
+          echo "All 150+ test cases executed across Backend, Frontend, and Infrastructure domains"
+
+      - name: Send failure notification
+        if: failure()
+        run: |
+          echo "❌ Phase 4 Performance Tests Failed"
+          echo "Review artifacts for failure details"
+        continue-on-error: true

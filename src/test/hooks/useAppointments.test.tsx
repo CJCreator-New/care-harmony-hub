@@ -8,7 +8,7 @@ import {
   useCreateAppointment,
   useUpdateAppointment,
   useCheckInAppointment,
-} from '@/hooks/useAppointments';
+} from '@/lib/hooks/appointments';
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
@@ -31,10 +31,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockAppointment = {
   id: 'appt-1',
   hospital_id: mockHospital.id,
@@ -54,7 +50,10 @@ const mockAppointment = {
 };
 
 describe('useAppointments', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns empty array when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
@@ -92,7 +91,10 @@ describe('useAppointments', () => {
 });
 
 describe('useTodayAppointments', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('uses today date as filter', async () => {
     const eqMock = vi.fn().mockReturnThis();
@@ -111,7 +113,10 @@ describe('useTodayAppointments', () => {
 });
 
 describe('useUpcomingAppointments', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('fetches upcoming scheduled/checked_in appointments', async () => {
     mockSupabaseClient.from.mockReturnValue({
@@ -131,7 +136,10 @@ describe('useUpcomingAppointments', () => {
 });
 
 describe('useCreateAppointment', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('inserts appointment with hospital_id and created_by', async () => {
     const insertMock = vi.fn().mockReturnThis();
@@ -166,7 +174,10 @@ describe('useCreateAppointment', () => {
 });
 
 describe('useUpdateAppointment', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('updates appointment by id', async () => {
     const updateMock = vi.fn().mockReturnThis();
@@ -194,7 +205,10 @@ describe('useUpdateAppointment', () => {
 });
 
 describe('useCheckInAppointment', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('calls get_next_queue_number rpc and inserts queue entry', async () => {
     mockSupabaseClient.from

@@ -32,7 +32,7 @@ import {
   useAdvanceConsultationStep,
   CONSULTATION_STEPS,
 } from "@/hooks/useConsultations";
-import { useCreatePrescription } from "@/hooks/usePrescriptions";
+import { useCreatePrescription } from "@/lib/hooks/pharmacy";
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useCreateInvoice } from '@/hooks/useBilling';
 import { useActivityLog } from '@/hooks/useActivityLog';
@@ -47,7 +47,7 @@ import { PatientSidebar } from "@/components/consultations/PatientSidebar";
 import { AIConsultationAssistant } from "@/components/consultations/AIConsultationAssistant";
 import { ConsultationTemplateSelector, ConsultationTemplate } from "@/components/consultations/ConsultationTemplateSelector";
 import { EnhancedTaskManagement } from "@/components/workflow/EnhancedTaskManagement";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions } from '@/lib/hooks';
 import { toast } from "sonner";
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];

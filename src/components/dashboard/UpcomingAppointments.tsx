@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Calendar, Clock, Video, MapPin, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useTodayAppointments } from '@/hooks/useAppointments';
+import { useTodayAppointments } from '@/lib/hooks/appointments';
 
 interface Appointment {
   id: string;

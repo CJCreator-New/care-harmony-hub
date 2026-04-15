@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { useResourceBookings, useWaitlistManagement, useInsuranceVerification } from '@/hooks/useScheduling';
+import { useResourceBookings, useWaitlistManagement, useInsuranceVerification } from '@/lib/hooks/appointments';
 
 const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }));
 

@@ -12,7 +12,7 @@ import { useUnifiedCheckIn } from '@/hooks/useUnifiedCheckIn';
 const mockMutateAsync = vi.fn();
 const mockTriggerWorkflow = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('@/hooks/useAppointments', () => ({
+vi.mock('@/lib/hooks/appointments', () => ({
   useCheckInAppointment: () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,

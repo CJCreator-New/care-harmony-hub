@@ -6,7 +6,7 @@ import { sanitizeLogMessage } from '@/utils/sanitize';
 import { deviceManager } from '@/utils/deviceManager';
 import { passwordPolicyManager } from '@/utils/passwordPolicy';
 import { biometricAuthManager } from '@/utils/biometricAuth';
-import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { useSessionTimeout } from '@/lib/hooks';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 

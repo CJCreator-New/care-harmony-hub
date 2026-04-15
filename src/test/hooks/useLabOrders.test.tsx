@@ -26,10 +26,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockLabOrder = {
   id: 'lab-1',
   hospital_id: mockHospital.id,
@@ -43,7 +39,10 @@ const mockLabOrder = {
 };
 
 describe('useLabOrders', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns empty array when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ profile: { ...mockProfile, hospital_id: null } }));
@@ -96,7 +95,10 @@ describe('useLabOrders', () => {
 });
 
 describe('useLabOrderStats', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('calculates pending, inProgress, completedToday', async () => {
     const today = new Date().toISOString().split('T')[0];
@@ -120,7 +122,10 @@ describe('useLabOrderStats', () => {
     expect(result.current.data?.inProgress).toBe(2);
     expect(result.current.data?.completedToday).toBe(1);
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useUpdateLabOrder', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -147,7 +152,10 @@ describe('useUpdateLabOrder', () => {
     expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }));
     expect(eqMock).toHaveBeenCalledWith('id', 'lab-1');
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useCreateLabOrder', () => {
   beforeEach(() => vi.clearAllMocks());

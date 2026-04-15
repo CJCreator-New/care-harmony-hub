@@ -53,10 +53,10 @@ import {
 } from "@/hooks/useBilling";
 import { useInsuranceClaims } from "@/hooks/useInsuranceClaims";
 import { usePaymentPlans } from "@/hooks/usePaymentPlans";
-import { usePatients } from "@/hooks/usePatients";
+import { usePatients } from "@/lib/hooks/patients";
 import { CreateInvoiceModal } from "@/components/billing/CreateInvoiceModal";
 import { formatCurrency } from "@/lib/currency";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions } from '@/lib/hooks';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pending", variant: "destructive" },

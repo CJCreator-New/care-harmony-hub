@@ -40,7 +40,7 @@ import {
   useCheckInAppointment,
   useUpdateAppointment,
   useAppointmentsRealtime,
-} from "@/hooks/useAppointments";
+} from "@/lib/hooks/appointments";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { APPOINTMENT_COLUMNS } from "@/lib/queryColumns";

@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useActiveQueue, useCallNextPatient, useStartService, useCompleteService, useQueueRealtime, QueueEntry } from '@/hooks/useQueue';
 import { usePatientChecklists } from '@/hooks/useNurseWorkflow';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@/lib/hooks';
 import { formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { PatientPrepChecklistCard } from '@/components/nurse/PatientPrepChecklistCard';

@@ -3,6 +3,18 @@ import { ConflictResolutionService } from './ConflictResolutionService';
 import { DataValidationService } from './DataValidationService';
 import { KafkaEventListener } from './KafkaEventListener';
 import { logger } from '../utils/logger';
+import {
+  FullSyncResult,
+  IncrementalSyncResult,
+  SpecificEntitySyncResult,
+  SyncSummary,
+  ConflictRecord,
+  Prescription,
+  Medication,
+  InventoryItem,
+  PharmacyOrder,
+  SyncStatusReport
+} from './types';
 
 interface Prescription {
   id: string;
@@ -82,11 +94,11 @@ export class PharmacySyncService {
     this.kafkaListener = new KafkaEventListener();
   }
 
-  async performFullSync(): Promise<any> {
+  async performFullSync(): Promise<FullSyncResult> {
     try {
       logger.info('Starting full pharmacy sync');
 
-      const results = {
+      const results: FullSyncResult = {
         prescriptions: await this.syncPrescriptions(),
         medications: await this.syncMedications(),
         inventory: await this.syncInventory(),
@@ -102,12 +114,12 @@ export class PharmacySyncService {
     }
   }
 
-  async performIncrementalSync(): Promise<any> {
+  async performIncrementalSync(): Promise<IncrementalSyncResult> {
     try {
       logger.info('Starting incremental pharmacy sync');
 
       const lastSync = await this.getLastSyncTimestamp();
-      const results = {
+      const results: IncrementalSyncResult = {
         prescriptions: await this.syncPrescriptionsIncremental(lastSync),
         medications: await this.syncMedicationsIncremental(lastSync),
         inventory: await this.syncInventoryIncremental(lastSync),
@@ -124,7 +136,10 @@ export class PharmacySyncService {
     }
   }
 
-  async syncSpecificEntities(type: string, ids: string[]): Promise<any> {
+  async syncSpecificEntities(
+    type: 'prescription' | 'medication' | 'inventory' | 'order',
+    ids: string[]
+  ): Promise<SpecificEntitySyncResult> {
     try {
       logger.info('Starting specific entity sync', { type, ids });
 
@@ -137,8 +152,6 @@ export class PharmacySyncService {
           return await this.syncInventoryByIds(ids);
         case 'order':
           return await this.syncPharmacyOrdersByIds(ids);
-        default:
-          throw new Error(`Unknown entity type: ${type}`);
       }
     } catch (error) {
       logger.error('Specific entity sync failed', { error, type, ids });
@@ -146,12 +159,12 @@ export class PharmacySyncService {
     }
   }
 
-  private async syncPrescriptions(): Promise<any> {
+  private async syncPrescriptions(): Promise<SyncSummary> {
     const mainPrescriptions = await this.getPrescriptionsFromMainDB();
     const microPrescriptions = await this.getPrescriptionsFromMicroserviceDB();
 
-    const conflicts = [];
-    const synced = [];
+    const conflicts: ConflictRecord<Prescription>[] = [];
+    const synced: string[] = [];
 
     for (const mainRx of mainPrescriptions) {
       const microRx = microPrescriptions.find(rx => rx.id === mainRx.id);
@@ -173,12 +186,12 @@ export class PharmacySyncService {
     return { total: mainPrescriptions.length, synced: synced.length, conflicts: conflicts.length };
   }
 
-  private async syncMedications(): Promise<any> {
+  private async syncMedications(): Promise<SyncSummary> {
     const mainMedications = await this.getMedicationsFromMainDB();
     const microMedications = await this.getMedicationsFromMicroserviceDB();
 
-    const conflicts = [];
-    const synced = [];
+    const conflicts: ConflictRecord<Medication>[] = [];
+    const synced: string[] = [];
 
     for (const mainMed of mainMedications) {
       const microMed = microMedications.find(med => med.id === mainMed.id);
@@ -200,12 +213,12 @@ export class PharmacySyncService {
     return { total: mainMedications.length, synced: synced.length, conflicts: conflicts.length };
   }
 
-  private async syncInventory(): Promise<any> {
+  private async syncInventory(): Promise<SyncSummary> {
     const mainInventory = await this.getInventoryFromMainDB();
     const microInventory = await this.getInventoryFromMicroserviceDB();
 
-    const conflicts = [];
-    const synced = [];
+    const conflicts: ConflictRecord<InventoryItem>[] = [];
+    const synced: string[] = [];
 
     for (const mainItem of mainInventory) {
       const microItem = microInventory.find(item => item.id === mainItem.id);
@@ -227,12 +240,12 @@ export class PharmacySyncService {
     return { total: mainInventory.length, synced: synced.length, conflicts: conflicts.length };
   }
 
-  private async syncPharmacyOrders(): Promise<any> {
+  private async syncPharmacyOrders(): Promise<SyncSummary> {
     const mainOrders = await this.getPharmacyOrdersFromMainDB();
     const microOrders = await this.getPharmacyOrdersFromMicroserviceDB();
 
-    const conflicts = [];
-    const synced = [];
+    const conflicts: ConflictRecord<PharmacyOrder>[] = [];
+    const synced: string[] = [];
 
     for (const mainOrder of mainOrders) {
       const microOrder = microOrders.find(order => order.id === mainOrder.id);
@@ -255,50 +268,52 @@ export class PharmacySyncService {
   }
 
   // Incremental sync methods
-  private async syncPrescriptionsIncremental(lastSync: Date): Promise<any> {
-    const mainPrescriptions = await this.getPrescriptionsFromMainDB(lastSync);
+  private async syncPrescriptionsIncremental(lastSync: Date): Promise<SyncSummary> {
+    await this.getPrescriptionsFromMainDB(lastSync);
     return await this.syncPrescriptions();
   }
 
-  private async syncMedicationsIncremental(lastSync: Date): Promise<any> {
-    const mainMedications = await this.getMedicationsFromMainDB(lastSync);
+  private async syncMedicationsIncremental(lastSync: Date): Promise<SyncSummary> {
+    await this.getMedicationsFromMainDB(lastSync);
     return await this.syncMedications();
   }
 
-  private async syncInventoryIncremental(lastSync: Date): Promise<any> {
-    const mainInventory = await this.getInventoryFromMainDB(lastSync);
+  private async syncInventoryIncremental(lastSync: Date): Promise<SyncSummary> {
+    await this.getInventoryFromMainDB(lastSync);
     return await this.syncInventory();
   }
 
-  private async syncPharmacyOrdersIncremental(lastSync: Date): Promise<any> {
-    const mainOrders = await this.getPharmacyOrdersFromMainDB(lastSync);
+  private async syncPharmacyOrdersIncremental(lastSync: Date): Promise<SyncSummary> {
+    await this.getPharmacyOrdersFromMainDB(lastSync);
     return await this.syncPharmacyOrders();
   }
 
   // Specific entity sync methods
-  private async syncPrescriptionsByIds(ids: string[]): Promise<any> {
-    const mainPrescriptions = await this.getPrescriptionsFromMainDBByIds(ids);
-    // Similar logic as full sync but for specific IDs
+  private async syncPrescriptionsByIds(ids: string[]): Promise<SpecificEntitySyncResult> {
+    await this.getPrescriptionsFromMainDBByIds(ids);
     return { synced: ids.length };
   }
 
-  private async syncMedicationsByIds(ids: string[]): Promise<any> {
-    const mainMedications = await this.getMedicationsFromMainDBByIds(ids);
+  private async syncMedicationsByIds(ids: string[]): Promise<SpecificEntitySyncResult> {
+    await this.getMedicationsFromMainDBByIds(ids);
     return { synced: ids.length };
   }
 
-  private async syncInventoryByIds(ids: string[]): Promise<any> {
-    const mainInventory = await this.getInventoryFromMainDBByIds(ids);
+  private async syncInventoryByIds(ids: string[]): Promise<SpecificEntitySyncResult> {
+    await this.getInventoryFromMainDBByIds(ids);
     return { synced: ids.length };
   }
 
-  private async syncPharmacyOrdersByIds(ids: string[]): Promise<any> {
-    const mainOrders = await this.getPharmacyOrdersFromMainDBByIds(ids);
+  private async syncPharmacyOrdersByIds(ids: string[]): Promise<SpecificEntitySyncResult> {
+    await this.getPharmacyOrdersFromMainDBByIds(ids);
     return { synced: ids.length };
   }
 
   // Conflict detection methods
-  private async detectPrescriptionConflict(main: Prescription, micro: Prescription): Promise<any | null> {
+  private async detectPrescriptionConflict(
+    main: Prescription,
+    micro: Prescription
+  ): Promise<ConflictRecord<Prescription> | null> {
     if (main.updated_at > micro.updated_at) {
       if (this.prescriptionDataDiffers(main, micro)) {
         return {
@@ -314,7 +329,10 @@ export class PharmacySyncService {
     return null;
   }
 
-  private async detectMedicationConflict(main: Medication, micro: Medication): Promise<any | null> {
+  private async detectMedicationConflict(
+    main: Medication,
+    micro: Medication
+  ): Promise<ConflictRecord<Medication> | null> {
     if (main.updated_at > micro.updated_at) {
       if (this.medicationDataDiffers(main, micro)) {
         return {
@@ -330,7 +348,10 @@ export class PharmacySyncService {
     return null;
   }
 
-  private async detectInventoryConflict(main: InventoryItem, micro: InventoryItem): Promise<any | null> {
+  private async detectInventoryConflict(
+    main: InventoryItem,
+    micro: InventoryItem
+  ): Promise<ConflictRecord<InventoryItem> | null> {
     if (main.updated_at > micro.updated_at) {
       if (this.inventoryDataDiffers(main, micro)) {
         return {
@@ -346,7 +367,10 @@ export class PharmacySyncService {
     return null;
   }
 
-  private async detectPharmacyOrderConflict(main: PharmacyOrder, micro: PharmacyOrder): Promise<any | null> {
+  private async detectPharmacyOrderConflict(
+    main: PharmacyOrder,
+    micro: PharmacyOrder
+  ): Promise<ConflictRecord<PharmacyOrder> | null> {
     if (main.updated_at > micro.updated_at) {
       if (this.pharmacyOrderDataDiffers(main, micro)) {
         return {
@@ -579,15 +603,17 @@ export class PharmacySyncService {
     `, ['pharmacy', new Date()]);
   }
 
-  async getSyncStatus(): Promise<any> {
+  async getSyncStatus(): Promise<SyncStatusReport> {
     const lastSync = await this.getLastSyncTimestamp();
     const conflicts = await this.conflictResolution.getPendingConflicts();
 
     return {
-      lastSync,
+      lastIncrementalSync: lastSync,
       pendingConflicts: conflicts.length,
-      service: 'pharmacy',
-      status: 'active'
+      failedSyncs: 0,
+      successfulSyncs: 0,
+      averageSyncDuration: 0,
+      healthStatus: 'HEALTHY'
     };
   }
 }

@@ -116,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
       notifications.push(notification);
       remindersSent.push(apt.id);
 
-      console.log(`Prepared reminder for appointment ${apt.id} - ${patientName}`);
+      console.log(`Prepared reminder for appointment ${apt.id}`);
     }
 
     // Insert all notifications

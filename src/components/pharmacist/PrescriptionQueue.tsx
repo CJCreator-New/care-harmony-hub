@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { usePrescriptions, useDispensePrescription } from '@/hooks/usePrescriptions';
+import { usePrescriptions, useDispensePrescription } from '@/lib/hooks/pharmacy';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { usePrescriptionApprovalWorkflow } from '@/hooks/usePrescriptionApprovalWorkflow';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@/lib/hooks';
 import { PrescriptionDispensingModal } from '@/components/pharmacy/PrescriptionDispensingModal';
 import { AmendmentModal } from '@/components/audit/AmendmentModal';
 import { Edit } from 'lucide-react';

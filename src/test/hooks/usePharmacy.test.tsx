@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { useEPrescriptions, useFormulary, useDrugInteractions } from '@/hooks/usePharmacy';
+import { useEPrescriptions, useFormulary, useDrugInteractions } from '@/lib/hooks/pharmacy';
 import { mockHospital } from '../mocks/auth';
 
 const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }));

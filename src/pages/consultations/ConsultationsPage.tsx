@@ -24,7 +24,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useConsultations, CONSULTATION_STEPS, useGetOrCreateConsultation } from "@/hooks/useConsultations";
 import { format } from "date-fns";
 import { StartConsultationModal } from "@/components/consultations/StartConsultationModal";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions } from '@/lib/hooks';
 
 export default function ConsultationsPage() {
   const navigate = useNavigate();

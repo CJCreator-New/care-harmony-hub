@@ -20,8 +20,8 @@ import {
   Loader2,
   Zap,
 } from 'lucide-react';
-import { useSearchPatients } from '@/hooks/usePatients';
-import { useTodayAppointments, Appointment } from '@/hooks/useAppointments';
+import { useSearchPatients } from '@/lib/hooks/patients';
+import { useTodayAppointments, type Appointment } from '@/lib/hooks/appointments';
 import { PriorityLevel } from '@/hooks/useQueue';
 import { useUnifiedCheckIn } from '@/hooks/useUnifiedCheckIn';
 import { format } from 'date-fns';

@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAI } from '@/hooks/useAI';
-import { usePermissions } from '@/hooks/usePermissions';
-import { usePatients, Patient } from '@/hooks/usePatients';
+import { usePermissions } from '@/lib/hooks';
+import { usePatients, type Patient } from '@/lib/hooks/patients';
 import { AlertTriangle, TrendingUp, Clock, Users, Activity, BarChart3, Target, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 

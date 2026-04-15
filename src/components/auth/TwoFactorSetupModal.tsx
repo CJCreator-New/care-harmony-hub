@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Copy, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { useTwoFactorAuth } from '@/hooks/useTwoFactorAuth';
+import { useTwoFactorAuth } from '@/lib/hooks';
 import { toast } from 'sonner';
 import { sanitizeHtml } from '@/utils/sanitize';
 

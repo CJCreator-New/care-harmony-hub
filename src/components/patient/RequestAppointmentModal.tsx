@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useCreateAppointmentRequest } from '@/hooks/useAppointmentRequests';
+import { useCreateAppointmentRequest } from '@/lib/hooks/appointments';
 
 const APPOINTMENT_TYPES = [
   'General Checkup',

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
-import { usePatients } from '@/hooks/usePatients';
+import { usePatients } from '@/lib/hooks/patients';
 
 export default function MobileConsultationPage() {
   const navigate = useNavigate();

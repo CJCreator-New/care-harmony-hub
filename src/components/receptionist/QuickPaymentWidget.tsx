@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { CreditCard, DollarSign, CheckCircle, Printer, Loader2 } from 'lucide-react';
-import { usePatients } from '@/hooks/usePatients';
+import { usePatients } from '@/lib/hooks/patients';
 import { useInvoices, useRecordPayment } from '@/hooks/useBilling';
 import { CheckoutModal } from '@/components/payments/CheckoutModal';
 import { toast } from 'sonner';

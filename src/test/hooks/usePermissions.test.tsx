@@ -1,4 +1,4 @@
-import { hasAnyRole } from '@/hooks/usePermissions';
+import { hasAnyRole } from '@/lib/hooks';
 import { getEffectivePermissions, hasPermission, normalizePermission } from '@/lib/permissions';
 import { UserRole } from '@/types/auth';
 import { vi } from 'vitest';

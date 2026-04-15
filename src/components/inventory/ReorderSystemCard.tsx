@@ -11,7 +11,7 @@ import {
   CheckCircle,
   Clock,
 } from 'lucide-react';
-import { useLowStockMedications, useMedicationStats } from '@/hooks/useMedications';
+import { useLowStockMedications, useMedicationStats } from '@/lib/hooks/pharmacy';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';

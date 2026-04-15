@@ -28,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Plus, Trash2 } from "lucide-react";
-import { usePatients } from "@/hooks/usePatients";
+import { usePatients } from "@/lib/hooks/patients";
 import { useCreateInvoice } from "@/hooks/useBilling";
 import { toast } from "sonner";
 import { formatCurrency, CURRENCY_SYMBOL } from "@/lib/currency";

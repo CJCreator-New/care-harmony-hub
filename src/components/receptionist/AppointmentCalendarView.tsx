@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Users, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { useAppointments } from '@/hooks/useAppointments';
+import { useAppointments } from '@/lib/hooks/appointments';
 import { devLog } from '@/utils/sanitize';
 
 interface Appointment {

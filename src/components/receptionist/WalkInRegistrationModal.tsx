@@ -14,8 +14,7 @@ import {
   Loader2,
   ArrowLeft,
 } from 'lucide-react';
-import { useSearchPatients } from '@/hooks/usePatients';
-import { useCreatePatient } from '@/hooks/usePatients';
+import { useSearchPatients, useCreatePatient } from '@/lib/hooks/patients';
 import { useAddToQueue, PriorityLevel } from '@/hooks/useQueue';
 import { toast } from 'sonner';
 

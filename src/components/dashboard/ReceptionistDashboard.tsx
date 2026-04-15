@@ -37,9 +37,7 @@ import {
   usePendingAppointmentRequests,
   useScheduledAppointments,
 } from '@/hooks/useReceptionistStats';
-import { useUpdateAppointmentRequest } from '@/hooks/useAppointmentRequests';
-import { useDoctorAvailability } from '@/hooks/useDoctorAvailability';
-import { useAutoApproveAppointmentRequests } from '@/hooks/useAppointmentRequests';
+import { useUpdateAppointmentRequest, useAutoApproveAppointmentRequests, useDoctorAvailability } from '@/lib/hooks/appointments';
 import { PatientCheckInModal } from '@/components/receptionist/PatientCheckInModal';
 import { PatientCheckOutModal } from '@/components/receptionist/PatientCheckOutModal';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';

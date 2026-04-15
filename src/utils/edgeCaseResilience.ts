@@ -252,18 +252,18 @@ export function handleAuthError(
  * Safely access nested property with default fallback.
  */
 export function safeGet<T>(
-  obj: any,
+  obj: Record<string, unknown> | null | undefined,
   path: string,
   defaultValue: T
 ): T {
   const keys = path.split('.');
-  let result: any = obj;
+  let result: unknown = obj;
 
   for (const key of keys) {
-    if (result === null || result === undefined) {
+    if (result === null || result === undefined || typeof result !== 'object') {
       return defaultValue;
     }
-    result = result[key];
+    result = (result as Record<string, unknown>)[key];
   }
 
   return result ?? defaultValue;

@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { sanitizeForLog } from '@/utils/sanitize';
-import { PrescriptionItem } from '@/hooks/usePrescriptions';
+import { type PrescriptionItem } from '@/lib/hooks/pharmacy';
 
 /**
  * Phase 2B: Amendment Modal for Prescription Dosage Correction
@@ -176,7 +176,10 @@ export function AmendmentModal({
     }));
   };
 
-  const handleInputChange = (field: keyof AmendmentFormData, value: any) => {
+  const handleInputChange = (
+    field: keyof AmendmentFormData,
+    value: string | number | undefined
+  ) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,

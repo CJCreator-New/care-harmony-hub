@@ -10,7 +10,7 @@ import { DischargeWorkflowTimeline } from '@/components/discharge/DischargeWorkf
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDischargeWorkflow } from '@/hooks/useDischargeWorkflow';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@/lib/hooks';
 
 const getDefaultTab = (role: string | null) => {
   if (role === 'doctor') return 'doctor';

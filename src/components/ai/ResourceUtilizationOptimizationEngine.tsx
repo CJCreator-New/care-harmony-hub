@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAI } from '@/hooks/useAI';
-import { usePermissions } from '@/hooks/usePermissions';
-import { usePatients } from '@/hooks/usePatients';
-import { useAppointments } from '@/hooks/useAppointments';
+import { usePermissions } from '@/lib/hooks';
+import { usePatients } from '@/lib/hooks/patients';
+import { useAppointments } from '@/lib/hooks/appointments';
 import { AlertTriangle, TrendingUp, Users, Bed, Stethoscope, Clock, BarChart3, Target, Zap, Activity, Calendar, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 

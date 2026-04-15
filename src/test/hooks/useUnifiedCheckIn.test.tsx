@@ -16,7 +16,7 @@ const mockAddToQueue = {
 const mockTriggerWorkflow = vi.fn();
 const toastError = vi.hoisted(() => vi.fn());
 
-vi.mock('@/hooks/useAppointments', () => ({
+vi.mock('@/lib/hooks/appointments', () => ({
   useCheckInAppointment: () => mockCheckInAppointment,
 }));
 
@@ -31,6 +31,15 @@ vi.mock('@/hooks/useWorkflowOrchestrator', () => ({
 
 vi.mock('sonner', () => ({
   toast: { error: toastError },
+}));
+
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    hospital: { id: 'hosp-1' },
+    profile: { id: 'profile-1', user_id: 'user-1' },
+    primaryRole: 'receptionist',
+  }),
+  AuthContext: vi.fn(),
 }));
 
 const createWrapper = () => {
@@ -56,8 +65,8 @@ describe('useUnifiedCheckIn', () => {
     let response: number | null = 123;
     await act(async () => {
       response = await result.current.checkIn({
-        patient: { id: 'patient-1', first_name: 'Jane', last_name: 'Doe' },
-        appointmentId: 'appt-1',
+        patient: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', first_name: 'Jane', last_name: 'Doe' },
+        appointmentId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       });
     });
 
@@ -73,7 +82,7 @@ describe('useUnifiedCheckIn', () => {
 
     await act(async () => {
       await result.current.checkIn({
-        patient: { id: 'patient-1', first_name: 'Jane', last_name: 'Doe' },
+        patient: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', first_name: 'Jane', last_name: 'Doe' },
         priority: 'emergency',
         isWalkIn: true,
       });

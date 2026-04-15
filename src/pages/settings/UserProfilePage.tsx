@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTwoFactorAuth } from '@/hooks/useTwoFactorAuth';
+import { useTwoFactorAuth } from '@/lib/hooks';
 import { TwoFactorSetupModal } from '@/components/auth/TwoFactorSetupModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pill, Calendar, User, RefreshCw } from 'lucide-react';
-import { usePatientPrescriptions } from '@/hooks/usePatientPortal';
+import { usePatientPrescriptions } from '@/lib/hooks/patients';
 import { usePatientRefillRequests } from '@/hooks/useRefillRequests';
 import { RefillRequestModal } from '@/components/prescriptions/RefillRequestModal';
 import { ForensicTimeline } from '@/components/audit/ForensicTimeline';

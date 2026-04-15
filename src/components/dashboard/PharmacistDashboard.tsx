@@ -18,8 +18,8 @@ import {
   AlertCircle,
   User,
 } from 'lucide-react';
-import { usePrescriptionsRealtime } from '@/hooks/usePrescriptions';
-import { useMedicationStats } from '@/hooks/useMedications';
+import { usePrescriptionsRealtime } from '@/lib/hooks/pharmacy';
+import { useMedicationStats } from '@/lib/hooks/pharmacy';
 import { usePharmacyStats, usePendingPrescriptions } from '@/hooks/usePharmacyLabStats';
 import { LowStockAlert } from '@/components/inventory/LowStockAlert';
 import { format, formatDistanceToNow } from 'date-fns';

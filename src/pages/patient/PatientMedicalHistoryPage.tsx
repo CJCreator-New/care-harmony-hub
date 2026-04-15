@@ -13,7 +13,7 @@ import {
   User,
   AlertTriangle,
 } from 'lucide-react';
-import { usePatientProfile, usePatientVitals } from '@/hooks/usePatientPortal';
+import { usePatientProfile, usePatientVitals } from '@/lib/hooks/patients';
 import { format, parseISO, differenceInYears } from 'date-fns';
 
 export default function PatientMedicalHistoryPage() {

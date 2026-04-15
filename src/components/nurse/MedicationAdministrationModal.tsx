@@ -19,7 +19,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useRecordMedicationAdministration } from '@/hooks/useNurseWorkflow';
-import { useSearchPatients } from '@/hooks/usePatients';
+import { useSearchPatients } from '@/lib/hooks/patients';
 
 interface MedicationAdministrationModalProps {
   open: boolean;

@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
-import { useCreatePrescription } from '@/hooks/usePrescriptions';
+import { useCreatePrescription } from '@/lib/hooks/pharmacy';
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockHospital, mockProfile } from '../mocks/auth';
 

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSampleTracking } from '@/hooks/useSampleTracking';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePatients } from '@/hooks/usePatients';
+import { usePatients } from '@/lib/hooks/patients';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Search, Plus, Clock, AlertTriangle, CheckCircle, XCircle, Thermometer, MapPin, User, Calendar } from 'lucide-react';

@@ -34,22 +34,22 @@ export interface AIProvider {
     sessionId?: string
   ): Promise<AIResponse>;
   predictReadmissionRisk(
-    patientData: any,
+    patientData: Record<string, string | number | boolean | null | undefined>,
     context?: string,
     sessionId?: string
   ): Promise<AIResponse>;
   predictLengthOfStay(
-    patientData: any,
+    patientData: Record<string, string | number | boolean | null | undefined>,
     context?: string,
     sessionId?: string
   ): Promise<AIResponse>;
   optimizeResourceUtilization(
-    operationalData: any,
+    operationalData: Record<string, unknown>,
     context?: string,
     sessionId?: string
   ): Promise<AIResponse>;
   reviewMedications(
-    patientData: any,
+    patientData: Record<string, string | number | boolean | null | undefined>,
     medications: string[],
     sessionId?: string
   ): Promise<AIResponse>;
@@ -57,7 +57,7 @@ export interface AIProvider {
 
 export interface AIRequest {
   type: 'diagnosis' | 'treatment_plan' | 'treatment_recommendations' | 'treatment_plan_optimization' | 'predict_readmission_risk' | 'predict_length_of_stay' | 'resource_utilization_optimization' | 'medication_review' | 'clinical_summary';
-  patientData: any;
+  patientData: Record<string, string | number | boolean | null | undefined>;
   context: string;
   options?: {
     temperature?: number;

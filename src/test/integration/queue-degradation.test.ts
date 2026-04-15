@@ -11,7 +11,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { supabase } from '@/integrations/supabase/client';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
-import { useCreatePrescription } from '@/hooks/usePrescriptions';
+import { useCreatePrescription } from '@/lib/hooks/pharmacy';
 
 // ---------------------------------------------------------------------------
 // Mocks

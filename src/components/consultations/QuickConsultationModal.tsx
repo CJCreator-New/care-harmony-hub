@@ -13,7 +13,7 @@ import { ICD10Autocomplete } from './ICD10Autocomplete';
 import { CPTCodeMapper } from './CPTCodeMapper';
 import { ICD10Code, StructuredDiagnosis } from '@/types/icd10';
 import { useUpdateConsultation } from '@/hooks/useConsultations';
-import { useCreatePrescription } from '@/hooks/usePrescriptions';
+import { useCreatePrescription } from '@/lib/hooks/pharmacy';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';

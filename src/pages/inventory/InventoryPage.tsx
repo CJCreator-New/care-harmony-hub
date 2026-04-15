@@ -43,9 +43,9 @@ import {
   useUpdateMedication,
   useMedicationsRealtime,
   Medication,
-} from "@/hooks/useMedications";
+} from "@/lib/hooks/pharmacy";
 import { ReorderSystemCard } from "@/components/inventory/ReorderSystemCard";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions } from '@/lib/hooks';
 import { toast } from "sonner";
 
 export default function InventoryPage() {

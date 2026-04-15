@@ -44,7 +44,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useLabOrders, useLabOrderStats, useUpdateLabOrder, LabOrder } from '@/hooks/useLabOrders';
-import { usePatient } from '@/hooks/usePatients';
+import { usePatient } from '@/lib/hooks/patients';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,7 +60,7 @@ import { CreateLabOrderModal } from '@/components/lab/CreateLabOrderModal';
 import { AuditTimeline } from '@/components/audit/AuditTimeline';
 import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
 import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@/lib/hooks';
 import { AlertTriangle } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'warning' | 'info' | 'success' | 'destructive' }> = {

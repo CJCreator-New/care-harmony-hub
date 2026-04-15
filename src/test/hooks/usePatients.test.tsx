@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { usePatients, usePatient, useCreatePatient, useSearchPatients } from '@/hooks/usePatients';
+import { usePatients, usePatient, useCreatePatient, useSearchPatients } from '@/lib/hooks/patients';
 import { mockSupabaseClient } from '../mocks/supabase';
 import { createMockAuthContext, mockProfile, mockHospital } from '../mocks/auth';
 
@@ -27,10 +27,6 @@ const createWrapper = () => {
   );
 };
 
-beforeEach(() => {
-  mockUseAuth.mockReturnValue(createMockAuthContext());
-});
-
 const mockPatient = {
   id: 'patient-1',
   hospital_id: mockHospital.id,
@@ -48,7 +44,10 @@ const mockPatient = {
 };
 
 describe('usePatients', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('returns empty result when no hospital', async () => {
     mockUseAuth.mockReturnValue(createMockAuthContext({ hospital: null }));
@@ -88,7 +87,10 @@ describe('usePatients', () => {
 });
 
 describe('usePatient', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  });
 
   it('is disabled when no patientId', () => {
     const { result } = renderHook(() => usePatient(undefined), { wrapper: createWrapper() });
@@ -107,7 +109,10 @@ describe('usePatient', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.id).toBe('patient-1');
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useCreatePatient', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -160,7 +165,10 @@ describe('useCreatePatient', () => {
     });
     expect(insertMock).toHaveBeenCalled();
   });
-});
+});{
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue(createMockAuthContext());
+  }
 
 describe('useSearchPatients', () => {
   beforeEach(() => vi.clearAllMocks());

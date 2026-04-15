@@ -19,7 +19,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { DigitalCheckinSession, CheckinWorkflow, PreVisitQuestionnaire } from '@/types/patient-portal';
-import { useDigitalCheckin } from '@/hooks/usePatientPortal';
+import { useDigitalCheckin } from '@/lib/hooks/patients';
 
 interface DigitalCheckinWorkflowProps {
   sessionToken: string;

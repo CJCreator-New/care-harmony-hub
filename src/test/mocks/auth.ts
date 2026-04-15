@@ -50,6 +50,7 @@ export const createMockAuthContext = (overrides = {}) => ({
   profile: mockProfile,
   hospital: mockHospital,
   roles: ['admin'] as const,
+  primaryRole: 'admin',
   isAuthenticated: true,
   isLoading: false,
   signIn: vi.fn(),
