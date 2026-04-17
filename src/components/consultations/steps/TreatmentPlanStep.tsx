@@ -399,7 +399,7 @@ export function TreatmentPlanStep({
           </div>
           {prescriptions.length > 0 && (
             <div className="space-y-2">
-              {prescriptions.map((rx: Prescription, index) => (
+              {prescriptions.map((rx: Prescription, index: number) => (
                 <div
                   key={`${rx.medication_name}-${rx.dosage}-${rx.frequency}-${rx.duration}`}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
