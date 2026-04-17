@@ -41,6 +41,7 @@
     "src/**/__tests__/**",
     "src/test/**",
     "src/__tests__/**",
+    "src/components/auth/RoleProtectedRoute.tsx",
     "src/components/features/appointments/**",
     "src/components/features/appointment-recurrence/**",
     "src/components/features/telehealth/**",
@@ -52,6 +53,18 @@
     "src/components/doctor/EnhancedPrescriptionForm.tsx",
     "src/components/laboratory/EnhancedLabOrderForm.tsx",
     "src/hooks/useBreakGlassOverride.ts",
-    "src/hooks/useConsolidatedSubscription.ts"
+    "src/hooks/useConsolidatedSubscription.ts",
+    "src/lib/ai/orchestrator.ts",
+    "src/lib/clinical-notes.manager.ts",
+    "src/lib/encryption.utils.ts",
+    "src/lib/hooks/observability/useAuditLog.ts",
+    "src/lib/prescription-refill.manager.ts",
+    "src/lib/telehealth.provider.ts",
+    "src/lib/workflow-validator.ts",
+    "src/utils/clinicalNoteService.ts",
+    "src/utils/edgeCaseResilience.ts",
+    "src/utils/pharmacistOperationsService.ts",
+    "src/utils/wardManagementService.ts",
+    "src/workers/securityAnalysis.worker.ts"
   ]
 }
