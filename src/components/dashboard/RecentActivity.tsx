@@ -29,7 +29,7 @@ interface RecentActivityProps {
   activities?: ActivityItem[];
 }
 
-const activityIcons = {
+const activityIcons: Record<string, any> = {
   patient_registered: UserPlus,
   consultation: FileText,
   prescription: Pill,
@@ -38,7 +38,7 @@ const activityIcons = {
   alert: AlertCircle,
 };
 
-const activityColors = {
+const activityColors: Record<string, string> = {
   patient_registered: 'bg-primary/10 text-primary',
   consultation: 'bg-doctor/10 text-doctor',
   prescription: 'bg-pharmacy/10 text-pharmacy',
@@ -47,7 +47,7 @@ const activityColors = {
   alert: 'bg-warning/10 text-warning',
 };
 
-const statusIcons = {
+const statusIcons: Record<string, any> = {
   success: CheckCircle2,
   warning: AlertCircle,
   pending: Clock,

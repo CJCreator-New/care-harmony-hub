@@ -16,16 +16,18 @@ const priorityStyles = {
   low: 'outline',
 } as const;
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   waiting: 'bg-muted text-muted-foreground',
   called: 'bg-info/10 text-info',
+  in_prep: 'bg-warning/10 text-warning',
   in_service: 'bg-success/10 text-success',
   completed: 'bg-muted text-muted-foreground',
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   waiting: 'Waiting',
   called: 'Called',
+  in_prep: 'In Prep',
   in_service: 'In Service',
   completed: 'Completed',
 };
