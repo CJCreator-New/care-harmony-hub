@@ -89,7 +89,7 @@ function validateProcedureCode(code: string): string {
 export function generateEdi837Claim(
   header: ClaimheaderData,
   patient: PatientData,
-  billing Provider: ProviderData,
+  billingProvider: ProviderData,
   renderingProvider: ProviderData,
   service: ServiceData
 ): string {

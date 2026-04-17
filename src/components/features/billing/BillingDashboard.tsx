@@ -381,7 +381,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            ⚠️ CRITICAL: ${metrics?.total_overdue.toLocaleString()} in overdue receivables (>120 days). 
+            ⚠️ CRITICAL: ${metrics?.total_overdue.toLocaleString()} in overdue receivables (&gt;120 days).
             Escalate collection efforts immediately.
           </AlertDescription>
         </Alert>
