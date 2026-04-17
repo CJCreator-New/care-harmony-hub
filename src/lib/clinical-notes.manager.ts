@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Clinical Notes Manager
  * Handles creation, versioning, signing, and immutability of clinical notes

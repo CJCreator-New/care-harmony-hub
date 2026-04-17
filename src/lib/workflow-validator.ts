@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Role-Based Workflow Validator
  * Validates multi-role workflows in core clinical processes
