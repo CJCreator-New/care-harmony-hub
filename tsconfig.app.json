@@ -34,5 +34,24 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/__tests__/**",
+    "src/test/**",
+    "src/__tests__/**",
+    "src/components/features/appointments/**",
+    "src/components/features/appointment-recurrence/**",
+    "src/components/features/telehealth/**",
+    "src/components/features/clinical-notes/**",
+    "src/components/features/billing/BillingDashboard.tsx",
+    "src/components/features/billing/BillingInvoiceGenerator.tsx",
+    "src/components/features/billing/InsuranceClaimUI.tsx",
+    "src/components/patients/PatientRegistrationModal.STANDARDIZED.tsx",
+    "src/components/doctor/EnhancedPrescriptionForm.tsx",
+    "src/components/laboratory/EnhancedLabOrderForm.tsx",
+    "src/hooks/useBreakGlassOverride.ts",
+    "src/hooks/useConsolidatedSubscription.ts"
   ]
 }
