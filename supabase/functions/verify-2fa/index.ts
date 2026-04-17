@@ -1,6 +1,6 @@
 // Supabase Edge Function: verify-2fa
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { TOTP } from 'https://deno.land/x/otpauth@9.0.2/mod.ts';
+import { TOTP } from 'npm:otpauth@9.3.2';
 import { rateLimit, getIdentifier, withRateLimit } from '../_shared/rateLimit.ts';
 import { getCorsHeaders, isOriginAllowed } from '../_shared/cors.ts';
 import { validateRequest } from '../_shared/validation.ts';
