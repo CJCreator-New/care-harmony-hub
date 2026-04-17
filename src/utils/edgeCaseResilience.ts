@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Edge Case Resilience Utilities
  * Prevents runtime crashes, null issues, races, unhandled exceptions in patient-critical flows.

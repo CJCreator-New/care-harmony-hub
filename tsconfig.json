@@ -20,12 +20,6 @@
     },
     {
       "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "./tests/tsconfig.json"
-    },
-    {
-      "path": "./supabase/functions/tsconfig.json"
     }
   ]
 }

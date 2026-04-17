@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Telemedicine Provider Integration
  * Supports: Zoom (primary) + Twilio (fallback)

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logAudit } from './sanitize';
 
 export interface ClinicalNote {

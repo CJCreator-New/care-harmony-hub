@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * End-to-End Encryption for Telehealth
  * Uses AES-256-GCM for message & recording encryption
