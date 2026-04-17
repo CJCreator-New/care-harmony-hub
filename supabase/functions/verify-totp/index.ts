@@ -57,7 +57,7 @@ const decryptSecret = async (payload: string) => {
   const plaintext = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: new Uint8Array(iv) },
     key,
-    cipherBytes
+    cipherBytes.buffer.slice(cipherBytes.byteOffset, cipherBytes.byteOffset + cipherBytes.byteLength) as ArrayBuffer
   );
 
   return new TextDecoder().decode(plaintext);

@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { 'Content-Type': 'application/json', ...reqCorsHeaders } }
       );
     }
-    const { email, issuer } = validation.data;
+    const { email, issuer = 'CareSync HMS' } = validation.data;
 
     // Generate a random secret (32 bytes = 256 bits)
     const secret = crypto.getRandomValues(new Uint8Array(32));
@@ -129,4 +129,4 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-serve((req) => withRateLimit(req, handler, { limit: 5, windowMs: 300000 }));
+serve((req) => withRateLimit(req, handler, { maxRequests: 5, windowMs: 300000 }));
