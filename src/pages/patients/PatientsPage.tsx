@@ -372,13 +372,13 @@ export default function PatientsPage() {
               <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-left font-bold text-foreground">MRN</TableHead>
-                  <TableHead className="text-left font-bold text-foreground">Patient Name</TableHead>
-                  <TableHead className="text-left font-bold text-foreground">Age / Gender</TableHead>
-                  <TableHead className="text-left font-bold text-foreground">Contact</TableHead>
-                  <TableHead className="text-left font-bold text-foreground">Blood Type</TableHead>
-                  <TableHead className="text-left font-bold text-foreground">Registered</TableHead>
-                  <TableHead className="text-right font-bold text-foreground">Actions</TableHead>
+                  <TableHead scope="col" className="text-left font-bold text-foreground">MRN</TableHead>
+                  <TableHead scope="col" className="text-left font-bold text-foreground">Patient Name</TableHead>
+                  <TableHead scope="col" className="text-left font-bold text-foreground">Age / Gender</TableHead>
+                  <TableHead scope="col" className="text-left font-bold text-foreground">Contact</TableHead>
+                  <TableHead scope="col" className="text-left font-bold text-foreground">Blood Type</TableHead>
+                  <TableHead scope="col" className="text-left font-bold text-foreground">Registered</TableHead>
+                  <TableHead scope="col" className="text-right font-bold text-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

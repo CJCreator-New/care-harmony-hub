@@ -55,11 +55,11 @@ export default function PharmacistQueue() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Patient</TableHead>
-                <TableHead>Medication</TableHead>
-                <TableHead>Dosage</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead scope="col">Patient</TableHead>
+                <TableHead scope="col">Medication</TableHead>
+                <TableHead scope="col">Dosage</TableHead>
+                <TableHead scope="col">Status</TableHead>
+                <TableHead scope="col">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

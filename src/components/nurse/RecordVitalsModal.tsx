@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,6 +122,21 @@ export function RecordVitalsModal({
       setPatientSelectionError(false);
     }
   }, [initialPatient]);
+
+  // Focus management for accessibility
+  // Set focus to first focusable element when modal opens
+  useEffect(() => {
+    if (open) {
+      // Delay to allow modal to render
+      const timer = setTimeout(() => {
+        const firstInput = document.querySelector('[role="dialog"] input, [role="dialog"] [role="combobox"], [role="dialog"] textarea') as HTMLElement;
+        if (firstInput) {
+          firstInput.focus();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
 
   // Get unique patients from queue
   const patientsInQueue = queueEntries?.filter(
