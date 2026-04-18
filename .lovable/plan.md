@@ -1,141 +1,79 @@
 
+# Production Readiness Plan — CareSync HIMS
 
-# Plan: Skill-Driven Enhancement of CareSync HIMS
+Applying the **hims-devops-guardian** and **hims-browser-test-automation** skills to validate production readiness.
 
-## Current State Summary
+## Current State Assessment
 
-After auditing all 20 skills against the codebase, here is what exists vs. what each skill recommends but is missing.
+**What exists:**
+- Blue-green deploy scripts (`deploy-prod.sh`, `rollback.sh`, `test-deployment.sh`)
+- GitHub Actions workflow (`.github/workflows/deploy-production.yml`)
+- Playwright E2E framework (phased: setup → auth → permissions → workflows → security)
+- Supabase RLS with hospital scoping, `has_role` SECURITY DEFINER, `activity_logs` audit
+- 2FA TOTP, feature flags (`useFeatureFlags`), AI Gateway integration
+- TypeScript build passes; Supabase edge functions deployed
 
-## Skills Already Well-Utilized (No Major Gaps)
-
-| Skill | Status |
-|-------|--------|
-| **hims-audit-trail** | `useAudit` + `useActivityLog` used in 19+ files. Audit logging covers prescriptions, logins, patient views, settings. |
-| **hims-observability** | `useClinicalMetrics` wired into 7 key workflows. Grafana dashboards exist (5 JSON files). Alert rules configured. |
-| **hims-onboarding-helper** | `QUICK_START_15_MIN.md`, test user scripts, contribution checklist all exist. |
-| **hims-documentation-coach** | 30+ docs in `docs/`. Architecture, API, deployment, troubleshooting all documented. |
-| **hims-fhir-specialist** | FHIR R4 export/import implemented with validation in `IntegrationDashboard`. |
-| **hims-privacy-enforcer** | `useHIPAACompliance`, `sanitizeLogMessage`, PHI encryption utilities exist. |
-| **hims-rbac-abac** | `user_roles` table, `has_role` function, RLS hospital scoping, ABAC manager all implemented. |
-| **hims-security-companion** | CSP headers, rate limiting, 2FA, security monitor all exist. |
-| **hims-devops-guardian** | CI/CD workflows, RLS validation scripts, migration validation exist. |
-
-## Skills With Actionable Gaps (Implementation Plan)
-
-### Step 1: Fix CSP Font Loading (from hims-security-companion)
-**Problem**: `vite.config.ts` CSP has no `font-src` directive, blocking Google Fonts in local dev. `headers.ts` is already correct.
-
-**Changes**:
-- `vite.config.ts` line 154: Add `font-src 'self' https://fonts.gstatic.com data:;` to the CSP string
-
-**Impact**: Fixes all font/layout/spacing disparities between Lovable preview and local build.
+**Gaps blocking production (from skill audit):**
+1. TS strict mode is **disabled** + 16 files have `@ts-nocheck` — masks real bugs
+2. Test files excluded from build — coverage signal lost
+3. No automated RLS validation script in CI (`npm run validate:rls` referenced but missing)
+4. E2E `roles.fixture.ts` exists but workflow chain tests untested against current build
+5. No staging soak (24hr) evidence before prod cutover
+6. Feature flag kill-switches not verified end-to-end
+7. Database migration reversibility not audited
 
 ---
 
-### Step 2: Feature Flag Integration (from hims-devops-guardian + workflow-creator)
-**Problem**: `useFeatureFlags` hook exists but is used in **zero** components or pages. The skill requires feature-gated rollout of enhanced clinical forms.
+## Plan: 4-Phase Production Hardening
 
-**Changes**:
-- Import `useFeatureFlags` into these Phase 4B enhanced form components and wrap the v2 UI paths:
-  - `src/components/clinical/EnhancedMedicationForm.tsx` — gate behind `doctor_flow_v2`
-  - `src/components/clinical/EnhancedVitalSignsForm.tsx` — gate behind `nurse_flow_v2`
-  - `src/components/clinical/EnhancedLabOrderForm.tsx` — gate behind `lab_flow_v2`
-  - `src/components/pharmacist/PrescriptionQueue.tsx` — gate behind `pharmacy_flow_v2`
-- Pattern: `const { isEnabled } = useFeatureFlags(); if (isEnabled('doctor_flow_v2')) { /* enhanced */ } else { /* legacy */ }`
+### Phase 1 — Build Integrity Audit (DevOps Guardian)
+- Inventory all 16 `@ts-nocheck` files; categorize as (a) safe to leave, (b) needs proper typing
+- Re-enable strict TS in `tsconfig.app.json` for `src/lib/**` and `src/utils/**` only (isolate strict zones)
+- Add `npm run type-check:strict` as CI gate (warns, doesn't block)
+- Verify no `console.log` or hardcoded secrets via Semgrep scan
 
----
+### Phase 2 — RLS & Security Validation (DevOps Guardian)
+- Create `scripts/validate-rls.ts` that asserts:
+  - Every patient-data table has `hospital_id` column + RLS policy
+  - All policies reference `current_hospital_id()` or `has_role()`
+  - No `FOR ALL TO public` policies on PHI tables
+- Wire into `.github/workflows/deploy-production.yml` as pre-staging gate
+- Run Supabase linter; document remediation for each finding
 
-### Step 3: Billing Validation Logic (from hims-billing-validator)
-**Problem**: No tariff/charge-master validation, no calculation-order enforcement (discount → tax → rounding), no insurance business rules.
+### Phase 3 — E2E Workflow Coverage (Browser Test Automation)
+- Verify `tests/e2e/fixtures/roles.fixture.ts` authenticates all 7 roles
+- Add critical-path workflow tests:
+  - Patient registration → consultation → prescription → pharmacy dispense → billing
+  - RBAC violation tests (receptionist blocked from pharmacy queue, nurse blocked from billing)
+  - Concurrent prescription edit (optimistic lock validation)
+  - Session expiry mid-workflow recovery
+- Run `playwright.e2e-full.config.ts` against current build; capture failure report
+- Fix or document each failure with severity (P0/P1/P2)
 
-**Changes**:
-- Create `src/utils/billingValidator.ts` with:
-  - Calculation order enforcement: discount → tax → rounding
-  - Negative amount / zero charge guards
-  - Duplicate billing detection
-  - Insurance co-pay/discount validation rules
-  - Immutable charge line pattern (append-only adjustments)
-- Create `src/hooks/useBillingValidation.ts` hook to integrate with billing page
-- Wire into `BillingPage.tsx` for real-time validation on invoice creation
-
----
-
-### Step 4: Clinical Domain Validation (from hims-domain-expert + hims-clinical-forms)
-**Problem**: AI components (`AIConsultationAssistant`, `AITriageAssistant`) use hardcoded mock data. Clinical form validation lacks domain-specific rules.
-
-**Changes**:
-- Create `src/utils/clinicalValidation.ts`:
-  - Vital signs realistic ranges (HR 30-220, BP 50/30-250/150, SpO2 60-100, Temp 32-42C)
-  - Age-based dosage guards (pediatric vs adult vs geriatric)
-  - Drug-route compatibility checks
-  - Pregnancy/breastfeeding medication flags
-  - ICD-10 code format validation
-- Wire `AIConsultationAssistant` to call a real edge function instead of `setTimeout` mocks
-- Wire `AITriageAssistant` to use validated vital sign ranges for acuity scoring
+### Phase 4 — Deployment Safety Drill (DevOps Guardian)
+- Execute `bash test-deployment.sh` and confirm all 10 test sections pass
+- Dry-run `deploy-prod.sh` against staging (BLUE → GREEN swap)
+- Trigger `rollback.sh` and measure RTO (target: <1 min)
+- Verify feature flag kill-switch: toggle `PHASE_6_ENABLED=false` and confirm v2 components fall back to v1
+- Audit last 10 migrations for reversibility (no `DROP COLUMN`, no destructive `ALTER`)
+- Produce **Production Readiness Report** with go/no-go checklist
 
 ---
 
-### Step 5: Edge Case Resilience (from hims-error-resilience + hims-edgecase-tester)
-**Problem**: Several forms lack boundary validation, concurrent edit protection, and graceful network failure handling.
+## Deliverables
 
-**Changes**:
-- Add optimistic locking (`updated_at` check) to prescription and lab order mutations
-- Add duplicate submission guards (debounce + idempotency keys) to patient registration, prescription creation
-- Add network failure retry with exponential backoff to critical mutations (prescriptions, lab orders, billing)
-- Add session expiry detection middleware that prompts re-auth instead of silent failures
+| Artifact | Purpose |
+|----------|---------|
+| `scripts/validate-rls.ts` | Automated RLS gate in CI |
+| `tests/e2e/tests/workflows/critical-path.spec.ts` | End-to-end clinical workflow coverage |
+| `docs/PRODUCTION_READINESS_REPORT.md` | Go/no-go checklist with evidence |
+| `docs/MIGRATION_REVERSIBILITY_AUDIT.md` | Schema change risk log |
+| Updated `.github/workflows/deploy-production.yml` | RLS + strict-TS gates added |
 
----
+## Out of Scope
+- New clinical features (focus is hardening, not building)
+- Performance load testing (separate effort)
+- HIPAA legal sign-off (requires compliance officer)
 
-### Step 6: Workflow Automation (from workflow-creator)
-**Problem**: The workflow-creator skill defines 6 standard workflow templates but none are implemented as proper state-machine-driven Edge Functions.
-
-**Changes** (highest-value workflow first):
-- Implement `prescription-approval` workflow:
-  - DB: Create `prescription_approval_workflows` table with status state machine
-  - Edge Function: `supabase/functions/prescription-approval/index.ts` with role-gated transitions
-  - React Hook: `src/hooks/usePrescriptionApprovalWorkflow.ts` with realtime subscription
-  - Wire into `PrescriptionQueue` component
-
----
-
-### Step 7: Performance Safety (from hims-performance-safety)
-**Problem**: No query pagination guards for large datasets, no N+1 detection logging.
-
-**Changes**:
-- Add query result count warnings when Supabase returns exactly 1000 rows (hitting default limit)
-- Add `React.memo` to heavy list components (PrescriptionQueue, patient lists)
-- Add virtualization (`@tanstack/react-virtual`) to lab results and prescription lists for hospitals with 10K+ records
-
----
-
-### Step 8: Browser Test Automation (from hims-browser-test-automation + hims-e2e-testing-complete)
-**Problem**: E2E tests exist but have environment issues. No role-based Playwright fixtures.
-
-**Changes**:
-- Create `tests/e2e/fixtures/roles.fixture.ts` with pre-authenticated sessions per role
-- Fix dev server startup in E2E config (wait for server before running tests)
-- Add prescription workflow E2E test covering Doctor → Pharmacist → Nurse flow
-- Add RBAC violation test (receptionist cannot access pharmacy queue)
-
----
-
-## Implementation Priority Order
-
-| Priority | Step | Skill Source | Effort |
-|----------|------|-------------|--------|
-| 1 | CSP font fix | security-companion | 15 min |
-| 2 | Feature flag integration | devops-guardian | 2 hrs |
-| 3 | Clinical domain validation | domain-expert, clinical-forms | 3 hrs |
-| 4 | Billing validation | billing-validator | 3 hrs |
-| 5 | Edge case resilience | error-resilience, edgecase-tester | 3 hrs |
-| 6 | Prescription approval workflow | workflow-creator | 4 hrs |
-| 7 | Performance safety | performance-safety | 2 hrs |
-| 8 | E2E test automation | browser-test-automation | 3 hrs |
-
-**Total estimated: ~20 hours**
-
-## Skills That Are Strategy/Process Only (No Code Changes)
-- **product-strategy-session**: Market analysis and roadmap planning — use when planning next product cycle
-- **hims-documentation-coach**: Docs already comprehensive — invoke for future feature documentation
-- **hims-onboarding-helper**: Onboarding materials complete — invoke when adding new developer workflows
-
+## Estimated Effort
+~12 hours total: Phase 1 (2h) + Phase 2 (3h) + Phase 4 (3h) + Phase 3 (4h)
