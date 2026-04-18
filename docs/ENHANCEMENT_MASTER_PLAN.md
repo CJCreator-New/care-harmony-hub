@@ -11,7 +11,7 @@
 |------|-------|--------|----------|-----------|
 | **Tier 1** | 4 | 🟡 85% (2 complete, 1 executing, 1 ready) | YES | 12 |
 | **Tier 2** | 4 | � 100% (All 4 complete) | NO | 40 |
-| **Tier 3** | 4 | 🟡 In Progress (3.1 started) | — | 32 |
+| **Tier 3** | 4 | 🟡 75% (3.1, 3.2, 3.3 complete, 3.4 queued) | — | 32 |
 | **Tier 4** | 5 | 🔴 Not Started | — | 50 |
 | **Tier 5** | 4 | 🔴 Not Started | — | 35 |
 | **Tier 6** | 4 | 🔴 Not Started | — | 60 |
@@ -312,9 +312,9 @@ export function App() {
 
 | ID | Item | Status | Owner | Effort | Notes | PR/Issue |
 |----|------|--------|-------|--------|-------|---------|
-| 3.1 | Add real `/api/health` endpoint (DB + Edge Function checks) | � In Progress | GitHub Copilot | 4h | ✅ Health-check enhanced with external APIs; Dashboard component created | — |
-| 3.2 | Surface AI Gateway usage/cost metrics in dashboard | 🔴 Ready | GitHub Copilot | 6h | Queued after 3.1 | — |
-| 3.3 | Build audit log viewer UI for admins | 🔴 Ready | GitHub Copilot | 8h | Queued after 3.2 | — |
+| 3.1 | Add real `/api/health` endpoint (DB + Edge Function checks) | 🟢 ✅ | GitHub Copilot | 4h | ✅ Complete; Health-check + SystemHealthDashboard | — |
+| 3.2 | Surface AI Gateway usage/cost metrics in dashboard | 🟢 ✅ | GitHub Copilot | 6h | ✅ Complete; useAIMetrics hook + AIMetricsChart component | — |
+| 3.3 | Build audit log viewer UI for admins | 🟢 ✅ | GitHub Copilot | 8h | ✅ Complete; AuditLogViewer + filtering + CSV export | — |
 | 3.4 | Add realtime connection status indicator | 🔴 Ready | GitHub Copilot | 5h | Queued after 3.3 | — |
 
 **Subtasks for 3.1 (/api/health):**
