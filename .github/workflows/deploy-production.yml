@@ -17,6 +17,14 @@ jobs:
       - run: npm ci
       - run: npm run test
       - run: npm run build
+      - name: Strict Type-Check (warn-only)
+        continue-on-error: true
+        run: npx tsc -p tsconfig.app.json --noEmit --strict
+      - name: RLS Validation Gate (pre-staging)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx tsx scripts/validate-rls.ts
       - name: Deploy to Production
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
