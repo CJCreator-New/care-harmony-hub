@@ -20,10 +20,12 @@ jobs:
       - name: Strict Type-Check (warn-only)
         continue-on-error: true
         run: npx tsc -p tsconfig.app.json --noEmit --strict
-      - name: RLS Validation Gate (pre-staging)
+      - name: RLS Validation Gate (BLOCKING — pre-prod)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # Blocking gate: any P0 finding (missing hospital_id on PHI table)
+        # exits non-zero and aborts the production deploy.
         run: npx tsx scripts/validate-rls.ts
       - name: Deploy to Production
         env:
