@@ -12,6 +12,10 @@ interface HealthCheckResponse {
     auth: 'healthy' | 'unhealthy';
     storage: 'healthy' | 'unhealthy';
   };
+  external_apis?: {
+    lovable_ai?: 'healthy' | 'unhealthy' | 'untested';
+    email_service?: 'healthy' | 'unhealthy' | 'untested';
+  };
   metrics: {
     response_time_ms: number;
     memory_usage_mb: number;
@@ -19,6 +23,35 @@ interface HealthCheckResponse {
 }
 
 const startTime = Date.now();
+
+// Helper function to check external APIs with timeout
+async function checkExternalApi(url: string, timeoutMs: number = 5000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok || response.status < 500;
+  } catch (error) {
+    console.error(`External API check failed for ${url}:`, error);
+    return false;
+  }
+}
+
+// Helper function to check with timeout
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+    ),
+  ]);
+}
 
 const handler = async (req: Request): Promise<Response> => {
   const startTime = performance.now();
@@ -62,6 +95,31 @@ const handler = async (req: Request): Promise<Response> => {
       console.error('Storage health check failed:', error);
     }
 
+    // Check external APIs (with timeout protection)
+    let lovableAiStatus: 'healthy' | 'unhealthy' | 'untested' = 'untested';
+    let emailServiceStatus: 'healthy' | 'unhealthy' | 'untested' = 'untested';
+    
+    try {
+      const lovableAiUrl = Deno.env.get('LOVABLE_AI_ENDPOINT');
+      if (lovableAiUrl) {
+        lovableAiStatus = await checkExternalApi(lovableAiUrl) ? 'healthy' : 'unhealthy';
+      }
+    } catch (error) {
+      console.error('Lovable AI health check error:', error);
+      lovableAiStatus = 'unhealthy';
+    }
+
+    try {
+      // Check email service (e.g., SendGrid)
+      const emailServiceUrl = Deno.env.get('EMAIL_SERVICE_HEALTH_URL');
+      if (emailServiceUrl) {
+        emailServiceStatus = await checkExternalApi(emailServiceUrl) ? 'healthy' : 'unhealthy';
+      }
+    } catch (error) {
+      console.error('Email service health check error:', error);
+      emailServiceStatus = 'unhealthy';
+    }
+
     // Calculate overall status
     const services = { database: databaseStatus, auth: authStatus, storage: storageStatus };
     const unhealthyServices = Object.values(services).filter(status => status === 'unhealthy').length;
@@ -85,6 +143,10 @@ const handler = async (req: Request): Promise<Response> => {
       timestamp: new Date().toISOString(),
       uptime,
       services,
+      external_apis: {
+        lovable_ai: lovableAiStatus,
+        email_service: emailServiceStatus,
+      },
       metrics: {
         response_time_ms: Math.round(responseTime),
         memory_usage_mb: memoryUsageMB,
@@ -116,6 +178,10 @@ const handler = async (req: Request): Promise<Response> => {
         database: 'unhealthy',
         auth: 'unhealthy',
         storage: 'unhealthy',
+      },
+      external_apis: {
+        lovable_ai: 'unhealthy',
+        email_service: 'unhealthy',
       },
       metrics: {
         response_time_ms: Math.round(performance.now() - startTime),
