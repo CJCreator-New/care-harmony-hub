@@ -47,7 +47,7 @@ export const useInsuranceClaims = () => {
   const { profile } = useAuth();
   const hospitalId = profile?.hospital_id;
   const queryClient = useQueryClient();
-  const functions = (supabase as any).functions;
+  const functions = supabase.functions;
   const { logActivity } = useAudit();
 
   const submitClaimToProvider = async (claim: InsuranceClaim): Promise<ClaimSubmissionResult | null> => {

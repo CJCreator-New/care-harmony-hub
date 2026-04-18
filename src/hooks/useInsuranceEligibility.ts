@@ -31,7 +31,7 @@ export function useInsuranceEligibility(patientId: string) {
       }
 
       // Attempt eligibility verification via Supabase Edge Function (if available)
-      const functions = (supabase as any).functions;
+      const functions = supabase.functions;
       if (functions?.invoke) {
         try {
           const response = await functions.invoke('insurance-integration', {

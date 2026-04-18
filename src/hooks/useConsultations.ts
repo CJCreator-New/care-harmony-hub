@@ -296,7 +296,7 @@ export function useCreateConsultation() {
         if (existing) return existing as unknown as Consultation;
 
         const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
-          (supabase as any)
+          supabase
             .from('consultations')
             .insert({
               patient_id: data.patient_id,
@@ -391,7 +391,7 @@ export function useGetOrCreateConsultation() {
 
         // Create new consultation if none exists
         const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
-          (supabase as any)
+          supabase
             .from('consultations')
             .insert({
               patient_id: patientId,
@@ -477,7 +477,7 @@ export function useUpdateConsultation() {
         let pendingUpdates = { ...updates };
 
         while (true) {
-          const result = await (supabase as any)
+          const result = await supabase
             .from('consultations')
             .update(pendingUpdates)
             .eq('id', id)

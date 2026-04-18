@@ -18,7 +18,7 @@ export interface NotificationPayload {
 }
 
 export async function sendNotification(payload: NotificationPayload) {
-  const { error } = await (supabase as any).from('notifications').insert({
+  const { error } = await supabase.from('notifications').insert({
     hospital_id: payload.hospital_id,
     recipient_id: payload.recipient_id,
     sender_id: payload.sender_id ?? null,

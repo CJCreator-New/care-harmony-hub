@@ -57,7 +57,7 @@ export function useFeatureFlags() {
     queryFn: async (): Promise<FeatureFlags> => {
       if (!hospital?.id) return { ...DEFAULT_FLAGS };
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('feature_flags')
         .select('flag_name, enabled')
         .eq('hospital_id', hospital.id);

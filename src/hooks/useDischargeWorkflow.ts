@@ -86,7 +86,7 @@ export function useDischargeWorkflow(
     queryFn: async () => {
       if (!workflowId) return null;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('discharge_workflows')
         .select('*')
         .eq('id', workflowId)
@@ -103,7 +103,7 @@ export function useDischargeWorkflow(
     queryFn: async () => {
       if (!workflowId) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('discharge_workflow_audit')
         .select('*')
         .eq('workflow_id', workflowId)
@@ -120,7 +120,7 @@ export function useDischargeWorkflow(
     queryFn: async () => {
       if (!hospital?.id || !currentRoleStep) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('discharge_workflows')
         .select('*')
         .eq('hospital_id', hospital.id)
