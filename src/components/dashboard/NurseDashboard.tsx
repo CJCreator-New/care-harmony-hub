@@ -22,6 +22,8 @@ import {
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { ShiftHandoverModal } from '@/components/nurse/ShiftHandoverModal';
 import { MedicationAdministrationModal } from '@/components/nurse/MedicationAdministrationModal';
+import { OfflineIndicator } from '@/components/nurse/OfflineIndicator';
+import { OfflineVitalsCaptureModal } from '@/components/nurse/OfflineVitalsCaptureModal';
 import { NursePatientQueue } from '@/components/nurse/NursePatientQueue';
 import { PatientPrepStation } from '@/components/nurse/PatientPrepStation';
 import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
@@ -36,6 +38,7 @@ export function NurseDashboard() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [handoverMode, setHandoverMode] = useState<'create' | 'view' | null>(null);
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
+  const [isOfflineVitalsOpen, setIsOfflineVitalsOpen] = useState(false);
   
   const { data: vitalsCount } = useTodayVitalsCount();
   const { data: activeQueue = [] } = useActiveQueue();
@@ -67,6 +70,9 @@ export function NurseDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Offline Indicator */}
+      <OfflineIndicator />
       </DashboardSection>
 
       <DashboardSection>
@@ -75,6 +81,10 @@ export function NurseDashboard() {
         <Button onClick={() => setIsVitalsModalOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
           Record Vitals
+        </Button>
+        <Button variant="outline" onClick={() => setIsOfflineVitalsOpen(true)}>
+          <Heart className="h-4 w-4 mr-2" />
+          Offline Vitals
         </Button>
         <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
           <Pill className="h-4 w-4 mr-2" />
@@ -205,6 +215,14 @@ export function NurseDashboard() {
         onOpenChange={setIsVitalsModalOpen}
         patient={selectedPatient}
         showPatientSelector={!selectedPatient}
+      />
+      
+      <OfflineVitalsCaptureModal
+        open={isOfflineVitalsOpen}
+        onOpenChange={setIsOfflineVitalsOpen}
+        onVitalsCaptured={() => {
+          // Optional: refresh vitals count or show success message
+        }}
       />
       <ShiftHandoverModal
         open={handoverMode !== null}
