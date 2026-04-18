@@ -86,6 +86,7 @@ export function RecordVitalsModal({
   
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient);
   const [patientSelectionError, setPatientSelectionError] = useState(false);
+  const [chiefComplaintError, setChiefComplaintError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [vitals, setVitals] = useState<VitalsData>({
@@ -173,9 +174,11 @@ export function RecordVitalsModal({
     setPatientSelectionError(false);
 
     if (!vitals.chief_complaint.trim()) {
+      setChiefComplaintError(true);
       toast.error('Chief complaint is required');
       return;
     }
+    setChiefComplaintError(false);
 
     setIsSubmitting(true);
     try {
@@ -390,30 +393,36 @@ export function RecordVitalsModal({
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Systolic (mmHg)</Label>
+                  <Label htmlFor="systolic-input">Systolic (mmHg)</Label>
                   <Input
+                    id="systolic-input"
                     type="number"
                     placeholder="120"
                     value={vitals.blood_pressure_systolic}
                     onChange={(e) => handleChange('blood_pressure_systolic', e.target.value)}
+                    aria-label="Systolic blood pressure in millimeters of mercury"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Diastolic (mmHg)</Label>
+                  <Label htmlFor="diastolic-input">Diastolic (mmHg)</Label>
                   <Input
+                    id="diastolic-input"
                     type="number"
                     placeholder="80"
                     value={vitals.blood_pressure_diastolic}
                     onChange={(e) => handleChange('blood_pressure_diastolic', e.target.value)}
+                    aria-label="Diastolic blood pressure in millimeters of mercury"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Heart Rate (bpm)</Label>
+                  <Label htmlFor="heart_rate_input">Heart Rate (bpm)</Label>
                   <Input
+                    id="heart_rate_input"
                     type="number"
                     placeholder="72"
                     value={vitals.heart_rate}
                     onChange={(e) => handleChange('heart_rate', e.target.value)}
+                    aria-label="Heart rate in beats per minute"
                   />
                 </div>
               </div>
@@ -429,31 +438,37 @@ export function RecordVitalsModal({
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Temperature (°C)</Label>
+                  <Label htmlFor="temp-input">Temperature (°C)</Label>
                   <Input
+                    id="temp-input"
                     type="number"
                     step="0.1"
                     placeholder="36.5"
                     value={vitals.temperature}
                     onChange={(e) => handleChange('temperature', e.target.value)}
+                    aria-label="Temperature in degrees Celsius"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Respiratory Rate (/min)</Label>
+                  <Label htmlFor="resp-input">Respiratory Rate (/min)</Label>
                   <Input
+                    id="resp-input"
                     type="number"
                     placeholder="16"
                     value={vitals.respiratory_rate}
                     onChange={(e) => handleChange('respiratory_rate', e.target.value)}
+                    aria-label="Respiratory rate in breaths per minute"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>SpO2 (%)</Label>
+                  <Label htmlFor="spo2-input">SpO2 (%)</Label>
                   <Input
+                    id="spo2-input"
                     type="number"
                     placeholder="98"
                     value={vitals.oxygen_saturation}
                     onChange={(e) => handleChange('oxygen_saturation', e.target.value)}
+                    aria-label="Oxygen saturation percentage"
                   />
                 </div>
               </div>
@@ -469,30 +484,36 @@ export function RecordVitalsModal({
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Weight (kg)</Label>
+                  <Label htmlFor="weight-input">Weight (kg)</Label>
                   <Input
+                    id="weight-input"
                     type="number"
                     step="0.1"
                     placeholder="70"
                     value={vitals.weight}
                     onChange={(e) => handleChange('weight', e.target.value)}
+                    aria-label="Patient weight in kilograms"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Height (cm)</Label>
+                  <Label htmlFor="height-input">Height (cm)</Label>
                   <Input
+                    id="height-input"
                     type="number"
                     placeholder="170"
                     value={vitals.height}
                     onChange={(e) => handleChange('height', e.target.value)}
+                    aria-label="Patient height in centimeters"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>BMI</Label>
+                  <Label htmlFor="bmi-display">BMI</Label>
                   <Input
+                    id="bmi-display"
                     type="text"
                     value={bmi || '-'}
                     disabled
+                    aria-label="Calculated body mass index"
                     className="bg-muted"
                   />
                 </div>
@@ -508,14 +529,16 @@ export function RecordVitalsModal({
                 <h3 className="font-medium">Pain Assessment</h3>
               </div>
               <div className="space-y-2">
-                <Label>Pain Level (0-10)</Label>
+                <Label htmlFor="pain-input">Pain Level (0-10)</Label>
                 <Input
+                  id="pain-input"
                   type="number"
                   min="0"
                   max="10"
                   placeholder="0"
                   value={vitals.pain_level}
                   onChange={(e) => handleChange('pain_level', e.target.value)}
+                  aria-label="Pain level on a scale of 0 (no pain) to 10 (worst pain)"
                 />
               </div>
             </CardContent>
@@ -535,9 +558,20 @@ export function RecordVitalsModal({
                     id="chief_complaint"
                     placeholder="What brings the patient in today?"
                     value={vitals.chief_complaint}
-                    onChange={(e) => handleChange('chief_complaint', e.target.value)}
+                    onChange={(e) => {
+                      handleChange('chief_complaint', e.target.value);
+                      if (e.target.value.trim()) setChiefComplaintError(false);
+                    }}
+                    aria-invalid={chiefComplaintError}
+                    aria-describedby={chiefComplaintError ? 'chief_complaint_error' : undefined}
                     rows={2}
+                    className={chiefComplaintError ? 'border-destructive' : ''}
                   />
+                  {chiefComplaintError && (
+                    <span id="chief_complaint_error" role="alert" className="text-sm text-destructive">
+                      Chief complaint is required
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="allergies">Known Allergies</Label>

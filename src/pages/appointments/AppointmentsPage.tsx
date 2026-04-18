@@ -304,13 +304,13 @@ export default function AppointmentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Patient</TableHead>
-                      <TableHead className="hidden md:table-cell">Type</TableHead>
-                      <TableHead className="hidden md:table-cell">Doctor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden sm:table-cell">Queue #</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead scope="col">Time</TableHead>
+                      <TableHead scope="col">Patient</TableHead>
+                      <TableHead scope="col" className="hidden md:table-cell">Type</TableHead>
+                      <TableHead scope="col" className="hidden md:table-cell">Doctor</TableHead>
+                      <TableHead scope="col">Status</TableHead>
+                      <TableHead scope="col" className="hidden sm:table-cell">Queue #</TableHead>
+                      <TableHead scope="col" className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
