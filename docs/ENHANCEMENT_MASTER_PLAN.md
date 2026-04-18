@@ -12,7 +12,7 @@
 | **Tier 1** | 4 | 🟡 85% (2 complete, 1 executing, 1 ready) | YES | 12 |
 | **Tier 2** | 4 | � 100% (All 4 complete) | NO | 40 |
 | **Tier 3** | 4 | � 100% (All 4 items complete) | — | 32 |
-| **Tier 4** | 5 | 🔴 Not Started | — | 50 |
+| **Tier 4** | 5 | 🟡 20% (1 complete, 4 ready to start) | — | 50 |
 | **Tier 5** | 4 | 🔴 Not Started | — | 35 |
 | **Tier 6** | 4 | 🔴 Not Started | — | 60 |
 | **TOTAL** | **25** | — | — | **227** |
@@ -354,7 +354,7 @@ export function App() {
 |----|------|--------|-------|--------|-------|---------|-----------|
 | 4.1 | Formalize discharge workflow state machine | 🔴 | — | 12h | DB-backed; use workflow-creator skill template | — | Clinical |
 | 4.2 | Formalize lab-result notification workflow | 🔴 | — | 10h | Auto-page ordering doctor; track consent | — | Clinical |
-| 4.3 | Add optimistic locking on prescriptions | 🔴 | — | 8h | Prevent concurrent-edit race already noted | — | Clinical |
+| 4.3 | Add optimistic locking on prescriptions | � ✅ | GitHub Copilot | 8h | ✅ Version checking, conflict detection, merge UI complete | 722a186 | — |
 | 4.4 | Critical lab value alert system + paging | 🔴 | — | 10h | Edge Function trigger; auto-page doctor | — | Clinical |
 | 4.5 | Drug interaction check in prescription flow | 🔴 | — | 9h | Integrate external DB (e.g., RxNorm) | — | Clinical |
 
