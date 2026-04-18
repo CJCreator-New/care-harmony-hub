@@ -117,6 +117,7 @@ export const routeManifest: AppRouteManifestGroup[] = [
       { label: 'Staff Performance', href: '/settings/performance', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'staff-performance', releaseTier: 'tier1', testOwner: 'integration' },
       { label: 'Activity Logs', href: '/settings/activity', icon: ClipboardList, allowedRoles: ['admin'], requiredPermission: 'activity-logs', releaseTier: 'tier1', testOwner: 'api-security' },
       { label: 'System Monitoring', href: '/settings/monitoring', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'system-monitoring', releaseTier: 'tier1', testOwner: 'api-security' },
+      { label: 'System Health', href: '/settings/health', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'system-health', releaseTier: 'tier3', testOwner: 'observability' },
       { label: 'Hospital Settings', href: '/settings', icon: Settings, allowedRoles: ['admin'], requiredPermission: 'settings', releaseTier: 'tier1', testOwner: 'integration' },
     ],
   },
