@@ -5,8 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Pagination, Pagination as PaginationComponent } from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
-import { Trash2, Upload, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Trash2, Upload, Clock, Filter, X } from 'lucide-react';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 interface OfflineVital {
   id: string;
@@ -30,7 +31,12 @@ export function OfflineVitalsHistory() {
   const { cache, isOnline } = useOfflineSync();
   const [currentPage, setCurrentPage] = useState(1);
   const [vitals, setVitals] = useState<OfflineVital[]>([]);
+  const [filteredVitals, setFilteredVitals] = useState<OfflineVital[]>([]);
   const [loading, setLoading] = useState(true);
+  const [patientFilter, setPatientFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Load offline vitals from cache
   useEffect(() => {
@@ -54,11 +60,54 @@ export function OfflineVitalsHistory() {
     loadVitals();
   }, [cache.vitals]);
 
-  const totalPages = Math.ceil(vitals.length / ITEMS_PER_PAGE);
-  const paginatedVitals = vitals.slice(
+  // Apply filters whenever vitals or filters change
+  useEffect(() => {
+    let filtered = [...vitals];
+
+    // Filter by patient ID
+    if (patientFilter.trim()) {
+      filtered = filtered.filter(v =>
+        v.patient_id.toLowerCase().includes(patientFilter.toLowerCase())
+      );
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      filtered = filtered.filter(v => {
+        const vitalDate = new Date(v.captured_at);
+        
+        if (startDate && endDate) {
+          return isWithinInterval(vitalDate, {
+            start: startOfDay(new Date(startDate)),
+            end: endOfDay(new Date(endDate))
+          });
+        } else if (startDate) {
+          return vitalDate >= startOfDay(new Date(startDate));
+        } else if (endDate) {
+          return vitalDate <= endOfDay(new Date(endDate));
+        }
+        
+        return true;
+      });
+    }
+
+    setFilteredVitals(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [vitals, patientFilter, startDate, endDate]);
+
+  const totalPages = Math.ceil(filteredVitals.length / ITEMS_PER_PAGE);
+  const paginatedVitals = filteredVitals.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  const clearFilters = () => {
+    setPatientFilter('');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  const isFilterActive = patientFilter || startDate || endDate;
 
   const getPriorityBadge = (synced: boolean) => {
     if (synced) {
@@ -88,16 +137,89 @@ export function OfflineVitalsHistory() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Offline Vitals History</CardTitle>
-          {!isOnline && (
-            <Badge variant="destructive" className="gap-1">
-              <Clock className="h-3 w-3" />
-              {vitals.filter(v => !v.synced).length} pending
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {!isOnline && (
+              <Badge variant="destructive" className="gap-1">
+                <Clock className="h-3 w-3" />
+                {vitals.filter(v => !v.synced).length} pending
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-1"
+            >
+              <Filter className="h-4 w-4" />
+              Filter
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Filter Panel */}
+          {showFilters && (
+            <div className="border rounded-lg p-4 bg-slate-50 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="patient-filter" className="text-sm font-medium mb-2 block">
+                    Patient ID
+                  </label>
+                  <Input
+                    id="patient-filter"
+                    placeholder="Search patient ID..."
+                    value={patientFilter}
+                    onChange={(e) => setPatientFilter(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="start-date" className="text-sm font-medium mb-2 block">
+                    Start Date
+                  </label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="end-date" className="text-sm font-medium mb-2 block">
+                    End Date
+                  </label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+              {isFilterActive && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="gap-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Results Summary */}
+          <div className="text-sm text-muted-foreground">
+            Showing {paginatedVitals.length} of {filteredVitals.length} vitals
+            {isFilterActive && ` (filtered from ${vitals.length} total)`}
+          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
