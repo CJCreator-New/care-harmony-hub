@@ -18,12 +18,18 @@ import {
   ListChecks,
   LayoutGrid,
   ClipboardCheck,
+  Database,
+  Smartphone,
 } from 'lucide-react';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { ShiftHandoverModal } from '@/components/nurse/ShiftHandoverModal';
 import { MedicationAdministrationModal } from '@/components/nurse/MedicationAdministrationModal';
 import { OfflineIndicator } from '@/components/nurse/OfflineIndicator';
 import { OfflineVitalsCaptureModal } from '@/components/nurse/OfflineVitalsCaptureModal';
+import { OfflineVitalsHistory } from '@/components/nurse/OfflineVitalsHistory';
+import { OfflineDataImportExport } from '@/components/nurse/OfflineDataImportExport';
+import { SyncProgressPanel } from '@/components/nurse/SyncProgressPanel';
+import { MobileLandscapeVitalsForm } from '@/components/nurse/MobileLandscapeVitalsForm';
 import { NursePatientQueue } from '@/components/nurse/NursePatientQueue';
 import { PatientPrepStation } from '@/components/nurse/PatientPrepStation';
 import { useTodayVitalsCount } from '@/hooks/useVitalSigns';
@@ -39,6 +45,10 @@ export function NurseDashboard() {
   const [handoverMode, setHandoverMode] = useState<'create' | 'view' | null>(null);
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
   const [isOfflineVitalsOpen, setIsOfflineVitalsOpen] = useState(false);
+  const [isMobileLandscapeOpen, setIsMobileLandscapeOpen] = useState(false);
+  const [offlineTab, setOfflineTab] = useState<'history' | 'sync' | 'import'>(
+    'history'
+  );
   
   const { data: vitalsCount } = useTodayVitalsCount();
   const { data: activeQueue = [] } = useActiveQueue();
@@ -85,6 +95,10 @@ export function NurseDashboard() {
         <Button variant="outline" onClick={() => setIsOfflineVitalsOpen(true)}>
           <Heart className="h-4 w-4 mr-2" />
           Offline Vitals
+        </Button>
+        <Button variant="outline" onClick={() => setIsMobileLandscapeOpen(true)}>
+          <Smartphone className="h-4 w-4 mr-2" />
+          Mobile Entry
         </Button>
         <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
           <Pill className="h-4 w-4 mr-2" />
@@ -146,7 +160,7 @@ export function NurseDashboard() {
 
       <DashboardSection>
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[450px]">
+        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <LayoutGrid className="h-4 w-4" />
             Overview
@@ -159,6 +173,10 @@ export function NurseDashboard() {
                 {patientsInPrepCount}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="offline" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Offline Data
           </TabsTrigger>
         </TabsList>
 
@@ -206,6 +224,31 @@ export function NurseDashboard() {
         <TabsContent value="prep-station">
           <PatientPrepStation />
         </TabsContent>
+
+        <TabsContent value="offline" className="space-y-6">
+          <div className="space-y-6">
+            {/* Offline Data Sub-Tabs */}
+            <Tabs value={offlineTab} onValueChange={(val) => setOfflineTab(val as 'history' | 'sync' | 'import')} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="sync">Sync</TabsTrigger>
+                <TabsTrigger value="import">Import/Export</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="history">
+                <OfflineVitalsHistory />
+              </TabsContent>
+
+              <TabsContent value="sync">
+                <SyncProgressPanel />
+              </TabsContent>
+
+              <TabsContent value="import">
+                <OfflineDataImportExport />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </TabsContent>
       </Tabs>
       </DashboardSection>
 
@@ -224,6 +267,12 @@ export function NurseDashboard() {
           // Optional: refresh vitals count or show success message
         }}
       />
+
+      <MobileLandscapeVitalsForm
+        isOpen={isMobileLandscapeOpen}
+        onClose={() => setIsMobileLandscapeOpen(false)}
+      />
+
       <ShiftHandoverModal
         open={handoverMode !== null}
         onOpenChange={(open) => !open && setHandoverMode(null)}
