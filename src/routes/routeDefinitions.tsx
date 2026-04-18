@@ -49,6 +49,7 @@ const PatientLabResultsPage = lazy(() => import('../pages/patient/PatientLabResu
 const PatientMedicalHistoryPage = lazy(() => import('../pages/patient/PatientMedicalHistoryPage'));
 const EnhancedPortalPage = lazy(() => import('../pages/patient/EnhancedPortalPage'));
 const SystemHealthDashboard = lazy(() => import('../pages/admin/SystemHealthDashboard'));
+const AuditLogViewer = lazy(() => import('../pages/admin/AuditLogViewer'));
 const PatientMessagesPage = lazy(() => import('../pages/patient/PatientMessagesPage'));
 const DoctorMessagesPage = lazy(() => import('../pages/messaging/DoctorMessagesPage'));
 const TelemedicinePage = lazy(() => import('../pages/telemedicine/TelemedicinePage'));
@@ -285,6 +286,7 @@ export const protectedRoutes: RouteDefinition[] = [
   { path: '/settings/activity', element: withRoleAccess(<ActivityLogsPage />, ['admin'], 'activity-logs') },
   { path: '/settings/monitoring', element: withRoleAccess(<SystemMonitoringPage />, ['admin'], 'system-monitoring') },
   { path: '/settings/health', element: withRoleAccess(<SystemHealthDashboard />, ['admin'], 'system-health') },
+  { path: '/settings/audit-logs', element: withRoleAccess(<AuditLogViewer />, ['admin'], 'audit-logs') },
   { path: '/ai-demo', element: withRoleAccess(<AIDemoPage />, ['admin', 'doctor'], undefined, 'ai_demo') },
   { path: '/differential-diagnosis', element: withRoleAccess(<DifferentialDiagnosisPage />, ['admin', 'doctor'], undefined, 'ai_clinical_tools') },
   { path: '/treatment-recommendations', element: withRoleAccess(<TreatmentRecommendationsPage />, ['admin', 'doctor'], undefined, 'ai_clinical_tools') },
