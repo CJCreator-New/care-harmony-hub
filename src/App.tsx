@@ -10,12 +10,7 @@ import { TestingProvider } from "@/contexts/TestingContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
-import { initializeSentry } from "@/utils/sentry-integration";
-import { initializeMetrics } from "@/services/metrics";
-import { createLogger } from "@/utils/logger";
-import { initializeTelemetry, shutdownTelemetry } from "@/utils/telemetry";
-import { registerFetchInterceptor, getCorrelationId } from "@/utils/correlationId";
-import { initErrorTracking } from "@/utils/errorTracking";
+import { bootstrap } from "@/bootstrap";
 import {
   fallbackRoute,
   publicRoutes,
@@ -49,41 +44,38 @@ const App = () => {
   useEffect(() => {
     const otelEndpoint = import.meta.env.VITE_OTEL_ENDPOINT || 'http://localhost:4318';
     const appEnv = (import.meta.env.MODE === 'production' || import.meta.env.MODE === 'staging')
-      ? import.meta.env.MODE
+      ? (import.meta.env.MODE as 'development' | 'staging' | 'production')
       : 'development';
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.0.0';
 
-    initializeTelemetry({
-      serviceName: 'care-harmony-hub',
-      applicationVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
-      otlpEndpoint: otelEndpoint,
-      environment: appEnv,
-      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    // Bootstrap application in strict initialization order
+    const { getLogger, shutdown } = bootstrap({
+      telemetry: {
+        serviceName: 'care-harmony-hub',
+        applicationVersion: appVersion,
+        otlpEndpoint: otelEndpoint,
+        environment: appEnv,
+      },
+      errorTracking: {
+        dsn: import.meta.env.VITE_GLITCHTIP_DSN || import.meta.env.VITE_SENTRY_DSN,
+        environment: appEnv,
+        mode: import.meta.env.MODE,
+      },
+      logger: {
+        version: appVersion,
+        environment: appEnv,
+      },
     });
 
-    initErrorTracking({
-      dsn: import.meta.env.VITE_GLITCHTIP_DSN || import.meta.env.VITE_SENTRY_DSN,
-      environment: appEnv,
-    });
-
-    registerFetchInterceptor();
-    initializeSentry(import.meta.env.VITE_SENTRY_DSN, import.meta.env.MODE);
-    initializeMetrics();
-
-    const logger = createLogger('app-root', {
-      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
-      environment: import.meta.env.MODE,
-    });
-
+    const logger = getLogger();
     logger.info('CareSync HMS initialized', {
-      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
-      environment: import.meta.env.MODE,
-      observability: 'enabled (Phase 3A + 3B)',
-      correlationId: getCorrelationId(),
+      version: appVersion,
+      environment: appEnv,
       otelEndpoint,
     });
 
     const handleBeforeUnload = () => {
-            shutdownTelemetry().catch((err) => console.error('[Telemetry Shutdown]', err));
+      shutdown().catch((err) => console.error('[Bootstrap Shutdown]', err));
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
