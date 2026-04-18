@@ -68,6 +68,8 @@
     "test:unit:watch": "vitest src/test",
     "test:coverage": "vitest run --coverage src/test",
     "type-check": "tsc --noEmit",
+    "validate:rls": "npx tsx scripts/validate-rls.ts",
+    "validate:all": "npm run lint && npm run test && npm run validate:rls",
     "deploy:staging": "./scripts/deploy.sh staging",
     "deploy:production": "./scripts/deploy.sh production",
     "test:smoke:staging": "playwright test --grep @smoke",
@@ -106,7 +108,6 @@
     "test:e2e:full:phase:permissions": "npx playwright test --config=playwright.e2e-full.config.ts --project=permissions",
     "test:e2e:full:phase:workflows": "npx playwright test --config=playwright.e2e-full.config.ts --project=workflows",
     "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security",
-    "validate:rls": "node scripts/validate-rls.mjs",
     "validate:migrations": "node scripts/validate-migrations.mjs",
     "test:release:gates": "npm run lint && npm run type-check && npm run test:unit && npm run test:integration && npm run test:api && npm run test:security && npm run test:accessibility && npm run test:e2e:smoke && npm run test:e2e:roles && npm run test:e2e:full"
   },

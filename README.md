@@ -100,6 +100,28 @@ The project uses Lovable Cloud for backend services. Environment variables are a
 
 For local microservices development, see [API_GATEWAY.md](docs/API_GATEWAY.md) for detailed setup instructions.
 
+### Pre-Deployment Validation
+
+Before committing code or merging to main, ensure RLS policies are secure:
+
+```bash
+# Validate RLS policies locally (runs on git commit automatically)
+npm run validate:rls
+
+# Run full validation suite
+npm run validate:all
+
+# Troubleshoot: view validation script details
+cat scripts/validate-rls.ts
+```
+
+**What it checks:**
+- ✅ All PHI tables have hospital-scoped access
+- ✅ No unintended `USING(true)` policies on clinical data
+- ✅ Role-based access control enforced
+
+**Documentation:** See [docs/RLS_AUDIT_REPORT.md](docs/RLS_AUDIT_REPORT.md) for policy exceptions and security rationale.
+
 ### Recent Updates (January 2026)
 
 ✅ **All 8 Phases Complete**: Production-Ready Healthcare Management System

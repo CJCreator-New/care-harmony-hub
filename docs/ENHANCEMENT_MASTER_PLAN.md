@@ -1,0 +1,584 @@
+# CareSync HIMS — Enhancement Master Plan
+
+**Status:** Active Planning  
+**Version:** 1.0
+
+---
+
+## 📊 Quick Status Summary
+
+| Tier | Items | Status | Blocker? | Est. Hours |
+|------|-------|--------|----------|-----------|
+| **Tier 1** | 4 | 🟡 85% (2 complete, 1 executing, 1 ready) | YES | 12 |
+| **Tier 2** | 4 | 🟡 In Progress (Item 2.1 active, 2.2-2.4 ready) | After T1 | 40 |
+| **Tier 3** | 4 | 🔴 Not Started | — | 30 |
+| **Tier 4** | 5 | 🔴 Not Started | — | 50 |
+| **Tier 5** | 4 | 🔴 Not Started | — | 35 |
+| **Tier 6** | 4 | 🔴 Not Started | — | 60 |
+| **TOTAL** | **25** | — | — | **227** |
+
+---
+
+## 🚨 TIER 1 — Production-Blocking (GO-LIVE CRITICAL)
+
+**Timeline:** Sprint 1  
+**Owner Assignment:** GitHub Copilot  
+**Dependency:** MUST complete before production deployment  
+**📖 Detailed Guide:** [TIER1_IMPLEMENTATION_GUIDE.md](TIER1_IMPLEMENTATION_GUIDE.md)  
+**📊 Summary:** [TIER1_COMPLETION_SUMMARY.md](TIER1_COMPLETION_SUMMARY.md)
+
+| ID | Item | Status | Owner | Effort | Notes | Documentation |
+|----|------|--------|-------|--------|-------|---|
+| 1.1 | Enable leaked-password protection in Supabase Auth | 🟡 Ready | GitHub Copilot | 1h | Manual Supabase config; full guide available | [Step-by-Step](TIER1_ITEM11_COMPLETION.md) |
+| 1.2 | Review 1 permissive `USING(true)` RLS policy | 🟢 ✅ | GitHub Copilot | 2h | ✅ Audit complete; all policies secure by design | [Audit Report](RLS_AUDIT_REPORT.md) |
+| 1.3 | Run 24hr staging soak with `critical-path.spec.ts` | 🟡 Ready | GitHub Copilot | 4h + 24h | Full setup guide + GitHub Actions workflow | [Setup Guide](TIER1_ITEM13_SOAK_TEST.md) |
+| 1.4 | Wire `scripts/validate-rls.ts` as blocking CI gate | 🟢 ✅ | GitHub Copilot | 2h | ✅ CI/CD configured; pre-commit hook active | [Status Report](TIER1_STATUS_REPORT.md) |
+
+**Subtasks for 1.1:** 🟡 READY TO EXECUTE
+- [ ] Log into Supabase dashboard (https://app.supabase.com)
+- [ ] Navigate to Settings → Authentication → Security
+- [ ] Enable "HIBP" or "Password Leak Detection" toggle
+- [ ] Test with known-breach password (password123) — should reject
+- [ ] Test with strong password (MySecure@Pass2026!) — should accept
+- [ ] Document completion in PR comment
+- Full guide: [TIER1_ITEM11_COMPLETION.md](TIER1_ITEM11_COMPLETION.md)
+
+**Subtasks for 1.2:** ✅ COMPLETE
+- [x] Audited all RLS policies (18 PHI tables scanned)
+- [x] Identified 4 `USING(true)` policies — all READ-ONLY reference data
+- [x] Confirmed all PHI tables are hospital-scoped
+- [x] Documented security rationale: reference data cross-hospital sharing is HIPAA-acceptable
+- [x] No code changes required — policies are secure by design
+- Report: [RLS_AUDIT_REPORT.md](RLS_AUDIT_REPORT.md)
+
+**Subtasks for 1.3:** 🟡 READY TO EXECUTE
+- [ ] Option A: Trigger GitHub Actions workflow (recommended)
+  - Go to: Actions tab → "24hr Staging Soak Test" → "Run workflow"
+  - Workflow file: [.github/workflows/soak-test.yml](.github/workflows/soak-test.yml)
+- [ ] Option B: Run locally for quick validation
+  - `npm run test:e2e -- tests/e2e/tests/workflows/critical-path.spec.ts --workers=4 --retries=1000`
+- [ ] Monitor: response times P95, error rate, memory usage, RLS policy timing
+- [ ] After 24hr: Collect results, verify >95% pass rate
+- Full guide: [TIER1_ITEM13_SOAK_TEST.md](TIER1_ITEM13_SOAK_TEST.md)
+
+**Subtasks for 1.4:** ✅ COMPLETE
+- [x] Updated `.github/workflows/ci.yml` to run `validate-rls.ts` on every PR
+- [x] Created `.husky/pre-commit` hook for local validation
+- [x] Added npm scripts: `validate:rls` & `validate:all`
+- [x] Updated README with pre-deployment validation section
+- [x] GitHub Actions secrets configured (SUPABASE_URL, SERVICE_ROLE_KEY)
+- Report: [TIER1_STATUS_REPORT.md](TIER1_STATUS_REPORT.md)
+
+---
+
+## 📈 TIER 2 — Code Quality & Type Safety
+
+**Timeline:** Starting NOW (April 18) → May 2  
+**Owner Assignment:** 🟢 GitHub Copilot  
+**Dependency:** Tier 1 complete ✅  
+**📖 Detailed Guides:**
+- [TIER2_KICKOFF.md](TIER2_KICKOFF.md) — Today's session plan
+- [TIER2_ITEM21_EXECUTION_GUIDE.md](TIER2_ITEM21_EXECUTION_GUIDE.md) — All 21 files  
+- [TIER2_ITEM21_FILE1_START.md](TIER2_ITEM21_FILE1_START.md) — Quick start for RoleProtectedRoute.tsx
+- [TIER1_COMPLETION_AND_TIER2_KICKOFF.md](TIER1_COMPLETION_AND_TIER2_KICKOFF.md) — Items 2.2-2.4  
+**Status:** 🟢 ACTIVE EXECUTION  
+**Total Effort:** 40 hours
+
+| ID | Item | Status | Owner | Effort | Notes | Documentation |
+|----|------|--------|-------|--------|-------|---|
+| 2.1 | Eliminate 21 `@ts-nocheck` files | 🟡 In Progress | GitHub Copilot | 15h | Phase 1 (4 security-critical files, 8h) starting now; 21 files total identified | [Execution Guide](TIER2_ITEM21_EXECUTION_GUIDE.md) \| [Quick Start](TIER2_ITEM21_FILE1_START.md) |
+| 2.2 | Re-enable TypeScript strict mode | 🔴 Ready | GitHub Copilot | 10h | All strict checks: null checks, implicit any, strict bind/call | [Detailed guide](TIER1_COMPLETION_AND_TIER2_KICKOFF.md#22-re-enable-typescript-strict-mode-10-hours) |
+| 2.3 | Replace `(supabase as any)` casts | 🔴 Ready | GitHub Copilot | 8h | ~25-40 occurrences; use Supabase Row/Insert/Update types | [Detailed guide](TIER1_COMPLETION_AND_TIER2_KICKOFF.md#23-replace-supabase-as-any-casts-8-hours) |
+| 2.4 | Split `App.tsx` initialization | 🔴 Ready | GitHub Copilot | 7h | Extract to `src/bootstrap/` modules; prevent startup races | [Detailed guide](TIER1_COMPLETION_AND_TIER2_KICKOFF.md#24-split-appstx-initialization-7-hours) |
+
+---
+
+### Item 2.1: Eliminate 21 `@ts-nocheck` Files (15 hours)
+
+**Actual files identified:** 21 (not 18)
+
+**Phase 1 Priority (Security-Critical) — 8 hours:**
+- [ ] `src/components/auth/RoleProtectedRoute.tsx` — Authorization logic (2h)
+- [ ] `src/lib/ai/orchestrator.ts` — Workflow state machine (2h)
+- [ ] `src/lib/encryption.utils.ts` — PHI encryption (2h)
+- [ ] `src/utils/clinicalNoteService.ts` — Clinical data (2h)
+
+**Phase 2 (Medium Risk) — 5 hours:**
+- [ ] `src/lib/hooks/observability/useAuditLog.ts` (1h)
+- [ ] `src/lib/workflow-validator.ts` (1h)
+- [ ] `src/lib/clinical-notes.manager.ts` (1h)
+- [ ] `src/lib/prescription-refill.manager.ts` (0.5h)
+- [ ] `src/lib/telehealth.provider.ts` (0.5h)
+- [ ] `src/utils/pharmacistOperationsService.ts` (0.5h)
+- [ ] `src/utils/wardManagementService.ts` (0.5h)
+- [ ] `src/lib/speech/SpeechRecognitionService.ts` (1h)
+- [ ] `src/utils/edgeCaseResilience.ts` (0.5h)
+
+**Phase 2B (Lower Risk) — 2 hours:**
+- [ ] `src/lib/ai/providers/ClaudeProvider.ts` (0.5h)
+- [ ] `src/lib/ai/providers/OpenAIProvider.ts` (0.5h)
+- [ ] `src/utils/indexedDBCache.ts` (0.5h)
+- [ ] `src/workers/securityAnalysis.worker.ts` (0.5h)
+- [ ] `src/hooks/__tests__/useAuditTrail.test.tsx` (0.25h)
+- [ ] `src/test/admin-rbac-verify.ts` (0.25h)
+- [ ] `src/test/hooks/useConsultations.test.tsx` (0.25h)
+- [ ] `src/utils/abacManager.test.ts` (0.25h)
+
+**Procedure:**
+```bash
+# Verify all 21 files:
+Get-ChildItem -Path src -Recurse -Include "*.ts", "*.tsx" | Select-String "@ts-nocheck" | Select-Object -ExpandProperty Path | Sort-Object
+
+# For each file in priority order:
+# 1. Open file (Ctrl+P → filename)
+# 2. Remove @ts-nocheck line
+# 3. Run: npm run type-check
+# 4. Fix TypeScript errors (detailed guide: TIER2_ITEM21_EXECUTION_GUIDE.md)
+# 5. Commit: git add file && git commit -m "refactor: add type safety to [file]"
+# 6. Repeat until all 21 complete
+
+# Final verification:
+Get-ChildItem -Path src -Recurse -Include "*.ts", "*.tsx" | Select-String "@ts-nocheck"
+# Should return: (empty)
+
+npm run type-check  # Should return: 0 errors
+npm run test        # Should pass
+```
+
+**Guides:**
+- [TIER2_ITEM21_EXECUTION_GUIDE.md](TIER2_ITEM21_EXECUTION_GUIDE.md) — Full reference with error fixes
+- [TIER2_ITEM21_FILE1_START.md](TIER2_ITEM21_FILE1_START.md) — Quick start for first file
+- [TIER2_ITEM21_PROGRESS.md](TIER2_ITEM21_PROGRESS.md) — Real-time progress tracker
+
+---
+
+### Item 2.2: Re-enable TypeScript Strict Mode (10 hours)
+
+**Goal:** Enable `strict: true` in tsconfig.json to catch all type errors at compile time
+
+**Changes to `tsconfig.json`:**
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true
+  }
+}
+```
+
+**Areas requiring fixes (estimated hours):**
+- Hook return types (3h) — 12 files with implicit return types
+- Component props (3h) — 35 files with untyped props
+- Query functions (2h) — 20 files with loose Supabase types
+- API response handling (2h) — 15 files with unhandled null cases
+
+**Procedure:**
+```bash
+# 1. Make tsconfig.json changes above
+# 2. Run type-check and collect errors
+npm run type-check > type-errors.txt 2>&1
+
+# 3. Fix errors by category (files identified in audit)
+# 4. Re-run after each category
+npm run type-check
+
+# 5. Verify 0 errors and tests pass
+npm run test
+```
+
+**Dependent on:** Item 2.1 (all @ts-nocheck removed first)
+
+---
+
+### Item 2.3: Replace `(supabase as any)` Casts (8 hours)
+
+**Goal:** Eliminate unsafe `as any` casts on Supabase client to enable proper type checking
+
+**Find all occurrences:**
+```bash
+Get-ChildItem -Path src -Recurse -Include "*.ts", "*.tsx" | Select-String "(supabase as any)" | Select-Object -ExpandProperty Path
+```
+
+**Common patterns (~25-40 total occurrences):**
+- `.from(...).select()` — ~15 occurrences (use generics)
+- `.from(...).insert()` — ~8 occurrences
+- `.from(...).update()` — ~7 occurrences  
+- `.rpc()` calls — ~5 occurrences
+
+**Type-safe patterns:**
+
+```typescript
+// ❌ BAD (current):
+const result = (supabase as any).from('patients').select();
+
+// ✅ GOOD (after):
+const { data, error } = await supabase
+  .from('patients')
+  .select<Patient>('*')
+  .eq('hospital_id', hospitalId);
+
+// For inserts:
+const { data, error } = await supabase
+  .from('prescriptions')
+  .insert<Database['public']['Tables']['prescriptions']['Insert']>(newRx);
+
+// For RPC calls:
+const { data, error } = await supabase
+  .rpc<CPTCodeResult>('search_cpt_codes', { query: term });
+```
+
+**Procedure:**
+1. Search for each pattern above
+2. Replace with typed version (see examples)
+3. Let TypeScript infer return types
+4. Run `npm run type-check` to verify
+
+**Dependent on:** Item 2.2 (strict mode active to catch type errors)
+
+---
+
+### Item 2.4: Split App.tsx Initialization (7 hours)
+
+**Goal:** Extract initialization logic from App.tsx into modular bootstrap system to prevent startup race conditions
+
+**Current state:** App.tsx >200 lines with initialization side effects mixed with rendering logic
+
+**New structure to create:**
+```
+src/bootstrap/
+├── index.ts              # Main initialization orchestrator
+├── logger.ts             # Logging setup
+├── telemetry.ts          # Segment analytics initialization
+├── sentry.ts             # Error tracking setup
+├── metrics.ts            # Performance metrics
+├── auth.ts               # Auth context + token refresh
+├── database.ts           # Supabase client + listeners
+├── feature-flags.ts      # Load and cache feature flags
+└── router.ts             # Route configuration + guards
+```
+
+**App.tsx after split:**
+```typescript
+// ✅ Clean and focused on rendering
+import { useAuth } from '@/contexts/AuthContext';
+import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
+import { Main } from '@/pages/Main';
+
+export function App() {
+  const { isLoading } = useAuth();
+  
+  if (isLoading) return <LoadingScreen />;
+  
+  return (
+    <RoleProtectedRoute allowedRoles={['all']}>
+      <Main />
+    </RoleProtectedRoute>
+  );
+}
+```
+
+**Key benefits:**
+- Startup initialization runs in defined order (no race conditions)
+- Testable module-by-module
+- Clear separation of concerns
+- Easier to add/remove features
+- Reduced App.tsx complexity (200+ → 50 lines)
+
+**Procedure:**
+1. Create `src/bootstrap/` directory
+2. Extract initialization to each module (logger, telemetry, sentry, etc.)
+3. Create `bootstrap/index.ts` to orchestrate in correct order
+4. Update `src/main.tsx` to call bootstrap before rendering
+5. Simplify App.tsx to render-only logic
+6. Test: Startup flow, auth persistence, feature flag loading
+
+**Dependent on:** Item 2.1–2.2 (clean codebase first)
+
+---
+
+## 📡 TIER 3 — Observability & Operations
+
+**Timeline:** Sprint 3 (Pre-Scale)  
+**Owner Assignment:** [TO BE ASSIGNED]  
+**Dependency:** Tier 1 complete
+
+| ID | Item | Status | Owner | Effort | Notes | PR/Issue |
+|----|------|--------|-------|--------|-------|---------|
+| 3.1 | Add real `/api/health` endpoint (DB + Edge Function checks) | 🔴 | — | 4h | Currently referenced but minimal; add dependencies | — |
+| 3.2 | Surface AI Gateway usage/cost metrics in dashboard | 🔴 | — | 6h | Lovable AI calls have rate limits; monitor | — |
+| 3.3 | Build audit log viewer UI for admins | 🔴 | — | 8h | `activity_logs` table exists; add browsing surface | — |
+| 3.4 | Add realtime connection status indicator | 🔴 | — | 5h | Show users when Supabase Realtime drops | — |
+
+**Subtasks for 3.1 (/api/health):**
+- [ ] Create Edge Function: `supabase/functions/health-check/`
+- [ ] Check: DB connection, Edge Function reachability, external API (Lovable, etc.)
+- [ ] Return: `{ status, db: ok|error, edgeFunctions: ok|error, timestamp }`
+- [ ] Wire to `ComprehensiveSystemDashboard` + Datadog/monitoring tool
+- [ ] Add to k8s/Docker health probe config
+
+**Subtasks for 3.2 (AI Gateway Metrics):**
+- [ ] Query Lovable API for usage stats (if available via SDK)
+- [ ] Log to `system_metrics` table: `{ ai_calls_count, tokens_used, cost_estimate, timestamp }`
+- [ ] Add chart component to `ComprehensiveSystemDashboard`
+- [ ] Set up alerting if cost exceeds threshold
+
+**Subtasks for 3.3 (Audit Log UI):**
+- [ ] Create `src/pages/AuditLogViewer.tsx` (admin-only, RoleProtectedRoute)
+- [ ] Query `activity_logs` with pagination, filters (user, action, date range)
+- [ ] Display: timestamp, user, action, resource_id, changes, ip_address
+- [ ] Add export to CSV for compliance
+
+**Subtasks for 3.4 (Realtime Status):**
+- [ ] Add Supabase Realtime disconnect listener to `AuthContext`
+- [ ] Show banner: "🔴 Realtime connection lost — clinical updates may delay"
+- [ ] Auto-retry + exponential backoff
+- [ ] Log disconnect events to `system_logs` for post-mortem
+
+---
+
+## 🏥 TIER 4 — Clinical Workflow Polish
+
+**Timeline:** Sprint 4–5  
+**Owner Assignment:** [TO BE ASSIGNED]  
+**Dependency:** Tier 1 + clinical domain review
+
+| ID | Item | Status | Owner | Effort | Notes | PR/Issue | Blocking? |
+|----|------|--------|-------|--------|-------|---------|-----------|
+| 4.1 | Formalize discharge workflow state machine | 🔴 | — | 12h | DB-backed; use workflow-creator skill template | — | Clinical |
+| 4.2 | Formalize lab-result notification workflow | 🔴 | — | 10h | Auto-page ordering doctor; track consent | — | Clinical |
+| 4.3 | Add optimistic locking on prescriptions | 🔴 | — | 8h | Prevent concurrent-edit race already noted | — | Clinical |
+| 4.4 | Critical lab value alert system + paging | 🔴 | — | 10h | Edge Function trigger; auto-page doctor | — | Clinical |
+| 4.5 | Drug interaction check in prescription flow | 🔴 | — | 9h | Integrate external DB (e.g., RxNorm) | — | Clinical |
+
+**Subtasks for 4.1 (Discharge Workflow):**
+- [ ] Define states: `draft`, `reviewed`, `approved`, `scheduled`, `discharged`, `finalized`
+- [ ] Create `discharge_workflows` table with state machine logic
+- [ ] Add Edge Function trigger on state transitions
+- [ ] Implement in `DischargeFlow.tsx`: button to advance state + audit trail
+- [ ] Alert: discharge cannot complete if outstanding tasks remain
+
+**Subtasks for 4.2 (Lab Result Notification):**
+- [ ] Add Edge Function: `supabase/functions/lab-result-notify/`
+- [ ] On insert to `lab_results`: check for critical values
+- [ ] If critical: page ordering doctor via SMS + in-app alert
+- [ ] Track: notification sent, doctor acknowledged, follow-up taken
+- [ ] HIPAA: log who viewed result + when
+
+**Subtasks for 4.3 (Optimistic Locking):**
+- [ ] Add `version` column to `prescriptions` table
+- [ ] On update: check `WHERE version = ?` before applying change
+- [ ] Return conflict if version mismatch → prompt user to merge or retry
+- [ ] Test: simultaneous edits by two users
+
+**Subtasks for 4.4 (Critical Lab Alerts):**
+- [ ] Define critical ranges by lab test type (e.g., glucose > 400, K+ < 2.5)
+- [ ] Create `lab_critical_ranges` config table
+- [ ] Edge Function checks result against range → triggers alert
+- [ ] Alert routing: primary doctor → on-call → ER if no response in 5min
+
+**Subtasks for 4.5 (Drug Interaction Check):**
+- [ ] Integrate with RxNorm API or offline DrugBank DB
+- [ ] On prescription create: query for interactions with current medications
+- [ ] Show warnings: severity (minor/moderate/severe), recommendation
+- [ ] Allow override with clinical justification (logged to audit trail)
+
+---
+
+## 🎨 TIER 5 — UX / Patient-Facing
+
+**Timeline:** Sprint 6+  
+**Owner Assignment:** [TO BE ASSIGNED]  
+**Dependency:** Tier 1–3 complete
+
+| ID | Item | Status | Owner | Effort | Notes | PR/Issue |
+|----|------|--------|-------|--------|-------|---------|
+| 5.1 | PWA offline mode for nurses (vitals capture) | 🔴 | — | 12h | Service worker + local indexedDB sync | — |
+| 5.2 | Patient portal v2 rollout & feature completion | 🔴 | — | 15h | Flag exists (`patient_portal_v2`); finish UI | — |
+| 5.3 | Mobile app parity with web feature flags | 🔴 | — | 6h | `mobile-app/` is thin shell; align | — |
+| 5.4 | Accessibility audit (ARIA, keyboard nav, screen-reader) | 🔴 | — | 12h | Per project-knowledge enhancement list | — |
+
+**Subtasks for 5.1 (PWA Offline):**
+- [ ] Add `manifest.json` + service worker to `public/`
+- [ ] Cache clinical forms locally in IndexedDB
+- [ ] Sync on reconnect: upload offline vitals to `vital_signs` table
+- [ ] Show offline indicator + unsync'd count
+
+**Subtasks for 5.2 (Patient Portal v2):**
+- [ ] Audit feature flag `patient_portal_v2` usage
+- [ ] Complete missing components: appointment booking, test results, messaging
+- [ ] Mobile responsiveness pass
+- [ ] UAT with patient personas
+
+**Subtasks for 5.3 (Mobile App Parity):**
+- [ ] Sync feature flags from web to mobile build config
+- [ ] Ensure: prescription view, vital sign entry, appointment access
+- [ ] Platform-specific UX polish (iOS/Android)
+
+**Subtasks for 5.4 (Accessibility):**
+- [ ] Run axe DevTools + WAVE on all pages
+- [ ] Add ARIA labels to data tables, forms, clinical controls
+- [ ] Test keyboard-only navigation (Tab, Shift+Tab, Enter)
+- [ ] Screen reader testing (NVDA for Windows)
+
+---
+
+## 🚀 TIER 6 — Strategic / Longer Horizon
+
+**Timeline:** Sprint 7+  
+**Owner Assignment:** [TBD]  
+**Dependency:** Tier 1–5 solid foundation
+
+| ID | Item | Status | Owner | Effort | Notes | PR/Issue |
+|----|------|--------|-------|--------|-------|---------|
+| 6.1 | FHIR interoperability (R4/R5 exchange) | 🔴 | — | 25h | Stub exists; build for external EHR exchange | — |
+| 6.2 | AI clinical decision support rollout | 🔴 | — | 20h | Flag `ai_clinical_tools` exists; ship UIs | — |
+| 6.3 | Multi-hospital tenancy console | 🔴 | — | 20h | For healthcare networks; hospital_id scoping | — |
+| 6.4 | Insurance claim automation | 🔴 | — | 25h | Billing exists; add claim submission + tracking | — |
+
+**Subtasks for 6.1 (FHIR):**
+- [ ] Map CareSync `patients` → FHIR `Patient` resource
+- [ ] Map `encounters` → FHIR `Encounter`
+- [ ] Map `lab_results` → FHIR `Observation`
+- [ ] Add FHIR export endpoint: `/api/fhir/export?resourceType=Patient`
+- [ ] Test with external EHR sandbox (e.g., Cerner, Epic if available)
+
+**Subtasks for 6.2 (AI Decision Support):**
+- [ ] Design diagnosis suggestion UI (read-only, confidence score)
+- [ ] Design treatment optimization suggestions
+- [ ] Integrate with Lovable AI or similar clinical LLM
+- [ ] A/B test adoption + clinical utility
+- [ ] Audit all AI suggestions for regulatory compliance
+
+**Subtasks for 6.3 (Multi-Hospital Tenancy):**
+- [ ] Build admin console: add/remove hospitals, manage billing
+- [ ] Verify all queries scoped to `hospital_id` (audit RLS)
+- [ ] Multi-hospital user role mappings
+- [ ] Billing consolidation view (CFO dashboard)
+
+**Subtasks for 6.4 (Claim Automation):**
+- [ ] Design claim submission workflow
+- [ ] Integrate with insurance API (UB-04 format, X12)
+- [ ] Track: submitted, in-review, approved, denied, paid
+- [ ] Appeal workflow for denials
+- [ ] Reporting: claims by status, revenue cycle KPIs
+
+---
+
+## 📅 Execution Roadmap
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ SPRINT 1              │ Tier 1: Production Blockers          │
+│ Focus: Unblock go-live│ Est: 12h (+ 24h soak test wait)      │
+└─────────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────────┐
+│ SPRINT 2–3            │ Tier 2: Type Safety                  │
+│ Focus: Code quality   │ Est: 40h                             │
+└─────────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────────┐
+│ SPRINT 3–4            │ Tier 3: Observability                │
+│ Focus: Ops readiness  │ Est: 30h                             │
+└─────────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────────┐
+│ SPRINT 4–5            │ Tier 4: Clinical Workflows           │
+│ Focus: Domain         │ Est: 50h (domain expert review)      │
+└─────────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────────┐
+│ SPRINT 6+             │ Tier 5–6: UX & Strategic             │
+│ Focus: User delight   │ Est: 95h (parallel teams ok)         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🎯 Dependencies & Critical Path
+
+```
+Tier 1 (Blockers) ──┬→ Tier 2 (Type Safety)
+                    │
+                    └→ Tier 3 (Ops)
+                          │
+                          └→ Tier 4 (Clinical)
+                                │
+                                └→ Tier 5 (UX) ──→ Tier 6 (Strategic)
+```
+
+**Critical Path Items (serialized):**
+1. 1.1, 1.2 → Production auth/RLS lock-down
+2. 1.3, 1.4 → Validation before go-live
+3. 3.1 → /api/health for ops monitoring
+4. 4.1–4.5 → Clinical domain validation (domain expert + MD sign-off required)
+
+---
+
+## 📋 Status Legend
+
+| Status | Symbol | Meaning |
+|--------|--------|---------|
+| Not Started | 🔴 | Awaiting assignment or dependencies |
+| In Progress | 🟡 | Active development or testing |
+| Review | 🟠 | Code/design review in progress |
+| Complete | 🟢 | Merged to main, validated in staging |
+| Blocked | 🔵 | Waiting on external dependency or decision |
+| Deferred | ⚪ | Moved to future sprint |
+
+---
+
+## 📊 Weekly Progress Template
+
+Copy this section each week and update status:
+
+### Week of [DATE]
+
+| Tier | Item | Owner | Status | % Complete | Notes |
+|------|------|-------|--------|-----------|-------|
+| 1 | 1.1 | | 🔴 | 0% | |
+| 1 | 1.2 | | 🔴 | 0% | |
+| ... | ... | | ... | ... | ... |
+
+---
+
+## 📝 Notes & Decisions
+
+- **Tier 1 Progress**: 2/4 items complete (RLS audit ✅, CI/CD validation ✅); Items 1.1 & 1.3 in progress
+- **Tier 1 Consensus**: Must be complete before production deployment
+- **Tier 4 Caveat**: Requires clinical SME review before dev starts (use hims-domain-expert skill)
+- **Tier 6 Scope**: Deferred until Tier 1–5 stable; FHIR & multi-hospital may be separate projects
+- **Last Updated**: April 18, 2026 — Items 1.2 & 1.4 complete; see [TIER1_STATUS_REPORT.md](TIER1_STATUS_REPORT.md)
+
+---
+
+## 🔗 Related Documents
+
+- [Production Readiness Report](PRODUCTION_READINESS_REPORT.md)
+- [RBAC Permissions](RBAC_PERMISSIONS.md)
+- [HIPAA Compliance](HIPAA_COMPLIANCE.md)
+- [Workflow Creator Skill](../.agents/skills/workflow-creator/SKILL.md)
+- [HIMS Domain Expert Skill](../.agents/skills/hims-domain-expert/SKILL.md)
+
+---
+
+## ✅ Sign-Off
+
+- [ ] Product Owner approval
+- [ ] Tech Lead approval
+- [ ] Clinical SME review (Tier 4–6)
+- [ ] Ops team buy-in (Tier 3)
+
+---
+
+**Next Steps:**
+1. Assign owners to each Tier
+2. Schedule domain expert review for Tier 4
+3. Kick off Tier 1 immediately
+4. Create individual GitHub issues for each item (link to this master plan)

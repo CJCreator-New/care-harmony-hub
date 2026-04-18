@@ -1,0 +1,21 @@
+#!/bin/sh
+# Pre-commit hook: Validate RLS policies before staging changes
+# This prevents committing code that would introduce permissive RLS policies
+
+set -e
+
+echo "🔍 Validating RLS policies before commit..."
+
+# Run RLS validation script
+npx tsx scripts/validate-rls.ts
+
+if [ $? -eq 0 ]; then
+  echo "✅ RLS validation passed"
+  exit 0
+else
+  echo "❌ RLS validation failed. Please fix the issues before committing."
+  echo ""
+  echo "To override this check (not recommended), use:"
+  echo "  git commit --no-verify"
+  exit 1
+fi

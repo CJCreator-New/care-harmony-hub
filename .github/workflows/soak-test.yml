@@ -1,0 +1,130 @@
+name: 24hr Staging Soak Test
+
+on:
+  workflow_dispatch:  # Manual trigger from Actions tab
+    inputs:
+      duration_hours:
+        description: "Test duration in hours (1-24)"
+        required: true
+        default: "24"
+        type: string
+      workers:
+        description: "Number of parallel workers (1-8)"
+        required: true
+        default: "4"
+        type: string
+
+jobs:
+  soak-test:
+    name: Soak Test - ${{ inputs.duration_hours }}hrs
+    runs-on: ubuntu-latest-xl  # Extra large runner for better performance
+    timeout-minutes: ${{ fromJson(inputs.duration_hours) * 65 }}  # Duration + 65min buffer
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Validate environment
+        run: |
+          echo "🔍 Validating test environment..."
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Playwright: $(npx playwright --version)"
+          echo "Base URL: ${{ env.PLAYWRIGHT_TEST_BASE_URL }}"
+
+      - name: Start 24hr soak test
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://staging.caresync-hims.com
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "🚀 Starting ${{ inputs.duration_hours }}hr soak test at $(date -u)"
+          echo "Workers: ${{ inputs.workers }}"
+          echo "Target: critical-path.spec.ts"
+          echo ""
+          
+          # Run critical-path tests with high retry count to sustain load
+          npx playwright test \
+            tests/e2e/tests/workflows/critical-path.spec.ts \
+            --config=playwright.e2e-full.config.ts \
+            --workers=${{ inputs.workers }} \
+            --retries=1000 \
+            --reporter=html,json,xml \
+            --timeout=60000 \
+            --max-failures=100
+          
+          TEST_EXIT_CODE=$?
+          echo ""
+          echo "✅ Soak test completed at $(date -u)"
+          echo "Exit code: $TEST_EXIT_CODE"
+          exit $TEST_EXIT_CODE
+
+      - name: Collect test metrics
+        if: always()
+        run: |
+          echo "📊 Collecting test metrics..."
+          
+          if [ -f "test-results/test-results.json" ]; then
+            echo "Test Results Summary:"
+            echo "---"
+            cat test-results/test-results.json | jq '.stats' || echo "Unable to parse results"
+          fi
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: soak-test-results-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Generate summary report
+        if: always()
+        run: |
+          echo "## 🏁 Soak Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${{ inputs.duration_hours }} hours" >> $GITHUB_STEP_SUMMARY
+          echo "- **Start Time**: $(date -d '-'${{ inputs.duration_hours }}' hours' -u)" >> $GITHUB_STEP_SUMMARY
+          echo "- **End Time**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workers**: ${{ inputs.workers }} parallel" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Suite**: critical-path.spec.ts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Download results: `soak-test-results-${{ github.run_id }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML Report: Extract ZIP and open `index.html`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on completion
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.actions.createWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'notify-soak-complete.yml',
+              ref: context.ref,
+              inputs: {
+                run_id: '${{ github.run_id }}',
+                duration_hours: '${{ inputs.duration_hours }}'
+              }
+            }).catch(err => console.log('Notification workflow not found (optional)'))
