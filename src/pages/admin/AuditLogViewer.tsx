@@ -34,11 +34,6 @@ import {
 } from '@/components/ui/table';
 import {
   Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
 } from '@/components/ui/pagination';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -573,58 +568,15 @@ export function AuditLogViewer({
       {/* Pagination */}
       {data && data.pageCount > 1 && (
         <div className="flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() =>
-                    page > 1 && handlePageChange(page - 1)
-                  }
-                  disabled={page <= 1}
-                  className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-
-              {paginationItems.map((item, idx) =>
-                item === '...' ? (
-                  <PaginationItem key={`ellipsis-${idx}`}>
-                    <span className="px-2 py-2 text-slate-600">...</span>
-                  </PaginationItem>
-                ) : (
-                  <PaginationItem key={item}>
-                    <PaginationLink
-                      isActive={page === item}
-                      onClick={() =>
-                        typeof item === 'number' && handlePageChange(item)
-                      }
-                      className={
-                        typeof item === 'number'
-                          ? 'cursor-pointer'
-                          : ''
-                      }
-                    >
-                      {item}
-                    </PaginationLink>
-                  </PaginationItem>
-                )
-              )}
-
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() =>
-                    page < (data?.pageCount ?? 1) &&
-                    handlePageChange(page + 1)
-                  }
-                  disabled={page >= (data?.pageCount ?? 1)}
-                  className={
-                    page >= (data?.pageCount ?? 1)
-                      ? 'pointer-events-none opacity-50'
-                      : ''
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <Pagination
+            currentPage={page - 1}
+            totalPages={data.pageCount}
+            onPageChange={(p) => handlePageChange(p + 1)}
+            onPrevious={() => page > 1 && handlePageChange(page - 1)}
+            onNext={() => page < data.pageCount && handlePageChange(page + 1)}
+            pageSize={pageSize}
+            totalCount={data.total}
+          />
         </div>
       )}
 
