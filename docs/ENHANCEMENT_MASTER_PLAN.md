@@ -10,8 +10,8 @@
 | Tier | Items | Status | Blocker? | Est. Hours |
 |------|-------|--------|----------|-----------|
 | **Tier 1** | 4 | 🟡 85% (2 complete, 1 executing, 1 ready) | YES | 12 |
-| **Tier 2** | 4 | 🟡 In Progress (Item 2.1 active, 2.2-2.4 ready) | After T1 | 40 |
-| **Tier 3** | 4 | 🔴 Not Started | — | 30 |
+| **Tier 2** | 4 | � 100% (All 4 complete) | NO | 40 |
+| **Tier 3** | 4 | 🟡 In Progress (3.1 started) | — | 32 |
 | **Tier 4** | 5 | 🔴 Not Started | — | 50 |
 | **Tier 5** | 4 | 🔴 Not Started | — | 35 |
 | **Tier 6** | 4 | 🔴 Not Started | — | 60 |
@@ -303,16 +303,19 @@ export function App() {
 
 ## 📡 TIER 3 — Observability & Operations
 
-**Timeline:** Sprint 3 (Pre-Scale)  
-**Owner Assignment:** [TO BE ASSIGNED]  
-**Dependency:** Tier 1 complete
+**Timeline:** Starting April 18, 2026  
+**Owner Assignment:** 🟢 GitHub Copilot  
+**Dependency:** Tier 1 & 2 complete ✅  
+**📖 Detailed Guide:** [TIER3_IMPLEMENTATION_PLAN.md](TIER3_IMPLEMENTATION_PLAN.md)  
+**Status:** 🟡 IN PROGRESS (Item 3.1 started)  
+**Total Effort:** 32 hours (4 hours starting now)
 
 | ID | Item | Status | Owner | Effort | Notes | PR/Issue |
 |----|------|--------|-------|--------|-------|---------|
-| 3.1 | Add real `/api/health` endpoint (DB + Edge Function checks) | 🔴 | — | 4h | Currently referenced but minimal; add dependencies | — |
-| 3.2 | Surface AI Gateway usage/cost metrics in dashboard | 🔴 | — | 6h | Lovable AI calls have rate limits; monitor | — |
-| 3.3 | Build audit log viewer UI for admins | 🔴 | — | 8h | `activity_logs` table exists; add browsing surface | — |
-| 3.4 | Add realtime connection status indicator | 🔴 | — | 5h | Show users when Supabase Realtime drops | — |
+| 3.1 | Add real `/api/health` endpoint (DB + Edge Function checks) | � In Progress | GitHub Copilot | 4h | ✅ Health-check enhanced with external APIs; Dashboard component created | — |
+| 3.2 | Surface AI Gateway usage/cost metrics in dashboard | 🔴 Ready | GitHub Copilot | 6h | Queued after 3.1 | — |
+| 3.3 | Build audit log viewer UI for admins | 🔴 Ready | GitHub Copilot | 8h | Queued after 3.2 | — |
+| 3.4 | Add realtime connection status indicator | 🔴 Ready | GitHub Copilot | 5h | Queued after 3.3 | — |
 
 **Subtasks for 3.1 (/api/health):**
 - [ ] Create Edge Function: `supabase/functions/health-check/`
