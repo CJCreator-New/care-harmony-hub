@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { AIMetricsChart } from '@/components/admin/AIMetricsChart';
 
 interface HealthCheckResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -306,6 +307,12 @@ export function SystemHealthDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* AI Metrics Section - Tier 3.2 */}
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">AI Gateway Metrics</h2>
+            <AIMetricsChart enabled={true} />
+          </div>
         </>
       )}
 
