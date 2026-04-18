@@ -102,15 +102,21 @@ function stageStatus(count: number): HandoffStage['status'] {
 }
 
 const statusIcon = {
-  clear: <CheckCircle2 className="h-4 w-4 text-green-500" />,
-  pending: <Clock className="h-4 w-4 text-yellow-500" />,
-  backlog: <AlertCircle className="h-4 w-4 text-red-500" />,
+  clear: <CheckCircle2 className="h-4 w-4 text-green-500" aria-label="Status: Clear (0-0 items)" />,
+  pending: <Clock className="h-4 w-4 text-yellow-500" aria-label="Status: Pending (1-3 items)" />,
+  backlog: <AlertCircle className="h-4 w-4 text-red-500" aria-label="Status: Backlog (4+ items)" />,
 };
 
 const statusColor = {
   clear: 'bg-green-50 border-green-200 text-green-800',
   pending: 'bg-yellow-50 border-yellow-200 text-yellow-800',
   backlog: 'bg-red-50 border-red-200 text-red-800',
+};
+
+const statusLabel = {
+  clear: 'Clear',
+  pending: 'Pending',
+  backlog: 'Backlog',
 };
 
 function HandoffCard({ stage }: { stage: HandoffStage }) {
@@ -122,7 +128,10 @@ function HandoffCard({ stage }: { stage: HandoffStage }) {
     )}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold truncate">{roleInfo?.label ?? stage.role}</span>
-        {statusIcon[stage.status]}
+        <div className="flex items-center gap-1">
+          {statusIcon[stage.status]}
+          <span className="text-xs font-medium">{statusLabel[stage.status]}</span>
+        </div>
       </div>
       <div className="text-xs text-muted-foreground">{stage.description}</div>
       <Badge
@@ -284,13 +293,13 @@ export function RoleHandoffStatusPanel() {
         {/* Legend */}
         <div className="flex flex-wrap gap-4 pt-2 border-t text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-green-500" /> Clear (0)
+            <CheckCircle2 className="h-3 w-3 text-green-500" aria-label="Clear status" /> Clear (0)
           </span>
           <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3 text-yellow-500" /> Pending (1-3)
+            <Clock className="h-3 w-3 text-yellow-500" aria-label="Pending status" /> Pending (1-3)
           </span>
           <span className="flex items-center gap-1">
-            <AlertCircle className="h-3 w-3 text-red-500" /> Backlog (4+)
+            <AlertCircle className="h-3 w-3 text-red-500" aria-label="Backlog status" /> Backlog (4+)
           </span>
           <span className="ml-auto">Refreshes every 15 s</span>
         </div>

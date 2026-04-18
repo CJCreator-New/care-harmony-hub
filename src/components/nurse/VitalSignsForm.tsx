@@ -365,25 +365,29 @@ export function VitalSignsForm({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Systolic</label>
+                <label htmlFor="systolic-input" className="text-xs text-muted-foreground mb-1 block">Systolic</label>
                 <input
+                  id="systolic-input"
                   type="number"
                   value={vitals.systolic || ""}
                   onChange={(e) =>
                     setVitals({ ...vitals, systolic: parseFloat(e.target.value) || 0 })
                   }
+                  aria-label="Systolic Blood Pressure in millimeters of mercury"
                   className="w-full h-12 px-3 text-xl font-bold text-center rounded-lg border border-success focus:outline-none focus:ring-2 focus:ring-success/20"
                   placeholder="--"
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Diastolic</label>
+                <label htmlFor="diastolic-input" className="text-xs text-muted-foreground mb-1 block">Diastolic</label>
                 <input
+                  id="diastolic-input"
                   type="number"
                   value={vitals.diastolic || ""}
                   onChange={(e) =>
                     setVitals({ ...vitals, diastolic: parseFloat(e.target.value) || 0 })
                   }
+                  aria-label="Diastolic Blood Pressure in millimeters of mercury"
                   className="w-full h-12 px-3 text-xl font-bold text-center rounded-lg border border-success focus:outline-none focus:ring-2 focus:ring-success/20"
                   placeholder="--"
                 />

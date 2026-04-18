@@ -148,7 +148,10 @@ export function DrugInteractionWarning({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 flex-1">
-          <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.titleColor}`} />
+          <Icon 
+            className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.titleColor}`}
+            aria-label={`${severity} severity: ${config.title}`}
+          />
           <div className="flex-1">
             <AlertTitle className={`${config.titleColor} font-semibold`}>
               {config.title}

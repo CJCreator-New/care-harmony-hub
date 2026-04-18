@@ -41,15 +41,21 @@ export function WorkflowPerformanceMonitor() {
   });
 
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (trend < 0) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return <Activity className="h-4 w-4 text-gray-500" />;
+    if (trend > 0) return <TrendingUp className="h-4 w-4 text-green-500" aria-label="Improving trend" />;
+    if (trend < 0) return <TrendingDown className="h-4 w-4 text-red-500" aria-label="Declining trend" />;
+    return <Activity className="h-4 w-4 text-gray-500" aria-label="Stable trend" />;
   };
 
   const getPerformanceColor = (rate: number) => {
     if (rate >= 90) return 'text-green-500';
     if (rate >= 70) return 'text-yellow-500';
     return 'text-red-500';
+  };
+
+  const getPerformanceLabel = (rate: number) => {
+    if (rate >= 90) return 'Excellent';
+    if (rate >= 70) return 'Fair';
+    return 'Poor';
   };
 
   return (
@@ -64,7 +70,7 @@ export function WorkflowPerformanceMonitor() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="h-4 w-4 text-green-500" aria-label="Task completion metric" />
               Task Completion Rate
             </CardTitle>
           </CardHeader>
@@ -188,9 +194,14 @@ export function WorkflowPerformanceMonitor() {
                   <div key={role.role} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium capitalize">{role.role}</span>
-                      <span className={`font-bold ${getPerformanceColor(role.completion_rate)}`}>
-                        {role.completion_rate.toFixed(1)}%
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold ${getPerformanceColor(role.completion_rate)}`} aria-label={`Performance: ${getPerformanceLabel(role.completion_rate)}`}>
+                          {role.completion_rate.toFixed(1)}%
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {getPerformanceLabel(role.completion_rate)}
+                        </Badge>
+                      </div>
                     </div>
                     <Progress value={role.completion_rate} className="h-2" />
                     <div className="flex justify-between text-xs text-muted-foreground">

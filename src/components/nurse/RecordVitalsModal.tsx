@@ -340,11 +340,12 @@ export function RecordVitalsModal({
                 </div>
                 <div className="space-y-3">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <Input
                       placeholder="Search by name or MRN..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      aria-label="Search patients by name or medical record number"
                       className="pl-9"
                     />
                   </div>

@@ -40,9 +40,9 @@ export function CriticalLabAlertBanner({
 
   const getSeverityIcon = () => {
     if (alert.severity === 'critical_high' || alert.severity === 'critical_low') {
-      return <AlertCircle className="w-5 h-5 text-red-600" />;
+      return <AlertCircle className="w-5 h-5 text-red-600" aria-label={`${alert.severity.replace('_', ' ')} severity`} />;
     }
-    return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
+    return <AlertTriangle className="w-5 h-5 text-yellow-600" aria-label="Warning severity" />;
   };
 
   const getEscalationBadges = () => {
