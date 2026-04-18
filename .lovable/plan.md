@@ -1,79 +1,73 @@
 
-# Production Readiness Plan — CareSync HIMS
+# Enhancement Opportunities — CareSync HIMS
 
-Applying the **hims-devops-guardian** and **hims-browser-test-automation** skills to validate production readiness.
-
-## Current State Assessment
-
-**What exists:**
-- Blue-green deploy scripts (`deploy-prod.sh`, `rollback.sh`, `test-deployment.sh`)
-- GitHub Actions workflow (`.github/workflows/deploy-production.yml`)
-- Playwright E2E framework (phased: setup → auth → permissions → workflows → security)
-- Supabase RLS with hospital scoping, `has_role` SECURITY DEFINER, `activity_logs` audit
-- 2FA TOTP, feature flags (`useFeatureFlags`), AI Gateway integration
-- TypeScript build passes; Supabase edge functions deployed
-
-**Gaps blocking production (from skill audit):**
-1. TS strict mode is **disabled** + 16 files have `@ts-nocheck` — masks real bugs
-2. Test files excluded from build — coverage signal lost
-3. No automated RLS validation script in CI (`npm run validate:rls` referenced but missing)
-4. E2E `roles.fixture.ts` exists but workflow chain tests untested against current build
-5. No staging soak (24hr) evidence before prod cutover
-6. Feature flag kill-switches not verified end-to-end
-7. Database migration reversibility not audited
+Based on a scan of the codebase, production readiness report, memory files, and current architecture, here are the enhancements I see — grouped by impact tier. This is **research/advisory** — pick which ones you want to act on.
 
 ---
 
-## Plan: 4-Phase Production Hardening
+## Tier 1 — Production-Blocking (close out before go-live)
 
-### Phase 1 — Build Integrity Audit (DevOps Guardian)
-- Inventory all 16 `@ts-nocheck` files; categorize as (a) safe to leave, (b) needs proper typing
-- Re-enable strict TS in `tsconfig.app.json` for `src/lib/**` and `src/utils/**` only (isolate strict zones)
-- Add `npm run type-check:strict` as CI gate (warns, doesn't block)
-- Verify no `console.log` or hardcoded secrets via Semgrep scan
-
-### Phase 2 — RLS & Security Validation (DevOps Guardian)
-- Create `scripts/validate-rls.ts` that asserts:
-  - Every patient-data table has `hospital_id` column + RLS policy
-  - All policies reference `current_hospital_id()` or `has_role()`
-  - No `FOR ALL TO public` policies on PHI tables
-- Wire into `.github/workflows/deploy-production.yml` as pre-staging gate
-- Run Supabase linter; document remediation for each finding
-
-### Phase 3 — E2E Workflow Coverage (Browser Test Automation)
-- Verify `tests/e2e/fixtures/roles.fixture.ts` authenticates all 7 roles
-- Add critical-path workflow tests:
-  - Patient registration → consultation → prescription → pharmacy dispense → billing
-  - RBAC violation tests (receptionist blocked from pharmacy queue, nurse blocked from billing)
-  - Concurrent prescription edit (optimistic lock validation)
-  - Session expiry mid-workflow recovery
-- Run `playwright.e2e-full.config.ts` against current build; capture failure report
-- Fix or document each failure with severity (P0/P1/P2)
-
-### Phase 4 — Deployment Safety Drill (DevOps Guardian)
-- Execute `bash test-deployment.sh` and confirm all 10 test sections pass
-- Dry-run `deploy-prod.sh` against staging (BLUE → GREEN swap)
-- Trigger `rollback.sh` and measure RTO (target: <1 min)
-- Verify feature flag kill-switch: toggle `PHASE_6_ENABLED=false` and confirm v2 components fall back to v1
-- Audit last 10 migrations for reversibility (no `DROP COLUMN`, no destructive `ALTER`)
-- Produce **Production Readiness Report** with go/no-go checklist
+From `docs/PRODUCTION_READINESS_REPORT.md`:
+1. **Enable leaked-password protection** in Supabase Auth (P2 linter warning, 1-click fix)
+2. **Review the 1 permissive `USING(true)` RLS policy** flagged by the linter
+3. **Run 24hr staging soak** with the new `critical-path.spec.ts` Playwright suite
+4. **Wire `scripts/validate-rls.ts` as a blocking CI gate** (currently only created, not enforced)
 
 ---
 
-## Deliverables
+## Tier 2 — Code Quality & Type Safety
 
-| Artifact | Purpose |
-|----------|---------|
-| `scripts/validate-rls.ts` | Automated RLS gate in CI |
-| `tests/e2e/tests/workflows/critical-path.spec.ts` | End-to-end clinical workflow coverage |
-| `docs/PRODUCTION_READINESS_REPORT.md` | Go/no-go checklist with evidence |
-| `docs/MIGRATION_REVERSIBILITY_AUDIT.md` | Schema change risk log |
-| Updated `.github/workflows/deploy-production.yml` | RLS + strict-TS gates added |
+5. **Eliminate the 18 `@ts-nocheck` files** — incrementally type them, starting with `RoleProtectedRoute.tsx` and `orchestrator.ts` (security-critical paths)
+6. **Re-enable TS strict mode** in isolated zones (`src/lib/**`, `src/utils/**`) per the original plan
+7. **Replace `(supabase as any)` casts** in `useFeatureFlags.ts` and similar — use the `query-helper.ts` pattern consistently
+8. **Split `App.tsx` initialization** — telemetry/Sentry/metrics setup is doing 5 things in one `useEffect`; extract to `src/bootstrap/`
 
-## Out of Scope
-- New clinical features (focus is hardening, not building)
-- Performance load testing (separate effort)
-- HIPAA legal sign-off (requires compliance officer)
+---
 
-## Estimated Effort
-~12 hours total: Phase 1 (2h) + Phase 2 (3h) + Phase 4 (3h) + Phase 3 (4h)
+## Tier 3 — Observability & Operations
+
+9. **Add a real `/api/health` endpoint** that checks DB + Edge Function reachability (currently referenced but minimal)
+10. **Surface AI Gateway usage/cost metrics** in `ComprehensiveSystemDashboard` — Lovable AI calls have rate limits worth monitoring
+11. **Audit log viewer UI** for admins — `activity_logs` is being written but there's no in-app browsing surface
+12. **Realtime connection status indicator** — show users when Supabase Realtime drops (clinical workflows depend on it)
+
+---
+
+## Tier 4 — Clinical Workflow Polish
+
+13. **Workflow state machines** — formalize discharge, lab-result-notify, and prescription-approval as DB-backed workflows (templates exist in the workflow-creator skill)
+14. **Optimistic locking on prescriptions** — prevent the concurrent-edit race already noted in the E2E plan
+15. **Critical lab value alerts** — `FEATURES.md` mentions them but no edge function exists; auto-page the ordering doctor
+16. **Consent gate for telemedicine** — required by HIPAA skill checklist, not yet enforced
+17. **Drug interaction check** in prescription flow — `FEATURES.md` lists it, no implementation found
+
+---
+
+## Tier 5 — UX / Patient-Facing
+
+18. **PWA offline mode** for nurses doing rounds (vitals capture without connectivity)
+19. **Patient portal v2 rollout** — flag exists (`patient_portal_v2`) but components need finishing
+20. **Mobile app parity** — `mobile-app/` exists but is a thin shell; align with web feature flags
+21. **Accessibility audit** — ARIA labels, keyboard nav, screen-reader testing (per `project-knowledge` future enhancements)
+
+---
+
+## Tier 6 — Strategic / Longer Horizon
+
+22. **FHIR interoperability** — `fhirInteroperability.ts` is a stub; build out for real exchange with external EHRs
+23. **AI clinical decision support** rollout — flag `ai_clinical_tools` exists; ship the diagnosis suggestion + treatment optimization UIs
+24. **Multi-hospital tenancy console** — for healthcare networks managing multiple `hospital_id`s
+25. **Insurance claim automation** — billing exists, claim submission/adjudication tracking does not
+
+---
+
+## My Recommendation (sequenced)
+
+```text
+Sprint 1 (this week)  → Tier 1 (#1-4)  — unblock production
+Sprint 2              → Tier 2 (#5-8)  — pay down type-safety debt
+Sprint 3              → Tier 3 (#9-12) — observability before scale
+Sprint 4+             → Tier 4-6 based on clinical priority
+```
+
+Tell me which tier (or specific items) you want to tackle and I'll write a focused implementation plan for it.
