@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -146,6 +147,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
+      <Helmet>
+        <title>Hospital Login | CareSync HIMS</title>
+        <meta name="description" content="Sign in to your CareSync HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
+        <link rel="canonical" href="/hospital/login" />
+        <meta property="og:title" content="Hospital Login | CareSync HIMS" />
+        <meta property="og:description" content="Sign in to your CareSync HIMS hospital account." />
+        <meta property="og:url" content="/hospital/login" />
+      </Helmet>
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-1/2 gradient-hero hero-panel-grid hero-panel-circle-br hero-panel-line surface-noise p-12 flex-col justify-between text-white relative overflow-hidden">
         {/* Inner content sits above pseudo-element overlays */}
