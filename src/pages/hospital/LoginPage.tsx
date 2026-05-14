@@ -147,7 +147,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel - Branding */}
+      <Helmet>
+        <title>Hospital Login | CareSync HIMS</title>
+        <meta name="description" content="Sign in to your CareSync HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
+        <link rel="canonical" href="/hospital/login" />
+        <meta property="og:title" content="Hospital Login | CareSync HIMS" />
+        <meta property="og:description" content="Sign in to your CareSync HIMS hospital account." />
+        <meta property="og:url" content="/hospital/login" />
+      </Helmet>
       <div className="hidden lg:flex lg:w-1/2 gradient-hero hero-panel-grid hero-panel-circle-br hero-panel-line surface-noise p-12 flex-col justify-between text-white relative overflow-hidden">
         {/* Inner content sits above pseudo-element overlays */}
         <div className="relative z-10">
