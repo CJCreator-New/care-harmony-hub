@@ -115,6 +115,10 @@ export default function LandingPage() {
         <title>CareSync HIMS | Modern Hospital Management System</title>
         <meta name="description" content="Streamline your hospital operations with CareSync. Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
         <meta name="keywords" content="hospital management system, HIMS, EMR, healthcare software, clinic management, medical records" />
+        <link rel="canonical" href="/hospital" />
+        <meta property="og:url" content="/hospital" />
+        <meta property="og:title" content="CareSync HIMS | Modern Hospital Management System" />
+        <meta property="og:description" content="Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -122,12 +126,26 @@ export default function LandingPage() {
             "name": "CareSync HIMS",
             "applicationCategory": "HealthApplication",
             "operatingSystem": "Web",
-            "offers": {
-              "@type": "Offer",
-              "price": "0.00",
-              "priceCurrency": "USD"
-            },
+            "offers": { "@type": "Offer", "price": "0.00", "priceCurrency": "USD" },
             "description": "Enterprise-grade Hospital Management System for modern healthcare facilities."
+          })}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "What modules are included in the platform?", "acceptedAnswer": { "@type": "Answer", "text": "Our platform includes comprehensive modules for OPD/IPD management, appointment scheduling, electronic medical records, pharmacy integration, laboratory management, billing and revenue cycle, telemedicine, and advanced analytics dashboards." } },
+              { "@type": "Question", "name": "Can we customize workflows for our hospital's specific processes?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, our platform is highly configurable. You can customize consultation workflows, approval processes, notification rules, and form templates to match your existing processes." } },
+              { "@type": "Question", "name": "Does it work with our existing EMR or HIS system?", "acceptedAnswer": { "@type": "Answer", "text": "We offer integration capabilities with most major EMR/HIS systems through our API. We also support HL7 FHIR standards for healthcare data exchange." } },
+              { "@type": "Question", "name": "Where is patient data stored? Is it compliant with Indian regulations?", "acceptedAnswer": { "@type": "Answer", "text": "All patient data is stored in secure, SOC 2 certified data centers located in India, ensuring compliance with Indian data localization requirements and DPDP Act guidelines." } },
+              { "@type": "Question", "name": "How is patient data encrypted and protected?", "acceptedAnswer": { "@type": "Answer", "text": "We use AES-256 encryption for data at rest and TLS 1.3 for data in transit. All access is controlled through role-based permissions, and every action is logged in immutable audit trails." } },
+              { "@type": "Question", "name": "What happens in case of system downtime or disaster?", "acceptedAnswer": { "@type": "Answer", "text": "We maintain a 99.9% uptime SLA with automatic failover to redundant systems. Daily encrypted backups are stored in geographically separate locations with point-in-time recovery." } },
+              { "@type": "Question", "name": "How long does implementation typically take?", "acceptedAnswer": { "@type": "Answer", "text": "For a standard hospital setup, implementation takes 4-8 weeks. Enterprise implementations with custom integrations may take 8-12 weeks." } },
+              { "@type": "Question", "name": "What if we need to migrate data from our old system?", "acceptedAnswer": { "@type": "Answer", "text": "We have an experienced data migration team that has handled migrations from all major legacy systems with validation checks and parallel running before cutover." } },
+              { "@type": "Question", "name": "What training and support do you provide?", "acceptedAnswer": { "@type": "Answer", "text": "We provide comprehensive training including on-site sessions, video tutorials, and documentation, plus a support portal and knowledge base." } },
+              { "@type": "Question", "name": "What if we encounter technical issues?", "acceptedAnswer": { "@type": "Answer", "text": "Hospital and Enterprise plans include priority support with response times under 4 hours for critical issues, plus 24/7 emergency support for system-down situations." } }
+            ]
           })}
         </script>
       </Helmet>
