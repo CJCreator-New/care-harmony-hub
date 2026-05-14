@@ -230,6 +230,14 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex">
+      <Helmet>
+        <title>Hospital Signup | CareSync HIMS</title>
+        <meta name="description" content="Create a new hospital account on CareSync HIMS to onboard staff, manage patients, and run a modern healthcare facility." />
+        <link rel="canonical" href="/hospital/signup" />
+        <meta property="og:title" content="Hospital Signup | CareSync HIMS" />
+        <meta property="og:description" content="Create a new hospital account on CareSync HIMS." />
+        <meta property="og:url" content="/hospital/signup" />
+      </Helmet>
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-2/5 gradient-hero hero-panel-grid hero-panel-circle-br hero-panel-line surface-noise relative overflow-hidden p-12 flex-col justify-between text-white">
         <div className="relative z-10">
