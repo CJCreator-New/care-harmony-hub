@@ -1,0 +1,12 @@
+# CareSync HIMS
+
+> AI-powered Hospital Management System: unified EMR, OP/IP, pharmacy, lab, billing and analytics for modern healthcare facilities.
+
+CareSync HIMS helps hospitals run clinical, operational and financial workflows on a single platform with role-based access for doctors, nurses, pharmacists, lab technicians, receptionists and administrators.
+
+## Pages
+
+- [Hospital landing](/hospital): Product overview, features, pricing and FAQ.
+- [Hospital login](/hospital/login): Sign in to an existing hospital account.
+- [Hospital signup](/hospital/signup): Register a new hospital and create an admin account.
+- [Forgot password](/hospital/forgot-password): Reset your hospital account password.
