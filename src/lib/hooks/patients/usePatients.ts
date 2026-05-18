@@ -42,22 +42,23 @@ export interface Patient {
 export type PatientInsert = Omit<Patient, 'id' | 'mrn' | 'created_at' | 'updated_at'>;
 
 export function usePatients(options?: { page?: number; limit?: number }) {
-  const { hospital } = useAuth();
+  const { hospital, profile } = useAuth();
+  const hospitalId = hospital?.id ?? profile?.hospital_id ?? null;
   const { decryptPHI } = useHIPAACompliance();
   const page = options?.page ?? 1;
   const limit = options?.limit ?? 50;
   const offset = (page - 1) * limit;
 
   return useQuery({
-    queryKey: ['patients', hospital?.id, page, limit],
+    queryKey: ['patients', hospitalId, page, limit],
     queryFn: async () => {
-      if (!hospital?.id) return { patients: [], total: 0 };
+      if (!hospitalId) return { patients: [], total: 0 };
 
       // Get total count for pagination
       const { count, error: countError } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true })
-        .eq('hospital_id', hospital.id)
+        .eq('hospital_id', hospitalId)
         .eq('is_active', true);
 
       if (countError && countError.code !== 'PGRST116') {
@@ -67,7 +68,7 @@ export function usePatients(options?: { page?: number; limit?: number }) {
       const { data, error } = await supabase
         .from('patients')
         .select(PATIENT_COLUMNS.list + ',encryption_metadata')
-        .eq('hospital_id', hospital.id)
+        .eq('hospital_id', hospitalId)
         .eq('is_active', true)
         .order('last_name', { ascending: true })
         .range(offset, offset + limit - 1);
@@ -106,25 +107,26 @@ export function usePatients(options?: { page?: number; limit?: number }) {
         totalPages: Math.ceil((count || 0) / limit),
       };
     },
-    enabled: !!hospital?.id,
+    enabled: !!hospitalId,
     staleTime: 5 * 60 * 1000, // 5 minutes - patient data changes infrequently
   });
 }
 
 export function usePatient(patientId: string | undefined) {
-  const { hospital } = useAuth();
+  const { hospital, profile } = useAuth();
+  const hospitalId = hospital?.id ?? profile?.hospital_id ?? null;
   const { decryptPHI } = useHIPAACompliance();
 
   return useQuery({
-    queryKey: ['patient', patientId, hospital?.id],
+    queryKey: ['patient', patientId, hospitalId],
     queryFn: async () => {
-      if (!patientId || !hospital?.id) return null;
+      if (!patientId || !hospitalId) return null;
 
       const { data, error } = await supabase
         .from('patients')
         .select('*')
         .eq('id', patientId)
-        .eq('hospital_id', hospital.id)
+        .eq('hospital_id', hospitalId)
         .maybeSingle();
 
       if (error) throw error;
@@ -153,32 +155,33 @@ export function usePatient(patientId: string | undefined) {
 
       return data as Patient;
     },
-    enabled: !!patientId && !!hospital?.id,
+    enabled: !!patientId && !!hospitalId,
   });
 }
 
 export function useCreatePatient() {
   const queryClient = useQueryClient();
-  const { hospital, primaryRole } = useAuth();
+  const { hospital, profile, primaryRole } = useAuth();
+  const hospitalId = hospital?.id ?? profile?.hospital_id ?? null;
   const { encryptPHI } = useHIPAACompliance();
 
   return useMutation({
     mutationFn: async (patientData: Omit<PatientInsert, 'hospital_id'>) => {
-      if (!hospital?.id) throw new Error('No hospital context');
+      if (!hospitalId) throw new Error('No hospital context');
       if (!hasPermission(primaryRole, 'patients:write')) {
         throw new Error('You do not have permission to create patients');
       }
 
       // Generate MRN
       const { data: mrn, error: mrnError } = await supabase
-        .rpc('generate_mrn', { hospital_id: hospital.id });
+        .rpc('generate_mrn', { hospital_id: hospitalId });
 
       if (mrnError) throw mrnError;
 
       // Encrypt PHI fields before storing
       const { data: encryptedData, metadata: encryptionMetadata } = await encryptPHI({
         ...patientData,
-        hospital_id: hospital.id,
+        hospital_id: hospitalId,
         mrn: mrn,
       });
 
@@ -281,13 +284,14 @@ export function useUpdatePatient() {
   });
 }
 
-export function useSearchPatients(searchTerm: string) {
-  const { hospital } = useAuth();
+export function useSearchPatients(searchTerm: string, minSearchLength = 2) {
+  const { hospital, profile } = useAuth();
+  const hospitalId = hospital?.id ?? profile?.hospital_id ?? null;
 
   return useQuery({
-    queryKey: ['patients', 'search', searchTerm, hospital?.id],
+    queryKey: ['patients', 'search', searchTerm, hospitalId],
     queryFn: async () => {
-      if (!hospital?.id || !searchTerm) return [];
+      if (!hospitalId || !searchTerm) return [];
 
       // Sanitize search term to prevent PostgREST filter injection
       const safeTerm = sanitizePostgrestFilterValue(searchTerm);
@@ -296,7 +300,7 @@ export function useSearchPatients(searchTerm: string) {
       const { data, error } = await supabase
         .from('patients')
         .select('*')
-        .eq('hospital_id', hospital.id)
+        .eq('hospital_id', hospitalId)
         .eq('is_active', true)
         .or(`first_name.ilike.%${safeTerm}%,last_name.ilike.%${safeTerm}%,mrn.ilike.%${safeTerm}%,phone.ilike.%${safeTerm}%`)
         .order('last_name', { ascending: true })
@@ -330,6 +334,6 @@ export function useSearchPatients(searchTerm: string) {
 
       return results;
     },
-    enabled: !!hospital?.id && searchTerm.length >= 2,
+    enabled: !!hospitalId && searchTerm.length >= minSearchLength,
   });
 }

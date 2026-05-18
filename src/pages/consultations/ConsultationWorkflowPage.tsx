@@ -30,6 +30,7 @@ import {
   useConsultation,
   useUpdateConsultation,
   useAdvanceConsultationStep,
+  useAutoSaveConsultation,
   CONSULTATION_STEPS,
 } from "@/hooks/useConsultations";
 import { useCreatePrescription } from "@/lib/hooks/pharmacy";
@@ -173,6 +174,12 @@ export default function ConsultationWorkflowPage() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!canEditConsultation) return;
+      const target = event.target as HTMLElement | null;
+      // Ignore when typing into form controls or contenteditable elements
+      if (target) {
+        const tag = (target.tagName || '').toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+      }
       // Ctrl+S to save draft
       if (event.ctrlKey && event.key === 's' && !event.shiftKey) {
         event.preventDefault();
@@ -193,6 +200,29 @@ export default function ConsultationWorkflowPage() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [canEditConsultation, formData, id]);
+
+  // Auto-save consultation drafts and auto-fill SOAP subjective from chief complaint
+  const autoSave = useAutoSaveConsultation(id);
+
+  // Auto-fill SOAP subjective from chief complaint when empty
+  useEffect(() => {
+    if (!formData) return;
+    const chief = formData.chief_complaint;
+    if (chief && (!formData.soap_subjective || formData.soap_subjective.trim() === '')) {
+      setFormData((prev) => ({ ...prev, soap_subjective: chief }));
+    }
+  }, [formData.chief_complaint]);
+
+  // Trigger auto-save whenever formData changes (debounced inside hook)
+  useEffect(() => {
+    if (!autoSave) return;
+    try {
+      autoSave(formData);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Auto-save failed:', err);
+    }
+  }, [formData, autoSave]);
 
   const handleUpdateField = (field: string, value: any) => {
     if (!canEditConsultation) return;

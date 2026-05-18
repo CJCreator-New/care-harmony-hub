@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft, 
@@ -40,6 +41,8 @@ export default function PatientProfilePage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id);
+
+  usePageTitle(patient ? `${patient.first_name} ${patient.last_name}` : 'Patient Details');
 
   const { data: vitalSigns = [] } = usePatientVitalSigns(id || '');
 

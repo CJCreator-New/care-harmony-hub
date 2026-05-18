@@ -92,6 +92,7 @@ interface CreateLabOrderModalProps {
 
 export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalProps) {
   const { hospital, profile } = useAuth();
+  const hospitalId = hospital?.id ?? profile?.hospital_id ?? null;
   const { isEnabled } = useFeatureFlags();
   const [patientSearch, setPatientSearch] = useState('');
   const [patientError, setPatientError] = useState(false);
@@ -105,13 +106,13 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
   } | null>(null);
 
   const { data: allPatientsData, isLoading: allPatientsLoading } = usePatients({ limit: 100 });
-  const { data: searchResults, isLoading: searchLoading } = useSearchPatients(patientSearch);
+  const { data: searchResults, isLoading: searchLoading } = useSearchPatients(patientSearch, 1);
   const createOrder = useCreateLabOrder();
 
   const filteredPatients =
-    patientSearch.length >= 2 ? (searchResults || []) : (allPatientsData?.patients || []);
+    patientSearch.length >= 1 ? (searchResults || []) : (allPatientsData?.patients || []);
   const patientsLoading =
-    !hospital?.id || (patientSearch.length >= 2 ? searchLoading : allPatientsLoading);
+    !hospitalId || (patientSearch.length >= 1 ? searchLoading : allPatientsLoading);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -160,10 +161,10 @@ export function CreateLabOrderModal({ open, onOpenChange }: CreateLabOrderModalP
       setPatientError(true);
       return;
     }
-    if (!hospital?.id || !profile?.id) return;
+    if (!hospitalId || !profile?.id) return;
 
     await createOrder.mutateAsync({
-      hospital_id: hospital.id,
+      hospital_id: hospitalId,
       patient_id: selectedPatient.id,
       ordered_by: profile.id,
       test_name: data.test_name,

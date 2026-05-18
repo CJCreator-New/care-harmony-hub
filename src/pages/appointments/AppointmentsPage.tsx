@@ -115,6 +115,10 @@ export default function AppointmentsPage() {
 
   const dateString = format(selectedDate, "yyyy-MM-dd");
 
+  useEffect(() => {
+    goToPage(0);
+  }, [dateString, statusFilter, viewMode, goToPage]);
+
   // Build filters for the query
   const filters = {
     hospital_id: profile?.hospital_id,

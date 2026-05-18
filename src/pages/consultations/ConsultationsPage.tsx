@@ -226,71 +226,73 @@ export default function ConsultationsPage() {
         {/* Consultations Table */}
         <Card>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>MRN</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Step</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[1080px]">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-                      </div>
-                    </TableCell>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>MRN</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Step</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead>Doctor</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : !filteredConsultations?.length ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No consultations found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredConsultations?.map((consultation) => (
-                    <TableRow key={consultation.id}>
-                      <TableCell className="font-medium">
-                        {consultation.patient?.first_name} {consultation.patient?.last_name}
-                      </TableCell>
-                      <TableCell>{consultation.patient?.mrn}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(consultation.status)}
-                          {isStaleConsultation(consultation) && (
-                            <Badge className="bg-amber-100 text-amber-800">Overdue</Badge>
-                          )}
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                         </div>
                       </TableCell>
-                      <TableCell>Step {consultation.current_step} of 5</TableCell>
-                      <TableCell>
-                        {consultation.started_at
-                          ? format(new Date(consultation.started_at), "MMM d, h:mm a")
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        Dr. {consultation.doctor?.first_name} {consultation.doctor?.last_name}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/consultations/${consultation.id}`)}
-                        >
-                          {consultation.status === 'completed' ? 'View' : 'Continue'}
-                        </Button>
+                    </TableRow>
+                  ) : !filteredConsultations?.length ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No consultations found
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    filteredConsultations?.map((consultation) => (
+                      <TableRow key={consultation.id}>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {consultation.patient?.first_name} {consultation.patient?.last_name}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{consultation.patient?.mrn}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(consultation.status)}
+                            {isStaleConsultation(consultation) && (
+                              <Badge className="bg-amber-100 text-amber-800">Overdue</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">Step {consultation.current_step} of 5</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {consultation.started_at
+                            ? format(new Date(consultation.started_at), "MMM d, h:mm a")
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          Dr. {consultation.doctor?.first_name} {consultation.doctor?.last_name}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/consultations/${consultation.id}`)}
+                          >
+                            {consultation.status === 'completed' ? 'View' : 'Continue'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

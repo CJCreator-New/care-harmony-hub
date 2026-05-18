@@ -226,7 +226,8 @@ export default function BillingPage() {
             {/* Invoices Table */}
             <Card>
               <CardContent className="p-0">
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[1120px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Invoice #</TableHead>
@@ -237,9 +238,9 @@ export default function BillingPage() {
                       <TableHead>Balance</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8">
@@ -261,31 +262,31 @@ export default function BillingPage() {
 
                     return (
                       <TableRow key={invoice.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium whitespace-nowrap">
                           {invoice.invoice_number}
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">
+                            <p className="font-medium whitespace-nowrap">
                               {invoice.patient?.first_name} {invoice.patient?.last_name}
                             </p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground whitespace-nowrap">
                               {invoice.patient?.mrn}
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {format(new Date(invoice.created_at), "MMM d, yyyy")}
                         </TableCell>
-                        <TableCell>{formatCurrency(invoice.total)}</TableCell>
-                        <TableCell>{formatCurrency(invoice.paid_amount)}</TableCell>
-                        <TableCell className={balance > 0 ? "text-destructive font-medium" : ""}>
+                        <TableCell className="whitespace-nowrap">{formatCurrency(invoice.total)}</TableCell>
+                        <TableCell className="whitespace-nowrap">{formatCurrency(invoice.paid_amount)}</TableCell>
+                        <TableCell className={balance > 0 ? "text-destructive font-medium whitespace-nowrap" : "whitespace-nowrap"}>
                           {formatCurrency(balance)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <Badge variant={status.variant}>{status.label}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right whitespace-nowrap">
                           {invoice.status !== "paid" && invoice.status !== "cancelled" && permissions.can('billing:read') && (
                             <Button
                               size="sm"
@@ -301,8 +302,9 @@ export default function BillingPage() {
                     );
                   })
                 )}
-              </TableBody>
-            </Table>
+                  </TableBody>
+                </Table>
+                </div>
           </CardContent>
         </Card>
           </TabsContent>
@@ -310,7 +312,8 @@ export default function BillingPage() {
           <TabsContent value="claims" className="space-y-4 mt-4">
             <Card>
               <CardContent className="p-0">
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[1180px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Claim #</TableHead>
@@ -397,6 +400,7 @@ export default function BillingPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -404,7 +408,8 @@ export default function BillingPage() {
           <TabsContent value="plans" className="space-y-4 mt-4">
             <Card>
               <CardContent className="p-0">
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[1040px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Patient</TableHead>
@@ -484,6 +489,7 @@ export default function BillingPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

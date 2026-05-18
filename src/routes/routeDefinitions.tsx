@@ -1,5 +1,6 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatureFlags, type FeatureFlagName } from '@/hooks/useFeatureFlags';
 import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
@@ -80,6 +81,81 @@ export type RouteDefinition = {
   path: string;
   element: React.ReactNode;
 };
+
+function PublicRouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+        <div className="space-y-4">
+          <div className="h-8 w-40 rounded-md bg-muted animate-pulse" />
+          <div className="h-4 w-3/4 rounded-md bg-muted animate-pulse" />
+          <div className="h-4 w-2/3 rounded-md bg-muted animate-pulse" />
+          <div className="flex items-center gap-3 pt-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading page…
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProtectedRouteFallback() {
+  return (
+    <DashboardLayout>
+      <div className="space-y-6 animate-pulse">
+        <div className="space-y-2">
+          <div className="h-8 w-64 rounded-md bg-muted" />
+          <div className="h-4 w-96 max-w-full rounded-md bg-muted/80" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-28 rounded-xl bg-muted" />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="h-72 rounded-2xl bg-muted lg:col-span-2" />
+          <div className="h-72 rounded-2xl bg-muted" />
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+function getRouteFallback(path: string) {
+  if (
+    path === '/dashboard' ||
+    path.startsWith('/patients') ||
+    path.startsWith('/appointments') ||
+    path.startsWith('/consultations') ||
+    path.startsWith('/pharmacy') ||
+    path.startsWith('/laboratory') ||
+    path.startsWith('/billing') ||
+    path.startsWith('/inventory') ||
+    path.startsWith('/reports') ||
+    path.startsWith('/queue') ||
+    path.startsWith('/telemedicine') ||
+    path.startsWith('/settings') ||
+    path.startsWith('/messages') ||
+    path.startsWith('/suppliers') ||
+    path.startsWith('/scheduling') ||
+    path.startsWith('/documents') ||
+    path.startsWith('/nurse') ||
+    path.startsWith('/integration') ||
+    path.startsWith('/workflow') ||
+    path.startsWith('/ai-demo') ||
+    path.startsWith('/differential-diagnosis') ||
+    path.startsWith('/treatment') ||
+    path.startsWith('/predictive') ||
+    path.startsWith('/length-of-stay') ||
+    path.startsWith('/resource-utilization') ||
+    path.startsWith('/voice-clinical-notes')
+  ) {
+    return <ProtectedRouteFallback />;
+  }
+
+  return <PublicRouteFallback />;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles, pendingRoleSelection } = useAuth();
@@ -270,6 +346,7 @@ export const protectedRoutes: RouteDefinition[] = [
   { path: '/hospital/nurse/medications', element: withRoleAccess(<NurseMedicationsPage />, ['nurse']) },
   { path: '/pharmacy/clinical', element: withRoleAccess(<ClinicalPharmacyPage />, ['admin', 'pharmacist'], 'clinical-pharmacy') },
   { path: '/queue', element: withRoleAccess(<QueueManagementPage />, ['admin', 'doctor', 'nurse', 'receptionist'], 'queue:read') },
+  { path: '/queue-management', element: <Navigate to="/queue" replace /> },
   { path: '/laboratory', element: withRoleAccess(<LaboratoryPage />, ['admin', 'doctor', 'nurse', 'lab_technician'], 'lab:read') },
   { path: '/laboratory/automation', element: withRoleAccess(<LabAutomationPage />, ['admin', 'lab_technician']) },
   { path: '/billing', element: withRoleAccess(<BillingPage />, ['admin', 'receptionist'], 'billing:read') },
@@ -314,5 +391,11 @@ export const protectedRoutes: RouteDefinition[] = [
 export const fallbackRoute = <Route path="*" element={<NotFound />} />;
 
 export function renderRoutes(definitions: RouteDefinition[]) {
-  return definitions.map((route) => <Route key={route.path} path={route.path} element={route.element} />);
+  return definitions.map((route) => (
+    <Route
+      key={route.path}
+      path={route.path}
+      element={<Suspense fallback={getRouteFallback(route.path)}>{route.element}</Suspense>}
+    />
+  ));
 }
