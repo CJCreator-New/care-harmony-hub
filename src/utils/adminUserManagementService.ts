@@ -141,6 +141,7 @@ export class AdminUserManagementService {
   }
 
   static async deleteUser(userId: string): Promise<{ error?: Error }> {
+    assertServerSideOnly('deleteUser');
     try {
       // Delete user via Supabase Auth
       const { error } = await supabase.auth.admin.deleteUser(userId);
@@ -200,6 +201,7 @@ export class AdminUserManagementService {
   }
 
   static async resetPassword(userId: string): Promise<{ tempPassword?: string; error?: Error }> {
+    assertServerSideOnly('resetPassword');
     try {
       const tempPassword = this.generateTemporaryPassword();
 
