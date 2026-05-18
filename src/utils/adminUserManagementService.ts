@@ -4,6 +4,18 @@ import { AdminUser, UserManagementData } from '@/types/admin';
 import { UserRole } from '@/types/auth';
 import { AdminRBACManager } from './adminRBACManager';
 
+/**
+ * @deprecated Admin user management MUST run server-side with the service_role key.
+ * These methods are kept as type references only and throw immediately if invoked
+ * from client code. Use the corresponding Supabase Edge Function instead.
+ */
+function assertServerSideOnly(method: string): never {
+  throw new Error(
+    `AdminUserManagementService.${method} must be invoked from a server-side edge ` +
+    `function with service_role credentials, not from the browser client.`
+  );
+}
+
 export class AdminUserManagementService {
   static async createUser(
     email: string,
@@ -12,6 +24,7 @@ export class AdminUserManagementService {
     lastName: string,
     department?: string
   ): Promise<{ user?: AdminUser; error?: Error }> {
+    assertServerSideOnly('createUser');
     try {
       // Generate temporary password
       const tempPassword = this.generateTemporaryPassword();

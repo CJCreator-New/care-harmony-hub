@@ -193,8 +193,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileReady, setIsProfileReady] = useState(false);
   const [pendingRoleSelection, setPendingRoleSelection] = useState(false);
+  // SECURITY: Mock auth must NEVER be active in a production build, even if the env
+  // var is accidentally set. Guard at runtime so a misconfigured deploy fails closed.
+  if (import.meta.env.PROD && import.meta.env.VITE_E2E_MOCK_AUTH === 'true') {
+    throw new Error('E2E mock authentication cannot be enabled in production builds.');
+  }
   const isE2EMockAuthEnabled =
-    typeof window !== 'undefined' && import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
+    !import.meta.env.PROD &&
+    typeof window !== 'undefined' &&
+    import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
 
   const applyE2EMockAuthState = useCallback((email: string, mockUser: E2EMockUserConfig) => {
     const nowIso = new Date().toISOString();

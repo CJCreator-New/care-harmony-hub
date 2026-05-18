@@ -509,7 +509,7 @@ export function EnhancedPortalPage() {
               <Bell className="h-4 w-4" />
               <AlertTitle>{alert.alert_type.replace('_', ' ').toUpperCase()}</AlertTitle>
               <AlertDescription className="flex justify-between items-center">
-                <span className="whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: sanitizeHtml(alert.message || '') }} />
+                <span className="whitespace-pre-wrap break-words">{alert.message || ''}</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -704,7 +704,7 @@ export function EnhancedPortalPage() {
                         <div className="text-right">
                           <p className="font-bold">{vital.value} {vital.unit}</p>
                           {vital.notes && (
-                            <p className="text-xs text-muted-foreground" dangerouslySetInnerHTML={{ __html: sanitizeHtml(vital.notes) }} />
+                            <p className="text-xs text-muted-foreground">{vital.notes}</p>
                           )}
                         </div>
                       </div>

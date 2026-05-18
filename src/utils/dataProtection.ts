@@ -59,18 +59,24 @@ class EncryptionKeyManager {
   private async initializeDefaultKey(): Promise<void> {
     if (this.initialized) return;
 
-    let encryptionKey = (import.meta as any).env?.VITE_ENCRYPTION_KEY;
-    
-    // In production, encryption key is required
-    if (!encryptionKey) {
-      if ((import.meta as any).env?.PROD) {
-        throw new Error('VITE_ENCRYPTION_KEY environment variable is required for production. Patient PHI cannot be encrypted without a valid encryption key.');
-      }
-      // Development fallback with warning
-      console.warn('WARNING: Using development encryption key. This should NEVER be used in production!');
-      console.warn('Set VITE_ENCRYPTION_KEY environment variable for production deployment.');
-      encryptionKey = 'caresync-dev-key-do-not-use-in-prod';
+    // SECURITY: Encryption keys must NEVER be shipped to the client. Any VITE_* value
+    // is embedded in the JS bundle and trivially extractable. In production we refuse
+    // to derive a key from a client-side value — PHI encryption must happen server-side
+    // (Supabase Edge Function with SUPABASE_ENCRYPTION_KEY or pgcrypto).
+    const clientKey = (import.meta as any).env?.VITE_ENCRYPTION_KEY;
+    if ((import.meta as any).env?.PROD) {
+      throw new Error(
+        'Client-side PHI encryption is disabled in production. Move encrypt/decrypt ' +
+        'operations to a server-side edge function and remove VITE_ENCRYPTION_KEY from .env.'
+      );
     }
+    if (clientKey) {
+      console.warn(
+        'SECURITY WARNING: VITE_ENCRYPTION_KEY is present in client env. This key is ' +
+        'visible in the JS bundle and must NOT be used outside local development.'
+      );
+    }
+    const encryptionKey = clientKey || 'caresync-dev-key-do-not-use-in-prod';
 
     try {
       const keyMaterial = await crypto.subtle.importKey(
