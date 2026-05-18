@@ -13,6 +13,8 @@ import { Clock, AlertTriangle, CheckCircle2, Plus, X, Loader2, ClipboardList } f
 import { useCreateHandover, usePendingHandovers, useAcknowledgeHandover } from '@/hooks/useNurseWorkflow';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -39,24 +41,50 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
   const [criticalPatients, setCriticalPatients] = useState<CriticalPatient[]>([]);
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
   const [notes, setNotes] = useState('');
-  const [newPatientName, setNewPatientName] = useState('');
+  const [incomingNurseId, setIncomingNurseId] = useState('');
+  const [newPatientId, setNewPatientId] = useState('');
   const [newPatientNotes, setNewPatientNotes] = useState('');
   const [newTask, setNewTask] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const { data: queue = [] } = useActiveQueue();
   const { handovers: pendingHandovers = [] } = usePendingHandovers();
   const createHandover = useCreateHandover();
   const acknowledgeHandover = useAcknowledgeHandover();
+  const { data: nurses = [] } = useQuery({
+    queryKey: ['handover-nurses', hospital?.id],
+    queryFn: async () => {
+      if (!hospital?.id) return [];
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('hospital_id', hospital.id)
+        .eq('role', 'nurse');
+      if (rolesError) throw rolesError;
+      const userIds = (roles || []).map((role) => role.user_id).filter(Boolean);
+      if (userIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, user_id, first_name, last_name')
+        .eq('hospital_id', hospital.id as any)
+        .in('user_id', userIds);
+      if (error) throw error;
+      return (data || []).filter((nurse: any) => nurse.id !== profile?.id);
+    },
+    enabled: !!hospital?.id,
+  });
 
   useEffect(() => {
     if (!open) {
       setCriticalPatients([]);
       setPendingTasks([]);
       setNotes('');
-      setNewPatientName('');
+      setIncomingNurseId('');
+      setNewPatientId('');
       setNewPatientNotes('');
       setNewTask('');
+      setFormErrors({});
       return;
     }
 
@@ -80,13 +108,19 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
   }, [open, mode, queue]);
 
   const handleAddCriticalPatient = () => {
-    if (!newPatientName.trim()) {
-      toast.error('Patient name is required');
+    const queuePatient = queue.find((entry) => entry.patient?.id === newPatientId)?.patient;
+    if (!queuePatient) {
+      setFormErrors((prev) => ({ ...prev, criticalPatient: 'Select a patient from the active queue.' }));
       return;
     }
-    setCriticalPatients([...criticalPatients, { patient_id: '', patient_name: newPatientName.trim(), notes: newPatientNotes.trim() }]);
-    setNewPatientName('');
+    setCriticalPatients([...criticalPatients, {
+      patient_id: queuePatient.id,
+      patient_name: `${queuePatient.first_name} ${queuePatient.last_name}`.trim(),
+      notes: newPatientNotes.trim(),
+    }]);
+    setNewPatientId('');
     setNewPatientNotes('');
+    setFormErrors((prev) => ({ ...prev, criticalPatient: '' }));
   };
 
   const handleAddTask = () => {
@@ -105,8 +139,13 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
       return;
     }
 
+    const nextErrors: Record<string, string> = {};
+    if (!incomingNurseId) nextErrors.incomingNurseId = 'Select the receiving nurse.';
     if (!notes.trim() && criticalPatients.length === 0 && pendingTasks.length === 0) {
-      toast.error('Add notes, critical patients, or pending tasks before submitting');
+      nextErrors.content = 'Add notes, critical patients, or pending tasks before submitting.';
+    }
+    setFormErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
@@ -120,10 +159,12 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
     try {
       await createHandover.mutateAsync({
         outgoing_nurse_id: profile.id,
+        incoming_nurse_id: incomingNurseId,
         shift_date: new Date().toISOString().slice(0, 10),
         shift_type: shiftType,
         notes: handoverNotes,
         pending_tasks: pendingTasks.map((task) => task.task),
+        critical_patients: criticalPatients,
         status: 'pending',
         hospital_id: hospital.id,
       } as any);
@@ -236,6 +277,28 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label>Receiving Nurse *</Label>
+              <Select value={incomingNurseId} onValueChange={(value) => {
+                setIncomingNurseId(value);
+                setFormErrors((prev) => ({ ...prev, incomingNurseId: '' }));
+              }}>
+                <SelectTrigger className={formErrors.incomingNurseId ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select incoming nurse" />
+                </SelectTrigger>
+                <SelectContent>
+                  {nurses.map((nurse: any) => (
+                    <SelectItem key={nurse.id} value={nurse.id}>
+                      {nurse.first_name} {nurse.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formErrors.incomingNurseId && (
+                <p className="text-sm text-destructive">{formErrors.incomingNurseId}</p>
+              )}
+            </div>
+
             <Separator />
 
             <div className="space-y-3">
@@ -259,8 +322,25 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
               ))}
 
               <div className="space-y-2 p-3 border rounded-lg bg-muted/30">
-                <Input placeholder="Patient name" value={newPatientName} onChange={(e) => setNewPatientName(e.target.value)} />
+                <Select value={newPatientId} onValueChange={(value) => {
+                  setNewPatientId(value);
+                  setFormErrors((prev) => ({ ...prev, criticalPatient: '' }));
+                }}>
+                  <SelectTrigger className={formErrors.criticalPatient ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="Select patient from active queue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {queue.map((entry) => (
+                      <SelectItem key={entry.id} value={entry.patient?.id || entry.patient_id}>
+                        {entry.patient?.first_name} {entry.patient?.last_name} - #{entry.queue_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Textarea placeholder="Critical notes..." value={newPatientNotes} onChange={(e) => setNewPatientNotes(e.target.value)} rows={2} />
+                {formErrors.criticalPatient && (
+                  <p className="text-sm text-destructive">{formErrors.criticalPatient}</p>
+                )}
                 <Button variant="outline" size="sm" onClick={handleAddCriticalPatient}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Critical Patient
@@ -312,6 +392,9 @@ export function ShiftHandoverModal({ open, onOpenChange, mode }: ShiftHandoverMo
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
               />
+              {formErrors.content && (
+                <p className="text-sm text-destructive">{formErrors.content}</p>
+              )}
             </div>
           </div>
         </ScrollArea>

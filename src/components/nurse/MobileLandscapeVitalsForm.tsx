@@ -25,6 +25,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
     patient_id: '',
     systolic_bp: '',
     diastolic_bp: '',
+    heart_rate: '',
     temperature: '',
     respiratory_rate: '',
     spo2: '',
@@ -55,6 +56,11 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
     if (formData.diastolic_bp) {
       const dia = parseInt(formData.diastolic_bp);
       if (dia < 30 || dia > 150) newErrors.diastolic_bp = 'Range: 30-150';
+    }
+
+    if (formData.heart_rate) {
+      const hr = parseInt(formData.heart_rate);
+      if (hr < 30 || hr > 220) newErrors.heart_rate = 'Range: 30-220';
     }
 
     if (formData.temperature) {
@@ -119,6 +125,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
         patient_id: formData.patient_id,
         systolic_bp: parseInt(formData.systolic_bp) || 0,
         diastolic_bp: parseInt(formData.diastolic_bp) || 0,
+        heart_rate: parseInt(formData.heart_rate) || 0,
         temperature: parseFloat(formData.temperature) || 0,
         respiratory_rate: parseInt(formData.respiratory_rate) || 0,
         spo2: parseInt(formData.spo2) || 0,
@@ -144,6 +151,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
         patient_id: '',
         systolic_bp: '',
         diastolic_bp: '',
+        heart_rate: '',
         temperature: '',
         respiratory_rate: '',
         spo2: '',
@@ -246,6 +254,20 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
               </div>
 
               <div>
+                <Label htmlFor="landscape-hr" className="text-xs">Heart Rate (bpm)</Label>
+                <Input
+                  id="landscape-hr"
+                  type="number"
+                  value={formData.heart_rate}
+                  onChange={(e) => handleInputChange('heart_rate', e.target.value)}
+                  className={`h-8 text-sm ${errors.heart_rate ? 'border-red-500' : ''}`}
+                />
+                {errors.heart_rate && (
+                  <p className="text-xs text-red-500 mt-1">{errors.heart_rate}</p>
+                )}
+              </div>
+
+              <div>
                 <Label htmlFor="landscape-temp" className="text-xs">Temperature (°C)</Label>
                 <Input
                   id="landscape-temp"
@@ -261,7 +283,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
               </div>
 
               <div>
-                <Label htmlFor="landscape-rr" className="text-xs">RR (bpm)</Label>
+                <Label htmlFor="landscape-rr" className="text-xs">Respiratory Rate (/min)</Label>
                 <Input
                   id="landscape-rr"
                   type="number"
@@ -378,6 +400,20 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
                 </div>
               </div>
 
+              <div>
+                <Label htmlFor="heart-rate">Heart Rate (bpm)</Label>
+                <Input
+                  id="heart-rate"
+                  type="number"
+                  value={formData.heart_rate}
+                  onChange={(e) => handleInputChange('heart_rate', e.target.value)}
+                  className={errors.heart_rate ? 'border-red-500' : ''}
+                />
+                {errors.heart_rate && (
+                  <p className="text-xs text-red-500 mt-1">{errors.heart_rate}</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="temp">Temperature (°C)</Label>
@@ -395,7 +431,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
                 </div>
 
                 <div>
-                  <Label htmlFor="rr">RR (bpm)</Label>
+                  <Label htmlFor="rr">Respiratory Rate (/min)</Label>
                   <Input
                     id="rr"
                     type="number"
@@ -479,7 +515,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
                   id="chief-complaint"
                   value={formData.chief_complaint}
                   onChange={(e) => handleInputChange('chief_complaint', e.target.value)}
-                  placeholder="Optional notes"
+                  placeholder="Chief complaint"
                 />
               </div>
             </div>

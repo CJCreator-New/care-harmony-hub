@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+export { logAudit } from './auditLogQueue';
 
 /**
  * Development-only logging utility

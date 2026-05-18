@@ -11,6 +11,7 @@ import { CPTCodeMapper } from "../CPTCodeMapper";
 import { StructuredDiagnosis, DIAGNOSIS_TYPES, ICD10Code } from "@/types/icd10";
 import { useAIClinicalSuggestions } from "@/hooks/useAIClinicalSuggestions";
 import { useAIClinicalSupport } from "@/hooks/useAIClinicalSupport";
+import { toast } from "sonner";
 
 interface DiagnosisStepEnhancedProps {
   data: Record<string, any>;
@@ -23,7 +24,7 @@ export function DiagnosisStepEnhanced({ data, onUpdate, patientId }: DiagnosisSt
   const [noteText, setNoteText] = useState("");
 
   // AI Clinical Support
-  const { generateDifferentialDiagnosis, isGeneratingDiagnosis } = useAIClinicalSupport();
+  const { generateDifferentialDiagnosisAsync, isGeneratingDiagnosis } = useAIClinicalSupport();
   const { aiInsights } = useAIClinicalSuggestions(patientId);
 
   // Get diagnoses from data, supporting both old and new formats
@@ -64,14 +65,44 @@ export function DiagnosisStepEnhanced({ data, onUpdate, patientId }: DiagnosisSt
     try {
       const symptoms = data.symptoms || [];
       const vitals = data.vitals || {};
-      
-      await generateDifferentialDiagnosis({
+
+      const results = await generateDifferentialDiagnosisAsync({
         symptoms,
         patientHistory: data.history_of_present_illness || '',
         vitals
       });
+
+      if (!Array.isArray(results) || results.length === 0) {
+        toast.info("No AI differential diagnoses were generated for the current clinical context.");
+        return;
+      }
+
+      const additions: StructuredDiagnosis[] = results
+        .filter((diagnosis) => diagnosis?.condition)
+        .filter((diagnosis) =>
+          !structuredDiagnoses.some((existing) => existing.description === diagnosis.condition)
+        )
+        .map((diagnosis) => ({
+          id: crypto.randomUUID(),
+          icd_code: diagnosis.icd10_code || "AI-SUGGESTED",
+          description: diagnosis.condition,
+          type: structuredDiagnoses.length === 0 ? "primary" : "differential",
+          added_at: new Date().toISOString(),
+          notes: diagnosis.evidence?.length
+            ? `AI evidence: ${diagnosis.evidence.join(", ")}`
+            : "AI-suggested differential diagnosis",
+        }));
+
+      if (additions.length === 0) {
+        toast.info("AI suggestions were already present in this assessment.");
+        return;
+      }
+
+      onUpdate("diagnoses", [...structuredDiagnoses, ...additions]);
+      toast.success(`Added ${additions.length} AI diagnosis suggestion${additions.length > 1 ? "s" : ""}.`);
     } catch (error) {
       console.error('Failed to generate differential diagnosis:', error);
+      toast.error("Unable to generate AI differential diagnoses right now.");
     }
   };
 

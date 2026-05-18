@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CURRENCY_SYMBOL } from '@/lib/currency';
+import { CURRENCY_SYMBOL, formatCurrency } from '@/lib/currency';
 import { useAdminStats, useStaffOverview, useDepartmentPerformance, useWeeklyAppointmentTrend } from '@/hooks/useAdminStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,20 +50,27 @@ export function AdminAnalytics() {
   const { data: weeklyTrend } = useWeeklyAppointmentTrend();
   const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
+  const compactCurrency = (amount: number) => {
+    if (amount >= 1000) {
+      return `${CURRENCY_SYMBOL}${(amount / 1000).toFixed(1)}K`;
+    }
+    return formatCurrency(amount);
+  };
+
   const mainStats = useMemo(() => ([
     {
       title: 'Total Patients',
       value: stats?.totalPatients || 0,
       icon: Users,
       color: 'bg-primary/10 text-primary',
-      subtitle: `+${stats?.newPatientsThisMonth || 0} this month`,
+      subtitle: stats?.patientGrowthLabel || `+${stats?.newPatientsThisMonth || 0} this month`,
     },
     {
-      title: "Today's Appointments",
+      title: stats?.appointmentMetricLabel || "Today's Appointments",
       value: stats?.todayAppointments || 0,
       icon: Calendar,
       color: 'bg-info/10 text-info',
-      subtitle: `${stats?.completedToday || 0} completed, ${stats?.cancelledToday || 0} cancelled`,
+      subtitle: stats?.appointmentMetricSubtitle || `${stats?.completedToday || 0} completed, ${stats?.cancelledToday || 0} cancelled`,
     },
     {
       title: 'Active Staff',
@@ -74,10 +81,10 @@ export function AdminAnalytics() {
     },
     {
       title: 'Monthly Revenue',
-      value: `${CURRENCY_SYMBOL}${((stats?.monthlyRevenue || 0) / 1000).toFixed(1)}K`,
+      value: compactCurrency(stats?.monthlyRevenue || 0),
       icon: DollarSign,
       color: 'bg-warning/10 text-warning',
-      subtitle: `${CURRENCY_SYMBOL}${((stats?.pendingAmount || 0) / 1000).toFixed(1)}K pending`,
+      subtitle: `${compactCurrency(stats?.pendingAmount || 0)} pending`,
     },
   ]), [stats]);
 

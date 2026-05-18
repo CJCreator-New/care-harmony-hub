@@ -97,6 +97,60 @@ export function useTodayAppointments() {
   return useAppointments(today);
 }
 
+export function useLatestScheduledAppointments(limit: number = 10) {
+  const { hospital } = useAuth();
+
+  return useQuery({
+    queryKey: ['appointments', 'latest-scheduled', hospital?.id, limit],
+    queryFn: async () => {
+      if (!hospital?.id) {
+        return {
+          date: null as string | null,
+          appointments: [] as Appointment[],
+        };
+      }
+
+      const { data: latestRows, error: latestError } = await supabase
+        .from('appointments')
+        .select('scheduled_date')
+        .eq('hospital_id', hospital.id)
+        .order('scheduled_date', { ascending: false })
+        .limit(1);
+
+      if (latestError) throw latestError;
+
+      const latestDate = latestRows?.[0]?.scheduled_date;
+      if (!latestDate) {
+        return {
+          date: null as string | null,
+          appointments: [] as Appointment[],
+        };
+      }
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          ${APPOINTMENT_COLUMNS.list},
+          patient:patients(id, first_name, last_name, mrn, phone),
+          doctor:profiles!appointments_doctor_id_fkey(id, first_name, last_name)
+        `)
+        .eq('hospital_id', hospital.id)
+        .eq('scheduled_date', latestDate)
+        .order('scheduled_time', { ascending: true })
+        .limit(limit);
+
+      if (error) throw error;
+
+      return {
+        date: latestDate,
+        appointments: data as unknown as Appointment[],
+      };
+    },
+    enabled: !!hospital?.id,
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useUpcomingAppointments(limit: number = 10) {
   const { hospital } = useAuth();
 
@@ -332,7 +386,32 @@ export function useCheckInAppointment() {
 
         if (error) throw error;
 
-        // Add patient to the queue
+        // Add patient to the queue, but keep check-in idempotent for repeated clicks
+        // or realtime retries.
+        const today = new Date().toISOString().split('T')[0];
+        const { data: existingQueueEntry, error: existingQueueError } = await supabase
+          .from('patient_queue')
+          .select('id, queue_number')
+          .eq('hospital_id', hospital.id)
+          .eq('patient_id', appointment.patient_id)
+          .in('status', ['waiting', 'called', 'in_prep', 'in_service'])
+          .gte('created_at', `${today}T00:00:00`)
+          .maybeSingle();
+
+        if (existingQueueError) throw existingQueueError;
+
+        if (existingQueueEntry) {
+          await supabase
+            .from('appointments')
+            .update({ queue_number: existingQueueEntry.queue_number })
+            .eq('id', appointmentId);
+          return {
+            ...data,
+            queue_number: existingQueueEntry.queue_number,
+            patientName: `${(appointment.patient as any)?.first_name || ''} ${(appointment.patient as any)?.last_name || ''}`.trim(),
+          } as Appointment & { patientName: string };
+        }
+
         const { error: queueInsertError } = await supabase
           .from('patient_queue')
           .insert({

@@ -33,6 +33,8 @@ import {
   Loader2,
   AlertTriangle,
   MoreVertical,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, parseISO } from "date-fns";
@@ -269,35 +271,48 @@ export default function AppointmentsPage() {
 
           {/* List View */}
           <TabsContent value="list" className="m-0">
-            <div className="flex gap-6">
-            {/* Calendar Sidebar */}
-            <Card className="hidden lg:block">
-              <CardContent className="p-4">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  className={cn("p-0 pointer-events-auto")}
-                  modifiers={{
-                    hasAppointments: (date) =>
-                      (getAppointmentsForDate(date)?.length || 0) > 0,
-                  }}
-                  modifiersStyles={{
-                    hasAppointments: {
-                      fontWeight: "bold",
-                      textDecoration: "underline",
-                    },
-                  }}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Appointments List */}
             <Card className="flex-1">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">
-                  {format(selectedDate, "EEEE, MMMM d, yyyy")}
-                </CardTitle>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">List view</p>
+                    <CardTitle className="text-lg">
+                      {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                    </CardTitle>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setSelectedDate((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1))}
+                        aria-label="Previous day"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setSelectedDate((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1))}
+                        aria-label="Next day"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Input
+                      type="date"
+                      className="w-full sm:w-[180px]"
+                      value={dateString}
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          setSelectedDate(parseISO(event.target.value));
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -371,7 +386,6 @@ export default function AppointmentsPage() {
                 )}
               </CardContent>
             </Card>
-          </div>
           </TabsContent>
 
           {/* Calendar View */}

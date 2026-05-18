@@ -473,13 +473,13 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         {showLatency && !isListening && (
           <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 text-sm text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-muted-foreground/40 inline-block" />
-            No active session — press <strong>Start Recording</strong> to begin transcription
+            Idle and ready. Press <strong>Start Recording</strong> to begin transcription and connect the microphone.
           </div>
         )}
 
         {connectionStatus === 'disconnected' && !isListening && (
           <div className="text-xs text-muted-foreground rounded-md border border-border p-2">
-            Voice input is disconnected. Click <strong>Start Recording</strong> to connect your microphone.
+            Voice input shows as disconnected while no recording session is active. This is expected until you start a session.
           </div>
         )}
 
@@ -594,3 +594,4 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
 };
 
 export default VoiceInput;
+

@@ -394,6 +394,7 @@ ${formData.soap_plan || 'Not documented'}`;
           id,
           status: "completed",
           completed_at: new Date().toISOString(),
+          started_at: consultation.started_at || new Date().toISOString(),
           pharmacy_notified: formData.prescriptions?.length > 0 ? true : formData.pharmacy_notified,
           lab_notified: formData.lab_orders?.length > 0 ? true : formData.lab_notified,
         });
@@ -892,13 +893,15 @@ ${formData.soap_plan || 'Not documented'}`;
         </div>
 
         {/* Sidebars */}
-        <div className="w-full lg:w-80 space-y-6">
+        <div className="w-full xl:w-80 xl:min-w-[20rem] space-y-6">
           <PatientSidebar patient={consultation?.patient} />
           <EnhancedTaskManagement patientId={consultation?.patient_id} />
-          <AIConsultationAssistant 
-            formData={formData} 
-            onApplyRecommendation={handleApplyAIRecommendation} 
-          />
+          <div className="hidden xl:block">
+            <AIConsultationAssistant 
+              formData={formData} 
+              onApplyRecommendation={handleApplyAIRecommendation} 
+            />
+          </div>
         </div>
       </div>
 

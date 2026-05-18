@@ -12,14 +12,13 @@ import {
   Pill,
   Search,
   User,
-  Clock,
   CheckCircle2,
-  X,
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
 import { useRecordMedicationAdministration } from '@/hooks/useNurseWorkflow';
-import { useSearchPatients } from '@/lib/hooks/patients';
+import { usePatients, useSearchPatients } from '@/lib/hooks/patients';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MedicationAdministrationModalProps {
   open: boolean;
@@ -45,11 +44,15 @@ export function MedicationAdministrationModal({
   const [medicationName, setMedicationName] = useState('');
   const [dosage, setDosage] = useState('');
   const [route, setRoute] = useState('oral');
+  const [administeredAt, setAdministeredAt] = useState(() => new Date().toISOString().slice(0, 16));
   const [status, setStatus] = useState<'given' | 'refused' | 'held' | 'not_given'>('given');
   const [notes, setNotes] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const [activePrescriptions, setActivePrescriptions] = useState<Array<{ id: string; medication_name: string; dosage: string; route?: string | null }>>([]);
 
   const { data: searchResults = [], isLoading: isSearching } = useSearchPatients(searchTerm);
+  const { data: patientsData, isLoading: patientsLoading } = usePatients({ limit: 50 });
+  const patientOptions = searchTerm.length >= 2 ? searchResults : (patientsData?.patients || []);
   const recordAdministration = useRecordMedicationAdministration();
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export function MedicationAdministrationModal({
       setMedicationName('');
       setDosage('');
       setRoute('oral');
+      setAdministeredAt(new Date().toISOString().slice(0, 16));
       setStatus('given');
       setNotes('');
       setIsComplete(false);
@@ -66,6 +70,22 @@ export function MedicationAdministrationModal({
       setSelectedPatient(initialPatient);
     }
   }, [open, initialPatient]);
+
+  useEffect(() => {
+    if (!selectedPatient?.id) {
+      setActivePrescriptions([]);
+      return;
+    }
+
+    (async () => {
+      const { data } = await supabase
+        .from('prescription_items')
+        .select('id, medication_name, dosage, route, prescription:prescriptions!inner(patient_id, status)')
+        .eq('prescription.patient_id', selectedPatient.id)
+        .in('prescription.status', ['pending', 'approved', 'active']);
+      setActivePrescriptions((data || []) as any);
+    })();
+  }, [selectedPatient?.id]);
 
   const handleSubmit = async () => {
     if (!selectedPatient) {
@@ -89,6 +109,7 @@ export function MedicationAdministrationModal({
         medication_name: medicationName,
         dosage,
         route,
+        administered_at: new Date(administeredAt).toISOString(),
         status,
         notes: notes || undefined,
       });
@@ -165,16 +186,16 @@ export function MedicationAdministrationModal({
                 />
               </div>
 
-              {isSearching && (
+              {(isSearching || patientsLoading) && (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               )}
 
-              {searchResults.length > 0 && (
+              {patientOptions.length > 0 && (
                 <ScrollArea className="max-h-[200px]">
                   <div className="space-y-2">
-                    {searchResults.map((p) => (
+                    {patientOptions.map((p) => (
                       <Card
                         key={p.id}
                         className="cursor-pointer hover:bg-accent/50 transition-colors"
@@ -219,14 +240,40 @@ export function MedicationAdministrationModal({
             <>
               {/* Medication Details */}
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Medication Name *</Label>
-                  <Input
-                    placeholder="e.g., Amoxicillin"
-                    value={medicationName}
-                    onChange={(e) => setMedicationName(e.target.value)}
-                  />
-                </div>
+                {activePrescriptions.length > 0 ? (
+                  <div className="space-y-2">
+                    <Label>Medication *</Label>
+                    <Select
+                      value={medicationName}
+                      onValueChange={(value) => {
+                        const prescription = activePrescriptions.find((rx) => rx.medication_name === value);
+                        setMedicationName(value);
+                        if (prescription?.dosage) setDosage(prescription.dosage);
+                        if (prescription?.route) setRoute(prescription.route.toLowerCase());
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select active prescription" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activePrescriptions.map((rx) => (
+                          <SelectItem key={rx.id} value={rx.medication_name}>
+                            {rx.medication_name} - {rx.dosage}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Medication Name *</Label>
+                    <Input
+                      placeholder="No active prescriptions found; enter medication"
+                      value={medicationName}
+                      onChange={(e) => setMedicationName(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -254,6 +301,15 @@ export function MedicationAdministrationModal({
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Time of Administration *</Label>
+                  <Input
+                    type="datetime-local"
+                    value={administeredAt}
+                    onChange={(e) => setAdministeredAt(e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">

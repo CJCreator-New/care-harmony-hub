@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import {
+import * as wardModule from '@/utils/wardManagementService';
+import * as sanitizeModule from '@/utils/sanitize';
+
+const {
   admitPatient,
   transferPatientBed,
   dischargePatient,
@@ -12,10 +15,15 @@ import {
   trackAcuityLevel,
   handleEmergencyTransfer,
   validateDischargeReadiness,
-} from '@/utils/wardManagementService';
-import { logAudit } from '@/utils/sanitize';
+} = wardModule;
 
-vi.mock('@/utils/sanitize');
+vi.mock('@/utils/sanitize', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+  sanitizeForLog: vi.fn((x) => x),
+}));
+
+// Import logAudit after mocking
+const { logAudit } = await import('@/utils/sanitize');
 
 // Test Fixtures
 const mockPatient = {
@@ -47,7 +55,6 @@ const mockNurse = {
 describe('Ward Management - Patient Admission', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (logAudit as any).mockResolvedValue(undefined);
   });
 
   it('should admit patient to ward', async () => {

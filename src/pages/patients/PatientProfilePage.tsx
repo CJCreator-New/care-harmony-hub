@@ -185,6 +185,9 @@ export default function PatientProfilePage() {
           {/* Right Column: Timeline and Details */}
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="clinical">
+              <p className="text-sm text-muted-foreground">
+                More patient sections are available in the tab row. Scroll horizontally on smaller screens to reveal them.
+              </p>
               <div className="overflow-x-auto pb-2">
               <TabsList className="inline-grid min-w-[720px] w-full grid-cols-4 mb-2">
                 <TabsTrigger value="clinical" className="gap-2">

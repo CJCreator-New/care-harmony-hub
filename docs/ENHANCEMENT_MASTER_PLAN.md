@@ -671,6 +671,7 @@ Copy this section each week and update status:
 - [HIPAA Compliance](HIPAA_COMPLIANCE.md)
 - [Workflow Creator Skill](../.agents/skills/workflow-creator/SKILL.md)
 - [HIMS Domain Expert Skill](../.agents/skills/hims-domain-expert/SKILL.md)
+- [Engineering Execution Guardrails Skill](../.agents/skills/engineering-execution-guardrails/SKILL.md)
 
 ---
 

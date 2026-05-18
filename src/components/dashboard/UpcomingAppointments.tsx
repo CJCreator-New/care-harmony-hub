@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Calendar, Clock, Video, MapPin, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useTodayAppointments } from '@/lib/hooks/appointments';
+import { useLatestScheduledAppointments, useTodayAppointments } from '@/lib/hooks/appointments';
+import { format, parseISO } from 'date-fns';
 
 interface Appointment {
   id: string;
@@ -29,8 +30,24 @@ const statusStyles = {
 export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingAppointmentsProps>(
   ({ appointments: propAppointments }, ref) => {
     const { data: dbAppointments = [], isLoading } = useTodayAppointments();
+    const { data: latestScheduled } = useLatestScheduledAppointments();
 
-    const appointments: Appointment[] = propAppointments || dbAppointments.map((apt: any) => ({
+    const fallbackAppointments = latestScheduled?.appointments || [];
+    const sourceAppointments = propAppointments || (dbAppointments.length > 0 ? dbAppointments : fallbackAppointments);
+    const headerTitle =
+      propAppointments || dbAppointments.length > 0
+        ? "Today's Appointments"
+        : latestScheduled?.date
+          ? `Appointments on ${format(parseISO(latestScheduled.date), 'MMM d')}`
+          : "Today's Appointments";
+    const headerSubtitle =
+      propAppointments || dbAppointments.length > 0
+        ? `${sourceAppointments.length} scheduled`
+        : latestScheduled?.date
+          ? `${sourceAppointments.length} from latest seeded schedule`
+          : `${sourceAppointments.length} scheduled`;
+
+    const appointments: Appointment[] = sourceAppointments.map((apt: any) => ({
       id: apt.id,
       patientName: apt.patient?.first_name ? `${apt.patient.first_name} ${apt.patient.last_name}` : 'Unknown Patient',
       time: apt.scheduled_time?.slice(0, 5) || '12:00',
@@ -55,9 +72,9 @@ export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingApp
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
             <div>
-              <h3 className="font-semibold">Today's Appointments</h3>
+              <h3 className="font-semibold">{headerTitle}</h3>
               <p className="text-sm text-muted-foreground">
-                {appointments.length} scheduled
+                {headerSubtitle}
               </p>
             </div>
           </div>
@@ -72,7 +89,7 @@ export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingApp
         {appointments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Calendar className="w-12 h-12 text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground font-medium">No appointments today</p>
+            <p className="text-muted-foreground font-medium">No appointments available</p>
             <p className="text-sm text-muted-foreground/70">Schedule appointments to see them here</p>
           </div>
         ) : (

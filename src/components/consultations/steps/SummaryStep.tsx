@@ -23,6 +23,14 @@ interface SummaryStepProps {
 }
 
 export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) {
+  const sanitizeClinicalText = (value: unknown) => {
+    if (typeof value !== "string") return "";
+    return value.startsWith("__ENCRYPTED__") ? "" : value;
+  };
+
+  const hasPrescriptions = (data.prescriptions?.length || 0) > 0;
+  const hasLabOrders = (data.lab_orders?.length || 0) > 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -45,7 +53,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
           <div>
             <h4 className="text-sm font-medium mb-1">Chief Complaint</h4>
             <p className="text-sm text-muted-foreground">
-              {data.chief_complaint || "Not documented"}
+              {sanitizeClinicalText(data.chief_complaint) || "Not documented"}
             </p>
           </div>
 
@@ -120,7 +128,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
           id="clinical_notes"
           placeholder="Additional clinical notes and observations..."
           className="min-h-24"
-          value={data.clinical_notes || ""}
+          value={sanitizeClinicalText(data.clinical_notes)}
           onChange={(e) => onUpdate("clinical_notes", e.target.value)}
         />
       </div>
@@ -143,7 +151,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
               id="soap_subjective"
               placeholder="Patient's chief complaint, history of present illness, relevant medical history..."
               className="min-h-20"
-              value={data.soap_subjective || data.chief_complaint || ""}
+              value={sanitizeClinicalText(data.soap_subjective) || sanitizeClinicalText(data.chief_complaint) || ""}
               onChange={(e) => onUpdate("soap_subjective", e.target.value)}
             />
           </div>
@@ -159,7 +167,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
               id="soap_objective"
               placeholder="Physical examination findings, vital signs, lab results, imaging..."
               className="min-h-20"
-              value={data.soap_objective || ""}
+              value={sanitizeClinicalText(data.soap_objective)}
               onChange={(e) => onUpdate("soap_objective", e.target.value)}
             />
           </div>
@@ -175,7 +183,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
               id="soap_assessment"
               placeholder="Clinical impression, differential diagnosis, diagnostic reasoning..."
               className="min-h-20"
-              value={data.soap_assessment || ""}
+              value={sanitizeClinicalText(data.soap_assessment)}
               onChange={(e) => onUpdate("soap_assessment", e.target.value)}
             />
           </div>
@@ -191,7 +199,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
               id="soap_plan"
               placeholder="Treatment plan, medications, follow-up, patient education..."
               className="min-h-20"
-              value={data.soap_plan || ""}
+              value={sanitizeClinicalText(data.soap_plan)}
               onChange={(e) => onUpdate("soap_plan", e.target.value)}
             />
           </div>
@@ -261,6 +269,7 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
                 <Checkbox
                   id="pharmacy_notified"
                   checked={data.pharmacy_notified || false}
+                  disabled={!hasPrescriptions}
                   onCheckedChange={(checked) =>
                     onUpdate("pharmacy_notified", checked)
                   }
@@ -271,16 +280,23 @@ export function SummaryStep({ data, onUpdate, consultation }: SummaryStepProps) 
                 >
                   Notify Pharmacy (for prescriptions)
                 </label>
+                {!hasPrescriptions && (
+                  <span className="text-xs text-muted-foreground">Add a prescription to enable this.</span>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="lab_notified"
                   checked={data.lab_notified || false}
+                  disabled={!hasLabOrders}
                   onCheckedChange={(checked) => onUpdate("lab_notified", checked)}
                 />
                 <label htmlFor="lab_notified" className="text-sm cursor-pointer">
                   Notify Laboratory (for lab orders)
                 </label>
+                {!hasLabOrders && (
+                  <span className="text-xs text-muted-foreground">Add a lab order to enable this.</span>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox

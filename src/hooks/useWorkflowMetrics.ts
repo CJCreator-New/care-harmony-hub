@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { differenceInMinutes, endOfDay, format, startOfDay, subDays } from 'date-fns';
 
 export interface WorkflowMetrics {
   checkInToNurse: number; // minutes
@@ -28,38 +29,39 @@ export function useWorkflowMetrics(dateRange?: { start: Date; end: Date }) {
     queryFn: async () => {
       if (!hospital?.id) return null;
 
-      const start = dateRange?.start || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const end = dateRange?.end || new Date();
+      const { data: latestCompletedConsultation } = await supabase
+        .from('consultations')
+        .select('completed_at')
+        .eq('hospital_id', hospital.id)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1);
+
+      const referencePoint = latestCompletedConsultation?.[0]?.completed_at
+        ? new Date(latestCompletedConsultation[0].completed_at)
+        : new Date();
+      const start = dateRange?.start || startOfDay(subDays(referencePoint, 6));
+      const end = dateRange?.end || endOfDay(referencePoint);
 
       // Check-in to Nurse (queue entry to vitals recorded)
       const { data: checkInData } = await supabase
         .from('patient_queue')
-        .select('check_in_time, patient_id')
+        .select('check_in_time, service_start_time, patient_id')
         .eq('hospital_id', hospital.id)
         .gte('check_in_time', start.toISOString())
         .lte('check_in_time', end.toISOString());
 
-      const checkInToNurse = await calculateAvgTime(
-        checkInData || [],
-        'check_in_time',
-        'vital_signs',
-        'created_at'
-      );
+      const checkInToNurse = calculateTransitionDuration(checkInData || [], 'check_in_time', 'service_start_time');
 
       // Nurse to Doctor (vitals to consultation start)
       const { data: nurseData } = await supabase
         .from('consultations')
-        .select('started_at, patient_id')
+        .select('created_at, started_at, patient_id')
         .eq('hospital_id', hospital.id)
         .gte('started_at', start.toISOString())
         .lte('started_at', end.toISOString());
 
-      const nurseToDoctor = await calculateAvgTime(
-        nurseData || [],
-        'vital_signs',
-        'consultations',
-        'started_at'
-      );
+      const nurseToDoctor = calculateTransitionDuration(nurseData || [], 'created_at', 'started_at');
 
       // Consultation Duration
       const { data: consultData } = await supabase
@@ -111,16 +113,16 @@ export function useWorkflowMetrics(dateRange?: { start: Date; end: Date }) {
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospital.id)
-        .gte('scheduled_date', start.toISOString())
-        .lte('scheduled_date', end.toISOString());
+        .gte('scheduled_date', format(start, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(end, 'yyyy-MM-dd'));
 
       const { count: noShowCount } = await supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('hospital_id', hospital.id)
         .eq('status', 'no_show')
-        .gte('scheduled_date', start.toISOString())
-        .lte('scheduled_date', end.toISOString());
+        .gte('scheduled_date', format(start, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(end, 'yyyy-MM-dd'));
 
       const noShowRate = scheduledCount ? ((noShowCount || 0) / scheduledCount) * 100 : 0;
 
@@ -194,14 +196,21 @@ function calculateDuration(data: any[]): number {
   return durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
 }
 
-async function calculateAvgTime(
+function calculateTransitionDuration(
   data: any[],
   startField: string,
-  endTable: string,
   endField: string
-): Promise<number> {
-  // Simplified - in production, join tables for accurate calculation
-  return 0; // Placeholder
+): number {
+  if (!data.length) return 0;
+
+  const durations = data
+    .filter((item) => item[startField] && item[endField])
+    .map((item) => differenceInMinutes(new Date(item[endField]), new Date(item[startField])))
+    .filter((duration) => duration >= 0 && duration < 24 * 60);
+
+  return durations.length
+    ? durations.reduce((sum, duration) => sum + duration, 0) / durations.length
+    : 0;
 }
 
 function getStatus(actual: number, target: number): 'good' | 'warning' | 'critical' {

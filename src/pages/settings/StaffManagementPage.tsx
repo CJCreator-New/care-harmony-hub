@@ -142,6 +142,7 @@ function StaffManagementPageContent() {
         const { data: rolesData, error: rolesError } = await supabase
           .from('user_roles')
           .select('user_id, role')
+          .eq('hospital_id', profile.hospital_id)
           .in('user_id', userIds);
 
         // Roles are additive metadata; don't block staff list when this secondary
@@ -300,7 +301,7 @@ function StaffManagementPageContent() {
               onClick={() => setActiveTab('invitations')}
             >
               <Mail className="h-4 w-4 mr-2" />
-              Invitations ({invitations.length})
+              Invitations ({pendingCount})
             </Button>
           </div>
           <div className="relative flex-1 max-w-sm">

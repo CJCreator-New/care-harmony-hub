@@ -44,7 +44,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
       expect(masked).not.toContain('123');
       expect(masked).not.toContain('45');
       expect(masked).not.toContain('6789');
-      expect(masked).toMatch(/[X*-]+/); // Should contain masking characters
+      expect(masked).toBe('[REDACTED]');
     });
 
     it('HIPAA-AT-002: Should mask phone numbers', () => {
@@ -54,8 +54,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
       expect(masked).not.toContain('555');
       expect(masked).not.toContain('123');
       expect(masked).not.toContain('4567');
-      expect(masked).toContain('['); // Should contain placeholder markers
-      expect(masked).toContain(']');
+      expect(masked).toBe('[REDACTED]');
     });
 
     it('HIPAA-AT-003: Should mask email addresses', () => {
@@ -64,7 +63,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
 
       expect(masked).not.toContain('patient');
       expect(masked).not.toContain('hospital.com');
-      expect(masked.toLowerCase()).toContain('masked') || expect(masked).toMatch(/[\*X]+/);
+      expect(masked).toBe('[REDACTED]');
     });
 
     it('HIPAA-AT-004: Should mask ZIP codes', () => {
@@ -73,8 +72,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
 
       expect(masked).not.toContain('12345');
       expect(masked).not.toContain('6789');
-      expect(masked).toContain('['); // Should contain placeholder
-      expect(masked).toContain(']');
+      expect(masked).toBe('[REDACTED]');
     });
 
     it('HIPAA-AT-005: Should handle null/undefined gracefully', () => {

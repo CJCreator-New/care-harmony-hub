@@ -177,6 +177,7 @@ export function useAIClinicalSupport() {
 
   return {
     generateDifferentialDiagnosis: generateDifferentialDiagnosis.mutate,
+    generateDifferentialDiagnosisAsync: generateDifferentialDiagnosis.mutateAsync,
     isGeneratingDiagnosis: generateDifferentialDiagnosis.isPending,
     predictPatientRisk: predictPatientRisk.mutate,
     isPredictingRisk: predictPatientRisk.isPending,

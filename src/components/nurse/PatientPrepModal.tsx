@@ -22,6 +22,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface VitalsData {
   temperature: number | '';
@@ -45,6 +46,7 @@ interface PatientPrepModalProps {
 
 export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplete }: PatientPrepModalProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [vitals, setVitals] = useState<VitalsData>({
     temperature: '',
     blood_pressure_systolic: '',
@@ -165,7 +167,7 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
 
         const { error: queueError } = await supabase
           .from('patient_queue')
-          .update({ status: 'in_service', notes: chiefComplaint })
+          .update({ status: 'waiting', notes: chiefComplaint, service_start_time: null })
           .eq('id', queueEntry.id);
         if (queueError) throw queueError;
       }
@@ -197,6 +199,9 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
       }
 
       toast.success('Patient prep completed successfully!');
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-prep-checklists'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-handovers'] });
       onComplete();
       onClose();
     } catch (error: any) {

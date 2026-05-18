@@ -3,7 +3,7 @@ import {
   createInvoice,
   recordPayment,
   calculateCharges,
-  validateCopay,
+  calculateCopay,
   detectDuplicateCharges,
   applyDiscount,
   calculateTax,
@@ -13,9 +13,11 @@ import {
   processRefund,
   validateCalculationOrder,
 } from '@/utils/billingValidator';
-import { logAudit } from '@/utils/sanitize';
 
-vi.mock('@/utils/sanitize');
+vi.mock('@/utils/sanitize', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+  sanitizeForLog: vi.fn((x) => x),
+}));
 
 // Test Fixtures
 const mockPatient = {
@@ -189,7 +191,7 @@ describe('Billing - Copay Validation', () => {
   it('should charge zero copay for Government insurance', async () => {
     const govScheme = { type: 'CGHS', copay: { fixed: 0 } };
 
-    const result = await validateCopay(1000, govScheme);
+    const result = await calculateCopay(1000, govScheme);
 
     expect(result.copayAmount).toBe(0);
   });
@@ -205,7 +207,7 @@ describe('Billing - Copay Validation', () => {
   it('should charge percentage copay for Private insurance', async () => {
     const privateScheme = { type: 'Private', copay: { percentage: 20 } };
 
-    const result = await validateCopay(1000, privateScheme);
+    const result = await calculateCopay(1000, privateScheme);
 
     expect(result.copayAmount).toBe(200); // 20% of 1000
   });
@@ -213,7 +215,7 @@ describe('Billing - Copay Validation', () => {
   it('should calculate blended copay for mixed insurance', async () => {
     const mixedScheme = { type: 'Mixed', copay: { fixed: 100, percentage: 10 } };
 
-    const result = await validateCopay(1000, mixedScheme);
+    const result = await calculateCopay(1000, mixedScheme);
 
     expect(result.copayAmount).toBe(200); // 100 + (10% of 1000)
   });
@@ -221,7 +223,7 @@ describe('Billing - Copay Validation', () => {
   it('should handle Ayushman Bharat (100% coverage, 0% copay)', async () => {
     const ayushmanScheme = { type: 'Ayushman', copay: { fixed: 0, coverage: 100 } };
 
-    const result = await validateCopay(1000, ayushmanScheme);
+    const result = await calculateCopay(1000, ayushmanScheme);
 
     expect(result.copayAmount).toBe(0);
     expect(result.insuranceCoverage).toBe(1000);
@@ -239,7 +241,7 @@ describe('Billing - Copay Validation', () => {
   it('should log copay calculation', async () => {
     const scheme = { type: 'TPA', copay: { fixed: 300 } };
 
-    await validateCopay(1000, scheme);
+    await calculateCopay(1000, scheme);
 
     expect(logAudit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -630,7 +632,7 @@ describe('Billing - Complete Financial Workflows', () => {
     const withTax = await calculateTax(withDiscount.subtotalAfterDiscount, 0.18);
 
     // 4. Validate copay
-    const copay = await validateCopay(withTax.totalWithTax, mockInsuranceScheme);
+    const copay = await calculateCopay(withTax.totalWithTax, mockInsuranceScheme);
 
     // 5. Record payment
     const payment = await recordPayment(invoice.id, withTax.totalWithTax - copay.copayAmount, 'card');

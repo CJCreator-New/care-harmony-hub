@@ -72,11 +72,22 @@ const genderLabels: Record<string, string> = {
 };
 
 // Memoized Patient Row Component for performance optimization
-const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateAge }: {
+const PatientRow = memo(({
+  patient,
+  onViewProfile,
+  onBookAppointment,
+  calculateAge,
+  canBookAppointment,
+  canGenerateInvoice,
+  canRecordHistory,
+}: {
   patient: any;
   onViewProfile: (patient: any) => void;
   onBookAppointment: (patient: any) => void;
-  calculateAge: (dob: string) => number;
+  calculateAge: (dob: string) => string;
+  canBookAppointment: boolean;
+  canGenerateInvoice: boolean;
+  canRecordHistory: boolean;
 }) => (
   <TableRow
     key={patient.id}
@@ -93,7 +104,7 @@ const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateA
     </TableCell>
     <TableCell className="text-left">
       <div className="flex items-center gap-2">
-        <span className="font-medium">{calculateAge(patient.date_of_birth)}y</span>
+        <span className="font-medium">{calculateAge(patient.date_of_birth)}</span>
         <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
           {genderLabels[patient.gender] || patient.gender}
         </Badge>
@@ -141,18 +152,24 @@ const PatientRow = memo(({ patient, onViewProfile, onBookAppointment, calculateA
             <Eye className="h-4 w-4 mr-2" />
             View Profile
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onBookAppointment(patient); }}>
-            <Calendar className="h-4 w-4 mr-2" />
-            Book Appointment
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for billing */ }}>
-            <FileText className="h-4 w-4 mr-2" />
-            Generate Invoice
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for history */ }}>
-            <FileText className="h-4 w-4 mr-2" />
-            Record History
-          </DropdownMenuItem>
+          {canBookAppointment && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onBookAppointment(patient); }}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Book Appointment
+            </DropdownMenuItem>
+          )}
+          {canGenerateInvoice && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for billing */ }}>
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Invoice
+            </DropdownMenuItem>
+          )}
+          {canRecordHistory && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for history */ }}>
+              <FileText className="h-4 w-4 mr-2" />
+              Record History
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </TableCell>
@@ -164,7 +181,7 @@ PatientRow.displayName = 'PatientRow';
 export default function PatientsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { profile } = useAuth();
+  const { profile, primaryRole } = useAuth();
   const { canCreatePatients } = usePermissions();
   const { logActivity } = useActivityLog();
   const { toast } = useToast();
@@ -260,6 +277,11 @@ export default function PatientsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const showRegisterPatient = canCreatePatients && primaryRole !== 'doctor' && primaryRole !== 'nurse';
+  const canBookAppointment = primaryRole === 'admin' || primaryRole === 'receptionist';
+  const canGenerateInvoice = primaryRole === 'admin' || primaryRole === 'receptionist' || primaryRole === 'billing';
+  const canRecordHistory = primaryRole === 'admin' || primaryRole === 'doctor' || primaryRole === 'nurse';
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -271,7 +293,7 @@ export default function PatientsPage() {
               Manage patient records and registrations
             </p>
           </div>
-          {canCreatePatients && (
+          {showRegisterPatient && (
             <Button onClick={() => setRegistrationModalOpen(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
               Register Patient
@@ -360,7 +382,7 @@ export default function PatientsPage() {
                   ? 'Try adjusting your search or filters'
                   : 'Register your first patient to get started'}
               </p>
-              {canCreatePatients && !searchQuery && genderFilter === 'all' && (
+              {showRegisterPatient && !searchQuery && genderFilter === 'all' && (
                 <Button onClick={() => setRegistrationModalOpen(true)}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Register Patient
@@ -386,7 +408,10 @@ export default function PatientsPage() {
                   <PatientRow
                     key={patient.id}
                     patient={patient}
-                    calculateAge={calculateAge as any}
+                    calculateAge={calculateAge}
+                    canBookAppointment={canBookAppointment}
+                    canGenerateInvoice={canGenerateInvoice}
+                    canRecordHistory={canRecordHistory}
                     onViewProfile={(patient) => {
                       logActivity({
                         actionType: 'patient_view',

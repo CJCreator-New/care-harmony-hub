@@ -1,6 +1,6 @@
 import { test, expect, Page, Browser } from '@playwright/test';
-import { loginAs, getUserByRole } from '../fixtures/auth.fixture';
-import { createTestPatient, createTestPrescription, createTestAppointment, createTestLabOrder } from '../fixtures/testdata.fixture';
+import { loginAs, getUserByRole } from './fixtures/auth.fixture';
+import { createTestPatient, createTestPrescription, createTestAppointment, createTestLabOrder } from './fixtures/test-data.fixture';
 
 /**
  * PHASE 2 E2E TEST SUITE: Complete Clinical Workflows

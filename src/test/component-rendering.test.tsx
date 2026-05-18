@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import StandardizedFormField from '@/components/common/StandardizedFormField';
+import StandardizedFormField from '@/components/forms/StandardizedFormField';
 import PatientRegistrationModal from '@/components/modals/PatientRegistrationModal';
 import AppointmentDashboard from '@/components/dashboards/AppointmentDashboard';
 import PatientDataTable from '@/components/tables/PatientDataTable';

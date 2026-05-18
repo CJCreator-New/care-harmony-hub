@@ -70,13 +70,20 @@ export default function ReportsPage() {
   const drillDate = searchParams.get('date');
 
   useEffect(() => {
-    if (dateRange.from && dateRange.to) {
-      const next = new URLSearchParams(searchParams);
-      next.set('start', format(dateRange.from, 'yyyy-MM-dd'));
-      next.set('end', format(dateRange.to, 'yyyy-MM-dd'));
-      setSearchParams(next, { replace: true });
-    }
-  }, [dateRange, searchParams, setSearchParams]);
+    if (!dateRange.from || !dateRange.to) return;
+
+    const start = format(dateRange.from, 'yyyy-MM-dd');
+    const end = format(dateRange.to, 'yyyy-MM-dd');
+    if (searchParams.get('start') === start && searchParams.get('end') === end) return;
+
+    const next = new URLSearchParams(searchParams);
+    next.set('start', start);
+    next.set('end', end);
+    setSearchParams(next, { replace: true });
+    // Avoid depending on the mutable URLSearchParams object itself; this effect
+    // should only mirror date-range state into the URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange.from, dateRange.to, setSearchParams]);
 
   const rangeLabel = useMemo(() => {
     if (!dateRange.from || !dateRange.to) return 'Custom Range';
@@ -158,7 +165,7 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -204,7 +211,7 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Consultations</CardTitle>
+              <CardTitle className="text-sm font-medium">{stats?.labels.today || "Today's"} Consultations</CardTitle>
               <Stethoscope className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -214,7 +221,7 @@ export default function ReportsPage() {
                 <>
                   <div className="text-2xl font-bold">{stats?.today.consultations || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    {stats?.week.consultations || 0} this week
+                    {stats?.week.consultations || 0} in {stats?.labels.week?.toLowerCase() || 'this week'}
                   </p>
                 </>
               )}
@@ -223,7 +230,7 @@ export default function ReportsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Prescriptions</CardTitle>
+              <CardTitle className="text-sm font-medium">{stats?.labels.today || "Today's"} Prescriptions</CardTitle>
               <Pill className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -233,7 +240,7 @@ export default function ReportsPage() {
                 <>
                   <div className="text-2xl font-bold">{stats?.today.prescriptions || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    {stats?.week.prescriptions || 0} this week
+                    {stats?.week.prescriptions || 0} in {stats?.labels.week?.toLowerCase() || 'this week'}
                   </p>
                 </>
               )}
@@ -242,7 +249,7 @@ export default function ReportsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">{stats?.labels.today || "Today's"} Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -252,7 +259,7 @@ export default function ReportsPage() {
                 <>
                   <div className="text-2xl font-bold">{formatCurrency(stats?.today.revenue || 0)}</div>
                   <p className="text-xs text-muted-foreground">
-                    {formatCurrency(stats?.week.revenue || 0)} this week
+                    {formatCurrency(stats?.week.revenue || 0)} in {stats?.labels.week?.toLowerCase() || 'this week'}
                   </p>
                 </>
               )}
@@ -261,7 +268,7 @@ export default function ReportsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Patients Seen Today</CardTitle>
+              <CardTitle className="text-sm font-medium">Patients Seen {stats?.labels.today?.replace("Latest day", "").trim() || 'Today'}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -271,7 +278,7 @@ export default function ReportsPage() {
                 <>
                   <div className="text-2xl font-bold">{stats?.today.patients || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    {stats?.week.patients || 0} this week
+                    {stats?.week.patients || 0} in {stats?.labels.week?.toLowerCase() || 'this week'}
                   </p>
                 </>
               )}
@@ -281,7 +288,7 @@ export default function ReportsPage() {
 
         {/* Date Range */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <DateRangePicker value={dateRange} onChange={setDateRange} className="w-full sm:w-auto" />
           {drillDate && (
             <Button variant="outline" size="sm" onClick={clearDrillDown}>
               Back to full range
@@ -449,6 +456,7 @@ export default function ReportsPage() {
                     Consultations
                   </div>
                   <div className="text-2xl font-bold">{stats?.month.consultations || 0}</div>
+                  <div className="text-xs text-muted-foreground">{stats?.labels.month || 'This month'}</div>
                 </div>
                 <div className="p-4 rounded-lg bg-chart-2/10 border border-chart-2/20">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -456,6 +464,7 @@ export default function ReportsPage() {
                     Prescriptions
                   </div>
                   <div className="text-2xl font-bold">{stats?.month.prescriptions || 0}</div>
+                  <div className="text-xs text-muted-foreground">{stats?.labels.month || 'This month'}</div>
                 </div>
                 <div className="p-4 rounded-lg bg-chart-1/10 border border-chart-1/20">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -463,6 +472,7 @@ export default function ReportsPage() {
                     Revenue
                   </div>
                   <div className="text-2xl font-bold">{formatCurrency(stats?.month.revenue || 0)}</div>
+                  <div className="text-xs text-muted-foreground">{stats?.labels.month || 'This month'}</div>
                 </div>
                 <div className="p-4 rounded-lg bg-chart-3/10 border border-chart-3/20">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -470,6 +480,7 @@ export default function ReportsPage() {
                     Patients Seen
                   </div>
                   <div className="text-2xl font-bold">{stats?.month.patients || 0}</div>
+                  <div className="text-xs text-muted-foreground">{stats?.labels.month || 'This month'}</div>
                 </div>
               </div>
             )}

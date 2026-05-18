@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, format, addDays, differenceInCalendarDays, subYears } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, format, addDays, differenceInCalendarDays, subYears, startOfMonth, endOfMonth } from 'date-fns';
 
 export interface DailySummary {
   date: string;
@@ -22,6 +22,11 @@ export interface WeeklySummary {
 }
 
 export interface ReportStats {
+  labels: {
+    today: string;
+    week: string;
+    month: string;
+  };
   today: {
     consultations: number;
     prescriptions: number;
@@ -42,6 +47,31 @@ export interface ReportStats {
   };
 }
 
+async function getLatestReportReference(hospitalId: string) {
+  const [appointmentLatest, consultationLatest, prescriptionLatest, invoiceLatest] = await Promise.all([
+    supabase.from('appointments').select('scheduled_date').eq('hospital_id', hospitalId).order('scheduled_date', { ascending: false }).limit(1),
+    supabase.from('consultations').select('created_at').eq('hospital_id', hospitalId).order('created_at', { ascending: false }).limit(1),
+    supabase.from('prescriptions').select('created_at').eq('hospital_id', hospitalId).order('created_at', { ascending: false }).limit(1),
+    supabase.from('invoices').select('created_at').eq('hospital_id', hospitalId).order('created_at', { ascending: false }).limit(1),
+  ]);
+
+  const candidates = [
+    appointmentLatest.data?.[0]?.scheduled_date,
+    consultationLatest.data?.[0]?.created_at ? format(new Date(consultationLatest.data[0].created_at), 'yyyy-MM-dd') : null,
+    prescriptionLatest.data?.[0]?.created_at ? format(new Date(prescriptionLatest.data[0].created_at), 'yyyy-MM-dd') : null,
+    invoiceLatest.data?.[0]?.created_at ? format(new Date(invoiceLatest.data[0].created_at), 'yyyy-MM-dd') : null,
+  ].filter(Boolean) as string[];
+
+  const referenceDate = [...candidates].sort().slice(-1)[0] || format(new Date(), 'yyyy-MM-dd');
+  const referencePoint = new Date(`${referenceDate}T12:00:00`);
+
+  return {
+    referenceDate,
+    referencePoint,
+    isCurrentReference: referenceDate === format(new Date(), 'yyyy-MM-dd'),
+  };
+}
+
 export function useReportStats() {
   const { hospital } = useAuth();
 
@@ -50,13 +80,17 @@ export function useReportStats() {
     queryFn: async (): Promise<ReportStats> => {
       if (!hospital?.id) throw new Error('No hospital context');
 
-      const today = new Date();
-      const startOfToday = startOfDay(today).toISOString();
-      const endOfToday = endOfDay(today).toISOString();
-      const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 }).toISOString();
-      const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 }).toISOString();
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      const { referenceDate, referencePoint, isCurrentReference } = await getLatestReportReference(hospital.id);
+
+      const startOfToday = startOfDay(referencePoint).toISOString();
+      const endOfToday = endOfDay(referencePoint).toISOString();
+      const startOfThisWeek = startOfWeek(referencePoint, { weekStartsOn: 1 }).toISOString();
+      const endOfThisWeek = endOfWeek(referencePoint, { weekStartsOn: 1 }).toISOString();
+      const startOfThisMonth = startOfMonth(referencePoint).toISOString();
+      const endOfThisMonth = endOfMonth(referencePoint).toISOString();
+      const todayLabel = isCurrentReference ? "Today's" : `Latest day (${format(referencePoint, 'MMM d')})`;
+      const weekLabel = isCurrentReference ? 'This week' : `Week of ${format(startOfWeek(referencePoint, { weekStartsOn: 1 }), 'MMM d')}`;
+      const monthLabel = isCurrentReference ? 'This month' : format(referencePoint, 'MMMM yyyy');
 
       // Today's stats
       const [todayConsultations, todayPrescriptions, todayRevenue, todayPatients] = await Promise.all([
@@ -83,8 +117,7 @@ export function useReportStats() {
           .select('id', { count: 'exact', head: true })
           .eq('hospital_id', hospital.id)
           .eq('status', 'completed')
-          .gte('scheduled_date', format(today, 'yyyy-MM-dd'))
-          .lte('scheduled_date', format(today, 'yyyy-MM-dd')),
+          .eq('scheduled_date', referenceDate),
       ]);
 
       // Week stats
@@ -112,8 +145,8 @@ export function useReportStats() {
           .select('id', { count: 'exact', head: true })
           .eq('hospital_id', hospital.id)
           .eq('status', 'completed')
-          .gte('scheduled_date', format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd'))
-          .lte('scheduled_date', format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')),
+          .gte('scheduled_date', format(startOfWeek(referencePoint, { weekStartsOn: 1 }), 'yyyy-MM-dd'))
+          .lte('scheduled_date', format(endOfWeek(referencePoint, { weekStartsOn: 1 }), 'yyyy-MM-dd')),
       ]);
 
       // Month stats
@@ -122,33 +155,38 @@ export function useReportStats() {
           .from('consultations')
           .select('id', { count: 'exact', head: true })
           .eq('hospital_id', hospital.id)
-          .gte('created_at', startOfMonth)
-          .lte('created_at', endOfMonth),
+          .gte('created_at', startOfThisMonth)
+          .lte('created_at', endOfThisMonth),
         supabase
           .from('prescriptions')
           .select('id', { count: 'exact', head: true })
           .eq('hospital_id', hospital.id)
-          .gte('created_at', startOfMonth)
-          .lte('created_at', endOfMonth),
+          .gte('created_at', startOfThisMonth)
+          .lte('created_at', endOfThisMonth),
         supabase
           .from('invoices')
           .select('paid_amount')
           .eq('hospital_id', hospital.id)
-          .gte('created_at', startOfMonth)
-          .lte('created_at', endOfMonth),
+          .gte('created_at', startOfThisMonth)
+          .lte('created_at', endOfThisMonth),
         supabase
           .from('appointments')
           .select('id', { count: 'exact', head: true })
           .eq('hospital_id', hospital.id)
           .eq('status', 'completed')
-          .gte('scheduled_date', format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd'))
-          .lte('scheduled_date', format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd')),
+          .gte('scheduled_date', format(startOfMonth(referencePoint), 'yyyy-MM-dd'))
+          .lte('scheduled_date', format(endOfMonth(referencePoint), 'yyyy-MM-dd')),
       ]);
 
       const sumRevenue = (data: { paid_amount: number }[] | null) =>
         data?.reduce((sum, inv) => sum + Number(inv.paid_amount || 0), 0) || 0;
 
       return {
+        labels: {
+          today: todayLabel,
+          week: weekLabel,
+          month: monthLabel,
+        },
         today: {
           consultations: todayConsultations.count || 0,
           prescriptions: todayPrescriptions.count || 0,
@@ -180,9 +218,9 @@ export function useDailyBreakdown(range?: { start: Date; end: Date }) {
     queryKey: ['daily-breakdown', hospital?.id, range?.start?.toISOString(), range?.end?.toISOString()],
     queryFn: async (): Promise<DailySummary[]> => {
       if (!hospital?.id) throw new Error('No hospital context');
-
-      const startDate = range?.start ? startOfDay(range.start) : startOfDay(subDays(new Date(), 6));
-      const endDate = range?.end ? endOfDay(range.end) : endOfDay(new Date());
+      const { referencePoint } = await getLatestReportReference(hospital.id);
+      const startDate = range?.start ? startOfDay(range.start) : startOfDay(subDays(referencePoint, 6));
+      const endDate = range?.end ? endOfDay(range.end) : endOfDay(referencePoint);
       const dayCount = Math.min(365, differenceInCalendarDays(endDate, startDate) + 1);
 
       const [consultations, prescriptions, invoices, appointments] = await Promise.all([

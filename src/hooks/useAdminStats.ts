@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, startOfMonth, startOfWeek } from 'date-fns';
+import { format, parseISO, startOfMonth, startOfWeek } from 'date-fns';
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { devLog } from '@/utils/sanitize';
@@ -9,7 +9,10 @@ import { devLog } from '@/utils/sanitize';
 export interface AdminStats {
   totalPatients: number;
   newPatientsThisMonth: number;
+  patientGrowthLabel: string;
   todayAppointments: number;
+  appointmentMetricLabel: string;
+  appointmentMetricSubtitle: string;
   completedToday: number;
   cancelledToday: number;
   activeStaff: number;
@@ -115,7 +118,10 @@ export function useAdminStats() {
         return {
           totalPatients: 0,
           newPatientsThisMonth: 0,
+          patientGrowthLabel: '+0 this month',
           todayAppointments: 0,
+          appointmentMetricLabel: "Today's Appointments",
+          appointmentMetricSubtitle: '0 completed, 0 cancelled',
           completedToday: 0,
           cancelledToday: 0,
           activeStaff: 0,
@@ -137,27 +143,88 @@ export function useAdminStats() {
       // Client-side timezone-aware queries ensure consistency across dashboard/appointments/queue modules
       const today = new Date().toISOString().split('T')[0];
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const todayStart = `${today}T00:00:00`;
 
       // Fetch critical KPI data directly (not via stale RPC)
       const [
         { count: patientsCount },
+        { count: newPatientsCount },
         { data: apptsData },
+        { data: latestAppointmentRows },
         { data: queueData },
         { data: labsData },
+        { data: staffProfiles },
+        { data: staffRoles },
+        { data: invoiceData },
+        { data: pendingInvoicesData },
       ] = await Promise.all([
         supabase.from('patients').select('*', { count: 'exact', head: true }).eq('hospital_id', hospital.id).eq('is_active', true),
+        supabase.from('patients').select('*', { count: 'exact', head: true }).eq('hospital_id', hospital.id).gte('created_at', monthStart),
         supabase.from('appointments').select('id, status').eq('hospital_id', hospital.id).eq('scheduled_date', today),
-        supabase.from('patient_queue').select('status').eq('hospital_id', hospital.id),
+        supabase.from('appointments').select('scheduled_date').eq('hospital_id', hospital.id).order('scheduled_date', { ascending: false }).limit(1),
+        supabase.from('patient_queue').select('status').eq('hospital_id', hospital.id).gte('created_at', todayStart),
         supabase.from('lab_orders').select('status, is_critical').eq('hospital_id', hospital.id),
+        supabase.from('profiles').select('id, user_id').eq('hospital_id', hospital.id).eq('is_staff', true),
+        supabase.from('user_roles').select('user_id, role').eq('hospital_id', hospital.id),
+        supabase.from('invoices').select('paid_amount').eq('hospital_id', hospital.id).gte('created_at', monthStart),
+        supabase.from('invoices').select('id, total, paid_amount').eq('hospital_id', hospital.id).eq('status', 'pending'),
       ]);
+
+      const staffUserIds = new Set((staffProfiles || []).map((profile: any) => profile.user_id).filter(Boolean));
+      const liveStaffByRole = (staffRoles || []).reduce<Record<string, number>>((acc, role: any) => {
+        if (!staffUserIds.has(role.user_id)) return acc;
+        acc[role.role] = (acc[role.role] || 0) + 1;
+        return acc;
+      }, {});
+
+      const liveMonthlyRevenue = (invoiceData || []).reduce(
+        (sum: number, invoice: any) => sum + Number(invoice.paid_amount || 0),
+        0,
+      );
+      const livePendingAmount = (pendingInvoicesData || []).reduce(
+        (sum: number, invoice: any) => sum + Math.max(0, Number(invoice.total || 0) - Number(invoice.paid_amount || 0)),
+        0,
+      );
+
+      let appointmentMetricLabel = "Today's Appointments";
+      let appointmentMetricSubtitle = `${apptsData?.filter((a: any) => a.status === 'completed').length || 0} completed, ${apptsData?.filter((a: any) => a.status === 'cancelled').length || 0} cancelled`;
+      let appointmentRows = apptsData || [];
+      const latestAppointmentDate = latestAppointmentRows?.[0]?.scheduled_date as string | undefined;
+
+      if (appointmentRows.length === 0 && latestAppointmentDate && latestAppointmentDate !== today) {
+        const { data: fallbackAppointments } = await supabase
+          .from('appointments')
+          .select('id, status')
+          .eq('hospital_id', hospital.id)
+          .eq('scheduled_date', latestAppointmentDate);
+
+        appointmentRows = fallbackAppointments || [];
+        appointmentMetricLabel = 'Latest Scheduled Appointments';
+        appointmentMetricSubtitle = `Showing ${format(parseISO(latestAppointmentDate), 'MMM d')} seeded activity`;
+      }
+
+      const patientGrowthLabel = (newPatientsCount || 0) > 0
+        ? `+${newPatientsCount || 0} this month`
+        : (patientsCount || 0) > 0
+          ? 'Seeded from earlier months'
+          : '+0 this month';
 
       // Build live stats object with correct counts
       const liveStats = {
         totalPatients: patientsCount || 0,
-        todayAppointments: apptsData?.length || 0,
-        completedToday: apptsData?.filter((a: any) => a.status === 'completed').length || 0,
-        cancelledToday: apptsData?.filter((a: any) => a.status === 'cancelled').length || 0,
-        queueWaiting: queueData?.filter((q: any) => q.status === 'waiting' || q.status === 'called').length || 0,
+        newPatientsThisMonth: newPatientsCount || 0,
+        patientGrowthLabel,
+        todayAppointments: appointmentRows.length || 0,
+        appointmentMetricLabel,
+        appointmentMetricSubtitle,
+        completedToday: appointmentRows.filter((a: any) => a.status === 'completed').length || 0,
+        cancelledToday: appointmentRows.filter((a: any) => a.status === 'cancelled').length || 0,
+        activeStaff: staffProfiles?.length || 0,
+        staffByRole: liveStaffByRole,
+        monthlyRevenue: liveMonthlyRevenue,
+        pendingInvoices: pendingInvoicesData?.length || 0,
+        pendingAmount: livePendingAmount,
+        queueWaiting: queueData?.filter((q: any) => q.status === 'waiting').length || 0,
         queueInService: queueData?.filter((q: any) => q.status === 'in_service').length || 0,
         pendingLabOrders: labsData?.filter((l: any) => l.status === 'pending').length || 0,
         criticalLabOrders: labsData?.filter((l: any) => l.status === 'pending' && l.is_critical).length || 0,
@@ -182,21 +249,24 @@ export function useAdminStats() {
       // Merge: live-queried critical stats override RPC results for consistency
       return {
         totalPatients: liveStats.totalPatients,
-        newPatientsThisMonth: rpcStats.newPatientsThisMonth || 0,
+        newPatientsThisMonth: liveStats.newPatientsThisMonth,
+        patientGrowthLabel: liveStats.patientGrowthLabel,
         todayAppointments: liveStats.todayAppointments,
+        appointmentMetricLabel: liveStats.appointmentMetricLabel,
+        appointmentMetricSubtitle: liveStats.appointmentMetricSubtitle,
         completedToday: liveStats.completedToday,
         cancelledToday: liveStats.cancelledToday,
-        activeStaff: rpcStats.activeStaff || 0,
-        staffByRole: rpcStats.staffByRole || {},
-        monthlyRevenue: rpcStats.monthlyRevenue || 0,
-        pendingInvoices: rpcStats.pendingInvoices || 0,
-        pendingAmount: rpcStats.pendingAmount || 0,
-        avgWaitTime: rpcStats.avgWaitTime || 15,
+        activeStaff: liveStats.activeStaff,
+        staffByRole: Object.keys(liveStats.staffByRole).length > 0 ? liveStats.staffByRole : (rpcStats.staffByRole || {}),
+        monthlyRevenue: liveStats.monthlyRevenue,
+        pendingInvoices: liveStats.pendingInvoices,
+        pendingAmount: liveStats.pendingAmount,
+        avgWaitTime: typeof rpcStats.avgWaitTime === 'number' ? rpcStats.avgWaitTime : 0,
         pendingPrescriptions: rpcStats.pendingPrescriptions || 0,
         pendingLabOrders: liveStats.pendingLabOrders,
         queueWaiting: liveStats.queueWaiting,
         queueInService: liveStats.queueInService,
-        bedOccupancy: rpcStats.bedOccupancy || 0,
+        bedOccupancy: typeof rpcStats.bedOccupancy === 'number' ? rpcStats.bedOccupancy : 0,
         criticalLabOrders: liveStats.criticalLabOrders,
       };
     },
@@ -259,7 +329,7 @@ export function useStaffOverview() {
         name: `${s.first_name} ${s.last_name}`,
         role: roleMap.get(s.user_id) || 'staff',
         status: 'online' as const,
-        todayPatients: consultationCounts.get(s.user_id) || 0,
+          todayPatients: consultationCounts.get(s.id) || 0,
         lastActive: null,
       }));
     },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, FileText, Save, Download, Upload } from 'lucide-react';
+import { Mic, FileText, Save, Download } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +23,7 @@ interface ClinicalNote {
 
 /**
  * Voice-to-Text Clinical Documentation Page
- * Demonstrates HIPAA-compliant speech recognition for clinical notes
+ * Voice-to-text workflow for clinical notes.
  */
 const VoiceClinicalNotesPage: React.FC = () => {
   const { toast } = useToast();
@@ -33,7 +33,6 @@ const VoiceClinicalNotesPage: React.FC = () => {
     voiceTranscript: '',
   });
   const [notes, setNotes] = useState<ClinicalNote[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
 
   // Handle voice transcript changes
   const handleTranscriptChange = (transcript: string) => {
@@ -133,7 +132,7 @@ const VoiceClinicalNotesPage: React.FC = () => {
           Voice Clinical Documentation
         </h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          HIPAA-compliant speech-to-text for clinical notes with medical terminology recognition
+          Speech-to-text workspace for clinical documentation
         </p>
       </div>
 
@@ -145,10 +144,9 @@ const VoiceClinicalNotesPage: React.FC = () => {
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-blue-900">HIPAA Compliant</h3>
+              <h3 className="font-semibold text-blue-900">Secure Clinical Dictation</h3>
               <p className="text-sm text-blue-700">
-                All voice data is encrypted, transcripts are sanitized, and operations are fully audited.
-                Voice input supports medical terminology recognition and auto-correction.
+                Recording starts only when a clinician begins a session. Idle or disconnected status means no active voice session is running.
               </p>
             </div>
           </div>
@@ -318,29 +316,25 @@ const VoiceClinicalNotesPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Technical Information */}
+      {/* Service Information */}
       <Card className="border-muted">
         <CardHeader>
-          <CardTitle className="text-lg">Technical Implementation</CardTitle>
+          <CardTitle className="text-lg">Voice Service Status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <h4 className="font-semibold mb-2">Supported Providers:</h4>
+              <h4 className="font-semibold mb-2">Current Mode:</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li>• Web Speech API (Browser native)</li>
-                <li>• Azure Speech Services</li>
-                <li>• Google Speech-to-Text</li>
-                <li>• AWS Transcribe</li>
+                <li>Browser speech recognition when available</li>
+                <li>Manual note editing remains available</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-2">Security Features:</h4>
+              <h4 className="font-semibold mb-2">Clinical Safeguards:</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li>• End-to-end encryption</li>
-                <li>• PHI sanitization</li>
-                <li>• Full audit trails</li>
-                <li>• Medical terminology recognition</li>
+                <li>Clinician review before saving</li>
+                <li>Clear idle state before recording starts</li>
               </ul>
             </div>
           </div>

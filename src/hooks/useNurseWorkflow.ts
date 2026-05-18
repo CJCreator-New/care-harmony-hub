@@ -639,7 +639,7 @@ export const useRecordMedicationAdministration = () => {
           ...data,
           administered_by: profile?.id,
           hospital_id: profile?.hospital_id,
-          administered_at: new Date().toISOString(),
+          administered_at: data.administered_at || new Date().toISOString(),
         })
         .select()
         .single();
@@ -721,6 +721,16 @@ export function useNurseWorkflow() {
         .eq('queue_entry_id', queueId);
 
       if (error) throw error;
+
+      await supabase
+        .from('patient_queue')
+        .update({
+          status: 'waiting',
+          notes: data.chief_complaint || data.triage_notes || null,
+          service_start_time: null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', queueId);
     } catch (err) {
       console.error('Error marking patient ready for doctor:', err);
       throw err;

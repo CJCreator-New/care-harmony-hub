@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
-import { loginAs } from '../fixtures/auth.fixture';
-import { createTestPatient, createTestPrescription } from '../fixtures/testdata.fixture';
+import { loginAs } from './fixtures/auth.fixture';
+import { createTestPatient, createTestPrescription } from './fixtures/test-data.fixture';
 
 /**
  * PHASE 2 STRESS & EDGE CASE TEST SUITE

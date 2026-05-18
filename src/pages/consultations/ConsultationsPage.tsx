@@ -22,7 +22,7 @@ import {
 import { Plus, Search, Stethoscope, Clock, User } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useConsultations, CONSULTATION_STEPS, useGetOrCreateConsultation } from "@/hooks/useConsultations";
-import { format } from "date-fns";
+import { differenceInHours, format, isToday } from "date-fns";
 import { StartConsultationModal } from "@/components/consultations/StartConsultationModal";
 import { usePermissions } from '@/lib/hooks';
 
@@ -77,8 +77,31 @@ export default function ConsultationsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status: string) => {
+  const isStaleConsultation = (consultation: { status: string; started_at: string | null; created_at: string }) => {
+    if (consultation.status === "completed") return false;
+    const referenceTime = consultation.started_at || consultation.created_at;
+    return differenceInHours(new Date(), new Date(referenceTime)) > 24;
+  };
+
+  const latestConsultationDate = consultations?.[0]?.created_at
+    ? new Date(consultations[0].created_at)
+    : null;
+  const todaysTotal = consultations?.filter((c) => isToday(new Date(c.created_at))).length || 0;
+  const fallbackDayTotal = latestConsultationDate
+    ? consultations?.filter((c) => format(new Date(c.created_at), "yyyy-MM-dd") === format(latestConsultationDate, "yyyy-MM-dd")).length || 0
+    : 0;
+  const totalLabel = todaysTotal > 0
+    ? "Today's Total"
+    : latestConsultationDate
+      ? `Latest Activity (${format(latestConsultationDate, "MMM d")})`
+      : "Today's Total";
+
+  const getStatusLabel = (status: string) => {
     const step = CONSULTATION_STEPS.find((s) => s.status === status);
+    return step?.label || status;
+  };
+
+  const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       pending: "bg-muted text-muted-foreground",
       patient_overview: "bg-blue-100 text-blue-800",
@@ -90,7 +113,7 @@ export default function ConsultationsPage() {
     };
     return (
       <Badge className={colors[status] || "bg-muted"}>
-        {step?.label || status}
+        {getStatusLabel(status)}
       </Badge>
     );
   };
@@ -123,8 +146,11 @@ export default function ConsultationsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {consultations?.filter((c) => c.status !== "completed").length || 0}
+                {consultations?.filter((c) => c.status !== "completed" && !isStaleConsultation(c)).length || 0}
               </div>
+              <p className="text-xs text-muted-foreground">
+                {consultations?.filter((c) => c.status !== "completed" && isStaleConsultation(c)).length || 0} overdue
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -151,16 +177,18 @@ export default function ConsultationsPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Total</CardTitle>
+              <CardTitle className="text-sm font-medium">{totalLabel}</CardTitle>
               <Stethoscope className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {consultations?.filter((c) => {
-                  const today = new Date().toISOString().split("T")[0];
-                  return c.created_at.startsWith(today);
-                }).length || 0}
+                {todaysTotal > 0 ? todaysTotal : fallbackDayTotal}
               </div>
+              {todaysTotal === 0 && latestConsultationDate && (
+                <p className="text-xs text-muted-foreground">
+                  Showing the most recent consultation day in the current dataset
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -232,7 +260,14 @@ export default function ConsultationsPage() {
                         {consultation.patient?.first_name} {consultation.patient?.last_name}
                       </TableCell>
                       <TableCell>{consultation.patient?.mrn}</TableCell>
-                      <TableCell>{getStatusBadge(consultation.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(consultation.status)}
+                          {isStaleConsultation(consultation) && (
+                            <Badge className="bg-amber-100 text-amber-800">Overdue</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>Step {consultation.current_step} of 5</TableCell>
                       <TableCell>
                         {consultation.started_at

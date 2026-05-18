@@ -38,6 +38,17 @@ export function RealTimeDashboard() {
     );
   }
 
+  const apiResponseTime = Number(systemStatus?.api?.avg_response_time || 0);
+  const databaseConnections = Number(systemStatus?.database?.connections || 0);
+  const apiPerformanceLabel = apiResponseTime > 0 ? `${apiResponseTime}ms` : 'Awaiting data';
+  const apiPerformanceSubtitle = apiResponseTime > 0
+    ? `${systemStatus?.api?.requests_per_minute || 0} req/min`
+    : 'No live API sample yet';
+  const databaseHealthLabel = systemStatus?.database?.status || 'Monitoring';
+  const databaseHealthSubtitle = databaseConnections > 0
+    ? `${databaseConnections} connections`
+    : 'Live connection count unavailable';
+
   return (
     <div className="space-y-6">
       {/* System Health Overview */}
@@ -77,10 +88,10 @@ export function RealTimeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {systemStatus?.api?.avg_response_time || 0}ms
+              {apiPerformanceLabel}
             </div>
             <p className="text-xs text-muted-foreground">
-              {systemStatus?.api?.requests_per_minute || 0} req/min
+              {apiPerformanceSubtitle}
             </p>
           </CardContent>
         </Card>
@@ -92,10 +103,10 @@ export function RealTimeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold capitalize">
-              {systemStatus?.database?.status || 'Healthy'}
+              {databaseHealthLabel}
             </div>
             <p className="text-xs text-muted-foreground">
-              {systemStatus?.database?.connections || 0} connections
+              {databaseHealthSubtitle}
             </p>
           </CardContent>
         </Card>

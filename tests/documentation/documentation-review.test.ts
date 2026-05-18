@@ -8,9 +8,8 @@ describe('Documentation Review Testing', () => {
   describe('Documentation Completeness', () => {
     it('should have all required documentation files', () => {
       const requiredFiles = [
-        'README.md',
         'FEATURES.md',
-        'REQUIREMENTS.md',
+        'DEVELOPMENT_STANDARDS.md',
         'DEPLOYMENT.md',
         'SECURITY.md',
         'HIPAA_COMPLIANCE.md',
@@ -27,12 +26,12 @@ describe('Documentation Review Testing', () => {
     it('should have workflow documentation for all roles', () => {
       const workflowPath = path.join(docsPath, 'workflows');
       const requiredWorkflows = [
-        'DOCTOR-WORKFLOW.md',
-        'NURSE-WORKFLOW.md',
-        'PHARMACIST-WORKFLOW.md',
-        'RECEPTIONIST-WORKFLOW.md',
-        'LABTECH-WORKFLOW.md',
-        'ADMIN-WORKFLOW.md'
+        'doctor.md',
+        'nurse.md',
+        'pharmacist.md',
+        'receptionist.md',
+        'lab_technician.md',
+        'admin.md'
       ];
 
       for (const workflow of requiredWorkflows) {

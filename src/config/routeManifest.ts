@@ -62,6 +62,7 @@ export const routeManifest: AppRouteManifestGroup[] = [
       // Temporarily disabled: feature incomplete (BUG-005)
         // { label: 'Smart Scheduler', href: '/scheduler', icon: Clock, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'appointments', releaseTier: 'tier2', testOwner: 'e2e' },
       { label: 'Queue Management', href: '/queue', icon: ClipboardList, allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist'], requiredPermission: 'queue:read', releaseTier: 'tier1', testOwner: 'integration' },
+      { label: 'Care Protocols', href: '/nurse/protocols', icon: ClipboardList, allowedRoles: ['admin', 'nurse'], requiredPermission: 'vitals:write', releaseTier: 'tier2', testOwner: 'integration' },
     ],
   },
   {
@@ -117,15 +118,15 @@ export const routeManifest: AppRouteManifestGroup[] = [
       { label: 'Staff Performance', href: '/settings/performance', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'staff-performance', releaseTier: 'tier1', testOwner: 'integration' },
       { label: 'Activity Logs', href: '/settings/activity', icon: ClipboardList, allowedRoles: ['admin'], requiredPermission: 'activity-logs', releaseTier: 'tier1', testOwner: 'api-security' },
       { label: 'System Monitoring', href: '/settings/monitoring', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'system-monitoring', releaseTier: 'tier1', testOwner: 'api-security' },
-      { label: 'System Health', href: '/settings/health', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'system-health', releaseTier: 'tier3', testOwner: 'observability' },
-      { label: 'Audit Logs', href: '/settings/audit-logs', icon: FileText, allowedRoles: ['admin'], requiredPermission: 'audit-logs', releaseTier: 'tier3', testOwner: 'e2e' },
+      { label: 'System Health', href: '/settings/health', icon: Activity, allowedRoles: ['admin'], requiredPermission: 'system-health', releaseTier: 'tier3', featureFlag: 'system_health', testOwner: 'observability' },
+      { label: 'Audit Logs', href: '/settings/audit-logs', icon: FileText, allowedRoles: ['admin'], requiredPermission: 'audit-logs', releaseTier: 'tier3', featureFlag: 'audit_logs', testOwner: 'e2e' },
       { label: 'Hospital Settings', href: '/settings', icon: Settings, allowedRoles: ['admin'], requiredPermission: 'settings', releaseTier: 'tier1', testOwner: 'integration' },
     ],
   },
   {
     label: 'Business Operations',
     icon: BarChart3,
-    allowedRoles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
+    allowedRoles: ['admin', 'receptionist', 'pharmacist', 'lab_technician'],
     items: [
       { label: 'Billing', href: '/billing', icon: CreditCard, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'billing:read', releaseTier: 'tier1', testOwner: 'integration' },
       { label: 'Kiosk', href: '/kiosk', icon: Building, allowedRoles: ['admin', 'receptionist'], requiredPermission: 'patients', releaseTier: 'tier2', testOwner: 'e2e' },
@@ -154,4 +155,3 @@ export const flatRouteManifest = routeManifest.flatMap((group) =>
     group: group.label,
   })),
 );
-

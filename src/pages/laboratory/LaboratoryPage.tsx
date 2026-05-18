@@ -78,6 +78,29 @@ const priorityConfig: Record<string, { label: string; variant: 'default' | 'seco
   urgent: { label: 'Urgent', variant: 'destructive' },
 };
 
+const LAB_CATEGORY_BY_TEST: Record<string, string> = {
+  cbc: 'Hematology',
+  'complete blood count': 'Hematology',
+  hemoglobin: 'Hematology',
+  'blood glucose': 'Biochemistry',
+  glucose: 'Biochemistry',
+  creatinine: 'Biochemistry',
+  lipid: 'Biochemistry',
+  urinalysis: 'Urinalysis',
+  'urine routine': 'Urinalysis',
+  culture: 'Microbiology',
+  'x-ray': 'Radiology',
+  ultrasound: 'Radiology',
+};
+
+function getLabCategory(order: Pick<LabOrder, 'test_name' | 'test_category'>) {
+  const category = order.test_category?.trim();
+  if (category && category.toLowerCase() !== order.test_name?.trim().toLowerCase()) return category;
+  const testName = order.test_name?.toLowerCase() || '';
+  const match = Object.entries(LAB_CATEGORY_BY_TEST).find(([needle]) => testName.includes(needle));
+  return match?.[1] || 'Uncategorized';
+}
+
 function PatientName({ patientId }: { patientId: string }) {
   const { data: patient } = usePatient(patientId);
   return <span>{patient ? `${patient.first_name} ${patient.last_name}` : '...'}</span>;
@@ -406,7 +429,7 @@ export default function LaboratoryPage() {
                           <PatientName patientId={order.patient_id} />
                         </TableCell>
                         <TableCell>{order.test_name}</TableCell>
-                        <TableCell>{order.test_category || '--'}</TableCell>
+                        <TableCell>{getLabCategory(order)}</TableCell>
                         <TableCell>
                           <Badge variant={order.priority ? (priorityConfig[order.priority]?.variant || 'default') : 'default'}>
                             {order.priority ? (priorityConfig[order.priority]?.label || order.priority) : '--'}

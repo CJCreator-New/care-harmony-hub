@@ -59,6 +59,7 @@ const NotificationsPage = lazy(() => import('../pages/notifications/Notification
 const DocumentsPage = lazy(() => import('../pages/documents/DocumentsPage'));
 const NurseCareProtocolsPage = lazy(() => import('../pages/nurse/NurseCareProtocolsPage'));
 const SmartSchedulerPage = lazy(() => import('../pages/receptionist/SmartSchedulerPage'));
+const KioskPage = lazy(() => import('../pages/receptionist/KioskPage'));
 const ClinicalPharmacyPage = lazy(() => import('../pages/pharmacy/ClinicalPharmacyPage'));
 const LabAutomationPage = lazy(() => import('../pages/lab/LabAutomationPage'));
 const WorkflowDashboard = lazy(() => import('../pages/integration/WorkflowDashboard'));
@@ -233,6 +234,8 @@ export const redirectRoutes: RouteDefinition[] = [
   { path: '/length-of-stay-forecast', element: <Navigate to="/length-of-stay-forecasting" replace /> },
   { path: '/resource-utilization', element: <Navigate to="/resource-utilization-optimization" replace /> },
   { path: '/analytics', element: <Navigate to="/reports" replace /> },
+  { path: '/workflow', element: <Navigate to="/integration/workflow" replace /> },
+  { path: '/administration', element: <Navigate to="/settings" replace /> },
 ];
 
 export const publicRoutes: RouteDefinition[] = [
@@ -300,6 +303,7 @@ export const protectedRoutes: RouteDefinition[] = [
   { path: '/documents', element: withRoleAccess(<DocumentsPage />, ['admin', 'doctor', 'nurse', 'receptionist']) },
   { path: '/scheduler', element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']) },
   { path: '/receptionist/smart-scheduler', element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']) },
+  { path: '/kiosk', element: withRoleAccess(<KioskPage />, ['admin', 'receptionist'], 'patients') },
   { path: '/nurse/protocols', element: withRoleAccess(<NurseCareProtocolsPage />, ['admin', 'nurse']) },
   { path: '/integration/workflow', element: withRoleAccess(<WorkflowDashboard />, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'], 'workflow-dashboard') },
   { path: '/workflow/optimization', element: withRoleAccess(<WorkflowOptimizationPage />, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']) },

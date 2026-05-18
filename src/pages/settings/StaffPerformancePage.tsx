@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStaffPerformance } from '@/hooks/useStaffPerformance';
-import { 
+import { format } from 'date-fns';
+import {
   Users, 
   Calendar, 
   Stethoscope, 
@@ -35,7 +36,11 @@ const roleColors: Record<string, string> = {
 const skeletonRowKeys = ['row-1', 'row-2', 'row-3'];
 
 function StaffPerformancePageContent() {
-  const { data: performance, isLoading } = useStaffPerformance();
+  const { data, isLoading } = useStaffPerformance();
+  const performance = data?.metrics;
+  const referenceLabel = data?.referenceDate
+    ? format(new Date(`${data.referenceDate}T12:00:00`), 'MMM d, yyyy')
+    : null;
 
   // Calculate totals
   const totals = performance?.reduce((acc, staff) => ({
@@ -67,6 +72,11 @@ function StaffPerformancePageContent() {
           <p className="text-muted-foreground">
             Track staff metrics including patients seen, appointments completed, and consultation times.
           </p>
+          {!isLoading && referenceLabel && !data?.isCurrentDateReference && (
+            <p className="text-sm text-muted-foreground">
+              Showing the latest seeded activity from {referenceLabel} because there is no current-day staff activity yet.
+            </p>
+          )}
         </div>
 
         {/* Summary Cards */}

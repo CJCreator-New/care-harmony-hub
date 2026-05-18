@@ -23,6 +23,7 @@ const makeChain = (overrides = {}) => ({
   eq: vi.fn().mockReturnThis(),
   gte: vi.fn().mockReturnThis(),
   order: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockReturnThis(),
   ...overrides,
 });
 

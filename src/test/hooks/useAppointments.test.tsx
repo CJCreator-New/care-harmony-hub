@@ -211,27 +211,43 @@ describe('useCheckInAppointment', () => {
   });
 
   it('calls get_next_queue_number rpc and inserts queue entry', async () => {
+    const chain = (overrides: Record<string, any>) => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      single: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockReturnThis(),
+      ...overrides,
+    });
+
     mockSupabaseClient.from
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
+      .mockReturnValueOnce(chain({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({
           data: { patient_id: 'patient-1', priority: 'normal', doctor_id: 'doctor-1', patient: { first_name: 'John', last_name: 'Doe' } },
           error: null,
         }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
+      }))
+      .mockReturnValueOnce(chain({
         update: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         select: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({ data: { ...mockAppointment, queue_number: 1 }, error: null }),
-      })
-      .mockReturnValueOnce({
-        ...mockSupabaseClient.from(),
+      }))
+      .mockReturnValueOnce(chain({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }))
+      .mockReturnValueOnce(chain({
         insert: vi.fn().mockResolvedValue({ error: null }),
-      });
+      }));
 
     mockSupabaseClient.rpc.mockResolvedValueOnce({ data: 1, error: null });
 

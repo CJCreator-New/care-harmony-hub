@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, Users, Clock, CheckCircle2, AlertTriangle, Award } from 'lucide-react';
 import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
+import { useDoctorStats } from '@/hooks/useDoctorStats';
 
 interface MetricData {
   name: string;
@@ -23,13 +24,24 @@ interface PeerComparison {
 
 export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | 'admin' }) {
   const { components: Recharts, loading: rechartsLoading } = useRecharts();
-  // Mock performance data - in a real app, this would come from an edge function/analytics service
-  const personalMetrics: MetricData[] = useMemo(() => [
-    { name: 'Patient Throughput', value: role === 'doctor' ? 18 : 24, peerAverage: 15, unit: 'daily', trend: 'up' },
-    { name: 'Completion Rate', value: 96, peerAverage: 92, unit: '%', trend: 'stable' },
-    { name: 'Avg Turnaround', value: 14, peerAverage: 18, unit: 'mins', trend: 'down' }, // down is good for time
-    { name: 'Patient Satisfaction', value: 4.8, peerAverage: 4.3, unit: '/ 5.0', trend: 'up' },
-  ], [role]);
+  const { data: doctorStats } = useDoctorStats();
+  const personalMetrics: MetricData[] = useMemo(() => {
+    if (role === 'doctor') {
+      return [
+        { name: 'Patient Throughput', value: doctorStats?.todaysPatients ?? 0, peerAverage: 12, unit: ' today', trend: (doctorStats?.todaysPatients ?? 0) >= 12 ? 'up' : 'stable' },
+        { name: 'Consultations Completed', value: doctorStats?.completedConsultations ?? 0, peerAverage: 8, unit: ' today', trend: (doctorStats?.completedConsultations ?? 0) >= 8 ? 'up' : 'stable' },
+        { name: 'Avg Turnaround', value: doctorStats?.avgConsultationDuration ?? 0, peerAverage: 18, unit: ' mins', trend: 'down' },
+        { name: 'Pending Follow-ups', value: doctorStats?.pendingFollowUps ?? 0, peerAverage: 3, unit: ' due', trend: (doctorStats?.pendingFollowUps ?? 0) > 3 ? 'down' : 'stable' },
+      ];
+    }
+
+    return [
+      { name: 'Patient Throughput', value: role === 'doctor' ? 18 : 24, peerAverage: 15, unit: 'daily', trend: 'up' },
+      { name: 'Completion Rate', value: 96, peerAverage: 92, unit: '%', trend: 'stable' },
+      { name: 'Avg Turnaround', value: 14, peerAverage: 18, unit: 'mins', trend: 'down' },
+      { name: 'Patient Satisfaction', value: 4.8, peerAverage: 4.3, unit: '/ 5.0', trend: 'up' },
+    ];
+  }, [doctorStats, role]);
 
   const radarData: PeerComparison[] = useMemo(() => [
     { metric: 'Accuracy', personal: 98, peerAvg: 94, top10: 99 },

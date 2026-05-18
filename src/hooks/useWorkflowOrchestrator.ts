@@ -61,6 +61,15 @@ const getErrorMessage = (error: unknown) => {
   return 'Unknown error';
 };
 
+const isMissingRelationError = (error: unknown, relationName: string) => {
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes(relationName.toLowerCase()) && (
+    message.includes('does not exist') ||
+    message.includes('could not find') ||
+    message.includes('not find the table')
+  );
+};
+
 export function useWorkflowOrchestrator() {
   const { hospital, profile, primaryRole } = useAuth();
   const queryClient = useQueryClient();
@@ -93,7 +102,13 @@ export function useWorkflowOrchestrator() {
         .select()
         .single();
 
-      if (eventError) throw eventError;
+      if (eventError) {
+        if (isMissingRelationError(eventError, 'workflow_events')) {
+          devLog('workflow_events table is unavailable; skipping workflow orchestration persistence.');
+          return;
+        }
+        throw eventError;
+      }
       eventRecordId = (eventRecord as any).id;
 
       // 2. Fetch active rules for this event type
@@ -149,6 +164,10 @@ export function useWorkflowOrchestrator() {
     } catch (error: any) {
       const message = getErrorMessage(error);
       console.error('Workflow orchestration failed:', sanitizeLogMessage(message), error);
+      if (isMissingRelationError(error, 'workflow_events')) {
+        devLog('Workflow orchestration skipped because workflow_events is not available in this environment.');
+        return;
+      }
       if (eventRecordId) {
         await supabase
           .from('workflow_events')

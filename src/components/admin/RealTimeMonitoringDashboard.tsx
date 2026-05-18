@@ -8,9 +8,9 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface SystemMetrics {
   activeUsers: number;
-  systemLoad: number;
-  responseTime: number;
-  errorRate: number;
+  systemLoad: number | null;
+  responseTime: number | null;
+  errorRate: number | null;
   patientFlow: number;
   staffUtilization: number;
 }
@@ -19,14 +19,12 @@ export const RealTimeMonitoringDashboard = () => {
   const { hospital } = useAuth();
   const [metrics, setMetrics] = useState<SystemMetrics>({
     activeUsers: 0,
-    systemLoad: 0,
-    responseTime: 0,
-    errorRate: 0,
+    systemLoad: null,
+    responseTime: null,
+    errorRate: null,
     patientFlow: 0,
     staffUtilization: 0
   });
-
-  const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
     if (!hospital?.id) return;
@@ -53,9 +51,9 @@ export const RealTimeMonitoringDashboard = () => {
 
       setMetrics({
         activeUsers: activeUsers || 0,
-        systemLoad: 0,       // Not measurable via client — requires server-side monitoring
-        responseTime: 0,     // Not measurable via client — requires APM tooling
-        errorRate: 0,        // Not measurable via client — requires server-side monitoring
+        systemLoad: null,
+        responseTime: null,
+        errorRate: null,
         patientFlow: patientFlow || 0,
         staffUtilization: calculateStaffUtilization(staffData || [])
       });
@@ -117,13 +115,24 @@ export const RealTimeMonitoringDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.systemLoad.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">
+              {metrics.systemLoad === null ? 'Unavailable' : `${metrics.systemLoad.toFixed(1)}%`}
+            </div>
             <Progress 
-              value={metrics.systemLoad} 
-              variant={getProgressVariant(metrics.systemLoad, { warning: 70, critical: 90 })}
+              value={metrics.systemLoad ?? 0}
+              variant={
+                metrics.systemLoad === null
+                  ? 'success'
+                  : getProgressVariant(metrics.systemLoad, { warning: 70, critical: 90 })
+              }
               className="mt-2"
-              aria-label={`System load: ${metrics.systemLoad.toFixed(1)} percent`}
+              aria-label={
+                metrics.systemLoad === null
+                  ? 'System load unavailable'
+                  : `System load: ${metrics.systemLoad.toFixed(1)} percent`
+              }
             />
+            <p className="text-xs text-muted-foreground mt-1">Requires server monitoring</p>
           </CardContent>
         </Card>
 
@@ -135,8 +144,10 @@ export const RealTimeMonitoringDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.responseTime.toFixed(0)}ms</div>
-            <p className="text-xs text-muted-foreground">Average response</p>
+            <div className="text-2xl font-bold">
+              {metrics.responseTime === null ? 'Unavailable' : `${metrics.responseTime.toFixed(0)}ms`}
+            </div>
+            <p className="text-xs text-muted-foreground">Requires APM telemetry</p>
           </CardContent>
         </Card>
 
@@ -148,13 +159,19 @@ export const RealTimeMonitoringDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.errorRate.toFixed(2)}%</div>
-            <Badge 
-              variant={getStatusBadgeVariant(metrics.errorRate, { warning: 2, critical: 5 })}
-              className="mt-1"
-            >
-              {metrics.errorRate < 2 ? 'Good' : metrics.errorRate < 5 ? 'Warning' : 'Critical'}
-            </Badge>
+            <div className="text-2xl font-bold">
+              {metrics.errorRate === null ? 'Unavailable' : `${metrics.errorRate.toFixed(2)}%`}
+            </div>
+            {metrics.errorRate === null ? (
+              <Badge variant="outline" className="mt-1">Not reported</Badge>
+            ) : (
+              <Badge 
+                variant={getStatusBadgeVariant(metrics.errorRate, { warning: 2, critical: 5 })}
+                className="mt-1"
+              >
+                {metrics.errorRate < 2 ? 'Good' : metrics.errorRate < 5 ? 'Warning' : 'Critical'}
+              </Badge>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -185,30 +202,41 @@ export const RealTimeMonitoringDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {metrics.systemLoad > 80 && (
+              {metrics.systemLoad !== null && metrics.systemLoad > 80 && (
                 <div className="flex items-center p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
                   <AlertTriangle className="w-4 h-4 text-yellow-600 mr-2" />
                   <span className="text-sm">High system load detected</span>
                 </div>
               )}
-              {metrics.errorRate > 3 && (
+              {metrics.errorRate !== null && metrics.errorRate > 3 && (
                 <div className="flex items-center p-2 bg-red-50 rounded border-l-4 border-red-400">
                   <AlertTriangle className="w-4 h-4 text-red-600 mr-2" />
                   <span className="text-sm">Elevated error rate</span>
                 </div>
               )}
-              {metrics.responseTime > 400 && (
+              {metrics.responseTime !== null && metrics.responseTime > 400 && (
                 <div className="flex items-center p-2 bg-orange-50 rounded border-l-4 border-orange-400">
                   <Clock className="w-4 h-4 text-orange-600 mr-2" />
                   <span className="text-sm">Slow response times</span>
                 </div>
               )}
-              {metrics.systemLoad <= 80 && metrics.errorRate <= 3 && metrics.responseTime <= 400 && (
-                <div className="flex items-center p-2 bg-green-50 rounded border-l-4 border-green-400">
-                  <Activity className="w-4 h-4 text-green-600 mr-2" />
-                  <span className="text-sm">All systems operational</span>
+              {(metrics.systemLoad === null || metrics.errorRate === null || metrics.responseTime === null) && (
+                <div className="flex items-center p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                  <Activity className="w-4 h-4 text-blue-600 mr-2" />
+                  <span className="text-sm">Infrastructure metrics unavailable until server monitoring is connected</span>
                 </div>
               )}
+              {metrics.systemLoad !== null &&
+                metrics.errorRate !== null &&
+                metrics.responseTime !== null &&
+                metrics.systemLoad <= 80 &&
+                metrics.errorRate <= 3 &&
+                metrics.responseTime <= 400 && (
+                  <div className="flex items-center p-2 bg-green-50 rounded border-l-4 border-green-400">
+                    <Activity className="w-4 h-4 text-green-600 mr-2" />
+                    <span className="text-sm">All reported systems operational</span>
+                  </div>
+                )}
             </div>
           </CardContent>
         </Card>

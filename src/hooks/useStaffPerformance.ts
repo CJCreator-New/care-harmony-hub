@@ -18,23 +18,32 @@ export interface StaffPerformanceMetrics {
   labOrdersCreated: number;
 }
 
+export interface StaffPerformanceSnapshot {
+  metrics: StaffPerformanceMetrics[];
+  referenceDate: string;
+  isCurrentDateReference: boolean;
+}
+
 export function useStaffPerformance() {
   const { hospital } = useAuth();
 
   return useQuery({
     queryKey: ['staff-performance', hospital?.id],
     queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      if (!hospital?.id) {
+        return {
+          metrics: [],
+          referenceDate: format(new Date(), 'yyyy-MM-dd'),
+          isCurrentDateReference: true,
+        } as StaffPerformanceSnapshot;
+      }
 
       // Get all staff members
       const { data: staffMembers, error: staffError } = await supabase
         .from('profiles')
         .select('id, user_id, first_name, last_name')
-        .eq('hospital_id', hospital.id);
+        .eq('hospital_id', hospital.id)
+        .eq('is_staff', true);
 
       if (staffError) throw staffError;
 
@@ -43,7 +52,28 @@ export function useStaffPerformance() {
       const { data: userRoles } = await supabase
         .from('user_roles')
         .select('user_id, role')
+        .eq('hospital_id', hospital.id)
         .in('user_id', staffUserIds);
+
+      const [latestAppointment, latestConsultation, latestPrescription, latestLabOrder] = await Promise.all([
+        supabase.from('appointments').select('scheduled_date').eq('hospital_id', hospital.id).order('scheduled_date', { ascending: false }).limit(1),
+        supabase.from('consultations').select('created_at').eq('hospital_id', hospital.id).order('created_at', { ascending: false }).limit(1),
+        supabase.from('prescriptions').select('created_at').eq('hospital_id', hospital.id).order('created_at', { ascending: false }).limit(1),
+        supabase.from('lab_orders').select('created_at').eq('hospital_id', hospital.id).order('created_at', { ascending: false }).limit(1),
+      ]);
+
+      const referenceCandidates = [
+        latestAppointment.data?.[0]?.scheduled_date,
+        latestConsultation.data?.[0]?.created_at ? format(new Date(latestConsultation.data[0].created_at), 'yyyy-MM-dd') : null,
+        latestPrescription.data?.[0]?.created_at ? format(new Date(latestPrescription.data[0].created_at), 'yyyy-MM-dd') : null,
+        latestLabOrder.data?.[0]?.created_at ? format(new Date(latestLabOrder.data[0].created_at), 'yyyy-MM-dd') : null,
+      ].filter(Boolean) as string[];
+
+      const referenceDate = [...referenceCandidates].sort().slice(-1)[0] || format(new Date(), 'yyyy-MM-dd');
+      const referencePoint = new Date(`${referenceDate}T12:00:00`);
+      const monthStart = format(startOfMonth(referencePoint), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(referencePoint), 'yyyy-MM-dd');
+      const isCurrentDateReference = referenceDate === format(new Date(), 'yyyy-MM-dd');
 
       // Get appointments data
       const { data: appointments } = await supabase
@@ -58,21 +88,24 @@ export function useStaffPerformance() {
         .from('consultations')
         .select('*')
         .eq('hospital_id', hospital.id)
-        .gte('created_at', monthStart);
+        .gte('created_at', `${monthStart}T00:00:00`)
+        .lte('created_at', `${monthEnd}T23:59:59`);
 
       // Get prescriptions data
       const { data: prescriptions } = await supabase
         .from('prescriptions')
         .select('*')
         .eq('hospital_id', hospital.id)
-        .gte('created_at', monthStart);
+        .gte('created_at', `${monthStart}T00:00:00`)
+        .lte('created_at', `${monthEnd}T23:59:59`);
 
       // Get lab orders data
       const { data: labOrders } = await supabase
         .from('lab_orders')
         .select('*')
         .eq('hospital_id', hospital.id)
-        .gte('created_at', monthStart);
+        .gte('created_at', `${monthStart}T00:00:00`)
+        .lte('created_at', `${monthEnd}T23:59:59`);
 
       // Calculate metrics for each staff member
       const metrics: StaffPerformanceMetrics[] = staffMembers?.map(staff => {
@@ -85,23 +118,23 @@ export function useStaffPerformance() {
         ) || [];
         
         const staffConsultations = consultations?.filter(
-          c => c.doctor_id === staff.user_id || c.nurse_id === staff.user_id
+          c => c.doctor_id === staff.id || c.nurse_id === staff.id
         ) || [];
 
         const staffPrescriptions = prescriptions?.filter(
-          p => p.prescribed_by === staff.user_id
+          p => p.prescribed_by === staff.id
         ) || [];
 
         const staffLabOrders = labOrders?.filter(
-          l => l.ordered_by === staff.user_id
+          l => l.ordered_by === staff.id
         ) || [];
 
         // Calculate today's metrics
         const todayAppointments = staffAppointments.filter(
-          a => a.scheduled_date === today && a.status === 'completed'
+          a => a.scheduled_date === referenceDate && a.status === 'completed'
         );
         const todayConsultations = staffConsultations.filter(
-          c => c.completed_at && format(new Date(c.completed_at), 'yyyy-MM-dd') === today
+          c => c.completed_at && format(new Date(c.completed_at), 'yyyy-MM-dd') === referenceDate
         );
 
         // Calculate average consultation time
@@ -143,9 +176,13 @@ export function useStaffPerformance() {
       }) || [];
 
       // Filter out staff without clinical roles
-      return metrics.filter(m => 
-        ['doctor', 'nurse', 'pharmacist', 'lab_technician', 'receptionist'].includes(m.role)
-      );
+      return {
+        metrics: metrics.filter(m =>
+          ['doctor', 'nurse', 'pharmacist', 'lab_technician', 'receptionist'].includes(m.role)
+        ),
+        referenceDate,
+        isCurrentDateReference,
+      } as StaffPerformanceSnapshot;
     },
     enabled: !!hospital?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - expensive compute

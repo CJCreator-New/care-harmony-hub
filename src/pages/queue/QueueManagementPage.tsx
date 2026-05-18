@@ -62,10 +62,6 @@ export default function QueueManagementPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const waitingPatients = queue.filter(q => q.status === 'waiting');
-  const calledPatients = queue.filter(q => q.status === 'called');
-  const inServicePatients = queue.filter(q => q.status === 'in_service');
-
   // Get prep status for each patient
   const getPatientPrepStatus = (patientId: string) => {
     const checklist = checklists.find(c => c.patient_id === patientId);
@@ -74,6 +70,11 @@ export default function QueueManagementPage() {
     if (checklist.vitals_completed) return 'in_progress';
     return 'started';
   };
+
+  const readyPatients = queue.filter(q => q.status === 'waiting' && getPatientPrepStatus(q.patient_id) === 'ready');
+  const waitingPatients = queue.filter(q => q.status === 'waiting' && getPatientPrepStatus(q.patient_id) !== 'ready');
+  const calledPatients = queue.filter(q => q.status === 'called');
+  const inServicePatients = queue.filter(q => q.status === 'in_service');
 
   const getWaitTime = (checkInTime: string) => {
     const minutes = differenceInMinutes(new Date(), new Date(checkInTime));
@@ -167,9 +168,7 @@ export default function QueueManagementPage() {
   };
 
   // Count patients ready for doctor
-  const readyForDoctorCount = waitingPatients.filter(p => 
-    getPatientPrepStatus(p.patient_id) === 'ready'
-  ).length;
+  const readyForDoctorCount = readyPatients.length;
 
   return (
     <DashboardLayout>
@@ -270,15 +269,11 @@ export default function QueueManagementPage() {
                 <div className="space-y-3">
                   {waitingPatients.map((entry: QueueEntry) => {
                     const prepStatus = getPatientPrepStatus(entry.patient_id);
-                    const isReady = prepStatus === 'ready';
-                    
                     return (
                       <div
                         key={entry.id}
                         className={`flex flex-col gap-3 p-4 rounded-lg border ${
-                          isReady 
-                            ? 'border-success/50 bg-success/5'
-                            : entry.priority === 'emergency' || entry.priority === 'urgent'
+                          entry.priority === 'emergency' || entry.priority === 'urgent'
                             ? 'border-destructive/50 bg-destructive/5'
                             : 'bg-muted/30'
                         }`}
@@ -286,9 +281,7 @@ export default function QueueManagementPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className={`flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${
-                              isReady 
-                                ? 'bg-success/10 text-success' 
-                                : 'bg-primary/10 text-primary'
+                              'bg-primary/10 text-primary'
                             }`}>
                               #{entry.queue_number}
                             </div>
@@ -316,7 +309,7 @@ export default function QueueManagementPage() {
                         
                         {/* Action Buttons */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          {canRecordVitals && !isReady && (
+                          {canRecordVitals && (
                             <>
                               <Button 
                                 size="sm" 
@@ -336,18 +329,7 @@ export default function QueueManagementPage() {
                               </Button>
                             </>
                           )}
-                          {isReady && (
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleCallNext(entry.id)}
-                              className="bg-success hover:bg-success/90"
-                              disabled={!canManageQueue}
-                            >
-                              <Bell className="h-4 w-4 mr-1" />
-                              Call for Consultation
-                            </Button>
-                          )}
-                          {!isReady && canManageQueue && (
+                          {canManageQueue && (
                             <Button 
                               size="sm" 
                               variant="outline"
@@ -370,7 +352,6 @@ export default function QueueManagementPage() {
           <div className="space-y-6">
             {/* Ready for Doctor */}
             {(() => {
-              const readyPatients = waitingPatients.filter(p => getPatientPrepStatus(p.patient_id) === 'ready');
               if (readyPatients.length === 0) return null;
               return (
                 <Card className="border-success/50">

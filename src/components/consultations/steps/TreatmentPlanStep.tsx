@@ -316,7 +316,9 @@ export function TreatmentPlanStep({
 
       {/* Treatment Plan Text */}
       <div className="space-y-2">
-        <Label htmlFor="treatment_plan">Treatment Plan Notes</Label>
+        <Label htmlFor="treatment_plan">
+          Treatment Plan Notes <span className="text-destructive">*</span>
+        </Label>
         <Textarea
           id="treatment_plan"
           placeholder="Describe the overall treatment plan..."
@@ -391,12 +393,19 @@ export function TreatmentPlanStep({
             <Button 
               type="button" 
               onClick={addPrescription}
+              disabled={!newPrescription.medication_name.trim()}
               variant={newPrescriptionSafety?.requiresVerification ? 'destructive' : 'default'}
               aria-label="Add prescription"
+              title={!newPrescription.medication_name.trim() ? 'Enter a medication name first' : 'Add prescription'}
             >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+          {!newPrescription.medication_name.trim() && (
+            <p className="text-xs text-muted-foreground">
+              Enter a medication name to add the prescription.
+            </p>
+          )}
           {prescriptions.length > 0 && (
             <div className="space-y-2">
               {prescriptions.map((rx: Prescription, index: number) => (

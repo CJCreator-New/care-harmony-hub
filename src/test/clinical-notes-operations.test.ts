@@ -13,9 +13,11 @@ import {
   deleteDraft,
   restoreFromArchive,
 } from '@/utils/clinicalNoteService';
-import { logAudit } from '@/utils/sanitize';
 
-vi.mock('@/utils/sanitize');
+vi.mock('@/utils/sanitize', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+  sanitizeForLog: vi.fn((x) => x),
+}));
 
 // Test Fixtures
 const mockDoctor = {

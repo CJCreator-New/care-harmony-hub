@@ -29,8 +29,8 @@ export function useDashboardMetrics() {
 
       const today = new Date();
       const todayStart = startOfDay(today).toISOString();
-      const todayEnd = endOfDay(today).toISOString();
       const monthStart = startOfDay(new Date(today.getFullYear(), today.getMonth(), 1)).toISOString();
+      const todayDate = today.toISOString().split('T')[0];
 
       const [
         appointmentsResult,
@@ -45,14 +45,13 @@ export function useDashboardMetrics() {
       ] = await Promise.all([
         supabase.from('appointments').select('id', { count: 'exact' })
           .eq('hospital_id', hospital.id)
-          .gte('appointment_date', todayStart)
-          .lte('appointment_date', todayEnd),
+          .eq('scheduled_date', todayDate),
         supabase.from('appointments').select('id', { count: 'exact' })
           .eq('hospital_id', hospital.id).eq('status', 'completed')
-          .gte('appointment_date', todayStart).lte('appointment_date', todayEnd),
+          .eq('scheduled_date', todayDate),
         supabase.from('appointments').select('id', { count: 'exact' })
           .eq('hospital_id', hospital.id).eq('status', 'cancelled')
-          .gte('appointment_date', todayStart).lte('appointment_date', todayEnd),
+          .eq('scheduled_date', todayDate),
         supabase.from('patients').select('id', { count: 'exact' })
           .eq('hospital_id', hospital.id),
         supabase.from('patients').select('id', { count: 'exact' })
@@ -62,7 +61,9 @@ export function useDashboardMetrics() {
         supabase.from('prescriptions').select('id', { count: 'exact' })
           .eq('hospital_id', hospital.id).eq('status', 'active'),
         supabase.from('patient_queue').select('id, status', { count: 'exact' })
-          .eq('hospital_id', hospital.id).in('status', ['waiting', 'in_service', 'completed']),
+          .eq('hospital_id', hospital.id)
+          .gte('created_at', todayStart)
+          .in('status', ['waiting', 'called', 'in_service', 'completed']),
         supabase.from('billing').select('id', { count: 'exact' })
           .eq('hospital_id', hospital.id).eq('status', 'pending'),
       ]);
