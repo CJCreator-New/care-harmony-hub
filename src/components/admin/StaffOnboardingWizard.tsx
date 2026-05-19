@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStaffInvitations } from '@/hooks/useStaffInvitations';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   UserPlus, 
@@ -75,6 +76,7 @@ interface StaffOnboardingWizardProps {
 export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps) {
   const { hospital, user } = useAuth();
   const { toast } = useToast();
+  const { createInvitation } = useStaffInvitations();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -138,36 +140,35 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
     try {
       if (!user) throw new Error('Not authenticated');
 
-      // Create staff invitations - ONLY ONE AT A TIME to avoid unique constraint conflict on (hospital_id, email, status)
-      // The DB schema only supports one role per invitation record.
-      // We take the first role or loop carefully, but 409 will happen if we do multiple rows for same email.
-      const invitations = formData.roles.slice(0, 1).map(role => ({
-        hospital_id: hospital.id,
-        email: formData.email.toLowerCase(),
-        role: role,
-        invited_by: user.id,
-        token: crypto.randomUUID(),
-        status: 'pending' as const,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      }));
+      if (formData.roles.length === 0) throw new Error('No roles selected');
 
-      if (invitations.length === 0) throw new Error('No roles selected');
+      // Create invitations one-by-one via shared hook to centralize logic and avoid unique-constraint races
+      const results: Array<{ role: Role; success: boolean; message?: string }> = [];
 
-      const { error } = await supabase
-        .from('staff_invitations')
-        .insert(invitations as any);
-
-      if (error) {
-        if (error.code === '23505') {
-          throw new Error('An active invitation for this email already exists.');
+      for (const role of formData.roles) {
+        const res = await createInvitation({ email: formData.email, role });
+        if (res.error) {
+          // If an active invitation exists, continue but surface a warning
+          if (res.error.toString().toLowerCase().includes('invitation')) {
+            results.push({ role, success: false, message: res.error });
+          } else {
+            throw new Error(res.error || 'Failed to create invitation');
+          }
+        } else {
+          results.push({ role, success: true });
         }
-        throw error;
       }
 
-      toast({
-        title: 'Success!',
-        description: `Invitation sent to ${formData.email}.`,
-      });
+      const failed = results.filter(r => !r.success);
+      if (failed.length > 0) {
+        toast({
+          title: 'Partial success',
+          description: `Some invitations could not be created: ${failed.map(f => f.role).join(', ')}`,
+          variant: 'warning',
+        });
+      } else {
+        toast({ title: 'Success!', description: `Invitation(s) created for ${formData.email}.` });
+      }
 
       // Reset and close
       setFormData({
@@ -182,11 +183,7 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
       setIsOpen(false);
       onComplete?.();
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send invitation',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to send invitation', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

@@ -132,13 +132,7 @@ export function ScheduleAppointmentModal({
       const { data: doctorRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id")
-        .eq("hospital_id", hospital.id)
-        .eq("role", "doctor");
-
-      if (rolesError) throw rolesError;
-
-      const doctorUserIds = (doctorRoles || []).map((role) => role.user_id).filter(Boolean);
-      if (doctorUserIds.length === 0) return [];
+          .eq("hospital_id", hospitalId)
 
       const { data, error } = await supabase
         .from("profiles")

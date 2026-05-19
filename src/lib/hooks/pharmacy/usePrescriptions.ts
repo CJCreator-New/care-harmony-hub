@@ -294,8 +294,8 @@ export function useCreatePrescription() {
       );
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
-      queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'prescriptions' });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'prescription-stats' });
       toast.success('Prescription created successfully');
       // F3.2 — HIPAA §164.312(b): audit log for prescription create
       void logActivity({
@@ -337,8 +337,8 @@ export function usePrescriptionsRealtime() {
           filter: `hospital_id=eq.${hospital.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
-          queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
+          queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'prescriptions' });
+          queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'prescription-stats' });
         }
       )
       .subscribe();
@@ -355,11 +355,15 @@ export function useDispensePrescription() {
   const { logActivity } = useAudit();
 
   return useMutation({
-    mutationFn: async (prescriptionId: string) => {
+    mutationFn: async (payload: string | { id: string; batchNumber?: string; pharmacistInitials?: string; notes?: string }) => {
       if (!hasPermission(primaryRole, 'prescriptions:write')) {
         throw new Error('You do not have permission to dispense prescriptions');
       }
       if (!profile?.id || !hospital?.id) throw new Error('No profile/hospital context');
+
+      const prescriptionId = typeof payload === 'string' ? payload : payload.id;
+      const batchNumber = typeof payload === 'object' ? payload.batchNumber : undefined;
+      const pharmacistInitials = typeof payload === 'object' ? payload.pharmacistInitials : undefined;
 
       const { error } = await supabase
         .from('prescriptions')
@@ -380,12 +384,18 @@ export function useDispensePrescription() {
 
       if (itemsError) throw itemsError;
 
-      // Keep durable queue state synchronized with dispense lifecycle.
+
+      // Keep durable queue state synchronized with dispense lifecycle and record confirmation metadata.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: queueError } = await (supabase.from('prescription_queue') as any)
         .update({
           status: 'completed',
           updated_at: new Date().toISOString(),
+          metadata: {
+            confirmed_by_initials: pharmacistInitials ?? null,
+            batch_number: batchNumber ?? null,
+            confirmed_at: new Date().toISOString(),
+          },
         })
         .eq('hospital_id', hospital.id)
         .eq('prescription_id', prescriptionId);
@@ -395,15 +405,15 @@ export function useDispensePrescription() {
       return { id: prescriptionId };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
-      queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'prescriptions' });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'prescription-stats' });
       toast.success('Prescription dispensed successfully');
       // F3.2 — HIPAA §164.312(b): audit log for prescription dispense
       void logActivity({
         actionType: 'PRESCRIPTION_DISPENSED',
         entityType: 'prescriptions',
         entityId: data.id,
-        details: { dispensed_by: profile?.id },
+        details: { dispensed_by: profile?.id, pharmacist_initials: pharmacistInitials ?? null },
         severity: 'info',
       });
     },

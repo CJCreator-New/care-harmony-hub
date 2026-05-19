@@ -121,7 +121,15 @@ class RequestValidator {
         break;
 
       case 'number':
-        if (typeof value !== 'number' || isNaN(value)) {
+        // Accept numeric values as numbers or numeric strings (e.g., input fields)
+        if (typeof value === 'number') {
+          if (isNaN(value)) errors.push(`${rule.field} must be a number`);
+        } else if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed === '' || isNaN(Number(trimmed))) {
+            errors.push(`${rule.field} must be a number`);
+          }
+        } else {
           errors.push(`${rule.field} must be a number`);
         }
         break;

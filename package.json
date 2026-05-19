@@ -68,6 +68,7 @@
     "test:unit:watch": "vitest src/test",
     "test:coverage": "vitest run --coverage src/test",
     "type-check": "tsc --noEmit",
+    "graphify": "python .agents/skills/graphify/run_graphify.py",
     "validate:rls": "npx tsx scripts/validate-rls.ts",
     "validate:all": "npm run lint && npm run test && npm run validate:rls",
     "deploy:staging": "./scripts/deploy.sh staging",
