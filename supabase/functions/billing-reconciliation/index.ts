@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authorize } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
+import { withHospitalScope } from "../authorization/middleware.ts";
 import { validateRequest, validationErrorResponse } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -164,4 +165,4 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-serve((req) => withRateLimit(req, handler, { maxRequests: 20, windowMs: 60_000 }));
+serve((req) => withRateLimit(req, withHospitalScope(handler), { maxRequests: 20, windowMs: 60_000 }));

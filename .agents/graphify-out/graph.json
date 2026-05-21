@@ -61,12 +61,6 @@
       "id": "deploy.bat"
     },
     {
-      "id": "DEPLOYMENT_READINESS_CHECKLIST.md"
-    },
-    {
-      "id": "DEPLOYMENT_READINESS_REPORT_TIER2_TIER3.1.md"
-    },
-    {
       "id": "dev.log"
     },
     {
@@ -91,13 +85,7 @@
       "id": "e2e-test-results.log"
     },
     {
-      "id": "ENHANCEMENT_PLAN_STATUS.md"
-    },
-    {
       "id": "eslint.config.js"
-    },
-    {
-      "id": "FINAL_COMPLETION_SUMMARY.md"
     },
     {
       "id": "full-test.log"
@@ -107,9 +95,6 @@
     },
     {
       "id": "kong.yml"
-    },
-    {
-      "id": "MASTER_PROJECT_STATUS.md"
     },
     {
       "id": "nginx.conf"
@@ -142,12 +127,6 @@
       "id": "rollback.sh"
     },
     {
-      "id": "SESSION_COMPLETION_FINAL.md"
-    },
-    {
-      "id": "SESSION_STATUS_APRIL18.md"
-    },
-    {
       "id": "skills-lock.json"
     },
     {
@@ -176,9 +155,6 @@
     },
     {
       "id": "test2.log"
-    },
-    {
-      "id": "TIER54_ACCESSIBILITY_COMPLETE.md"
     },
     {
       "id": "tsconfig.app.json"
@@ -239,6 +215,9 @@
     },
     {
       "id": ".agents/skills/frontend-design/SKILL.md"
+    },
+    {
+      "id": ".agents/skills/graphify/analyze_graph.py"
     },
     {
       "id": ".agents/skills/graphify/README.md"
@@ -352,39 +331,6 @@
       "id": ".github/copilot-instructions.md"
     },
     {
-      "id": ".github/HP1_HOSPITAL_SCOPING_GUIDE.md"
-    },
-    {
-      "id": ".github/PHASE1_REFACTORING_PRIORITIES.md"
-    },
-    {
-      "id": ".github/PHASE1_WEEK1_KICKOFF.md"
-    },
-    {
-      "id": ".github/PHASE3_COMPLETE_SUMMARY.md"
-    },
-    {
-      "id": ".github/PHASE3_EXECUTION_TRACKER.md"
-    },
-    {
-      "id": ".github/PHASE3_KICKOFF_SUMMARY.md"
-    },
-    {
-      "id": ".github/PHASE3_MASTER_INDEX.md"
-    },
-    {
-      "id": ".github/PHASE3_MONDAY_KICKOFF.md"
-    },
-    {
-      "id": ".github/PHASE3_QUICK_START.md"
-    },
-    {
-      "id": ".github/PHASE3_SECURITY_KICKOFF.md"
-    },
-    {
-      "id": ".github/PHASE_AUDIT_SETUP.md"
-    },
-    {
       "id": ".github/pull_request_template.md"
     },
     {
@@ -455,6 +401,12 @@
     },
     {
       "id": ".husky/pre-commit"
+    },
+    {
+      "id": ".kilo/kilo.json"
+    },
+    {
+      "id": ".kilo/plans/1779180274984-quick-engine.md"
     },
     {
       "id": ".lovable/plan.md"
@@ -1070,21 +1022,6 @@
     },
     {
       "id": "docs/MONITORING_GUIDE.md"
-    },
-    {
-      "id": "docs/PHASE5_BLOCKING_ITEMS_ASSESSMENT.md"
-    },
-    {
-      "id": "docs/PHASE5_EXECUTION_PLAN.md"
-    },
-    {
-      "id": "docs/PHASE6_PRODUCTION_READINESS.md"
-    },
-    {
-      "id": "docs/PHASES_1_6_COMPLETE_ROADMAP.md"
-    },
-    {
-      "id": "docs/PHASE_2_EXECUTION_KICKOFF.md"
     },
     {
       "id": "docs/PRODUCTION_READINESS_REPORT.md"
@@ -6890,11 +6827,11 @@
     },
     {
       "source": "services/appointment-service/src/app.ts",
-      "target": "services/appointment-service/src/config/database.ts"
+      "target": "services/appointment-service/src/routes/appointment.ts"
     },
     {
       "source": "services/appointment-service/src/app.ts",
-      "target": "services/appointment-service/src/routes/appointment.ts"
+      "target": "services/appointment-service/src/config/database.ts"
     },
     {
       "source": "services/appointment-service/src/app.ts",
@@ -6938,6 +6875,10 @@
     },
     {
       "source": "services/appointment-service/src/services/appointment.ts",
+      "target": "services/appointment-service/src/types/appointment.ts"
+    },
+    {
+      "source": "services/appointment-service/src/services/appointment.ts",
       "target": "services/appointment-service/src/utils/encryption.ts"
     },
     {
@@ -6950,15 +6891,15 @@
     },
     {
       "source": "services/appointment-service/src/services/appointment.ts",
-      "target": "services/appointment-service/src/types/appointment.ts"
-    },
-    {
-      "source": "services/appointment-service/src/services/appointment.ts",
       "target": "services/appointment-service/src/utils/logger.ts"
     },
     {
       "source": "services/appointment-service/src/sync/AppointmentDataSynchronization.ts",
       "target": "services/appointment-service/src/sync/DataValidationService.ts"
+    },
+    {
+      "source": "services/appointment-service/src/sync/AppointmentDataSynchronization.ts",
+      "target": "services/appointment-service/src/sync/AppointmentSyncService.ts"
     },
     {
       "source": "services/appointment-service/src/sync/AppointmentDataSynchronization.ts",
@@ -6969,22 +6910,18 @@
       "target": "services/appointment-service/src/sync/KafkaEventListener.ts"
     },
     {
-      "source": "services/appointment-service/src/sync/AppointmentDataSynchronization.ts",
-      "target": "services/appointment-service/src/sync/AppointmentSyncService.ts"
-    },
-    {
       "source": "services/appointment-service/src/sync/AppointmentSyncService.ts",
       "target": "services/appointment-service/src/types/appointment.ts"
-    },
-    {
-      "source": "services/appointment-service/src/sync/AppointmentSyncService.ts",
-      "target": "services/appointment-service/src/config/database.ts"
     },
     {
       "source": "services/appointment-service/src/sync/AppointmentSyncService.ts",
       "target": "services/appointment-service/src/config/redis.ts"
     },
     {
+      "source": "services/appointment-service/src/sync/AppointmentSyncService.ts",
+      "target": "services/appointment-service/src/config/database.ts"
+    },
+    {
       "source": "services/appointment-service/src/sync/ConflictResolutionService.ts",
       "target": "services/appointment-service/src/types/appointment.ts"
     },
@@ -7010,11 +6947,11 @@
     },
     {
       "source": "services/appointment-service/src/utils/encryption.ts",
-      "target": "services/appointment-service/src/utils/logger.ts"
+      "target": "services/appointment-service/src/config/environment.ts"
     },
     {
       "source": "services/appointment-service/src/utils/encryption.ts",
-      "target": "services/appointment-service/src/config/environment.ts"
+      "target": "services/appointment-service/src/utils/logger.ts"
     },
     {
       "source": "services/appointment-service/src/utils/logger.ts",
@@ -7034,7 +6971,7 @@
     },
     {
       "source": "services/clinical-service/src/app.ts",
-      "target": "services/clinical-service/src/services/clinical.ts"
+      "target": "services/clinical-service/src/routes/clinical.ts"
     },
     {
       "source": "services/clinical-service/src/app.ts",
@@ -7042,11 +6979,7 @@
     },
     {
       "source": "services/clinical-service/src/app.ts",
-      "target": "services/clinical-service/src/routes/clinical.ts"
-    },
-    {
-      "source": "services/clinical-service/src/server.ts",
-      "target": "services/clinical-service/src/config/environment.ts"
+      "target": "services/clinical-service/src/services/clinical.ts"
     },
     {
       "source": "services/clinical-service/src/server.ts",
@@ -7054,7 +6987,7 @@
     },
     {
       "source": "services/clinical-service/src/server.ts",
-      "target": "services/clinical-service/src/config/database.ts"
+      "target": "services/clinical-service/src/config/environment.ts"
     },
     {
       "source": "services/clinical-service/src/server.ts",
@@ -7062,11 +6995,15 @@
     },
     {
       "source": "services/clinical-service/src/server.ts",
-      "target": "services/clinical-service/src/config/redis.ts"
+      "target": "services/clinical-service/src/config/database.ts"
     },
     {
       "source": "services/clinical-service/src/server.ts",
       "target": "services/clinical-service/src/utils/logger.ts"
+    },
+    {
+      "source": "services/clinical-service/src/server.ts",
+      "target": "services/clinical-service/src/config/redis.ts"
     },
     {
       "source": "services/clinical-service/src/config/database.ts",
@@ -7082,11 +7019,15 @@
     },
     {
       "source": "services/clinical-service/src/routes/clinical.ts",
-      "target": "services/clinical-service/src/utils/logger.ts"
+      "target": "services/clinical-service/src/services/clinical.ts"
     },
     {
       "source": "services/clinical-service/src/routes/clinical.ts",
-      "target": "services/clinical-service/src/services/clinical.ts"
+      "target": "services/clinical-service/src/utils/logger.ts"
+    },
+    {
+      "source": "services/clinical-service/src/services/clinical.ts",
+      "target": "services/clinical-service/src/services/workflowStateManager.ts"
     },
     {
       "source": "services/clinical-service/src/services/clinical.ts",
@@ -7098,23 +7039,19 @@
     },
     {
       "source": "services/clinical-service/src/services/clinical.ts",
-      "target": "services/clinical-service/src/config/kafka.ts"
-    },
-    {
-      "source": "services/clinical-service/src/services/clinical.ts",
       "target": "services/clinical-service/src/config/database.ts"
     },
     {
       "source": "services/clinical-service/src/services/clinical.ts",
-      "target": "services/clinical-service/src/utils/logger.ts"
-    },
-    {
-      "source": "services/clinical-service/src/services/clinical.ts",
-      "target": "services/clinical-service/src/services/workflowStateManager.ts"
-    },
-    {
-      "source": "services/clinical-service/src/services/clinical.ts",
       "target": "services/clinical-service/src/types/clinical.ts"
+    },
+    {
+      "source": "services/clinical-service/src/services/clinical.ts",
+      "target": "services/clinical-service/src/config/kafka.ts"
+    },
+    {
+      "source": "services/clinical-service/src/services/clinical.ts",
+      "target": "services/clinical-service/src/utils/logger.ts"
     },
     {
       "source": "services/clinical-service/src/services/workflowStateManager.ts",
@@ -7122,6 +7059,10 @@
     },
     {
       "source": "services/clinical-service/src/services/workflowStateManager.ts",
+      "target": "services/clinical-service/src/utils/logger.ts"
+    },
+    {
+      "source": "services/clinical-service/src/services/workflowStateManager.ts",
       "target": "services/clinical-service/src/config/kafka.ts"
     },
     {
@@ -7129,8 +7070,8 @@
       "target": "services/clinical-service/src/config/database.ts"
     },
     {
-      "source": "services/clinical-service/src/services/workflowStateManager.ts",
-      "target": "services/clinical-service/src/utils/logger.ts"
+      "source": "services/clinical-service/src/sync/ClinicalDataSynchronization.ts",
+      "target": "services/clinical-service/src/sync/ClinicalSyncService.ts"
     },
     {
       "source": "services/clinical-service/src/sync/ClinicalDataSynchronization.ts",
@@ -7145,8 +7086,8 @@
       "target": "services/clinical-service/src/sync/KafkaEventListener.ts"
     },
     {
-      "source": "services/clinical-service/src/sync/ClinicalDataSynchronization.ts",
-      "target": "services/clinical-service/src/sync/ClinicalSyncService.ts"
+      "source": "services/clinical-service/src/sync/ClinicalSyncService.ts",
+      "target": "services/clinical-service/src/config/redis.ts"
     },
     {
       "source": "services/clinical-service/src/sync/ClinicalSyncService.ts",
@@ -7155,10 +7096,6 @@
     {
       "source": "services/clinical-service/src/sync/ClinicalSyncService.ts",
       "target": "services/clinical-service/src/config/database.ts"
-    },
-    {
-      "source": "services/clinical-service/src/sync/ClinicalSyncService.ts",
-      "target": "services/clinical-service/src/config/redis.ts"
     },
     {
       "source": "services/clinical-service/src/sync/ConflictResolutionService.ts",
@@ -7178,11 +7115,11 @@
     },
     {
       "source": "services/clinical-service/src/test/clinical.routes.test.ts",
-      "target": "services/clinical-service/src/services/clinical.ts"
+      "target": "services/clinical-service/src/app.ts"
     },
     {
       "source": "services/clinical-service/src/test/clinical.routes.test.ts",
-      "target": "services/clinical-service/src/app.ts"
+      "target": "services/clinical-service/src/services/clinical.ts"
     },
     {
       "source": "services/clinical-service/src/test/clinical.service.test.ts",
@@ -7198,11 +7135,11 @@
     },
     {
       "source": "services/clinical-service/src/utils/encryption.ts",
-      "target": "services/clinical-service/src/utils/logger.ts"
+      "target": "services/clinical-service/src/config/environment.ts"
     },
     {
       "source": "services/clinical-service/src/utils/encryption.ts",
-      "target": "services/clinical-service/src/config/environment.ts"
+      "target": "services/clinical-service/src/utils/logger.ts"
     },
     {
       "source": "services/clinical-service/src/utils/logger.ts",
@@ -7222,6 +7159,10 @@
     },
     {
       "source": "services/laboratory-service/src/sync/LaboratoryDataSynchronization.ts",
+      "target": "services/laboratory-service/src/sync/LaboratorySyncService.ts"
+    },
+    {
+      "source": "services/laboratory-service/src/sync/LaboratoryDataSynchronization.ts",
       "target": "services/laboratory-service/src/sync/DataValidationService.ts"
     },
     {
@@ -7233,24 +7174,16 @@
       "target": "services/laboratory-service/src/sync/KafkaEventListener.ts"
     },
     {
-      "source": "services/laboratory-service/src/sync/LaboratoryDataSynchronization.ts",
-      "target": "services/laboratory-service/src/sync/LaboratorySyncService.ts"
-    },
-    {
       "source": "services/laboratory-service/src/sync/LaboratorySyncService.ts",
       "target": "services/laboratory-service/src/types/laboratory.ts"
-    },
-    {
-      "source": "services/patient-service/migrate.ts",
-      "target": "services/patient-service/src/utils/logger.ts"
     },
     {
       "source": "services/patient-service/migrate.ts",
       "target": "services/patient-service/src/config/database.ts"
     },
     {
-      "source": "services/patient-service/dist/app.js",
-      "target": "services/patient-service/dist/config/environment.js"
+      "source": "services/patient-service/migrate.ts",
+      "target": "services/patient-service/src/utils/logger.ts"
     },
     {
       "source": "services/patient-service/dist/app.js",
@@ -7258,27 +7191,31 @@
     },
     {
       "source": "services/patient-service/dist/app.js",
-      "target": "services/patient-service/dist/config/database.js"
-    },
-    {
-      "source": "services/patient-service/dist/app.js",
       "target": "services/patient-service/dist/config/redis.js"
-    },
-    {
-      "source": "services/patient-service/dist/app.js",
-      "target": "services/patient-service/dist/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/app.js",
       "target": "services/patient-service/dist/routes/index.js"
     },
     {
-      "source": "services/patient-service/dist/migrate.js",
-      "target": "services/patient-service/dist/src/utils/logger.js"
+      "source": "services/patient-service/dist/app.js",
+      "target": "services/patient-service/dist/config/environment.js"
+    },
+    {
+      "source": "services/patient-service/dist/app.js",
+      "target": "services/patient-service/dist/config/database.js"
+    },
+    {
+      "source": "services/patient-service/dist/app.js",
+      "target": "services/patient-service/dist/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/migrate.js",
       "target": "services/patient-service/dist/src/config/database.js"
+    },
+    {
+      "source": "services/patient-service/dist/migrate.js",
+      "target": "services/patient-service/dist/src/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/server.js",
@@ -7286,11 +7223,11 @@
     },
     {
       "source": "services/patient-service/dist/config/database.js",
-      "target": "services/patient-service/dist/config/environment.js"
+      "target": "services/patient-service/dist/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/config/database.js",
-      "target": "services/patient-service/dist/utils/logger.js"
+      "target": "services/patient-service/dist/config/environment.js"
     },
     {
       "source": "services/patient-service/dist/config/kafka.js",
@@ -7314,15 +7251,15 @@
     },
     {
       "source": "services/patient-service/dist/routes/patient.js",
-      "target": "services/patient-service/dist/types/patient.js"
-    },
-    {
-      "source": "services/patient-service/dist/routes/patient.js",
       "target": "services/patient-service/dist/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/routes/patient.js",
       "target": "services/patient-service/dist/services/patient.js"
+    },
+    {
+      "source": "services/patient-service/dist/routes/patient.js",
+      "target": "services/patient-service/dist/types/patient.js"
     },
     {
       "source": "services/patient-service/dist/services/patient.d.ts",
@@ -7338,11 +7275,11 @@
     },
     {
       "source": "services/patient-service/dist/services/patient.js",
-      "target": "services/patient-service/dist/config/kafka.js"
+      "target": "services/patient-service/dist/config/database.js"
     },
     {
       "source": "services/patient-service/dist/services/patient.js",
-      "target": "services/patient-service/dist/config/database.js"
+      "target": "services/patient-service/dist/config/kafka.js"
     },
     {
       "source": "services/patient-service/dist/services/patient.js",
@@ -7350,15 +7287,7 @@
     },
     {
       "source": "services/patient-service/dist/src/app.js",
-      "target": "services/patient-service/dist/src/config/environment.js"
-    },
-    {
-      "source": "services/patient-service/dist/src/app.js",
       "target": "services/patient-service/dist/src/config/kafka.js"
-    },
-    {
-      "source": "services/patient-service/dist/src/app.js",
-      "target": "services/patient-service/dist/src/config/database.js"
     },
     {
       "source": "services/patient-service/dist/src/app.js",
@@ -7366,11 +7295,19 @@
     },
     {
       "source": "services/patient-service/dist/src/app.js",
-      "target": "services/patient-service/dist/src/utils/logger.js"
+      "target": "services/patient-service/dist/src/routes/index.js"
     },
     {
       "source": "services/patient-service/dist/src/app.js",
-      "target": "services/patient-service/dist/src/routes/index.js"
+      "target": "services/patient-service/dist/src/config/environment.js"
+    },
+    {
+      "source": "services/patient-service/dist/src/app.js",
+      "target": "services/patient-service/dist/src/config/database.js"
+    },
+    {
+      "source": "services/patient-service/dist/src/app.js",
+      "target": "services/patient-service/dist/src/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/src/server.js",
@@ -7378,11 +7315,11 @@
     },
     {
       "source": "services/patient-service/dist/src/config/database.js",
-      "target": "services/patient-service/dist/src/config/environment.js"
+      "target": "services/patient-service/dist/src/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/src/config/database.js",
-      "target": "services/patient-service/dist/src/utils/logger.js"
+      "target": "services/patient-service/dist/src/config/environment.js"
     },
     {
       "source": "services/patient-service/dist/src/config/kafka.js",
@@ -7406,11 +7343,11 @@
     },
     {
       "source": "services/patient-service/dist/src/routes/patient.js",
-      "target": "services/patient-service/dist/src/utils/logger.js"
+      "target": "services/patient-service/dist/src/services/patient.js"
     },
     {
       "source": "services/patient-service/dist/src/routes/patient.js",
-      "target": "services/patient-service/dist/src/services/patient.js"
+      "target": "services/patient-service/dist/src/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/src/services/patient.d.ts",
@@ -7426,23 +7363,23 @@
     },
     {
       "source": "services/patient-service/dist/src/services/patient.js",
-      "target": "services/patient-service/dist/src/config/kafka.js"
-    },
-    {
-      "source": "services/patient-service/dist/src/services/patient.js",
       "target": "services/patient-service/dist/src/config/database.js"
     },
     {
       "source": "services/patient-service/dist/src/services/patient.js",
-      "target": "services/patient-service/dist/src/utils/logger.js"
+      "target": "services/patient-service/dist/src/config/kafka.js"
     },
     {
-      "source": "services/patient-service/dist/src/utils/encryption.js",
+      "source": "services/patient-service/dist/src/services/patient.js",
       "target": "services/patient-service/dist/src/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/src/utils/encryption.js",
       "target": "services/patient-service/dist/src/config/environment.js"
+    },
+    {
+      "source": "services/patient-service/dist/src/utils/encryption.js",
+      "target": "services/patient-service/dist/src/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/src/utils/logger.js",
@@ -7450,11 +7387,11 @@
     },
     {
       "source": "services/patient-service/dist/utils/encryption.js",
-      "target": "services/patient-service/dist/utils/logger.js"
+      "target": "services/patient-service/dist/config/environment.js"
     },
     {
       "source": "services/patient-service/dist/utils/encryption.js",
-      "target": "services/patient-service/dist/config/environment.js"
+      "target": "services/patient-service/dist/utils/logger.js"
     },
     {
       "source": "services/patient-service/dist/utils/logger.js",
@@ -7462,19 +7399,19 @@
     },
     {
       "source": "services/patient-service/src/app.ts",
-      "target": "services/patient-service/src/config/environment.ts"
-    },
-    {
-      "source": "services/patient-service/src/app.ts",
       "target": "services/patient-service/src/config/kafka.ts"
     },
     {
       "source": "services/patient-service/src/app.ts",
-      "target": "services/patient-service/src/config/database.ts"
+      "target": "services/patient-service/src/config/redis.ts"
     },
     {
       "source": "services/patient-service/src/app.ts",
-      "target": "services/patient-service/src/config/redis.ts"
+      "target": "services/patient-service/src/config/environment.ts"
+    },
+    {
+      "source": "services/patient-service/src/app.ts",
+      "target": "services/patient-service/src/config/database.ts"
     },
     {
       "source": "services/patient-service/src/app.ts",
@@ -7486,11 +7423,11 @@
     },
     {
       "source": "services/patient-service/src/config/database.ts",
-      "target": "services/patient-service/src/config/environment.ts"
+      "target": "services/patient-service/src/utils/logger.ts"
     },
     {
       "source": "services/patient-service/src/config/database.ts",
-      "target": "services/patient-service/src/utils/logger.ts"
+      "target": "services/patient-service/src/config/environment.ts"
     },
     {
       "source": "services/patient-service/src/config/kafka.ts",
@@ -7514,19 +7451,19 @@
     },
     {
       "source": "services/patient-service/src/routes/patient.ts",
-      "target": "services/patient-service/src/utils/hospitalScoping.ts"
-    },
-    {
-      "source": "services/patient-service/src/routes/patient.ts",
-      "target": "services/patient-service/src/utils/logger.ts"
-    },
-    {
-      "source": "services/patient-service/src/routes/patient.ts",
       "target": "services/patient-service/src/services/patient.ts"
     },
     {
       "source": "services/patient-service/src/routes/patient.ts",
+      "target": "services/patient-service/src/utils/hospitalScoping.ts"
+    },
+    {
+      "source": "services/patient-service/src/routes/patient.ts",
       "target": "services/patient-service/src/types/patient.ts"
+    },
+    {
+      "source": "services/patient-service/src/routes/patient.ts",
+      "target": "services/patient-service/src/utils/logger.ts"
     },
     {
       "source": "services/patient-service/src/services/patient.ts",
@@ -7538,15 +7475,11 @@
     },
     {
       "source": "services/patient-service/src/services/patient.ts",
-      "target": "services/patient-service/src/config/kafka.ts"
-    },
-    {
-      "source": "services/patient-service/src/services/patient.ts",
       "target": "services/patient-service/src/utils/hospitalScoping.ts"
     },
     {
       "source": "services/patient-service/src/services/patient.ts",
-      "target": "services/patient-service/src/config/database.ts"
+      "target": "services/patient-service/src/types/patient.ts"
     },
     {
       "source": "services/patient-service/src/services/patient.ts",
@@ -7554,7 +7487,11 @@
     },
     {
       "source": "services/patient-service/src/services/patient.ts",
-      "target": "services/patient-service/src/types/patient.ts"
+      "target": "services/patient-service/src/config/kafka.ts"
+    },
+    {
+      "source": "services/patient-service/src/services/patient.ts",
+      "target": "services/patient-service/src/config/database.ts"
     },
     {
       "source": "services/patient-service/src/sync/ConflictResolutionService.ts",
@@ -7570,15 +7507,19 @@
     },
     {
       "source": "services/patient-service/src/sync/PatientDataSynchronization.ts",
-      "target": "services/patient-service/src/sync/PatientSyncService.ts"
-    },
-    {
-      "source": "services/patient-service/src/sync/PatientDataSynchronization.ts",
       "target": "services/patient-service/src/sync/DataValidationService.ts"
     },
     {
       "source": "services/patient-service/src/sync/PatientDataSynchronization.ts",
       "target": "services/patient-service/src/sync/ConflictResolutionService.ts"
+    },
+    {
+      "source": "services/patient-service/src/sync/PatientDataSynchronization.ts",
+      "target": "services/patient-service/src/sync/PatientSyncService.ts"
+    },
+    {
+      "source": "services/patient-service/src/sync/PatientSyncService.ts",
+      "target": "services/patient-service/src/config/redis.ts"
     },
     {
       "source": "services/patient-service/src/sync/PatientSyncService.ts",
@@ -7589,16 +7530,12 @@
       "target": "services/patient-service/src/types/patient.ts"
     },
     {
-      "source": "services/patient-service/src/sync/PatientSyncService.ts",
-      "target": "services/patient-service/src/config/redis.ts"
+      "source": "services/patient-service/src/utils/encryption.ts",
+      "target": "services/patient-service/src/config/environment.ts"
     },
     {
       "source": "services/patient-service/src/utils/encryption.ts",
       "target": "services/patient-service/src/utils/logger.ts"
-    },
-    {
-      "source": "services/patient-service/src/utils/encryption.ts",
-      "target": "services/patient-service/src/config/environment.ts"
     },
     {
       "source": "services/patient-service/src/utils/hospitalScoping.ts",
@@ -7638,6 +7575,10 @@
     },
     {
       "source": "services/pharmacy-service/src/sync/PharmacyDataSynchronization.ts",
+      "target": "services/pharmacy-service/src/sync/PharmacySyncService.ts"
+    },
+    {
+      "source": "services/pharmacy-service/src/sync/PharmacyDataSynchronization.ts",
       "target": "services/pharmacy-service/src/sync/ConflictResolutionService.ts"
     },
     {
@@ -7645,16 +7586,8 @@
       "target": "services/pharmacy-service/src/sync/KafkaEventListener.ts"
     },
     {
-      "source": "services/pharmacy-service/src/sync/PharmacyDataSynchronization.ts",
-      "target": "services/pharmacy-service/src/sync/PharmacySyncService.ts"
-    },
-    {
       "source": "services/pharmacy-service/src/sync/PharmacySyncService.ts",
       "target": "services/pharmacy-service/src/sync/DataValidationService.ts"
-    },
-    {
-      "source": "services/pharmacy-service/src/sync/PharmacySyncService.ts",
-      "target": "services/pharmacy-service/src/sync/ConflictResolutionService.ts"
     },
     {
       "source": "services/pharmacy-service/src/sync/PharmacySyncService.ts",
@@ -7666,7 +7599,15 @@
     },
     {
       "source": "services/pharmacy-service/src/sync/PharmacySyncService.ts",
+      "target": "services/pharmacy-service/src/sync/ConflictResolutionService.ts"
+    },
+    {
+      "source": "services/pharmacy-service/src/sync/PharmacySyncService.ts",
       "target": "services/pharmacy-service/src/sync/KafkaEventListener.ts"
+    },
+    {
+      "source": "src/index.css",
+      "target": "src/styles/surfaces.css"
     },
     {
       "source": "src/index.css",
@@ -7681,8 +7622,12 @@
       "target": "src/styles/spacing.css"
     },
     {
-      "source": "src/index.css",
-      "target": "src/styles/surfaces.css"
+      "source": "src/main.tsx",
+      "target": "src/App.tsx"
+    },
+    {
+      "source": "src/main.tsx",
+      "target": "src/lib/performance/web-vitals.ts"
     },
     {
       "source": "src/main.tsx",
@@ -7693,16 +7638,8 @@
       "target": "src/index.css"
     },
     {
-      "source": "src/main.tsx",
-      "target": "src/lib/performance/web-vitals.ts"
-    },
-    {
-      "source": "src/main.tsx",
-      "target": "src/App.tsx"
-    },
-    {
       "source": "src/bootstrap/index.ts",
-      "target": "src/bootstrap/telemetry.ts"
+      "target": "src/bootstrap/error-tracking.ts"
     },
     {
       "source": "src/bootstrap/index.ts",
@@ -7710,7 +7647,7 @@
     },
     {
       "source": "src/bootstrap/index.ts",
-      "target": "src/bootstrap/correlation-id.ts"
+      "target": "src/bootstrap/telemetry.ts"
     },
     {
       "source": "src/bootstrap/index.ts",
@@ -7718,11 +7655,15 @@
     },
     {
       "source": "src/bootstrap/index.ts",
-      "target": "src/bootstrap/error-tracking.ts"
+      "target": "src/bootstrap/correlation-id.ts"
     },
     {
       "source": "src/components/admin/AdminDashboard.tsx",
       "target": "src/components/admin/SystemConfiguration.tsx"
+    },
+    {
+      "source": "src/components/consultations/QuickConsultationModal.tsx",
+      "target": "src/components/consultations/CPTCodeMapper.tsx"
     },
     {
       "source": "src/components/consultations/QuickConsultationModal.tsx",
@@ -7731,10 +7672,6 @@
     {
       "source": "src/components/consultations/QuickConsultationModal.tsx",
       "target": "src/components/doctor/VoiceDocumentation.tsx"
-    },
-    {
-      "source": "src/components/consultations/QuickConsultationModal.tsx",
-      "target": "src/components/consultations/CPTCodeMapper.tsx"
     },
     {
       "source": "src/components/consultations/StartConsultationModal.tsx",
@@ -7762,11 +7699,11 @@
     },
     {
       "source": "src/components/dashboard/AdminDashboard.tsx",
-      "target": "src/components/dashboard/DashboardPageTransition.tsx"
+      "target": "src/components/dashboard/RecentActivity.tsx"
     },
     {
       "source": "src/components/dashboard/AdminDashboard.tsx",
-      "target": "src/components/dashboard/RecentActivity.tsx"
+      "target": "src/components/dashboard/DashboardPageTransition.tsx"
     },
     {
       "source": "src/components/dashboard/AdminDashboard.tsx",
@@ -7782,11 +7719,11 @@
     },
     {
       "source": "src/components/dashboard/DoctorDashboard.tsx",
-      "target": "src/components/dashboard/DashboardPageTransition.tsx"
+      "target": "src/components/dashboard/RecentActivity.tsx"
     },
     {
       "source": "src/components/dashboard/DoctorDashboard.tsx",
-      "target": "src/components/dashboard/RecentActivity.tsx"
+      "target": "src/components/dashboard/DashboardPageTransition.tsx"
     },
     {
       "source": "src/components/dashboard/DoctorDashboard.tsx",
@@ -7862,23 +7799,11 @@
     },
     {
       "source": "src/components/laboratory/EnhancedLabOrderForm.tsx",
-      "target": "src/utils/sanitize.ts"
-    },
-    {
-      "source": "src/components/laboratory/EnhancedLabOrderForm.tsx",
       "target": "src/lib/schemas/labOrderSchema.ts"
     },
     {
-      "source": "src/components/landing/WorkflowTabs.tsx",
-      "target": "src/components/landing/workflow-mockups/AdminMockup.tsx"
-    },
-    {
-      "source": "src/components/landing/WorkflowTabs.tsx",
-      "target": "src/components/landing/workflow-mockups/InpatientMockup.tsx"
-    },
-    {
-      "source": "src/components/landing/WorkflowTabs.tsx",
-      "target": "src/components/landing/workflow-mockups/PharmacyLabMockup.tsx"
+      "source": "src/components/laboratory/EnhancedLabOrderForm.tsx",
+      "target": "src/utils/sanitize.ts"
     },
     {
       "source": "src/components/landing/WorkflowTabs.tsx",
@@ -7886,7 +7811,19 @@
     },
     {
       "source": "src/components/landing/WorkflowTabs.tsx",
+      "target": "src/components/landing/workflow-mockups/InpatientMockup.tsx"
+    },
+    {
+      "source": "src/components/landing/WorkflowTabs.tsx",
       "target": "src/components/landing/workflow-mockups/OTMockup.tsx"
+    },
+    {
+      "source": "src/components/landing/WorkflowTabs.tsx",
+      "target": "src/components/landing/workflow-mockups/AdminMockup.tsx"
+    },
+    {
+      "source": "src/components/landing/WorkflowTabs.tsx",
+      "target": "src/components/landing/workflow-mockups/PharmacyLabMockup.tsx"
     },
     {
       "source": "src/components/layout/DashboardLayout.tsx",
@@ -7898,11 +7835,15 @@
     },
     {
       "source": "src/components/nurse/PatientPrepChecklistCard.tsx",
-      "target": "src/components/nurse/AllergiesVerificationModal.tsx"
+      "target": "src/components/nurse/MedicationReconciliationCard.tsx"
     },
     {
       "source": "src/components/nurse/PatientPrepChecklistCard.tsx",
-      "target": "src/components/nurse/ChiefComplaintModal.tsx"
+      "target": "src/components/nurse/MedicationsReviewModal.tsx"
+    },
+    {
+      "source": "src/components/nurse/PatientPrepChecklistCard.tsx",
+      "target": "src/components/nurse/AllergiesVerificationModal.tsx"
     },
     {
       "source": "src/components/nurse/PatientPrepChecklistCard.tsx",
@@ -7914,11 +7855,7 @@
     },
     {
       "source": "src/components/nurse/PatientPrepChecklistCard.tsx",
-      "target": "src/components/nurse/MedicationReconciliationCard.tsx"
-    },
-    {
-      "source": "src/components/nurse/PatientPrepChecklistCard.tsx",
-      "target": "src/components/nurse/MedicationsReviewModal.tsx"
+      "target": "src/components/nurse/ChiefComplaintModal.tsx"
     },
     {
       "source": "src/components/nurse/PatientPrepStation.tsx",
@@ -7946,7 +7883,7 @@
     },
     {
       "source": "src/components/pharmacist/PharmacistDashboard.tsx",
-      "target": "src/components/pharmacist/WorkflowTasks.tsx"
+      "target": "src/components/pharmacist/InventoryDashboard.tsx"
     },
     {
       "source": "src/components/pharmacist/PharmacistDashboard.tsx",
@@ -7954,23 +7891,23 @@
     },
     {
       "source": "src/components/pharmacist/PharmacistDashboard.tsx",
-      "target": "src/components/pharmacist/InventoryDashboard.tsx"
-    },
-    {
-      "source": "src/components/receptionist/EnhancedPatientRegistrationForm.tsx",
-      "target": "src/utils/sanitize.ts"
+      "target": "src/components/pharmacist/WorkflowTasks.tsx"
     },
     {
       "source": "src/components/receptionist/EnhancedPatientRegistrationForm.tsx",
       "target": "src/lib/schemas/patientRegistrationSchema.ts"
     },
     {
-      "source": "src/components/telemedicine/VideoCallModal.tsx",
-      "target": "src/components/telemedicine/SessionNotes.tsx"
+      "source": "src/components/receptionist/EnhancedPatientRegistrationForm.tsx",
+      "target": "src/utils/sanitize.ts"
     },
     {
       "source": "src/components/telemedicine/VideoCallModal.tsx",
       "target": "src/components/telemedicine/TelemedicineChat.tsx"
+    },
+    {
+      "source": "src/components/telemedicine/VideoCallModal.tsx",
+      "target": "src/components/telemedicine/SessionNotes.tsx"
     },
     {
       "source": "src/components/testing/reports/ReportsDashboard.tsx",
@@ -8022,19 +7959,19 @@
     },
     {
       "source": "src/components/testing/test-execution/TestRunner.tsx",
-      "target": "src/services/testing/testExecutionService.ts"
-    },
-    {
-      "source": "src/components/testing/test-execution/TestRunner.tsx",
       "target": "src/contexts/TestingContext.tsx"
     },
     {
-      "source": "src/components/ui/VoiceInput.tsx",
-      "target": "src/components/ui/CPTCodeSuggestions.tsx"
+      "source": "src/components/testing/test-execution/TestRunner.tsx",
+      "target": "src/services/testing/testExecutionService.ts"
     },
     {
       "source": "src/components/ui/VoiceInput.tsx",
       "target": "src/components/ui/ICD10CodeSuggestions.tsx"
+    },
+    {
+      "source": "src/components/ui/VoiceInput.tsx",
+      "target": "src/components/ui/CPTCodeSuggestions.tsx"
     },
     {
       "source": "src/contexts/TestingContext.tsx",
@@ -8042,11 +7979,11 @@
     },
     {
       "source": "src/hooks/useLabTechOperations.ts",
-      "target": "src/utils/labTechOperationsService.ts"
+      "target": "src/utils/labTechRBACManager.ts"
     },
     {
       "source": "src/hooks/useLabTechOperations.ts",
-      "target": "src/utils/labTechRBACManager.ts"
+      "target": "src/utils/labTechOperationsService.ts"
     },
     {
       "source": "src/hooks/useLabTechOperations.ts",
@@ -8058,11 +7995,11 @@
     },
     {
       "source": "src/hooks/useNurseClinical.ts",
-      "target": "src/types/nurse.ts"
+      "target": "src/utils/nurseRBACManager.ts"
     },
     {
       "source": "src/hooks/useNurseClinical.ts",
-      "target": "src/utils/nurseRBACManager.ts"
+      "target": "src/types/nurse.ts"
     },
     {
       "source": "src/hooks/usePaginatedQuery.ts",
@@ -8078,7 +8015,7 @@
     },
     {
       "source": "src/hooks/usePharmacistOperations.ts",
-      "target": "src/utils/pharmacistRBACManager.ts"
+      "target": "src/types/pharmacist.ts"
     },
     {
       "source": "src/hooks/usePharmacistOperations.ts",
@@ -8086,7 +8023,11 @@
     },
     {
       "source": "src/hooks/usePharmacistOperations.ts",
-      "target": "src/types/pharmacist.ts"
+      "target": "src/utils/pharmacistRBACManager.ts"
+    },
+    {
+      "source": "src/hooks/useReceptionistOperations.ts",
+      "target": "src/utils/receptionistOperationsService.ts"
     },
     {
       "source": "src/hooks/useReceptionistOperations.ts",
@@ -8095,10 +8036,6 @@
     {
       "source": "src/hooks/useReceptionistOperations.ts",
       "target": "src/utils/receptionistRBACManager.ts"
-    },
-    {
-      "source": "src/hooks/useReceptionistOperations.ts",
-      "target": "src/utils/receptionistOperationsService.ts"
     },
     {
       "source": "src/hooks/__tests__/useRealtimeUpdates.test.tsx",
@@ -8114,11 +8051,11 @@
     },
     {
       "source": "src/lib/ai/orchestrator.ts",
-      "target": "src/lib/ai/types.ts"
+      "target": "src/lib/ai/providers/ClaudeProvider.ts"
     },
     {
       "source": "src/lib/ai/orchestrator.ts",
-      "target": "src/lib/ai/providers/ClaudeProvider.ts"
+      "target": "src/lib/ai/types.ts"
     },
     {
       "source": "src/lib/ai/orchestrator.ts",
@@ -8126,15 +8063,27 @@
     },
     {
       "source": "src/lib/ai/providers/ClaudeProvider.ts",
-      "target": "src/lib/ai/security.ts"
+      "target": "src/lib/ai/types.ts"
     },
     {
       "source": "src/lib/ai/providers/ClaudeProvider.ts",
-      "target": "src/lib/ai/types.ts"
+      "target": "src/lib/ai/security.ts"
     },
     {
       "source": "src/lib/ai/providers/OpenAIProvider.ts",
       "target": "src/lib/ai/security.ts"
+    },
+    {
+      "source": "src/lib/hooks/appointments/index.ts",
+      "target": "src/lib/hooks/appointments/useAppointmentOptimization.ts"
+    },
+    {
+      "source": "src/lib/hooks/appointments/index.ts",
+      "target": "src/lib/hooks/appointments/useDoctorAvailability.ts"
+    },
+    {
+      "source": "src/lib/hooks/appointments/index.ts",
+      "target": "src/lib/hooks/appointments/useSmartScheduling.ts"
     },
     {
       "source": "src/lib/hooks/appointments/index.ts",
@@ -8146,27 +8095,7 @@
     },
     {
       "source": "src/lib/hooks/appointments/index.ts",
-      "target": "src/lib/hooks/appointments/useDoctorAvailability.ts"
-    },
-    {
-      "source": "src/lib/hooks/appointments/index.ts",
       "target": "src/lib/hooks/appointments/useAppointments.ts"
-    },
-    {
-      "source": "src/lib/hooks/appointments/index.ts",
-      "target": "src/lib/hooks/appointments/useAppointmentOptimization.ts"
-    },
-    {
-      "source": "src/lib/hooks/appointments/index.ts",
-      "target": "src/lib/hooks/appointments/useSmartScheduling.ts"
-    },
-    {
-      "source": "src/lib/hooks/auth/index.ts",
-      "target": "src/lib/hooks/auth/usePermissionAudit.ts"
-    },
-    {
-      "source": "src/lib/hooks/auth/index.ts",
-      "target": "src/lib/hooks/auth/useSessionTimeout.ts"
     },
     {
       "source": "src/lib/hooks/auth/index.ts",
@@ -8177,8 +8106,12 @@
       "target": "src/lib/hooks/auth/usePermissions.ts"
     },
     {
-      "source": "src/lib/hooks/observability/index.ts",
-      "target": "src/lib/hooks/observability/usePerformanceMetrics.ts"
+      "source": "src/lib/hooks/auth/index.ts",
+      "target": "src/lib/hooks/auth/useSessionTimeout.ts"
+    },
+    {
+      "source": "src/lib/hooks/auth/index.ts",
+      "target": "src/lib/hooks/auth/usePermissionAudit.ts"
     },
     {
       "source": "src/lib/hooks/observability/index.ts",
@@ -8189,12 +8122,24 @@
       "target": "src/lib/hooks/observability/useHealthCheck.tsx"
     },
     {
+      "source": "src/lib/hooks/observability/index.ts",
+      "target": "src/lib/hooks/observability/usePerformanceMetrics.ts"
+    },
+    {
+      "source": "src/lib/hooks/patients/index.ts",
+      "target": "src/lib/hooks/patients/usePatientQuery.ts"
+    },
+    {
+      "source": "src/lib/hooks/patients/index.ts",
+      "target": "src/lib/hooks/patients/usePatientPortal.ts"
+    },
+    {
       "source": "src/lib/hooks/patients/index.ts",
       "target": "src/lib/hooks/patients/usePatients.ts"
     },
     {
       "source": "src/lib/hooks/patients/index.ts",
-      "target": "src/lib/hooks/patients/usePatientPortal.ts"
+      "target": "src/lib/hooks/patients/usePatientPortalQueries.ts"
     },
     {
       "source": "src/lib/hooks/patients/index.ts",
@@ -8205,20 +8150,8 @@
       "target": "src/lib/hooks/patients/usePatientIdentity.ts"
     },
     {
-      "source": "src/lib/hooks/patients/index.ts",
-      "target": "src/lib/hooks/patients/usePatientQuery.ts"
-    },
-    {
-      "source": "src/lib/hooks/patients/index.ts",
-      "target": "src/lib/hooks/patients/usePatientPortalQueries.ts"
-    },
-    {
       "source": "src/lib/hooks/pharmacy/index.ts",
-      "target": "src/lib/hooks/pharmacy/useMedicationAlerts.ts"
-    },
-    {
-      "source": "src/lib/hooks/pharmacy/index.ts",
-      "target": "src/lib/hooks/pharmacy/usePharmacistOperations.ts"
+      "target": "src/lib/hooks/pharmacy/useMedications.ts"
     },
     {
       "source": "src/lib/hooks/pharmacy/index.ts",
@@ -8230,7 +8163,11 @@
     },
     {
       "source": "src/lib/hooks/pharmacy/index.ts",
-      "target": "src/lib/hooks/pharmacy/useMedications.ts"
+      "target": "src/lib/hooks/pharmacy/usePharmacistOperations.ts"
+    },
+    {
+      "source": "src/lib/hooks/pharmacy/index.ts",
+      "target": "src/lib/hooks/pharmacy/useMedicationAlerts.ts"
     },
     {
       "source": "src/lib/hooks/pharmacy/index.ts",
@@ -8238,11 +8175,11 @@
     },
     {
       "source": "src/lib/medical/ClinicalCodingService.ts",
-      "target": "src/lib/medical/CPTService.ts"
+      "target": "src/lib/medical/ICD10Service.ts"
     },
     {
       "source": "src/lib/medical/ClinicalCodingService.ts",
-      "target": "src/lib/medical/ICD10Service.ts"
+      "target": "src/lib/medical/CPTService.ts"
     },
     {
       "source": "src/lib/medical/CPTService.ts",
@@ -8258,11 +8195,11 @@
     },
     {
       "source": "src/lib/speech/SpeechRecognitionService.ts",
-      "target": "src/lib/ai/security.ts"
+      "target": "src/lib/medical/MedicalTerminologyService.ts"
     },
     {
       "source": "src/lib/speech/SpeechRecognitionService.ts",
-      "target": "src/lib/medical/MedicalTerminologyService.ts"
+      "target": "src/lib/ai/security.ts"
     },
     {
       "source": "src/pages/settings/CodeReviewDashboard.tsx",
@@ -8270,7 +8207,7 @@
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
-      "target": "src/components/testing/test-details/TestDetailsPanel.tsx"
+      "target": "src/types/testing.ts"
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
@@ -8278,11 +8215,11 @@
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
-      "target": "src/types/testing.ts"
+      "target": "src/components/testing/test-execution/TestExecutionTracker.tsx"
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
-      "target": "src/components/testing/script-generator/ScriptGenerator.tsx"
+      "target": "src/components/testing/reports/ReportsDashboard.tsx"
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
@@ -8294,11 +8231,11 @@
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
-      "target": "src/components/testing/reports/ReportsDashboard.tsx"
+      "target": "src/components/testing/test-details/TestDetailsPanel.tsx"
     },
     {
       "source": "src/pages/testing/TestingDashboardPage.tsx",
-      "target": "src/components/testing/test-execution/TestExecutionTracker.tsx"
+      "target": "src/components/testing/script-generator/ScriptGenerator.tsx"
     },
     {
       "source": "src/services/testing/testExecutionService.ts",
@@ -8434,23 +8371,23 @@
     },
     {
       "source": "src/utils/codeReviewerCLI.ts",
-      "target": "src/types/code-review.ts"
-    },
-    {
-      "source": "src/utils/codeReviewerCLI.ts",
-      "target": "src/utils/codeReviewer.ts"
-    },
-    {
-      "source": "src/utils/codeReviewerCLI.ts",
       "target": "src/utils/codeReviewerRules.ts"
     },
     {
-      "source": "src/utils/codeReviewerIntegration.ts",
+      "source": "src/utils/codeReviewerCLI.ts",
+      "target": "src/utils/codeReviewer.ts"
+    },
+    {
+      "source": "src/utils/codeReviewerCLI.ts",
       "target": "src/types/code-review.ts"
     },
     {
       "source": "src/utils/codeReviewerIntegration.ts",
       "target": "src/utils/codeReviewer.ts"
+    },
+    {
+      "source": "src/utils/codeReviewerIntegration.ts",
+      "target": "src/types/code-review.ts"
     },
     {
       "source": "src/utils/codeReviewerRules.ts",
@@ -8470,10 +8407,6 @@
     },
     {
       "source": "src/utils/labTechOperationsService.ts",
-      "target": "src/types/labtech.ts"
-    },
-    {
-      "source": "src/utils/labTechOperationsService.ts",
       "target": "src/utils/auditLogQueue.ts"
     },
     {
@@ -8481,8 +8414,16 @@
       "target": "src/utils/labTechRBACManager.ts"
     },
     {
+      "source": "src/utils/labTechOperationsService.ts",
+      "target": "src/types/labtech.ts"
+    },
+    {
       "source": "src/utils/labTechRBACManager.ts",
       "target": "src/types/labtech.ts"
+    },
+    {
+      "source": "src/utils/nurseClinicalService.ts",
+      "target": "src/utils/auditLogQueue.ts"
     },
     {
       "source": "src/utils/nurseClinicalService.ts",
@@ -8491,10 +8432,6 @@
     {
       "source": "src/utils/nurseClinicalService.ts",
       "target": "src/types/nurse.ts"
-    },
-    {
-      "source": "src/utils/nurseClinicalService.ts",
-      "target": "src/utils/auditLogQueue.ts"
     },
     {
       "source": "src/utils/nurseRBACManager.ts",
@@ -8522,11 +8459,11 @@
     },
     {
       "source": "src/utils/pharmacistOperationsService.ts",
-      "target": "src/utils/sanitize.ts"
+      "target": "src/utils/pharmacistRBACManager.ts"
     },
     {
       "source": "src/utils/pharmacistOperationsService.ts",
-      "target": "src/utils/pharmacistRBACManager.ts"
+      "target": "src/utils/sanitize.ts"
     },
     {
       "source": "src/utils/pharmacistRBACManager.ts",
@@ -8534,26 +8471,18 @@
     },
     {
       "source": "src/utils/pharmacistRoboticDispensingService.ts",
-      "target": "src/utils/auditLogQueue.ts"
-    },
-    {
-      "source": "src/utils/pharmacistRoboticDispensingService.ts",
       "target": "src/types/pharmacist.ts"
     },
     {
+      "source": "src/utils/pharmacistRoboticDispensingService.ts",
+      "target": "src/utils/auditLogQueue.ts"
+    },
+    {
       "source": "src/utils/receptionistAISchedulingService.ts",
       "target": "src/utils/auditLogQueue.ts"
     },
     {
       "source": "src/utils/receptionistAISchedulingService.ts",
-      "target": "src/types/receptionist.ts"
-    },
-    {
-      "source": "src/utils/receptionistOperationsService.ts",
-      "target": "src/utils/auditLogQueue.ts"
-    },
-    {
-      "source": "src/utils/receptionistOperationsService.ts",
       "target": "src/types/receptionist.ts"
     },
     {
@@ -8561,16 +8490,24 @@
       "target": "src/utils/receptionistRBACManager.ts"
     },
     {
+      "source": "src/utils/receptionistOperationsService.ts",
+      "target": "src/utils/auditLogQueue.ts"
+    },
+    {
+      "source": "src/utils/receptionistOperationsService.ts",
+      "target": "src/types/receptionist.ts"
+    },
+    {
       "source": "src/utils/receptionistRBACManager.ts",
       "target": "src/types/receptionist.ts"
     },
     {
       "source": "src/utils/roleInterconnectionValidator.ts",
-      "target": "src/utils/adminRBACManager.ts"
+      "target": "src/utils/doctorRBACManager.ts"
     },
     {
       "source": "src/utils/roleInterconnectionValidator.ts",
-      "target": "src/utils/doctorRBACManager.ts"
+      "target": "src/utils/adminRBACManager.ts"
     },
     {
       "source": "src/utils/sanitize.ts",
@@ -8590,6 +8527,14 @@
     },
     {
       "source": "supabase/functions/accept-invitation-signup/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/accept-invitation-signup/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/accept-invitation-signup/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
@@ -8605,22 +8550,6 @@
       "target": "services/patient-service/src/server.ts"
     },
     {
-      "source": "supabase/functions/accept-invitation-signup/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/accept-invitation-signup/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
-    },
-    {
-      "source": "supabase/functions/ai-clinical-support/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
-    },
-    {
-      "source": "supabase/functions/ai-clinical-support/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
       "source": "supabase/functions/ai-clinical-support/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
@@ -8641,11 +8570,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/analytics-engine/index.ts",
+      "source": "supabase/functions/ai-clinical-support/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/analytics-engine/index.ts",
+      "source": "supabase/functions/ai-clinical-support/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -8667,10 +8596,18 @@
     {
       "source": "supabase/functions/analytics-engine/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/analytics-engine/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/analytics-engine/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/appointment-reminders/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
+      "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
       "source": "supabase/functions/appointment-reminders/index.ts",
@@ -8686,15 +8623,7 @@
     },
     {
       "source": "supabase/functions/appointment-reminders/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/audit-logger/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
-    },
-    {
-      "source": "supabase/functions/audit-logger/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
+      "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/audit-logger/index.ts",
@@ -8717,11 +8646,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/backup-manager/index.ts",
+      "source": "supabase/functions/audit-logger/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/backup-manager/index.ts",
+      "source": "supabase/functions/audit-logger/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -8745,11 +8674,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/billing-reconciliation/index.ts",
+      "source": "supabase/functions/backup-manager/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/billing-reconciliation/index.ts",
+      "source": "supabase/functions/backup-manager/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -8773,11 +8702,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/census-reports/index.ts",
+      "source": "supabase/functions/billing-reconciliation/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/census-reports/index.ts",
+      "source": "supabase/functions/billing-reconciliation/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -8801,8 +8730,12 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/check-low-stock/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
+      "source": "supabase/functions/census-reports/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/census-reports/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/check-low-stock/index.ts",
@@ -8821,8 +8754,8 @@
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/clinical-pharmacy/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
+      "source": "supabase/functions/check-low-stock/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/clinical-pharmacy/index.ts",
@@ -8842,6 +8775,18 @@
     },
     {
       "source": "supabase/functions/clinical-pharmacy/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/clinical-pharmacy/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
+    },
+    {
+      "source": "supabase/functions/create-hospital-admin/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/create-hospital-admin/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
@@ -8850,10 +8795,6 @@
     },
     {
       "source": "supabase/functions/create-hospital-admin/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/create-hospital-admin/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
     {
@@ -8866,11 +8807,7 @@
     },
     {
       "source": "supabase/functions/create-hospital-admin/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/create-hospital-admin/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
+      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/critical-lab-check/index.ts",
@@ -8886,14 +8823,6 @@
     },
     {
       "source": "supabase/functions/discharge-workflow/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
-    },
-    {
-      "source": "supabase/functions/discharge-workflow/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/discharge-workflow/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
     {
@@ -8911,6 +8840,14 @@
     {
       "source": "supabase/functions/discharge-workflow/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/discharge-workflow/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/discharge-workflow/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/drug-interaction-check/index.ts",
@@ -8926,10 +8863,6 @@
     },
     {
       "source": "supabase/functions/fhir-integration/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/fhir-integration/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
     {
@@ -8946,6 +8879,30 @@
     },
     {
       "source": "supabase/functions/fhir-integration/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/fhir-integration/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
+    },
+    {
+      "source": "supabase/functions/generate-2fa-secret/index.ts",
+      "target": "services/appointment-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/generate-2fa-secret/index.ts",
+      "target": "services/clinical-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/generate-2fa-secret/index.ts",
+      "target": "services/patient-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/generate-2fa-secret/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/generate-2fa-secret/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
@@ -8953,30 +8910,6 @@
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/generate-2fa-secret/index.ts",
-      "target": "services/appointment-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/generate-2fa-secret/index.ts",
-      "target": "services/clinical-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/generate-2fa-secret/index.ts",
-      "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/generate-2fa-secret/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/generate-2fa-secret/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
-    },
-    {
-      "source": "supabase/functions/health-check/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
-    },
-    {
       "source": "supabase/functions/health-check/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
@@ -8991,6 +8924,30 @@
     {
       "source": "supabase/functions/health-check/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/health-check/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/insurance-integration/index.ts",
+      "target": "services/appointment-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/insurance-integration/index.ts",
+      "target": "services/clinical-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/insurance-integration/index.ts",
+      "target": "services/patient-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/insurance-integration/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/insurance-integration/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/insurance-integration/index.ts",
@@ -9001,23 +8958,23 @@
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
-      "source": "supabase/functions/insurance-integration/index.ts",
+      "source": "supabase/functions/lab-automation/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
     {
-      "source": "supabase/functions/insurance-integration/index.ts",
+      "source": "supabase/functions/lab-automation/index.ts",
       "target": "services/clinical-service/src/server.ts"
     },
     {
-      "source": "supabase/functions/insurance-integration/index.ts",
+      "source": "supabase/functions/lab-automation/index.ts",
       "target": "services/patient-service/src/server.ts"
     },
     {
-      "source": "supabase/functions/insurance-integration/index.ts",
+      "source": "supabase/functions/lab-automation/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/insurance-integration/index.ts",
+      "source": "supabase/functions/lab-automation/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
@@ -9025,48 +8982,28 @@
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
-      "source": "supabase/functions/lab-automation/index.ts",
-      "target": "services/appointment-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/lab-automation/index.ts",
-      "target": "services/clinical-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/lab-automation/index.ts",
-      "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/lab-automation/index.ts",
+      "source": "supabase/functions/lab-critical-values/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/lab-automation/index.ts",
+      "source": "supabase/functions/lab-critical-values/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/lab-critical-values/index.ts",
+      "target": "services/appointment-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/lab-critical-values/index.ts",
+      "target": "services/clinical-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/lab-critical-values/index.ts",
+      "target": "services/patient-service/src/server.ts"
     },
     {
       "source": "supabase/functions/lab-critical-values/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/lab-critical-values/index.ts",
-      "target": "services/appointment-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/lab-critical-values/index.ts",
-      "target": "services/clinical-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/lab-critical-values/index.ts",
-      "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/lab-critical-values/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/lab-critical-values/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/lab-result-notify/index.ts",
@@ -9082,14 +9019,6 @@
     },
     {
       "source": "supabase/functions/monitoring/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
-    },
-    {
-      "source": "supabase/functions/monitoring/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/monitoring/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
     {
@@ -9109,11 +9038,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/optimize-queue/index.ts",
+      "source": "supabase/functions/monitoring/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/optimize-queue/index.ts",
+      "source": "supabase/functions/monitoring/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -9135,6 +9064,14 @@
     {
       "source": "supabase/functions/optimize-queue/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/optimize-queue/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/optimize-queue/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/phase5/generate-recurring-appointments/index.ts",
@@ -9174,14 +9111,6 @@
     },
     {
       "source": "supabase/functions/predict-deterioration/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
-    },
-    {
-      "source": "supabase/functions/predict-deterioration/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/predict-deterioration/index.ts",
       "target": "services/appointment-service/src/server.ts"
     },
     {
@@ -9199,6 +9128,14 @@
     {
       "source": "supabase/functions/predict-deterioration/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/predict-deterioration/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/predict-deterioration/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/prescription-approval/index.ts",
@@ -9214,58 +9151,66 @@
     },
     {
       "source": "supabase/functions/send-email/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/send-email/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/send-email/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/send-email/index.ts",
+      "target": "services/appointment-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/send-email/index.ts",
+      "target": "services/clinical-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/send-email/index.ts",
+      "target": "services/patient-service/src/server.ts"
     },
     {
       "source": "supabase/functions/send-email/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
-      "source": "supabase/functions/send-email/index.ts",
-      "target": "services/appointment-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/send-email/index.ts",
-      "target": "services/clinical-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/send-email/index.ts",
-      "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/send-email/index.ts",
+      "source": "supabase/functions/send-notification/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/send-email/index.ts",
+      "source": "supabase/functions/send-notification/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/send-notification/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/send-notification/index.ts",
+      "target": "services/appointment-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/send-notification/index.ts",
+      "target": "services/clinical-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/send-notification/index.ts",
+      "target": "services/patient-service/src/server.ts"
     },
     {
       "source": "supabase/functions/send-notification/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
-      "source": "supabase/functions/send-notification/index.ts",
-      "target": "services/appointment-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/send-notification/index.ts",
-      "target": "services/clinical-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/send-notification/index.ts",
-      "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/send-notification/index.ts",
+      "source": "supabase/functions/store-2fa-secret/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/send-notification/index.ts",
+      "source": "supabase/functions/store-2fa-secret/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
@@ -9283,22 +9228,6 @@
     {
       "source": "supabase/functions/store-2fa-secret/index.ts",
       "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/store-2fa-secret/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/store-2fa-secret/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
-    },
-    {
-      "source": "supabase/functions/symptom-analysis/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
-    },
-    {
-      "source": "supabase/functions/symptom-analysis/index.ts",
-      "target": "supabase/functions/_shared/authorize.ts"
     },
     {
       "source": "supabase/functions/symptom-analysis/index.ts",
@@ -9321,11 +9250,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/system-monitoring/index.ts",
+      "source": "supabase/functions/symptom-analysis/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/system-monitoring/index.ts",
+      "source": "supabase/functions/symptom-analysis/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -9349,11 +9278,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/telemedicine/index.ts",
+      "source": "supabase/functions/system-monitoring/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/telemedicine/index.ts",
+      "source": "supabase/functions/system-monitoring/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -9377,11 +9306,11 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
-      "source": "supabase/functions/test-execution/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
+      "source": "supabase/functions/telemedicine/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
     },
     {
-      "source": "supabase/functions/test-execution/index.ts",
+      "source": "supabase/functions/telemedicine/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
     },
     {
@@ -9398,7 +9327,23 @@
     },
     {
       "source": "supabase/functions/test-execution/index.ts",
+      "target": "supabase/functions/_shared/authorize.ts"
+    },
+    {
+      "source": "supabase/functions/test-execution/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/test-execution/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
+      "source": "supabase/functions/validate-invitation-token/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/validate-invitation-token/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/validate-invitation-token/index.ts",
@@ -9415,18 +9360,6 @@
     {
       "source": "supabase/functions/validate-invitation-token/index.ts",
       "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/validate-invitation-token/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/validate-invitation-token/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
-    },
-    {
-      "source": "supabase/functions/verify-2fa/index.ts",
-      "target": "supabase/functions/_shared/validation.ts"
     },
     {
       "source": "supabase/functions/verify-2fa/index.ts",
@@ -9449,6 +9382,18 @@
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
+      "source": "supabase/functions/verify-2fa/index.ts",
+      "target": "supabase/functions/_shared/validation.ts"
+    },
+    {
+      "source": "supabase/functions/verify-backup-code/index.ts",
+      "target": "supabase/functions/_shared/rateLimit.ts"
+    },
+    {
+      "source": "supabase/functions/verify-backup-code/index.ts",
+      "target": "supabase/functions/_shared/cors.ts"
+    },
+    {
       "source": "supabase/functions/verify-backup-code/index.ts",
       "target": "supabase/functions/_shared/validation.ts"
     },
@@ -9465,11 +9410,11 @@
       "target": "services/patient-service/src/server.ts"
     },
     {
-      "source": "supabase/functions/verify-backup-code/index.ts",
+      "source": "supabase/functions/verify-totp/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/verify-backup-code/index.ts",
+      "source": "supabase/functions/verify-totp/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
@@ -9489,11 +9434,23 @@
       "target": "services/patient-service/src/server.ts"
     },
     {
-      "source": "supabase/functions/verify-totp/index.ts",
+      "source": "supabase/functions/workflow-automation/index.ts",
+      "target": "services/appointment-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/workflow-automation/index.ts",
+      "target": "services/clinical-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/workflow-automation/index.ts",
+      "target": "services/patient-service/src/server.ts"
+    },
+    {
+      "source": "supabase/functions/workflow-automation/index.ts",
       "target": "supabase/functions/_shared/rateLimit.ts"
     },
     {
-      "source": "supabase/functions/verify-totp/index.ts",
+      "source": "supabase/functions/workflow-automation/index.ts",
       "target": "supabase/functions/_shared/cors.ts"
     },
     {
@@ -9503,26 +9460,6 @@
     {
       "source": "supabase/functions/workflow-automation/index.ts",
       "target": "supabase/functions/_shared/authorize.ts"
-    },
-    {
-      "source": "supabase/functions/workflow-automation/index.ts",
-      "target": "services/appointment-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/workflow-automation/index.ts",
-      "target": "services/clinical-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/workflow-automation/index.ts",
-      "target": "services/patient-service/src/server.ts"
-    },
-    {
-      "source": "supabase/functions/workflow-automation/index.ts",
-      "target": "supabase/functions/_shared/rateLimit.ts"
-    },
-    {
-      "source": "supabase/functions/workflow-automation/index.ts",
-      "target": "supabase/functions/_shared/cors.ts"
     },
     {
       "source": "supabase/functions/_shared/auditLogSanitization.ts",
@@ -9574,11 +9511,11 @@
     },
     {
       "source": "tests/e2e/auth-and-onboarding.spec.ts",
-      "target": "tests/e2e/mockData.ts"
+      "target": "tests/e2e/utils.ts"
     },
     {
       "source": "tests/e2e/auth-and-onboarding.spec.ts",
-      "target": "tests/e2e/utils.ts"
+      "target": "tests/e2e/mockData.ts"
     },
     {
       "source": "tests/e2e/billing-flow.spec.ts",
@@ -9586,11 +9523,11 @@
     },
     {
       "source": "tests/e2e/comprehensive-workflows.spec.ts",
-      "target": "tests/e2e/fixtures/auth.fixture.ts"
+      "target": "tests/e2e/fixtures/test-data.fixture.ts"
     },
     {
       "source": "tests/e2e/comprehensive-workflows.spec.ts",
-      "target": "tests/e2e/fixtures/test-data.fixture.ts"
+      "target": "tests/e2e/fixtures/auth.fixture.ts"
     },
     {
       "source": "tests/e2e/cross-role-handoffs.spec.ts",
@@ -9598,11 +9535,11 @@
     },
     {
       "source": "tests/e2e/cross-role-patient-journey.spec.ts",
-      "target": "tests/e2e/fixtures/auth.fixture.ts"
+      "target": "tests/e2e/fixtures/test-data.ts"
     },
     {
       "source": "tests/e2e/cross-role-patient-journey.spec.ts",
-      "target": "tests/e2e/fixtures/test-data.ts"
+      "target": "tests/e2e/fixtures/auth.fixture.ts"
     },
     {
       "source": "tests/e2e/dashboard-page.spec.ts",
@@ -9622,11 +9559,11 @@
     },
     {
       "source": "tests/e2e/edit-and-delete-flow.spec.ts",
-      "target": "tests/e2e/mockData.ts"
+      "target": "tests/e2e/utils.ts"
     },
     {
       "source": "tests/e2e/edit-and-delete-flow.spec.ts",
-      "target": "tests/e2e/utils.ts"
+      "target": "tests/e2e/mockData.ts"
     },
     {
       "source": "tests/e2e/global-setup.ts",
@@ -9654,11 +9591,11 @@
     },
     {
       "source": "tests/e2e/login-page.spec.ts",
-      "target": "tests/e2e/mockData.ts"
+      "target": "tests/e2e/utils.ts"
     },
     {
       "source": "tests/e2e/login-page.spec.ts",
-      "target": "tests/e2e/utils.ts"
+      "target": "tests/e2e/mockData.ts"
     },
     {
       "source": "tests/e2e/notifications-and-settings-flow.spec.ts",
@@ -9722,11 +9659,11 @@
     },
     {
       "source": "tests/e2e/primary-business-flow.spec.ts",
-      "target": "tests/e2e/mockData.ts"
+      "target": "tests/e2e/utils.ts"
     },
     {
       "source": "tests/e2e/primary-business-flow.spec.ts",
-      "target": "tests/e2e/utils.ts"
+      "target": "tests/e2e/mockData.ts"
     },
     {
       "source": "tests/e2e/rbac-access-control.spec.ts",
@@ -9734,11 +9671,11 @@
     },
     {
       "source": "tests/e2e/receptionist-workflow.spec.ts",
-      "target": "tests/e2e/fixtures/auth.fixture.ts"
+      "target": "tests/e2e/fixtures/test-data.ts"
     },
     {
       "source": "tests/e2e/receptionist-workflow.spec.ts",
-      "target": "tests/e2e/fixtures/test-data.ts"
+      "target": "tests/e2e/fixtures/auth.fixture.ts"
     },
     {
       "source": "tests/e2e/role-based-access.spec.ts",
@@ -9762,11 +9699,11 @@
     },
     {
       "source": "tests/e2e/stress-and-edge-cases.spec.ts",
-      "target": "tests/e2e/fixtures/auth.fixture.ts"
+      "target": "tests/e2e/fixtures/test-data.fixture.ts"
     },
     {
       "source": "tests/e2e/stress-and-edge-cases.spec.ts",
-      "target": "tests/e2e/fixtures/test-data.fixture.ts"
+      "target": "tests/e2e/fixtures/auth.fixture.ts"
     },
     {
       "source": "tests/e2e/t82-checkin-to-doctor-queue.spec.ts",
@@ -9846,11 +9783,11 @@
     },
     {
       "source": "tests/e2e/fixtures/auth.fixture.ts",
-      "target": "tests/e2e/config/test-users.ts"
+      "target": "tests/e2e/config/environments.ts"
     },
     {
       "source": "tests/e2e/fixtures/auth.fixture.ts",
-      "target": "tests/e2e/config/environments.ts"
+      "target": "tests/e2e/config/test-users.ts"
     },
     {
       "source": "tests/e2e/framework/access-control.spec.ts",
@@ -9882,11 +9819,7 @@
     },
     {
       "source": "tests/e2e/pages/index.ts",
-      "target": "tests/e2e/pages/doctor.page.ts"
-    },
-    {
-      "source": "tests/e2e/pages/index.ts",
-      "target": "tests/e2e/pages/dashboard.page.ts"
+      "target": "tests/e2e/pages/patient-portal.page.ts"
     },
     {
       "source": "tests/e2e/pages/index.ts",
@@ -9894,7 +9827,11 @@
     },
     {
       "source": "tests/e2e/pages/index.ts",
-      "target": "tests/e2e/pages/patient-portal.page.ts"
+      "target": "tests/e2e/pages/dashboard.page.ts"
+    },
+    {
+      "source": "tests/e2e/pages/index.ts",
+      "target": "tests/e2e/pages/doctor.page.ts"
     },
     {
       "source": "tests/e2e/pages/login.page.ts",
@@ -9958,11 +9895,11 @@
     },
     {
       "source": "tests/e2e/tests/smoke/smoke.spec.ts",
-      "target": "tests/e2e/config/environments.ts"
+      "target": "tests/e2e/config/test-users.ts"
     },
     {
       "source": "tests/e2e/tests/smoke/smoke.spec.ts",
-      "target": "tests/e2e/config/test-users.ts"
+      "target": "tests/e2e/config/environments.ts"
     },
     {
       "source": "tests/e2e/tests/workflows/clinical-chain.spec.ts",
@@ -9978,11 +9915,11 @@
     },
     {
       "source": "tests/e2e/utils/index.ts",
-      "target": "tests/e2e/utils/generic-helpers.ts"
+      "target": "tests/e2e/utils/helpers.ts"
     },
     {
       "source": "tests/e2e/utils/index.ts",
-      "target": "tests/e2e/utils/helpers.ts"
+      "target": "tests/e2e/utils/generic-helpers.ts"
     },
     {
       "source": "tests/e2e/workflows/patient-registration-flow.e2e.test.ts",
@@ -10002,19 +9939,19 @@
     },
     {
       "source": "tests/unit/useAdminStats.test.tsx",
-      "target": "src/test/mocks/auth.ts"
+      "target": "src/test/mocks/supabase.ts"
     },
     {
       "source": "tests/unit/useAdminStats.test.tsx",
-      "target": "src/test/mocks/supabase.ts"
-    },
-    {
-      "source": "tests/unit/useConsultations.test.tsx",
       "target": "src/test/mocks/auth.ts"
     },
     {
       "source": "tests/unit/useConsultations.test.tsx",
       "target": "src/test/mocks/supabase.ts"
+    },
+    {
+      "source": "tests/unit/useConsultations.test.tsx",
+      "target": "src/test/mocks/auth.ts"
     },
     {
       "source": "tests/unit/useLaboratory.test.tsx",
@@ -10022,19 +9959,19 @@
     },
     {
       "source": "tests/unit/useNotifications.test.tsx",
-      "target": "src/test/mocks/auth.ts"
+      "target": "src/test/mocks/supabase.ts"
     },
     {
       "source": "tests/unit/useNotifications.test.tsx",
-      "target": "src/test/mocks/supabase.ts"
-    },
-    {
-      "source": "tests/unit/usePharmacy.test.tsx",
       "target": "src/test/mocks/auth.ts"
     },
     {
       "source": "tests/unit/usePharmacy.test.tsx",
       "target": "src/test/mocks/supabase.ts"
+    },
+    {
+      "source": "tests/unit/usePharmacy.test.tsx",
+      "target": "src/test/mocks/auth.ts"
     },
     {
       "source": "tests/unit/useScheduling.test.tsx",
