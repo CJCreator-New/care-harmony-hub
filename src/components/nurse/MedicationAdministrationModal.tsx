@@ -19,6 +19,7 @@ import {
 import { useRecordMedicationAdministration } from '@/hooks/useNurseWorkflow';
 import { usePatients, useSearchPatients } from '@/lib/hooks/patients';
 import { supabase } from '@/integrations/supabase/client';
+import { fieldEncryption } from '@/utils/dataProtection';
 
 interface MedicationAdministrationModalProps {
   open: boolean;
@@ -78,12 +79,51 @@ export function MedicationAdministrationModal({
     }
 
     (async () => {
-      const { data } = await supabase
-        .from('prescription_items')
-        .select('id, medication_name, dosage, route, prescription:prescriptions!inner(patient_id, status)')
-        .eq('prescription.patient_id', selectedPatient.id)
-        .in('prescription.status', ['pending', 'approved', 'active']);
-      setActivePrescriptions((data || []) as any);
+      // Query prescriptions for the patient and gather their items.
+      const { data: prescriptions, error } = await supabase
+        .from('prescriptions')
+        .select('id, status, items:prescription_items(id, medication_name, dosage, route, encryption_metadata)')
+        .eq('patient_id', selectedPatient.id)
+        .in('status', ['pending', 'approved', 'active']);
+
+      if (error) {
+        console.error('Failed to fetch active prescriptions for patient:', error);
+        setActivePrescriptions([]);
+        return;
+      }
+
+      // Decrypt encrypted fields on prescription items so nursing UI shows readable PHI.
+      const decryptedPrescriptions = await Promise.all(
+        (prescriptions || []).map(async (rx: any) => {
+          if (!rx.items?.length) return rx;
+          const decryptedItems = await Promise.all(
+            rx.items.map(async (it: any) => {
+              const item = { ...it };
+              if (!item.encryption_metadata || Object.keys(item.encryption_metadata).length === 0) return item;
+              for (const [field, encData] of Object.entries(item.encryption_metadata as Record<string, any>)) {
+                if (typeof item[field] === 'string' && item[field].startsWith('__ENCRYPTED__')) {
+                  try { item[field] = await fieldEncryption.decryptField(encData); }
+                  catch (e) { item[field] = '[Encrypted]'; }
+                }
+              }
+              return item;
+            })
+          );
+          return { ...rx, items: decryptedItems };
+        })
+      );
+
+      const items = (decryptedPrescriptions || []).flatMap((rx: any) => (
+        (rx.items || []).map((it: any) => ({
+          id: it.id,
+          medication_name: it.medication_name,
+          dosage: it.dosage,
+          route: it.route,
+          prescription_id: rx.id,
+        }))
+      ));
+
+      setActivePrescriptions(items as any[]);
     })();
   }, [selectedPatient?.id]);
 

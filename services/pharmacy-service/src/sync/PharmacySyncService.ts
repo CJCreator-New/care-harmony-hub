@@ -416,8 +416,18 @@ export class PharmacySyncService {
 
   // Database operations (simplified - would connect to main DB in real implementation)
   private async getPrescriptionsFromMainDB(since?: Date): Promise<Prescription[]> {
-    // Implementation would query main database
-    return [];
+    const pool = connectDatabase();
+    try {
+      if (since) {
+        const res = await pool.query('SELECT * FROM public.prescriptions WHERE updated_at > $1', [since.toISOString()]);
+        return res.rows as Prescription[];
+      }
+      const res = await pool.query('SELECT * FROM public.prescriptions ORDER BY created_at DESC LIMIT 1000');
+      return res.rows as Prescription[];
+    } catch (error) {
+      logger.error('Failed to fetch prescriptions from main DB', { error });
+      return [];
+    }
   }
 
   private async getMedicationsFromMainDB(since?: Date): Promise<Medication[]> {
@@ -436,8 +446,15 @@ export class PharmacySyncService {
   }
 
   private async getPrescriptionsFromMainDBByIds(ids: string[]): Promise<Prescription[]> {
-    // Implementation would query main database
-    return [];
+    if (!ids || ids.length === 0) return [];
+    const pool = connectDatabase();
+    try {
+      const res = await pool.query('SELECT * FROM public.prescriptions WHERE id = ANY($1)', [ids]);
+      return res.rows as Prescription[];
+    } catch (error) {
+      logger.error('Failed to fetch prescriptions by ids from main DB', { error, ids });
+      return [];
+    }
   }
 
   private async getMedicationsFromMainDBByIds(ids: string[]): Promise<Medication[]> {

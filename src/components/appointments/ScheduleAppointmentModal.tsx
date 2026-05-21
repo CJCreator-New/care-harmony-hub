@@ -101,7 +101,8 @@ export function ScheduleAppointmentModal({
   onOpenChange,
   selectedDate,
 }: ScheduleAppointmentModalProps) {
-  const { hospital } = useAuth();
+  const { hospital, profile } = useAuth();
+  const hospitalId = hospital?.id ?? profile?.hospital_id ?? null;
   // Declare state BEFORE hooks that depend on it to avoid temporal dead zone
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<{
@@ -113,42 +114,36 @@ export function ScheduleAppointmentModal({
   // Load all active patients for initial display
   const { data: allPatientsData, isLoading: allPatientsLoading } = usePatients({ limit: 100 });
   // Search patients when user types
-  const { data: searchResults, isLoading: searchLoading } = useSearchPatients(patientSearch);
+  const { data: searchResults, isLoading: searchLoading } = useSearchPatients(patientSearch, 1);
 
-  // Use search results when searching (≥2 chars), otherwise show all patients
-  const filteredPatients = patientSearch.length >= 2 ? (searchResults || []) : (allPatientsData?.patients || []);
+  // Use search results as soon as the user starts typing so the modal can reach beyond the initial list
+  const filteredPatients = patientSearch.length >= 1 ? (searchResults || []) : (allPatientsData?.patients || []);
   // Also show loading when hospital context isn't ready yet (prevents false "no patients" flash)
-  const patientsLoading = !hospital?.id || (patientSearch.length >= 2 ? searchLoading : allPatientsLoading);
+  const patientsLoading = !hospitalId || (patientSearch.length >= 1 ? searchLoading : allPatientsLoading);
 
   const createAppointment = useCreateAppointment();
 
   // Fetch doctors
   const { data: doctors } = useQuery({
-    queryKey: ["doctors", hospital?.id],
+    queryKey: ["doctors", hospitalId],
     queryFn: async () => {
-      if (!hospital?.id) return [];
+      if (!hospitalId) return [];
       
       const { data: doctorRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id")
-        .eq("hospital_id", hospital.id)
-        .eq("role", "doctor");
-
-      if (rolesError) throw rolesError;
-
-      const doctorUserIds = (doctorRoles || []).map((role) => role.user_id).filter(Boolean);
-      if (doctorUserIds.length === 0) return [];
+          .eq("hospital_id", hospitalId)
 
       const { data, error } = await supabase
         .from("profiles")
         .select("id, user_id, first_name, last_name")
-        .eq("hospital_id", hospital.id as any)
+        .eq("hospital_id", hospitalId as any)
         .in("user_id", doctorUserIds);
       
       if (error) throw error;
       return (data || []) as Array<{ id: string; first_name: string; last_name: string }>;
     },
-    enabled: !!hospital?.id,
+    enabled: !!hospitalId,
   });
 
   const form = useForm<FormData>({

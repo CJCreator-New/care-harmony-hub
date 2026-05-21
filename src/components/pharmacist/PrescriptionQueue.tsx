@@ -69,6 +69,7 @@ export function PrescriptionQueue() {
 
   const handleDispense = async (_safetyData: {
     batchNumber: string;
+    pharmacistInitials?: string;
     patientVerified: boolean;
     safetyChecksComplete: boolean;
     notes: string;
@@ -93,8 +94,13 @@ export function PrescriptionQueue() {
           'correlation.id': getCorrelation().id,
         },
       },
-      async () => {
-        await dispenseMutation.mutateAsync(prescriptionId);
+        async () => {
+        await dispenseMutation.mutateAsync({
+          id: prescriptionId,
+          batchNumber: _safetyData.batchNumber,
+          pharmacistInitials: _safetyData.pharmacistInitials,
+          notes: _safetyData.notes,
+        });
 
         // Emit canonical dispense event for downstream patient notification rules.
         if (patientId && firstMedName) {

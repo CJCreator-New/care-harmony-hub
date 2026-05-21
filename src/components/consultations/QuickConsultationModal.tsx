@@ -107,8 +107,8 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
 
       const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
 
-      // Handle prescriptions
-      if (prescriptions.length > 0 && notifyPharmacy) {
+      // Handle prescriptions (always create when prescriptions exist so pharmacy queue is populated)
+      if (prescriptions.length > 0) {
         // Phase 3B: Record prescription creation with telemetry
         const prescriptionResult = await recordOperation(
           {

@@ -141,6 +141,7 @@ export function useWorkflowAutomation() {
   // Update task status
   const updateTaskStatusMutation = useMutation({
     mutationFn: async ({ taskId, status, notes }: { taskId: string; status: WorkflowTask['status']; notes?: string }) => {
+      if (!hospital?.id) throw new Error('No hospital context');
       const updateData: any = {
         status,
         updated_at: new Date().toISOString(),
@@ -158,6 +159,7 @@ export function useWorkflowAutomation() {
         .from('workflow_tasks')
         .update(updateData)
         .eq('id', taskId)
+        .eq('hospital_id', hospital.id)
         .select()
         .single();
 
@@ -185,10 +187,12 @@ export function useWorkflowAutomation() {
   // Create automated task
   const createAutomatedTaskMutation = useMutation({
     mutationFn: async (task: Omit<WorkflowTask, 'id' | 'created_at' | 'updated_at'>) => {
+      if (!hospital?.id) throw new Error('No hospital context');
       const { data, error } = await supabase
         .from('workflow_tasks')
         .insert([{
           ...task,
+          hospital_id: hospital.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }])
@@ -210,6 +214,7 @@ export function useWorkflowAutomation() {
   // Assign task to user
   const assignTaskMutation = useMutation({
     mutationFn: async ({ taskId, userId, role }: { taskId: string; userId: string; role: string }) => {
+      if (!hospital?.id) throw new Error('No hospital context');
       const { data, error } = await supabase
         .from('workflow_tasks')
         .update({
@@ -218,6 +223,7 @@ export function useWorkflowAutomation() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', taskId)
+        .eq('hospital_id', hospital.id)
         .select()
         .single();
 

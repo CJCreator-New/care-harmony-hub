@@ -1,0 +1,55 @@
+{
+  "total_files": 2312,
+  "total_words": 195483,
+  "files": {
+    "total": 2312,
+    "code": 1593,
+    "docs": 171,
+    "papers": 0,
+    "images": 67,
+    "video": 0,
+    "other": 481
+  },
+  "top_subdirs": [
+    [
+      "dist\\assets",
+      170
+    ],
+    [
+      "src\\hooks",
+      159
+    ],
+    [
+      "supabase\\migrations\\legacy",
+      98
+    ],
+    [
+      "src\\utils",
+      91
+    ],
+    [
+      "tests\\e2e",
+      87
+    ],
+    [
+      ".",
+      73
+    ],
+    [
+      "src\\components\\ui",
+      63
+    ],
+    [
+      "supabase\\migrations",
+      60
+    ],
+    [
+      "playwright-report-roles\\data",
+      44
+    ],
+    [
+      "tests\\unit",
+      44
+    ]
+  ]
+}

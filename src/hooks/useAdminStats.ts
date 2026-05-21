@@ -6,6 +6,13 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { devLog } from '@/utils/sanitize';
 
+function getLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export interface AdminStats {
   totalPatients: number;
   newPatientsThisMonth: number;
@@ -141,7 +148,7 @@ export function useAdminStats() {
 
       // FIX BUG-DATA-SYNC-001: Query live data for critical KPIs first
       // Client-side timezone-aware queries ensure consistency across dashboard/appointments/queue modules
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString(new Date());
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       const todayStart = `${today}T00:00:00`;
 
@@ -200,7 +207,7 @@ export function useAdminStats() {
 
         appointmentRows = fallbackAppointments || [];
         appointmentMetricLabel = 'Latest Scheduled Appointments';
-        appointmentMetricSubtitle = `Showing ${format(parseISO(latestAppointmentDate), 'MMM d')} seeded activity`;
+        appointmentMetricSubtitle = `Showing ${format(parseISO(latestAppointmentDate), 'MMM d')} appointments`;
       }
 
       const patientGrowthLabel = (newPatientsCount || 0) > 0

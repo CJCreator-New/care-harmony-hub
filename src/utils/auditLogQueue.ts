@@ -165,10 +165,14 @@ class AuditLogQueue {
   private async sendBatch(batch: AuditLogEntry[]): Promise<void> {
     if (batch.length === 0) return;
 
+    // Get current user to replace 'system' attribution where applicable
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUserId = session?.user?.id;
+
     // Transform entries for database
     const dbEntries = batch.map(entry => ({
       hospital_id: entry.hospital_id,
-      user_id: entry.user_id,
+      user_id: (entry.user_id === 'system' && currentUserId) ? currentUserId : entry.user_id,
       action_type: entry.action_type,
       entity_type: entry.entity_type,
       entity_id: entry.entity_id,

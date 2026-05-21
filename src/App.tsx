@@ -118,7 +118,10 @@ const AppContent = () => {
   useAmendmentAlert();
 
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    // Keep Suspense non-blocking at the root to avoid replacing the entire
+    // app shell during route lazy-loads which caused a full-screen white
+    // flash. Individual pages/components should show their own spinners.
+    <Suspense fallback={<></>}>
       <AppRoutes />
     </Suspense>
   );

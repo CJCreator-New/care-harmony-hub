@@ -1,0 +1,652 @@
+{
+  "nodes": 2282,
+  "edges": 796,
+  "avg_degree": 0.6980718667835232,
+  "stddev_degree": 2.603760133816005,
+  "top_nodes": [
+    {
+      "id": "services/clinical-service/src/server.ts",
+      "label": "services/clinical-service/src/server.ts",
+      "degree": 47
+    },
+    {
+      "id": "services/appointment-service/src/server.ts",
+      "label": "services/appointment-service/src/server.ts",
+      "degree": 44
+    },
+    {
+      "id": "services/patient-service/src/server.ts",
+      "label": "services/patient-service/src/server.ts",
+      "degree": 42
+    },
+    {
+      "id": "supabase/functions/_shared/rateLimit.ts",
+      "label": "supabase/functions/_shared/rateLimit.ts",
+      "degree": 33
+    },
+    {
+      "id": "supabase/functions/_shared/cors.ts",
+      "label": "supabase/functions/_shared/cors.ts",
+      "degree": 33
+    },
+    {
+      "id": "tests/e2e/utils/test-helpers.ts",
+      "label": "tests/e2e/utils/test-helpers.ts",
+      "degree": 32
+    },
+    {
+      "id": "supabase/functions/_shared/validation.ts",
+      "label": "supabase/functions/_shared/validation.ts",
+      "degree": 25
+    },
+    {
+      "id": "supabase/functions/_shared/authorize.ts",
+      "label": "supabase/functions/_shared/authorize.ts",
+      "degree": 23
+    },
+    {
+      "id": "src/test/mocks/auth.ts",
+      "label": "src/test/mocks/auth.ts",
+      "degree": 16
+    },
+    {
+      "id": "src/test/mocks/supabase.ts",
+      "label": "src/test/mocks/supabase.ts",
+      "degree": 14
+    },
+    {
+      "id": "tests/e2e/utils.ts",
+      "label": "tests/e2e/utils.ts",
+      "degree": 14
+    },
+    {
+      "id": "tests/e2e/fixtures/auth.fixture.ts",
+      "label": "tests/e2e/fixtures/auth.fixture.ts",
+      "degree": 13
+    },
+    {
+      "id": "tests/e2e/config/test-users.ts",
+      "label": "tests/e2e/config/test-users.ts",
+      "degree": 13
+    },
+    {
+      "id": "services/clinical-service/src/services/clinical.ts",
+      "label": "services/clinical-service/src/services/clinical.ts",
+      "degree": 12
+    },
+    {
+      "id": "services/patient-service/src/utils/logger.ts",
+      "label": "services/patient-service/src/utils/logger.ts",
+      "degree": 10
+    },
+    {
+      "id": "services/patient-service/src/config/database.ts",
+      "label": "services/patient-service/src/config/database.ts",
+      "degree": 9
+    },
+    {
+      "id": "services/patient-service/dist/src/utils/logger.js",
+      "label": "services/patient-service/dist/src/utils/logger.js",
+      "degree": 9
+    },
+    {
+      "id": "services/patient-service/src/services/patient.ts",
+      "label": "services/patient-service/src/services/patient.ts",
+      "degree": 9
+    },
+    {
+      "id": "src/types/testing.ts",
+      "label": "src/types/testing.ts",
+      "degree": 9
+    },
+    {
+      "id": "tests/test/e2e-fixtures.ts",
+      "label": "tests/test/e2e-fixtures.ts",
+      "degree": 9
+    }
+  ],
+  "god_nodes": [
+    {
+      "id": "services/appointment-service/src/server.ts",
+      "label": "services/appointment-service/src/server.ts",
+      "degree": 44
+    },
+    {
+      "id": "services/clinical-service/src/server.ts",
+      "label": "services/clinical-service/src/server.ts",
+      "degree": 47
+    },
+    {
+      "id": "services/patient-service/src/server.ts",
+      "label": "services/patient-service/src/server.ts",
+      "degree": 42
+    },
+    {
+      "id": "src/test/mocks/auth.ts",
+      "label": "src/test/mocks/auth.ts",
+      "degree": 16
+    },
+    {
+      "id": "src/test/mocks/supabase.ts",
+      "label": "src/test/mocks/supabase.ts",
+      "degree": 14
+    },
+    {
+      "id": "supabase/functions/_shared/validation.ts",
+      "label": "supabase/functions/_shared/validation.ts",
+      "degree": 25
+    },
+    {
+      "id": "supabase/functions/_shared/rateLimit.ts",
+      "label": "supabase/functions/_shared/rateLimit.ts",
+      "degree": 33
+    },
+    {
+      "id": "supabase/functions/_shared/cors.ts",
+      "label": "supabase/functions/_shared/cors.ts",
+      "degree": 33
+    },
+    {
+      "id": "supabase/functions/_shared/authorize.ts",
+      "label": "supabase/functions/_shared/authorize.ts",
+      "degree": 23
+    },
+    {
+      "id": "tests/e2e/utils/test-helpers.ts",
+      "label": "tests/e2e/utils/test-helpers.ts",
+      "degree": 32
+    },
+    {
+      "id": "tests/e2e/utils.ts",
+      "label": "tests/e2e/utils.ts",
+      "degree": 14
+    }
+  ],
+  "components_count": 1846,
+  "largest_components": [
+    {
+      "size": 103,
+      "sample": [
+        ".agents/skills/workflow-creator/SKILL.md",
+        "services/appointment-service/src/server.ts",
+        "services/clinical-service/src/server.ts",
+        "services/patient-service/src/server.ts",
+        "services/appointment-service/src/utils/logger.ts"
+      ]
+    },
+    {
+      "size": 58,
+      "sample": [
+        "playwright.roles.config.ts",
+        "tests/e2e/framework/roles.ts",
+        "tests/e2e/framework/access-control.spec.ts",
+        "tests/e2e/live-role-signin-flows.spec.ts",
+        "tests/e2e/framework/fixtures/role.fixture.ts"
+      ]
+    },
+    {
+      "size": 35,
+      "sample": [
+        "tests/e2e/admin-workflow.spec.ts",
+        "tests/e2e/fixtures/auth.fixture.ts",
+        "tests/e2e/labtech-workflow.spec.ts",
+        "tests/e2e/doctor-workflow.spec.ts",
+        "tests/e2e/config/test-users.ts"
+      ]
+    },
+    {
+      "size": 33,
+      "sample": [
+        "src/components/laboratory/EnhancedLabOrderForm.tsx",
+        "src/utils/sanitize.ts",
+        "src/lib/schemas/labOrderSchema.ts",
+        "src/utils/clinicalNoteService.ts",
+        "src/utils/auditLogQueue.ts"
+      ]
+    },
+    {
+      "size": 20,
+      "sample": [
+        "src/test/hooks/useAdminStats.test.tsx",
+        "src/test/mocks/auth.ts",
+        "src/test/hooks/useConsultations.test.tsx",
+        "tests/unit/useAdminStats.test.tsx",
+        "tests/unit/usePharmacy.test.tsx"
+      ]
+    },
+    {
+      "size": 13,
+      "sample": [
+        "services/patient-service/dist/app.js",
+        "services/patient-service/dist/utils/logger.js",
+        "services/patient-service/dist/routes/index.js",
+        "services/patient-service/dist/server.js",
+        "services/patient-service/dist/config/database.js"
+      ]
+    },
+    {
+      "size": 12,
+      "sample": [
+        "services/patient-service/dist/migrate.js",
+        "services/patient-service/dist/src/utils/logger.js",
+        "services/patient-service/dist/src/config/database.js",
+        "services/patient-service/dist/src/services/patient.js",
+        "services/patient-service/dist/src/config/environment.js"
+      ]
+    },
+    {
+      "size": 12,
+      "sample": [
+        "src/components/dashboard/AdminDashboard.tsx",
+        "src/components/dashboard/UpcomingAppointments.tsx",
+        "src/components/dashboard/RecentActivity.tsx",
+        "src/components/dashboard/PatientQueue.tsx",
+        "src/components/dashboard/DashboardPageTransition.tsx"
+      ]
+    },
+    {
+      "size": 10,
+      "sample": [
+        "src/index.css",
+        "src/styles/spacing.css",
+        "src/styles/surfaces.css",
+        "src/styles/colors.css",
+        "src/styles/typography.css"
+      ]
+    },
+    {
+      "size": 10,
+      "sample": [
+        "src/components/testing/reports/ReportsDashboard.tsx",
+        "src/pages/testing/TestingDashboardPage.tsx",
+        "src/types/testing.ts",
+        "src/contexts/TestingContext.tsx",
+        "src/components/testing/test-execution/TestExecutionTracker.tsx"
+      ]
+    }
+  ],
+  "top_folders": [
+    [
+      "src",
+      963
+    ],
+    [
+      "tests",
+      310
+    ],
+    [
+      "supabase",
+      218
+    ],
+    [
+      "services",
+      207
+    ],
+    [
+      "dist",
+      181
+    ],
+    [
+      "docs",
+      64
+    ],
+    [
+      "playwright-report-roles",
+      60
+    ],
+    [
+      "test-results",
+      52
+    ],
+    [
+      ".github",
+      35
+    ],
+    [
+      ".agents",
+      34
+    ],
+    [
+      "scripts",
+      34
+    ],
+    [
+      "monitoring",
+      16
+    ],
+    [
+      "mobile-app",
+      10
+    ],
+    [
+      ".deployment",
+      6
+    ],
+    [
+      "public",
+      6
+    ],
+    [
+      "docker",
+      4
+    ],
+    [
+      ".agent",
+      2
+    ],
+    [
+      ".claude",
+      2
+    ],
+    [
+      ".vscode",
+      2
+    ],
+    [
+      ".code-reviewer.json",
+      1
+    ]
+  ],
+  "surprising_connections_sample": [
+    {
+      "a": "playwright.roles.config.ts",
+      "b": "tests/e2e/framework/roles.ts",
+      "a_folder": "playwright.roles.config.ts",
+      "b_folder": "tests"
+    },
+    {
+      "a": ".agents/skills/workflow-creator/SKILL.md",
+      "b": "services/appointment-service/src/server.ts",
+      "a_folder": ".agents",
+      "b_folder": "services"
+    },
+    {
+      "a": ".agents/skills/workflow-creator/SKILL.md",
+      "b": "services/clinical-service/src/server.ts",
+      "a_folder": ".agents",
+      "b_folder": "services"
+    },
+    {
+      "a": ".agents/skills/workflow-creator/SKILL.md",
+      "b": "services/patient-service/src/server.ts",
+      "a_folder": ".agents",
+      "b_folder": "services"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/generate-2fa-secret/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/drug-interaction-check/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/appointment-reminders/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/create-hospital-admin/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/critical-lab-check/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/predict-deterioration/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/clinical-pharmacy/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/discharge-workflow/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/check-low-stock/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/audit-logger/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/send-notification/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/system-monitoring/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/phase5/mark-no-show/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/fhir-integration/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/optimize-queue/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/ai-clinical-support/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/symptom-analysis/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/lab-critical-values/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/send-email/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/census-reports/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/verify-2fa/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/telemedicine/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/analytics-engine/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/validate-invitation-token/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/lab-automation/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/insurance-integration/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/phase5/issue-telehealth-prescription/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/verify-backup-code/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/billing-reconciliation/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/phase5/generate-recurring-appointments/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/prescription-approval/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/health-check/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/verify-totp/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/store-2fa-secret/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/accept-invitation-signup/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/backup-manager/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/workflow-automation/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/lab-result-notify/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/test-execution/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/appointment-service/src/server.ts",
+      "b": "supabase/functions/monitoring/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/clinical-service/src/server.ts",
+      "b": "supabase/functions/generate-2fa-secret/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/clinical-service/src/server.ts",
+      "b": "supabase/functions/drug-interaction-check/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/clinical-service/src/server.ts",
+      "b": "supabase/functions/appointment-reminders/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/clinical-service/src/server.ts",
+      "b": "supabase/functions/create-hospital-admin/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/clinical-service/src/server.ts",
+      "b": "supabase/functions/critical-lab-check/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    },
+    {
+      "a": "services/clinical-service/src/server.ts",
+      "b": "supabase/functions/clinical-pharmacy/index.ts",
+      "a_folder": "services",
+      "b_folder": "supabase"
+    }
+  ]
+}

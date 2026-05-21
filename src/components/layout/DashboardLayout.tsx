@@ -71,9 +71,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, roles, user, logout } = useAuth();
   const { logActivity } = useActivityLog();
@@ -85,14 +83,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const persistedTestRole = getDevTestRole(roles);
 
-  // Detect macOS for keyboard shortcut display
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  // Detect macOS for keyboard shortcut display (client-only)
+  const [isMac, setIsMac] = useState(false);
 
   // Session timeout is handled centrally in AuthContext — no duplicate here.
 
   // Keyboard shortcut for search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      const isEditable = !!(target && (target.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select'));
+      if (isEditable) return; // Don't hijack shortcuts while typing in inputs
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setSearchOpen(true);
@@ -105,6 +108,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen]);
+
+  // Read client-only values on mount to avoid SSR/hydration differences
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      setSidebarCollapsed(saved === 'true');
+    } catch {
+      // ignore
+    }
+    try {
+      setIsMac(typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform));
+    } catch {
+      setIsMac(false);
+    }
+  }, []);
 
   // Use test role for navigation if provided, otherwise use actual role
   const activeRole = persistedTestRole || primaryRole;
@@ -329,6 +347,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
 
             <div className="flex items-center gap-2">
+              {import.meta.env.DEV && (
+                <RoleSwitcher
+                  variant="dev"
+                  roles={roles}
+                  currentRole={activeRole}
+                  onSwitchRole={handleDevRoleSwitch}
+                  onReset={handleDevRoleReset}
+                  align="end"
+                />
+              )}
+
               {/* Role Switcher - Production only (hidden in dev mode to avoid conflicting with the dev role switcher) */}
               {roles.length > 1 && !import.meta.env.DEV && (
                 <RoleSwitcher variant="default" currentRole={activeRole} />
@@ -401,7 +430,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main id="main-content" className={cn("p-4 lg:p-6", import.meta.env.DEV && "pb-24")} role="main">
+        <main id="main-content" className="p-4 lg:p-6" role="main">
           <div className="mb-4">
             <Breadcrumb />
           </div>
@@ -412,19 +441,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Global Search Dialog */}
       <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
-      {/* Role Switcher for Development */}
-      {import.meta.env.DEV && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <RoleSwitcher
-            variant="dev"
-            roles={roles}
-            currentRole={activeRole}
-            onSwitchRole={handleDevRoleSwitch}
-            onReset={handleDevRoleReset}
-            align="end"
-          />
-        </div>
-      )}
     </div>
   );
 }

@@ -1,691 +1,214 @@
-# CareSync HIMS — Enhancement Master Plan
-
-**Status:** Active Planning  
-**Version:** 1.0
-
----
-
-## 📊 Quick Status Summary
-
-| Tier | Items | Status | Blocker? | Est. Hours |
-|------|-------|--------|----------|-----------|
-| **Tier 1** | 4 | 🟡 85% (2 complete, 1 executing, 1 ready) | YES | 12 |
-| **Tier 2** | 4 | ✅ 100% (All 4 complete) | NO | 40 |
-| **Tier 3** | 4 | ✅ 100% (All 4 items complete) | — | 32 |
-| **Tier 4** | 5 | ✅ 100% (All 5 complete: 4.1✅ 4.2✅ 4.3✅ 4.4✅ 4.5✅) | — | 50 |
-| **Tier 5** | 4 | ✅ 87.5% (5.4✅ + 5.1✅ complete, 5.2-5.3 pending) | — | 35 |
-| **Tier 6** | 4 | 🔴 Not Started | — | 60 |
-| **TOTAL** | **25** | — | — | **227** (158.5/227 hours complete: 69.8%) |
-
----
-
-## 🚨 TIER 1 — Production-Blocking (GO-LIVE CRITICAL)
-
-**Timeline:** Sprint 1  
-**Owner Assignment:** GitHub Copilot  
-**Dependency:** MUST complete before production deployment  
-**📖 Detailed Guide:** [TIER1_IMPLEMENTATION_GUIDE.md](TIER1_IMPLEMENTATION_GUIDE.md)  
-**📊 Summary:** [TIER1_COMPLETION_SUMMARY.md](TIER1_COMPLETION_SUMMARY.md)
-
-| ID | Item | Status | Owner | Effort | Notes | Documentation |
-|----|------|--------|-------|--------|-------|---|
-| 1.1 | Enable leaked-password protection in Supabase Auth | 🟡 Ready | GitHub Copilot | 1h | Manual Supabase config; full guide available | [Step-by-Step](TIER1_ITEM11_COMPLETION.md) |
-| 1.2 | Review 1 permissive `USING(true)` RLS policy | 🟢 ✅ | GitHub Copilot | 2h | ✅ Audit complete; all policies secure by design | [Audit Report](RLS_AUDIT_REPORT.md) |
-| 1.3 | Run 24hr staging soak with `critical-path.spec.ts` | 🟡 Ready | GitHub Copilot | 4h + 24h | Full setup guide + GitHub Actions workflow | [Setup Guide](TIER1_ITEM13_SOAK_TEST.md) |
-| 1.4 | Wire `scripts/validate-rls.ts` as blocking CI gate | 🟢 ✅ | GitHub Copilot | 2h | ✅ CI/CD configured; pre-commit hook active | [Status Report](TIER1_STATUS_REPORT.md) |
-
-**Subtasks for 1.1:** 🟡 READY TO EXECUTE
-- [ ] Log into Supabase dashboard (https://app.supabase.com)
-- [ ] Navigate to Settings → Authentication → Security
-- [ ] Enable "HIBP" or "Password Leak Detection" toggle
-- [ ] Test with known-breach password (password123) — should reject
-- [ ] Test with strong password (MySecure@Pass2026!) — should accept
-- [ ] Document completion in PR comment
-- Full guide: [TIER1_ITEM11_COMPLETION.md](TIER1_ITEM11_COMPLETION.md)
-
-**Subtasks for 1.2:** ✅ COMPLETE
-- [x] Audited all RLS policies (18 PHI tables scanned)
-- [x] Identified 4 `USING(true)` policies — all READ-ONLY reference data
-- [x] Confirmed all PHI tables are hospital-scoped
-- [x] Documented security rationale: reference data cross-hospital sharing is HIPAA-acceptable
-- [x] No code changes required — policies are secure by design
-- Report: [RLS_AUDIT_REPORT.md](RLS_AUDIT_REPORT.md)
-
-**Subtasks for 1.3:** 🟡 READY TO EXECUTE
-- [ ] Option A: Trigger GitHub Actions workflow (recommended)
-  - Go to: Actions tab → "24hr Staging Soak Test" → "Run workflow"
-  - Workflow file: [.github/workflows/soak-test.yml](.github/workflows/soak-test.yml)
-- [ ] Option B: Run locally for quick validation
-  - `npm run test:e2e -- tests/e2e/tests/workflows/critical-path.spec.ts --workers=4 --retries=1000`
-- [ ] Monitor: response times P95, error rate, memory usage, RLS policy timing
-- [ ] After 24hr: Collect results, verify >95% pass rate
-- Full guide: [TIER1_ITEM13_SOAK_TEST.md](TIER1_ITEM13_SOAK_TEST.md)
-
-**Subtasks for 1.4:** ✅ COMPLETE
-- [x] Updated `.github/workflows/ci.yml` to run `validate-rls.ts` on every PR
-- [x] Created `.husky/pre-commit` hook for local validation
-- [x] Added npm scripts: `validate:rls` & `validate:all`
-- [x] Updated README with pre-deployment validation section
-- [x] GitHub Actions secrets configured (SUPABASE_URL, SERVICE_ROLE_KEY)
-- Report: [TIER1_STATUS_REPORT.md](TIER1_STATUS_REPORT.md)
-
----
-
-## 📈 TIER 2 — Code Quality & Type Safety
-
-**Timeline:** Completed April 18, 2026  
-**Owner Assignment:** 🟢 GitHub Copilot (All items complete)  
-**Dependency:** Tier 1 complete ✅  
-**📖 Detailed Guides:**
-- [TIER2_COMPLETION_SUMMARY.md](TIER2_COMPLETION_SUMMARY.md) — Final results (40/40 hours)
-- [TIER2_EXECUTIVE_SUMMARY.md](TIER2_EXECUTIVE_SUMMARY.md) — Executive report
-- [TIER2_SESSION_QUICK_REFERENCE.md](TIER2_SESSION_QUICK_REFERENCE.md) — Quick lookup  
-**Status:** 🟢 100% COMPLETE (All 4 items done)  
-**Total Effort:** 40/40 hours completed
-
-| ID | Item | Status | Owner | Effort | Notes | Documentation |
-|----|------|--------|-------|--------|-------|---|
-| 2.1 | Eliminate 21 `@ts-nocheck` files | � ✅ | GitHub Copilot | 15h | ✅ All 21 files processed, 0 errors, committed | [TIER2_COMPLETION_SUMMARY.md](TIER2_COMPLETION_SUMMARY.md) |
-| 2.2 | Re-enable TypeScript strict mode | 🟢 ✅ | GitHub Copilot | 10h | ✅ Strict mode enabled, 0 errors, committed | [TIER2_COMPLETION_SUMMARY.md](TIER2_COMPLETION_SUMMARY.md) |
-| 2.3 | Replace `(supabase as any)` casts | 🟢 ✅ | GitHub Copilot | 8h | ✅ All 20 casts fixed in 6 files, 0 errors, committed | [TIER2_COMPLETION_SUMMARY.md](TIER2_COMPLETION_SUMMARY.md) |
-| 2.4 | Split `App.tsx` initialization | 🟢 ✅ | GitHub Copilot | 7h | ✅ 6 bootstrap modules created, App.tsx simplified, 0 errors, committed | [TIER2_COMPLETION_SUMMARY.md](TIER2_COMPLETION_SUMMARY.md) |
-
----
-
-### Item 2.1: Eliminate 21 `@ts-nocheck` Files (15 hours)
-
-**Actual files identified:** 21 (not 18)
-
-**Phase 1 Priority (Security-Critical) — 8 hours:**
-- [ ] `src/components/auth/RoleProtectedRoute.tsx` — Authorization logic (2h)
-- [ ] `src/lib/ai/orchestrator.ts` — Workflow state machine (2h)
-- [ ] `src/lib/encryption.utils.ts` — PHI encryption (2h)
-- [ ] `src/utils/clinicalNoteService.ts` — Clinical data (2h)
-
-**Phase 2 (Medium Risk) — 5 hours:**
-- [ ] `src/lib/hooks/observability/useAuditLog.ts` (1h)
-- [ ] `src/lib/workflow-validator.ts` (1h)
-- [ ] `src/lib/clinical-notes.manager.ts` (1h)
-- [ ] `src/lib/prescription-refill.manager.ts` (0.5h)
-- [ ] `src/lib/telehealth.provider.ts` (0.5h)
-- [ ] `src/utils/pharmacistOperationsService.ts` (0.5h)
-- [ ] `src/utils/wardManagementService.ts` (0.5h)
-- [ ] `src/lib/speech/SpeechRecognitionService.ts` (1h)
-- [ ] `src/utils/edgeCaseResilience.ts` (0.5h)
-
-**Phase 2B (Lower Risk) — 2 hours:**
-- [ ] `src/lib/ai/providers/ClaudeProvider.ts` (0.5h)
-- [ ] `src/lib/ai/providers/OpenAIProvider.ts` (0.5h)
-- [ ] `src/utils/indexedDBCache.ts` (0.5h)
-- [ ] `src/workers/securityAnalysis.worker.ts` (0.5h)
-- [ ] `src/hooks/__tests__/useAuditTrail.test.tsx` (0.25h)
-- [ ] `src/test/admin-rbac-verify.ts` (0.25h)
-- [ ] `src/test/hooks/useConsultations.test.tsx` (0.25h)
-- [ ] `src/utils/abacManager.test.ts` (0.25h)
-
-**Procedure:**
-```bash
-# Verify all 21 files:
-Get-ChildItem -Path src -Recurse -Include "*.ts", "*.tsx" | Select-String "@ts-nocheck" | Select-Object -ExpandProperty Path | Sort-Object
-
-# For each file in priority order:
-# 1. Open file (Ctrl+P → filename)
-# 2. Remove @ts-nocheck line
-# 3. Run: npm run type-check
-# 4. Fix TypeScript errors (detailed guide: TIER2_ITEM21_EXECUTION_GUIDE.md)
-# 5. Commit: git add file && git commit -m "refactor: add type safety to [file]"
-# 6. Repeat until all 21 complete
-
-# Final verification:
-Get-ChildItem -Path src -Recurse -Include "*.ts", "*.tsx" | Select-String "@ts-nocheck"
-# Should return: (empty)
-
-npm run type-check  # Should return: 0 errors
-npm run test        # Should pass
-```
-
-**Guides:**
-- [TIER2_ITEM21_EXECUTION_GUIDE.md](TIER2_ITEM21_EXECUTION_GUIDE.md) — Full reference with error fixes
-- [TIER2_ITEM21_FILE1_START.md](TIER2_ITEM21_FILE1_START.md) — Quick start for first file
-- [TIER2_ITEM21_PROGRESS.md](TIER2_ITEM21_PROGRESS.md) — Real-time progress tracker
-
----
-
-### Item 2.2: Re-enable TypeScript Strict Mode (10 hours)
-
-**Goal:** Enable `strict: true` in tsconfig.json to catch all type errors at compile time
-
-**Changes to `tsconfig.json`:**
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitAny": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true
-  }
-}
-```
-
-**Areas requiring fixes (estimated hours):**
-- Hook return types (3h) — 12 files with implicit return types
-- Component props (3h) — 35 files with untyped props
-- Query functions (2h) — 20 files with loose Supabase types
-- API response handling (2h) — 15 files with unhandled null cases
-
-**Procedure:**
-```bash
-# 1. Make tsconfig.json changes above
-# 2. Run type-check and collect errors
-npm run type-check > type-errors.txt 2>&1
-
-# 3. Fix errors by category (files identified in audit)
-# 4. Re-run after each category
-npm run type-check
-
-# 5. Verify 0 errors and tests pass
-npm run test
-```
-
-**Dependent on:** Item 2.1 (all @ts-nocheck removed first)
-
----
-
-### Item 2.3: Replace `(supabase as any)` Casts (8 hours)
-
-**Goal:** Eliminate unsafe `as any` casts on Supabase client to enable proper type checking
-
-**Find all occurrences:**
-```bash
-Get-ChildItem -Path src -Recurse -Include "*.ts", "*.tsx" | Select-String "(supabase as any)" | Select-Object -ExpandProperty Path
-```
-
-**Common patterns (~25-40 total occurrences):**
-- `.from(...).select()` — ~15 occurrences (use generics)
-- `.from(...).insert()` — ~8 occurrences
-- `.from(...).update()` — ~7 occurrences  
-- `.rpc()` calls — ~5 occurrences
-
-**Type-safe patterns:**
-
-```typescript
-// ❌ BAD (current):
-const result = (supabase as any).from('patients').select();
-
-// ✅ GOOD (after):
-const { data, error } = await supabase
-  .from('patients')
-  .select<Patient>('*')
-  .eq('hospital_id', hospitalId);
-
-// For inserts:
-const { data, error } = await supabase
-  .from('prescriptions')
-  .insert<Database['public']['Tables']['prescriptions']['Insert']>(newRx);
-
-// For RPC calls:
-const { data, error } = await supabase
-  .rpc<CPTCodeResult>('search_cpt_codes', { query: term });
-```
-
-**Procedure:**
-1. Search for each pattern above
-2. Replace with typed version (see examples)
-3. Let TypeScript infer return types
-4. Run `npm run type-check` to verify
-
-**Dependent on:** Item 2.2 (strict mode active to catch type errors)
-
----
-
-### Item 2.4: Split App.tsx Initialization (7 hours)
-
-**Goal:** Extract initialization logic from App.tsx into modular bootstrap system to prevent startup race conditions
-
-**Current state:** App.tsx >200 lines with initialization side effects mixed with rendering logic
-
-**New structure to create:**
-```
-src/bootstrap/
-├── index.ts              # Main initialization orchestrator
-├── logger.ts             # Logging setup
-├── telemetry.ts          # Segment analytics initialization
-├── sentry.ts             # Error tracking setup
-├── metrics.ts            # Performance metrics
-├── auth.ts               # Auth context + token refresh
-├── database.ts           # Supabase client + listeners
-├── feature-flags.ts      # Load and cache feature flags
-└── router.ts             # Route configuration + guards
-```
-
-**App.tsx after split:**
-```typescript
-// ✅ Clean and focused on rendering
-import { useAuth } from '@/contexts/AuthContext';
-import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
-import { Main } from '@/pages/Main';
-
-export function App() {
-  const { isLoading } = useAuth();
-  
-  if (isLoading) return <LoadingScreen />;
-  
-  return (
-    <RoleProtectedRoute allowedRoles={['all']}>
-      <Main />
-    </RoleProtectedRoute>
-  );
-}
-```
-
-**Key benefits:**
-- Startup initialization runs in defined order (no race conditions)
-- Testable module-by-module
-- Clear separation of concerns
-- Easier to add/remove features
-- Reduced App.tsx complexity (200+ → 50 lines)
-
-**Procedure:**
-1. Create `src/bootstrap/` directory
-2. Extract initialization to each module (logger, telemetry, sentry, etc.)
-3. Create `bootstrap/index.ts` to orchestrate in correct order
-4. Update `src/main.tsx` to call bootstrap before rendering
-5. Simplify App.tsx to render-only logic
-6. Test: Startup flow, auth persistence, feature flag loading
-
-**Dependent on:** Item 2.1–2.2 (clean codebase first)
-
----
-
-## 📡 TIER 3 — Observability & Operations
-
-**Timeline:** Completed April 18, 2026  
-**Owner Assignment:** 🟢 GitHub Copilot  
-**Dependency:** Tier 1 & 2 complete ✅  
-**📖 Detailed Guide:** [TIER3_IMPLEMENTATION_PLAN.md](TIER3_IMPLEMENTATION_PLAN.md)  
-**Status:** 🟢 100% COMPLETE (All 4 items done)  
-**Total Effort:** 32/32 hours completed
-
-| ID | Item | Status | Owner | Effort | Notes | PR/Issue |
-|----|------|--------|-------|--------|-------|---------|
-| 3.1 | Add real `/api/health` endpoint (DB + Edge Function checks) | 🟢 ✅ | GitHub Copilot | 4h | ✅ Complete; Health-check + SystemHealthDashboard | — |
-| 3.2 | Surface AI Gateway usage/cost metrics in dashboard | 🟢 ✅ | GitHub Copilot | 6h | ✅ Complete; useAIMetrics hook + AIMetricsChart component | — |
-| 3.3 | Build audit log viewer UI for admins | 🟢 ✅ | GitHub Copilot | 8h | ✅ Complete; AuditLogViewer + filtering + CSV export | — |
-| 3.4 | Add realtime connection status indicator | � ✅ | GitHub Copilot | 5h | ✅ Complete; RealtimeConnectionStatus hook + banner with exponential backoff | — |
-
-**Subtasks for 3.1 (/api/health):**
-- [ ] Create Edge Function: `supabase/functions/health-check/`
-- [ ] Check: DB connection, Edge Function reachability, external API (Lovable, etc.)
-- [ ] Return: `{ status, db: ok|error, edgeFunctions: ok|error, timestamp }`
-- [ ] Wire to `ComprehensiveSystemDashboard` + Datadog/monitoring tool
-- [ ] Add to k8s/Docker health probe config
-
-**Subtasks for 3.2 (AI Gateway Metrics):**
-- [ ] Query Lovable API for usage stats (if available via SDK)
-- [ ] Log to `system_metrics` table: `{ ai_calls_count, tokens_used, cost_estimate, timestamp }`
-- [ ] Add chart component to `ComprehensiveSystemDashboard`
-- [ ] Set up alerting if cost exceeds threshold
-
-**Subtasks for 3.3 (Audit Log UI):**
-- [ ] Create `src/pages/AuditLogViewer.tsx` (admin-only, RoleProtectedRoute)
-- [ ] Query `activity_logs` with pagination, filters (user, action, date range)
-- [ ] Display: timestamp, user, action, resource_id, changes, ip_address
-- [ ] Add export to CSV for compliance
-
-**Subtasks for 3.4 (Realtime Status):**
-- [ ] Add Supabase Realtime disconnect listener to `AuthContext`
-- [ ] Show banner: "🔴 Realtime connection lost — clinical updates may delay"
-- [ ] Auto-retry + exponential backoff
-- [ ] Log disconnect events to `system_logs` for post-mortem
-
----
-
-## 🏥 TIER 4 — Clinical Workflow Polish
-
-**Timeline:** Completed Sprint 4–5  
-**Owner Assignment:** 🟢 GitHub Copilot (All 5 items complete)  
-**Dependency:** Tier 1 complete ✅  
-**Status:** 🟢 100% COMPLETE (5/5 items done)  
-**Total Effort:** 50/50 hours completed
-
-| ID | Item | Status | Owner | Effort | Notes | PR/Issue | Blocking? |
-|----|------|--------|-------|--------|-------|---------|-----------|
-| 4.1 | Formalize discharge workflow state machine | 🟢 ✅ | GitHub Copilot | 12h | ✅ 7-step state machine, multi-role approval, real-time, 25+ tests | cb67556 | — |
-| 4.2 | Formalize lab-result notification workflow | � ✅ | GitHub Copilot | 10h | ✅ Real-time notify, consent logging, doctor acknowledge/action, 20+ tests | 891e76a | — |
-| 4.3 | Add optimistic locking on prescriptions | 🟢 ✅ | GitHub Copilot | 8h | ✅ Version column, conflict detection, merge UI, 20+ tests | 722a186 | — |
-| 4.4 | Critical lab value alert system + paging | 🟢 ✅ | GitHub Copilot | 10h | ✅ Escalation chain (5min→10min), audit trail, 20+ tests | 891e76a | — |
-| 4.5 | Drug interaction check in prescription flow | 🟢 ✅ | GitHub Copilot | 9h | ✅ Local cache + RxNorm API, 4 severity levels, 20+ tests | e9f4d93 | — |
-
-**Subtasks for 4.1 (Discharge Workflow):** ✅ COMPLETE
-- [x] Define states: `draft`, `reviewed`, `approved`, `scheduled`, `discharged`, `finalized`
-- [x] Create `discharge_workflows` table with state machine logic
-- [x] Add Edge Function trigger on state transitions
-- [x] Implement in `DischargeFlow.tsx`: button to advance state + audit trail
-- [x] Alert: discharge cannot complete if outstanding tasks remain
-
-**Subtasks for 4.2 (Lab Result Notification):** ✅ COMPLETE
-- [x] Add Edge Function: `supabase/functions/lab-result-notify/`
-- [x] On insert to `lab_results`: check for critical values
-- [x] If critical: page ordering doctor via SMS + in-app alert
-- [x] Track: notification sent, doctor acknowledged, follow-up taken
-- [x] HIPAA: log who viewed result + when
-
-**Subtasks for 4.3 (Optimistic Locking):** ✅ COMPLETE
-- [x] Add `version` column to `prescriptions` table
-- [x] On update: check `WHERE version = ?` before applying change
-- [x] Return conflict if version mismatch → prompt user to merge or retry
-- [x] Test: simultaneous edits by two users
-
-**Subtasks for 4.4 (Critical Lab Alerts):** ✅ COMPLETE
-- [x] Define critical ranges by lab test type (e.g., glucose > 400, K+ < 2.5)
-- [x] Create `lab_critical_ranges` config table
-- [x] Edge Function checks result against range → triggers alert
-- [x] Alert routing: primary doctor → on-call → ER if no response in 5min
-
-**Subtasks for 4.5 (Drug Interaction Check):** ✅ COMPLETE
-- [x] Integrate with RxNorm API or offline DrugBank DB
-- [x] On prescription create: query for interactions with current medications
-- [x] Show warnings: severity (minor/moderate/severe), recommendation
-- [x] Allow override with clinical justification (logged to audit trail)
-
----
-
-## 🎨 TIER 5 — UX / Patient-Facing
-
-**Timeline:** Sprint 6+ (5.4 completed Sprint 5)  
-**Owner Assignment:** [5.4 ✅ GitHub Copilot | 5.1-5.3 TO BE ASSIGNED]  
-**Dependency:** Tier 1–3 complete  
-**Status:** 🟡 25% COMPLETE (5.4/5.4 done, 5.1-5.3 pending)  
-**Total Effort:** 35/35 hours (12/35 complete)
-
-| ID | Item | Status | Owner | Effort | Notes | PR/Issue |
-|----|------|--------|-------|--------|-------|----------|
-| 5.1 | PWA offline mode for nurses (vitals capture) | 🟢 ✅ | GitHub Copilot | 3.5h | ✅ Offline vitals capture modal, indicator, history, sync UI | — |
-| 5.2 | Patient portal v2 rollout & feature completion | 🔴 | — | 15h | Flag exists (`patient_portal_v2`); finish UI | — |
-| 5.3 | Mobile app parity with web feature flags | 🔴 | — | 6h | `mobile-app/` is thin shell; align | — |
-| 5.4 | Accessibility audit (ARIA, keyboard nav, screen-reader) | 🟢 ✅ | GitHub Copilot | 12h | ✅ WCAG 2.1 AAA complete; all phases delivered | [See Below] |
-
-**Subtasks for 5.1 (PWA Offline):** ✅ COMPLETE (3.5/12 hours - Phase 1-3 delivered)
-
-**Phase 1 (1h):** Offline Indicator + Vitals Capture UI
-- [x] OfflineIndicator.tsx: Red banner when offline (WifiOff icon), yellow when syncing (Wifi pulse)
-- [x] OfflineVitalsCaptureModal.tsx: Complete vitals form with validation
-  - Patient ID, blood pressure (40-250 mmHg), temperature (35-42°C), RR (8-50 bpm)
-  - SpO2 (50-100%), weight (1-300 kg), height (30-250 cm), pain (0-10), chief complaint
-  - Real-time field validation with aria-invalid + aria-describedby accessibility
-  - Shows "Save & Send" when online, "Save Offline" when disconnected
-  - Automatically queues to useOfflineSync hook with PHI encryption
-- [x] Integrated to NurseDashboard with "Offline Vitals" button
-- [x] Commit: `50e48c3`
-
-**Phase 2 (1.5h):** Offline Vitals History Viewer
-- [x] OfflineVitalsHistory.tsx: Paginated table of recorded vitals
-  - Displays patient ID, vital signs, temperature, RR, SpO2, pain, timestamp
-  - Shows sync status (Pending/Synced) with colored badges
-  - Pagination: 10 items per page with prev/next navigation
-  - Pulls from useOfflineSync cache in real-time
-  - Storage summary: counts vitals, medications, patient records
-
-**Phase 3 (1h):** Sync Progress & Export Panel
-- [x] SyncProgressPanel.tsx: Real-time sync monitoring
-  - Pending actions counter with progress bar (0-100%)
-  - Storage summary: vitals count, medications, patients
-  - Manual sync trigger button (disabled when offline)
-  - One-click JSON export with timestamp (for backup/import)
-  - Shows online/offline status with indicator
-  - Auto-sync info and storage capacity (IndexedDB 50MB)
-  - Export progress bar during download
-- [x] Commit: `53943dd`
-
-**Infrastructure (Pre-Built):**
-- ✅ VitePWA configured with Workbox (manifest.json, service worker, caching policies)
-- ✅ useOfflineSync hook: Online detection, pending action queue, localStorage caching, encryption
-- ✅ indexedDBCache utility: 50MB+ storage, TTL expiration, hospital scoping, cleanup
-- ✅ Network status monitoring with automatic sync triggers
-
-**Validation:**
-- ✅ TypeScript strict mode: 0 errors
-- ✅ Accessibility: WCAG 2.1 AA form compliance (aria-invalid patterns)
-- ✅ Clinical ranges: All vital inputs with realistic min/max bounds
-- ✅ Integration: Works with existing offline sync infrastructure
-
-**Remaining (8.5h for full PWA rollout - OPTIONAL for future sprint):**
-- [ ] Advanced offline features: offline search, filtering by date range
-- [ ] Offline data import/restore from exported JSON
-- [ ] Service worker advanced features: background sync, periodic sync
-- [ ] Mobile-optimized UI for compact screens (landscape vitals entry)
-- [ ] Offline error recovery: retry logic, conflict resolution, data merging
-- [ ] Performance: compression for large offline datasets
-
-**Subtasks for 5.2 (Patient Portal v2):**
-- [ ] Audit feature flag `patient_portal_v2` usage
-- [ ] Complete missing components: appointment booking, test results, messaging
-- [ ] Mobile responsiveness pass
-- [ ] UAT with patient personas
-
-**Subtasks for 5.3 (Mobile App Parity):**
-- [ ] Sync feature flags from web to mobile build config
-- [ ] Ensure: prescription view, vital sign entry, appointment access
-- [ ] Platform-specific UX polish (iOS/Android)
-
-**Subtasks for 5.4 (Accessibility):** ✅ COMPLETE
-
-**Phase 1 (4/12 hours):** Color-Independent Indicators
-- [x] Updated 8 clinical components: DoctorDashboard, PatientDashboard, NurseWorkflow, PharmacyQueue, LaboratoryPage, BillingPage, QueueManagement, DischargeWorkflow
-- [x] All status indicators now combine: color + text + icon (WCAG AAA compliant)
-- [x] Commit: `e6f4c48` — Phase 1 complete
-
-**Phase 2a (2/12 hours):** Form Error Announcements
-- [x] RecordVitalsModal: Added aria-invalid + aria-describedby + role="alert" pattern
-- [x] Chief complaint, vitals inputs: Added unique IDs + descriptive aria-labels with units
-- [x] All form fields linked to error messages for screen readers
-- [x] Commit: `7777267` — Form accessibility foundation
-
-**Phase 2b (1/12 hours):** Table Semantics
-- [x] AppointmentsPage: 7 table headers with scope="col"
-- [x] PatientsPage: 7 table headers with scope="col"
-- [x] PharmacyQueuePage: 5 table headers with scope="col"
-- [x] Total: 19 semantic table headers across 3 pages
-- [x] Commit: `dc8f323` — Table scope attributes + Phase 3.1 modal focus
-
-**Phase 3.1 (0.5/12 hours):** Modal Focus Management
-- [x] RecordVitalsModal: Implemented focus trap on modal open
-- [x] Focus automatically moves to first interactive element on modal display
-- [x] Screen reader users immediately enter modal context
-
-**Phase 3.2 (3/12 hours):** Keyboard Navigation & Screen Reader Testing Guide
-- [x] Created `docs/TIER5_ITEM54_PHASE3_KEYBOARD_SCREEN_READER_TESTING.md` (450+ lines)
-- [x] NVDA manual testing workflow with 6 test cases:
-  - Vital Signs form navigation and error announcements
-  - Appointment Queue table headers and sorting
-  - Lab Results data presentation
-  - Drug Interactions warnings
-  - Modal focus management and escape key
-  - Skip navigation links
-- [x] Automated keyboard testing script with Playwright
-- [x] Pre-deployment testing checklist for accessibility validation
-- [x] Commit: `daf6e34` — Phase 3 complete + testing guide
-- [x] Commit: `0a41210` — Final completion summary
-
-**Production Build Fixes:**
-- [x] Fixed duplicate useDischargeWorkflow exports
-- [x] Fixed invalid LogSquare icon import (→ FileText)
-- [x] Fixed pagination component imports
-- [x] Commit: `b169b66` — Build fixes, all errors resolved
-
-**Validation:**
-- ✅ TypeScript strict mode: 0 errors
-- ✅ Production build: Exit code 0 (1m 15s, 4560 modules, 179 PWA entries)
-- ✅ All 6 commits verified and merged
-
-**Testing & Documentation:**
-- ✅ WCAG 2.1 AAA compliance validation
-- ✅ Screen reader (NVDA) testing guide with 6 manual test cases
-- ✅ Automated keyboard navigation testing prepared
-- ✅ Deployment checklist for accessibility validation
-
----
-
-## 🚀 TIER 6 — Strategic / Longer Horizon
-
-**Timeline:** Sprint 7+  
-**Owner Assignment:** [TBD]  
-**Dependency:** Tier 1–5 solid foundation
-
-| ID | Item | Status | Owner | Effort | Notes | PR/Issue |
-|----|------|--------|-------|--------|-------|---------|
-| 6.1 | FHIR interoperability (R4/R5 exchange) | 🔴 | — | 25h | Stub exists; build for external EHR exchange | — |
-| 6.2 | AI clinical decision support rollout | 🔴 | — | 20h | Flag `ai_clinical_tools` exists; ship UIs | — |
-| 6.3 | Multi-hospital tenancy console | 🔴 | — | 20h | For healthcare networks; hospital_id scoping | — |
-| 6.4 | Insurance claim automation | 🔴 | — | 25h | Billing exists; add claim submission + tracking | — |
-
-**Subtasks for 6.1 (FHIR):**
-- [ ] Map CareSync `patients` → FHIR `Patient` resource
-- [ ] Map `encounters` → FHIR `Encounter`
-- [ ] Map `lab_results` → FHIR `Observation`
-- [ ] Add FHIR export endpoint: `/api/fhir/export?resourceType=Patient`
-- [ ] Test with external EHR sandbox (e.g., Cerner, Epic if available)
-
-**Subtasks for 6.2 (AI Decision Support):**
-- [ ] Design diagnosis suggestion UI (read-only, confidence score)
-- [ ] Design treatment optimization suggestions
-- [ ] Integrate with Lovable AI or similar clinical LLM
-- [ ] A/B test adoption + clinical utility
-- [ ] Audit all AI suggestions for regulatory compliance
-
-**Subtasks for 6.3 (Multi-Hospital Tenancy):**
-- [ ] Build admin console: add/remove hospitals, manage billing
-- [ ] Verify all queries scoped to `hospital_id` (audit RLS)
-- [ ] Multi-hospital user role mappings
-- [ ] Billing consolidation view (CFO dashboard)
-
-**Subtasks for 6.4 (Claim Automation):**
-- [ ] Design claim submission workflow
-- [ ] Integrate with insurance API (UB-04 format, X12)
-- [ ] Track: submitted, in-review, approved, denied, paid
-- [ ] Appeal workflow for denials
-- [ ] Reporting: claims by status, revenue cycle KPIs
-
----
-
-## 📅 Execution Roadmap
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ SPRINT 1              │ Tier 1: Production Blockers          │
-│ Focus: Unblock go-live│ Est: 12h (+ 24h soak test wait)      │
-└─────────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────────┐
-│ SPRINT 2–3            │ Tier 2: Type Safety                  │
-│ Focus: Code quality   │ Est: 40h                             │
-└─────────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────────┐
-│ SPRINT 3–4            │ Tier 3: Observability                │
-│ Focus: Ops readiness  │ Est: 30h                             │
-└─────────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────────┐
-│ SPRINT 4–5            │ Tier 4: Clinical Workflows           │
-│ Focus: Domain         │ Est: 50h (domain expert review)      │
-└─────────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────────┐
-│ SPRINT 6+             │ Tier 5–6: UX & Strategic             │
-│ Focus: User delight   │ Est: 95h (parallel teams ok)         │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🎯 Dependencies & Critical Path
-
-```
-Tier 1 (Blockers) ──┬→ Tier 2 (Type Safety)
-                    │
-                    └→ Tier 3 (Ops)
-                          │
-                          └→ Tier 4 (Clinical)
-                                │
-                                └→ Tier 5 (UX) ──→ Tier 6 (Strategic)
-```
-
-**Critical Path Items (serialized):**
-1. 1.1, 1.2 → Production auth/RLS lock-down
-2. 1.3, 1.4 → Validation before go-live
-3. 3.1 → /api/health for ops monitoring
-4. 4.1–4.5 → Clinical domain validation (domain expert + MD sign-off required)
-
----
-
-## 📋 Status Legend
-
-| Status | Symbol | Meaning |
-|--------|--------|---------|
-| Not Started | 🔴 | Awaiting assignment or dependencies |
-| In Progress | 🟡 | Active development or testing |
-| Review | 🟠 | Code/design review in progress |
-| Complete | 🟢 | Merged to main, validated in staging |
-| Blocked | 🔵 | Waiting on external dependency or decision |
-| Deferred | ⚪ | Moved to future sprint |
-
----
-
-## 📊 Weekly Progress Template
-
-Copy this section each week and update status:
-
-### Week of [DATE]
-
-| Tier | Item | Owner | Status | % Complete | Notes |
-|------|------|-------|--------|-----------|-------|
-| 1 | 1.1 | | 🔴 | 0% | |
-| 1 | 1.2 | | 🔴 | 0% | |
-| ... | ... | | ... | ... | ... |
-
----
-
-## 📝 Notes & Decisions
-
-- **Tier 1 Progress**: 2/4 items complete (RLS audit ✅, CI/CD validation ✅); Items 1.1 & 1.3 ready to execute
-- **Tier 1 Consensus**: Must be complete before production deployment
-- **Tier 2 Status**: ✅ 100% COMPLETE (40/40 hours) — All @ts-nocheck eliminated, strict mode enabled, type-safe Supabase, App.tsx split
-- **Tier 3 Status**: ✅ 100% COMPLETE (32/32 hours) — Health endpoint, AI metrics, audit log viewer, realtime status
-- **Tier 4 Progress**: 🟢 100% COMPLETE (50/50 hours) — All items done: 4.1 discharge ✅, 4.2 lab notify ✅, 4.3 optimistic lock ✅, 4.4 critical alerts ✅, 4.5 drug interact ✅
-- **Tier 5.4 Status**: 🟢 100% COMPLETE (12/12 hours) — Full WCAG 2.1 AAA accessibility audit implemented. Phase 1-3 complete with ARIA labels, table semantics, modal focus, keyboard navigation, and NVDA testing guide. Production build verified.
-- **Tier 5.1 Status**: ✅ 100% COMPLETE (12/12 hours) — Full PWA offline vitals capture implementation delivered. Phase 1-3: OfflineIndicator, OfflineVitalsCapture, OfflineVitalsHistory, SyncProgressPanel. Phase 4-6: Advanced date filtering, JSON import/export, mobile landscape form, background sync, error recovery with exponential backoff, dataset compression (LZ4-like RLE). Leverages pre-built useOfflineSync infrastructure. Production build verified.
-- **Project Total**: 158.5/227 hours (69.8% complete) — Tier 1-4 + Tier 5.1 + 5.4 complete, Tier 5.2-5.3 + Tier 6 pending
-- **Last Updated**: April 18, 2026 (PM) — Tier 5.1 PWA offline vitals 100% COMPLETE (12/12 hours, all phases), Tier 5.4 accessibility 100% COMPLETE (12/12 hours). Project at 69.8% completion. Next: Tier 5.2 (Patient Portal v2) or Tier 5.3 (Mobile app parity)
-
----
-
-## 🔗 Related Documents
-
-- [Production Readiness Report](PRODUCTION_READINESS_REPORT.md)
-- [RBAC Permissions](RBAC_PERMISSIONS.md)
-- [HIPAA Compliance](HIPAA_COMPLIANCE.md)
-- [Workflow Creator Skill](../.agents/skills/workflow-creator/SKILL.md)
-- [HIMS Domain Expert Skill](../.agents/skills/hims-domain-expert/SKILL.md)
-- [Engineering Execution Guardrails Skill](../.agents/skills/engineering-execution-guardrails/SKILL.md)
-
----
-
-## ✅ Sign-Off
-
-- [ ] Product Owner approval
-- [ ] Tech Lead approval
-- [ ] Clinical SME review (Tier 4–6)
-- [ ] Ops team buy-in (Tier 3)
-
----
-
-**Next Steps:**
-1. Assign owners to each Tier
-2. Schedule domain expert review for Tier 4
-3. Kick off Tier 1 immediately
-4. Create individual GitHub issues for each item (link to this master plan)
+Here is the **consolidated CareSync HIMS — End-to-End QA Master Report**, combining all findings from all 5 roles into a single, structured document.
+
+***
+
+# CareSync HIMS — Consolidated End-to-End QA Report
+
+**Date:** May 18, 2026 | **Environment:** localhost:8080 | **Tester:** Automated E2E Review
+**Roles Covered:** Receptionist · Pharmacist · Doctor · Nurse · Administrator
+
+***
+
+## Severity Legend
+- 🔴 **Critical** — Blocks core workflow, data loss risk, compliance/safety concern
+- 🟠 **High** — Major functional failure, significant user impact
+- 🟡 **Medium** — Functional gap or confusing UX
+- 🔵 **Low** — Polish, copy, or minor cosmetic issue
+
+***
+
+## ROLE 1 — RECEPTIONIST
+
+| ID | Sev | Page / Feature | Issue Description |
+|----|-----|---------------|-------------------|
+| R-01 | 🔵 | Dashboard | Greeting displays org handle ("Good morning, CJ_Creator's!") instead of the user's real name |
+| R-02 | 🟠 | Book Appointment | Doctor dropdown is empty — no doctors listed for selection; appointment cannot be assigned to a doctor |
+| R-03 | 🟡 | Patient Check-in | "Check In Patient" search returns inconsistent results depending on query pattern |
+| R-04 | 🟡 | Appointment Card | "Latest Scheduled Appointments" label shows "Showing Apr 24 appointments" — date-hardcoded, not dynamic |
+| R-05 | 🟡 | Walk-in Queue | Queue counter on dashboard does not update after check-in without a page refresh |
+| R-06 | 🔵 | Patient Registration | No field for patient photo capture/upload |
+
+***
+
+## ROLE 2 — PHARMACIST
+
+| ID | Sev | Page / Feature | Issue Description |
+|----|-----|---------------|-------------------|
+| P-01 | 🔴 | Prescription Queue | "Pending Rx" count shows 0 even when doctors have issued prescriptions — cross-role data sync is broken |
+| P-02 | 🔴 | Dispensing | Dispense action completes with a single click, with no pharmacist double-check / confirmation step — patient safety risk |
+| P-03 | 🟡 | Dispensing | No drug interaction warning shown when dispensing multiple medications to the same patient |
+| P-04 | 🟡 | Inventory | Low-stock alert is displayed but does not block dispensing when stock quantity is 0 |
+| P-05 | 🟡 | Inventory — Add Item | Expiry date field accepts past dates without validation or warning |
+| P-06 | 🔵 | Billing Integration | After dispensing, no invoice is auto-generated — revenue stays ₹0.00 |
+
+***
+
+## ROLE 3 — DOCTOR
+
+| ID | Sev | Page / Feature | Issue Description |
+|----|-----|---------------|-------------------|
+| D-01 | 🟠 | Dashboard KPI | "Patients Seen Today" counter stays at 0 after completing consultations — KPI not updating |
+| D-02 | 🟠 | Prescription Flow | Prescriptions written during a consultation do not appear in the Pharmacist's queue (root cause of P-01) |
+| D-03 | 🟡 | Consultation — Diagnosis | ICD-10 code field is free-text with no lookup or validation against real ICD-10 codes |
+| D-04 | 🟡 | Lab Orders | Lab orders created in a consultation do not link results back to the patient chart |
+| D-05 | 🟡 | Consultation | "Chief Complaint" text field has no character limit |
+| D-06 | 🔵 | Consultation | "Follow-up Date" field accepts past dates without a warning |
+| D-07 | 🔵 | Voice Notes | Direct URL `/voice-notes` returns 404; correct path is `/doctor/voice-notes` — broken deep link |
+
+***
+
+## ROLE 4 — NURSE
+
+| ID | Sev | Page / Feature | Issue Description |
+|----|-----|---------------|-------------------|
+| N-01 | 🔴 | Record Vitals | **Critical validation bug:** Submitting the "Record Vital Signs" form with pre-filled default values (e.g., 120/80 BP, 37°C temp) fires "is required" errors on all fields — form is completely unsubmittable even with valid data present |
+| N-02 | 🔴 | Administer Medication | After selecting a patient, Medication Name shows "No active prescriptions found" — doctor-prescribed medications are invisible to Nurse; the Doctor→Nurse medication administration handoff is entirely broken |
+| N-03 | 🟠 | Create Handover | "Receiving Nurse" dropdown is empty — no nurses available to select; shift handover cannot be completed |
+| N-04 | 🟠 | Offline Vitals | "Offline Vitals" button opens the identical modal as "Record Vitals" — there is no distinct offline-capable flow; the button label is misleading |
+| N-05 | 🟡 | Care Protocols | "Choose a patient" dropdown in Care Protocols is empty — protocols cannot be assigned to any patient |
+| N-06 | 🟡 | Mobile Entry | "Quick Vitals Entry" modal pre-fills Patient ID with hardcoded test value "P12345" — test data exposed in UI |
+| N-07 | 🟡 | Dashboard KPI | "Vitals Recorded" counter stays at 0 after successfully recording vitals |
+| N-08 | 🔵 | Dashboard Layout | The "Management" section (right column of the Overview tab) renders as a blank white panel — content is missing or failed to load |
+
+***
+
+## ROLE 5 — ADMINISTRATOR
+
+| ID | Sev | Page / Feature | Issue Description |
+|----|-----|---------------|-------------------|
+| A-01 | 🔴 | Invite Staff | "Send Invitation" on Step 3 of the Invite Staff wizard throws a generic Error toast and fails silently — staff cannot be onboarded via invitation at all |
+| A-02 | 🟠 | Staff Management | Active Staff count shows 0 on dashboard; Staff Management page shows "No staff members found" — users performing actions in the system are not counted as active staff |
+| A-03 | 🟠 | Reports — Appointments | Reports > Appointments tab shows "No appointment data available" even though the Admin dashboard shows 2 scheduled appointments — data inconsistency between views |
+| A-04 | 🟡 | Reports — Revenue | "Today's Revenue: ₹0.00" despite consultations and prescriptions being completed — clinical activity is not triggering revenue capture |
+| A-05 | 🟡 | Reports — Staff Performance | Staff Performance chart attributes all clinical activity to the org name "CJ_Creator's Org" instead of individual staff members |
+| A-06 | 🟡 | Activity Logs | All audit trail entries show USER = "System" — individual user attribution not working; this is a HIPAA audit trail concern |
+| A-07 | 🟡 | Test Mode Switcher | "Reset to Actual Role" option does not dismiss the Test Mode banner — UI continues to display "Test Mode: Nurse" after clicking reset |
+| A-08 | 🔵 | Activity Logs | IP Address column shows "0.0.0.0" for all entries — real client IP is not being captured |
+| A-09 | 🔵 | Hospital Settings | License Number field displays hardcoded test value "HOSP-2024-TEST-001" — should be blank or prompt during first-time setup |
+| A-10 | 🔵 | Dashboard | "Latest Scheduled Appointments" shows static label "Showing Apr 24 appointments" — not dynamically tied to the current date |
+| A-11 | 🔵 | System Monitoring | "Active Users: 47" displayed in a single-user test environment — value appears to be seeded/fake data |
+
+***
+
+## CROSS-ROLE & SYSTEM-WIDE ISSUES
+
+| ID | Sev | Area | Issue Description |
+|----|-----|------|-------------------|
+| X-01 | 🔴 | Clinical Data Flow | **Doctor → Pharmacist pipeline broken:** Prescriptions written in consultation never appear in the Pharmacist pending queue |
+| X-02 | 🔴 | Clinical Data Flow | **Doctor → Nurse medication handoff broken:** Nurse "Administer Medication" cannot see any active prescriptions for a patient |
+| X-03 | 🔴 | Form Validation | **Shared validation bug** across Nurse Vitals and Admin Invite: validation fires even when fields contain valid values — likely a misconfigured form library (React Hook Form / Zod schema mismatch) |
+| X-04 | 🟠 | KPI Accuracy | All role dashboards show stale or zeroed KPI counters (Vitals Recorded, Patients Seen, Pending Rx, etc.) — counters do not refresh after actions without a full page reload |
+| X-05 | 🟠 | Audit Trail | USER field = "System" across all activity log entries — individual user tracking not implemented; HIPAA compliance risk |
+| X-06 | 🟡 | Revenue Lifecycle | No clinical action (consultation, prescription, dispensing) auto-generates an invoice — billing is entirely disconnected from clinical workflow |
+| X-07 | 🟡 | Test/Seed Data | Hardcoded test values visible in production UI: Patient ID "P12345", License "HOSP-2024-TEST-001", Invoice total ₹2.00 |
+| X-08 | 🔵 | URL Routing | Workflow Dashboard navigates to `/integration/workflow` but the sidebar links to `/workflow` — redirect works but is inconsistent |
+
+***
+
+## CONSOLIDATED SUMMARY SCORECARD
+
+| Role | 🔴 Critical | 🟠 High | 🟡 Medium | 🔵 Low | **Total** |
+|------|------------|--------|----------|-------|----------|
+| Receptionist | 0 | 1 | 3 | 2 | **6** |
+| Pharmacist | 2 | 0 | 3 | 1 | **6** |
+| Doctor | 0 | 2 | 3 | 2 | **7** |
+| Nurse | 2 | 2 | 3 | 1 | **8** |
+| Administrator | 1 | 2 | 4 | 4 | **11** |
+| Cross-Role / System | 3 | 2 | 2 | 1 | **8** |
+| **Grand Total** | **8** | **9** | **18** | **11** | **46** |
+
+***
+
+## TOP 10 PRIORITY FIXES (Launch Blockers)
+
+| Priority | ID | Fix Required |
+|----------|----|-------------|
+| 1 | X-01, P-01, D-02 | Fix prescription data sync so Doctor-written prescriptions appear in Pharmacist queue |
+| 2 | X-02, N-02 | Fix medication handoff so Nurse can view and administer doctor-prescribed medications |
+| 3 | X-03, N-01 | Fix form validation bug that rejects valid/pre-filled field values in Nurse Vitals and Admin Invite |
+| 4 | A-01 | Fix "Send Invitation" failure — staff onboarding is completely non-functional |
+| 5 | P-02 | Add pharmacist double-confirmation step before dispensing — patient safety requirement |
+| 6 | X-05, A-06 | Implement individual user attribution in audit logs (currently all = "System") — HIPAA |
+| 7 | N-03 | Populate "Receiving Nurse" dropdown so shift handover can be completed |
+| 8 | R-02 | Populate Doctor dropdown in Book Appointment modal |
+| 9 | X-04 | Fix real-time KPI counter refresh across all role dashboards |
+| 10 | X-06 | Connect clinical workflow (consultations, dispensing) to invoice auto-generation |
+
+***
+
+## ACTION TODO LIST
+
+Track progress here by checking items off as they are completed.
+
+### P0 - Launch Blockers
+- [x] X-01 - Fix Doctor → Pharmacist prescription sync so prescriptions appear in the Pharmacist queue.
+- [x] P-01 - Fix the Pending Rx count so it reflects issued prescriptions.
+- [ ] D-02 - Ensure prescriptions written during consultation reach the Pharmacist queue.
+- [ ] X-02 - Fix Doctor → Nurse medication handoff so prescribed medications are visible to Nurses.
+- [ ] N-02 - Make doctor-prescribed medications visible in Administer Medication.
+- [ ] X-03 - Fix the shared validation bug affecting Nurse Vitals and Admin Invite.
+- [ ] N-01 - Make Record Vital Signs submit correctly when valid pre-filled values are present.
+- [ ] A-01 - Fix Send Invitation so Step 3 completes without a generic error toast.
+- [ ] P-02 - Add pharmacist double-confirmation before dispensing.
+- [ ] X-05 - Implement individual user attribution in activity logs.
+- [ ] A-06 - Replace USER = System in activity logs with the actual user.
+- [ ] N-03 - Populate the Receiving Nurse dropdown in shift handover.
+- [ ] R-02 - Populate the Doctor dropdown in Book Appointment.
+- [ ] X-04 - Refresh KPI counters in real time across all role dashboards.
+- [ ] X-06 - Connect clinical workflow to invoice auto-generation.
+
+### Receptionist
+- [ ] R-01 - Replace the org-handle greeting with the user's real name.
+- [ ] R-03 - Make Patient Check-in search consistent across query patterns.
+- [ ] R-04 - Replace the static Latest Scheduled Appointments label with a dynamic date.
+- [ ] R-05 - Refresh the walk-in queue counter after check-in without a reload.
+- [ ] R-06 - Add patient photo capture or upload to registration.
+
+### Pharmacist
+- [ ] P-03 - Show drug interaction warnings when dispensing multiple medications.
+- [ ] P-04 - Block dispensing when stock quantity is 0.
+- [ ] P-05 - Reject past expiry dates in Inventory > Add Item.
+- [ ] P-06 - Generate an invoice automatically after dispensing.
+
+### Doctor
+- [ ] D-01 - Update Patients Seen Today after completed consultations.
+- [ ] D-03 - Replace free-text ICD-10 entry with lookup and validation.
+- [ ] D-04 - Link lab orders and results back to the patient chart.
+- [ ] D-05 - Add a character limit to Chief Complaint.
+- [ ] D-06 - Warn when Follow-up Date is in the past.
+- [ ] D-07 - Fix the /voice-notes deep link so it routes to /doctor/voice-notes.
+
+### Nurse
+- [ ] N-04 - Separate Offline Vitals from the standard Record Vitals flow.
+- [ ] N-05 - Populate the patient dropdown in Care Protocols.
+- [ ] N-06 - Remove the hardcoded P12345 test value from Quick Vitals Entry.
+- [ ] N-07 - Refresh the Vitals Recorded counter after save.
+- [ ] N-08 - Restore the blank Management panel content in the dashboard.
+
+### Administrator
+- [ ] A-02 - Fix Active Staff counts and Staff Management population.
+- [ ] A-03 - Make Reports > Appointments match dashboard appointment data.
+- [ ] A-04 - Reflect completed clinical activity in Today's Revenue.
+- [ ] A-05 - Attribute Staff Performance to individual staff members.
+- [ ] A-07 - Make Reset to Actual Role dismiss the Test Mode banner.
+- [ ] A-08 - Capture and display real client IP addresses in Activity Logs.
+- [ ] A-09 - Remove the hardcoded hospital license test value from settings.
+- [ ] A-10 - Make Latest Scheduled Appointments dynamic on the admin dashboard.
+- [ ] A-11 - Replace the seeded Active Users valuee with live environment data.
+
+### Cross-Role / System
+- [ ] X-07 - Remove hardcoded test values from production UI.
+- [ ] X-08 - Align Workflow Dashboard routing with the sidebar link.
+
+### Progress Snapshot
+
+| Section | Total | Completed | Remaining |
+|---------|-------|-----------|-----------|
+| Launch Blockers | 15 | 1 | 14 |
+| Receptionist | 5 | 0 | 5 |
+| Pharmacist | 4 | 0 | 4 |
+| Doctor | 6 | 0 | 6 |
+| Nurse | 5 | 0 | 5 |
+| Administrator | 9 | 0 | 9 |
+| Cross-Role / System | 2 | 1 | 1 |
+| **Grand Total** | **46** | **1** | **45** |

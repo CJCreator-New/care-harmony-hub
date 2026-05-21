@@ -26,7 +26,7 @@ export function usePharmacyStats() {
         .from('prescriptions')
         .select('id')
         .eq('hospital_id', hospital.id)
-        .is('dispensed_at', null);
+        .eq('status', 'pending');
 
       // Dispensed today
       const { data: dispensed } = await supabase
@@ -48,7 +48,7 @@ export function usePharmacyStats() {
         .from('prescriptions')
         .select('id, drug_interactions')
         .eq('hospital_id', hospital.id)
-        .is('dispensed_at', null);
+        .eq('status', 'pending');
 
       const alertCount = alerts?.filter(
         p => p.drug_interactions && Array.isArray(p.drug_interactions) && p.drug_interactions.length > 0
@@ -83,7 +83,7 @@ export function usePendingPrescriptions() {
           items:prescription_items(*)
         `)
         .eq('hospital_id', hospital.id)
-        .is('dispensed_at', null)
+        .eq('status', 'pending')
         .order('created_at', { ascending: true });
 
       if (error) throw error;

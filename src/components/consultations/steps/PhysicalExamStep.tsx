@@ -28,22 +28,48 @@ export function PhysicalExamStep({ data, onUpdate }: PhysicalExamStepProps) {
   const physicalExam = data.physical_examination || {};
   const symptoms = data.symptoms || [];
 
+  
   const handleExamChange = (system: string, value: string) => {
     onUpdate("physical_examination", { ...physicalExam, [system]: value });
   };
 
   const addSymptom = () => {
-    if (newSymptom.trim()) {
-      onUpdate("symptoms", [...symptoms, newSymptom.trim()]);
-      setNewSymptom("");
+    const val = newSymptom.trim();
+    if (!val) return;
+    try {
+      // Defer the parent update slightly to avoid synchronous heavy re-renders
+      setTimeout(() => {
+        try {
+          onUpdate("symptoms", [...symptoms, val]);
+        } catch (err) {
+          // Log but don't let parent errors crash the UI
+          // eslint-disable-next-line no-console
+          console.error('Failed to add symptom:', err);
+        }
+      }, 0);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed scheduling symptom add:', err);
     }
+    setNewSymptom("");
   };
 
   const removeSymptom = (index: number) => {
-    onUpdate(
-      "symptoms",
-      symptoms.filter((_: string, i: number) => i !== index)
-    );
+    try {
+      const next = symptoms.filter((_: string, i: number) => i !== index);
+      // Defer to avoid synchronous render spikes
+      setTimeout(() => {
+        try {
+          onUpdate("symptoms", next);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to remove symptom:', err);
+        }
+      }, 0);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Error computing symptom removal:', err);
+    }
   };
 
   return (
@@ -66,7 +92,12 @@ export function PhysicalExamStep({ data, onUpdate }: PhysicalExamStepProps) {
               placeholder="Add a symptom..."
               value={newSymptom}
               onChange={(e) => setNewSymptom(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addSymptom()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addSymptom();
+                }
+              }}
             />
             <Button type="button" size="icon" onClick={addSymptom} aria-label="Add symptom">
               <Plus className="h-4 w-4" />

@@ -198,24 +198,41 @@ export function RecordVitalsModal({
     setIsSubmitting(true);
     try {
       const bmi = calculateBMI();
-      
+
       if (!profile?.id) {
         throw new Error('User profile not loaded. Please log in again.');
       }
-      
+
+      // Helper to coerce numeric strings or numbers to integer or null (treat '' and invalid as null)
+      const toInt = (v: string | number | undefined | null) => {
+        if (v === undefined || v === null) return null;
+        const s = typeof v === 'string' ? v.trim() : String(v);
+        if (s === '') return null;
+        const n = parseInt(s, 10);
+        return Number.isNaN(n) ? null : n;
+      };
+
+      const toFloat = (v: string | number | undefined | null) => {
+        if (v === undefined || v === null) return null;
+        const s = typeof v === 'string' ? v.trim() : String(v);
+        if (s === '') return null;
+        const n = parseFloat(s);
+        return Number.isNaN(n) ? null : n;
+      };
+
       const { error } = await supabase.from('vital_signs').insert({
         patient_id: selectedPatient.id,
         consultation_id: consultationId || null,
         recorded_by: profile.id,
-        blood_pressure_systolic: vitals.blood_pressure_systolic ? parseInt(vitals.blood_pressure_systolic) : null,
-        blood_pressure_diastolic: vitals.blood_pressure_diastolic ? parseInt(vitals.blood_pressure_diastolic) : null,
-        heart_rate: vitals.heart_rate ? parseInt(vitals.heart_rate) : null,
-        temperature: vitals.temperature ? parseFloat(vitals.temperature) : null,
-        respiratory_rate: vitals.respiratory_rate ? parseInt(vitals.respiratory_rate) : null,
-        oxygen_saturation: vitals.oxygen_saturation ? parseInt(vitals.oxygen_saturation) : null,
-        weight: vitals.weight ? parseFloat(vitals.weight) : null,
-        height: vitals.height ? parseFloat(vitals.height) : null,
-        pain_level: vitals.pain_level ? parseInt(vitals.pain_level) : null,
+        blood_pressure_systolic: toInt(vitals.blood_pressure_systolic),
+        blood_pressure_diastolic: toInt(vitals.blood_pressure_diastolic),
+        heart_rate: toInt(vitals.heart_rate),
+        temperature: toFloat(vitals.temperature),
+        respiratory_rate: toInt(vitals.respiratory_rate),
+        oxygen_saturation: toInt(vitals.oxygen_saturation),
+        weight: toFloat(vitals.weight),
+        height: toFloat(vitals.height),
+        pain_level: toInt(vitals.pain_level),
         bmi: bmi ? parseFloat(bmi) : null,
           notes: [
             vitals.notes ? `Notes: ${vitals.notes}` : null,

@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 
 const dispenseSchema = z.object({
   batchNumber: z.string().min(1, 'Batch number is required'),
+  pharmacistInitials: z.string().min(2, 'Enter your initials to confirm'),
   notes: z.string().optional(),
 });
 
@@ -64,7 +65,7 @@ export function PrescriptionDispensingModal({
 
   const form = useForm<z.infer<typeof dispenseSchema>>({
     resolver: zodResolver(dispenseSchema),
-    defaultValues: { batchNumber: '', notes: '' },
+    defaultValues: { batchNumber: '', pharmacistInitials: '', notes: '' },
   });
 
   const handleDispense = form.handleSubmit((data) => {
@@ -79,6 +80,7 @@ export function PrescriptionDispensingModal({
 
     onDispense({
       batchNumber: data.batchNumber,
+      pharmacistInitials: data.pharmacistInitials.trim(),
       patientVerified,
       safetyChecksComplete,
       notes: (data.notes ?? '').trim(),
@@ -183,6 +185,23 @@ export function PrescriptionDispensingModal({
                   </FormLabel>
                   <FormControl>
                     <Input placeholder="Enter batch number..." autoFocus {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Pharmacist initials confirmation */}
+            <FormField
+              control={form.control}
+              name="pharmacistInitials"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Pharmacist initials <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your initials" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

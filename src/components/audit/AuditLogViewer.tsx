@@ -83,15 +83,18 @@ export function AuditLogViewer() {
     goToPage,
   } = usePaginatedQuery({
     table: 'activity_logs',
-    select: '*',
+    select: '*, profiles:user_id(email, first_name, last_name)',
     filters,
     orderBy: { column: 'created_at', ascending: false },
     pageSize: 50,
   });
 
-  const auditLogs = (auditLogsRaw as unknown) as AuditLog[];
+  const auditLogs = (auditLogsRaw as unknown) as (AuditLog & { profiles?: { email?: string; first_name?: string; last_name?: string } })[];
 
-  const filteredLogs = auditLogs.filter(log => {
+  const filteredLogs = auditLogs.map(log => ({
+    ...log,
+    user_email: log.profiles?.email || (log.profiles?.first_name ? `${log.profiles.first_name} ${log.profiles.last_name}` : undefined)
+  })).filter(log => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (

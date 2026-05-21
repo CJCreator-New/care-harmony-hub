@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
 import { authorize } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
+import { withHospitalScope } from "../authorization/middleware.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -171,4 +172,4 @@ async function createSecurityAlert(supabase: any, auditRecord: any) {
   await supabase.from('security_alerts').insert(alert);
 }
 
-serve((req) => withRateLimit(req, handler));
+serve((req) => withRateLimit(req, withHospitalScope(handler)));
