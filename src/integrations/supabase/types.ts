@@ -3289,6 +3289,17 @@ export type Database = {
       }
       generate_mrn: { Args: { hospital_id: string }; Returns: string }
       generate_po_number: { Args: { p_hospital_id: string }; Returns: string }
+      get_invitation_by_token: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          expires_at: string
+          hospital_id: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+        }[]
+      }
       get_next_queue_number: {
         Args: { p_hospital_id: string }
         Returns: number
