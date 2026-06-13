@@ -11,6 +11,7 @@ interface PermissionDenialRecord {
   allowedRoles: UserRole[];
   timestamp: string;
   severity: 'warning' | 'critical';
+  detail?: string;
 }
 
 /**
