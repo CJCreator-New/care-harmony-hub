@@ -7,7 +7,7 @@
  * Usage:
  * const { checkInteraction, lastCheck, isChecking, canDispense, requiresApproval } = useDrugInteractions();
  * const result = await checkInteraction(patientId, drugRxcui);
- * if (!canDispense(result)) { /* block dispensing */ }
+ * if (!canDispense(result)) { // block dispensing }
  */
 
 import { useState, useCallback, useRef } from 'react';
