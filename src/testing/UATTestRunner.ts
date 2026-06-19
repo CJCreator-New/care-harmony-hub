@@ -163,7 +163,7 @@ interface TestStep {
   duration: number;
 }
 
-interface UATReport {
+export interface UATReport {
   summary: {
     total: number;
     passed: number;

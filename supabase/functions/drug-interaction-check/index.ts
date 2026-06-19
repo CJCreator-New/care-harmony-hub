@@ -181,7 +181,7 @@ serve(async (req) => {
       .eq('new_drug_rxcui', newDrugRxcui)
       .eq('hospital_id', hospitalId)
       .gt('expires_at', 'now()')
-      .single();
+      .maybeSingle();
 
     if (cached && !cacheError) {
       console.log(`Cache hit for patient ${patientId} + drug ${newDrugRxcui}`);
@@ -217,28 +217,36 @@ serve(async (req) => {
     const interactions: Interaction[] = [];
     let maxSeverity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none' = 'none';
 
-    for (const rx of currentPrescriptions || []) {
-      // Check drug1 = newDrug, drug2 = currentRx
-      const { data: match1 } = await supabase
-        .from('drug_interactions')
-        .select('*')
-        .eq('hospital_id', hospitalId)
-        .eq('drug1_rxcui', newDrugRxcui)
-        .eq('drug2_rxcui', rx.drug_rxcui)
-        .single();
+    const currentRxcuis = (currentPrescriptions || []).map((rx) => rx.drug_rxcui);
 
-      // Check reverse: drug1 = currentRx, drug2 = newDrug
-      const { data: match2 } = await supabase
-        .from('drug_interactions')
-        .select('*')
-        .eq('hospital_id', hospitalId)
-        .eq('drug1_rxcui', rx.drug_rxcui)
-        .eq('drug2_rxcui', newDrugRxcui)
-        .single();
+    if (currentRxcuis.length > 0) {
+      // Two batched queries (instead of one per current prescription) covering both
+      // pairing directions: new+current and current+new.
+      const [{ data: forwardMatches }, { data: reverseMatches }] = await Promise.all([
+        supabase
+          .from('drug_interactions')
+          .select('*')
+          .eq('hospital_id', hospitalId)
+          .eq('drug1_rxcui', newDrugRxcui)
+          .in('drug2_rxcui', currentRxcuis),
+        supabase
+          .from('drug_interactions')
+          .select('*')
+          .eq('hospital_id', hospitalId)
+          .eq('drug2_rxcui', newDrugRxcui)
+          .in('drug1_rxcui', currentRxcuis),
+      ]);
 
-      const match = match1 || match2;
+      const matchByRxcui = new Map<string, any>();
+      for (const m of forwardMatches || []) matchByRxcui.set(m.drug2_rxcui, m);
+      for (const m of reverseMatches || []) {
+        if (!matchByRxcui.has(m.drug1_rxcui)) matchByRxcui.set(m.drug1_rxcui, m);
+      }
 
-      if (match) {
+      for (const rx of currentPrescriptions || []) {
+        const match = matchByRxcui.get(rx.drug_rxcui);
+        if (!match) continue;
+
         interactions.push({
           interactingDrug: rx.drug_name,
           severity: match.severity,

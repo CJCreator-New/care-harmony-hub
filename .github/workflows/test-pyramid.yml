@@ -14,10 +14,7 @@
 name: Test Pyramid
 
 on:
-  push:
-    branches: [main, develop, "feature/**", "fix/**"]
-  pull_request:
-    branches: [main, develop]
+  workflow_dispatch:  # retired — layers folded into ci-pipeline.yml
 
 env:
   NODE_VERSION: "20"

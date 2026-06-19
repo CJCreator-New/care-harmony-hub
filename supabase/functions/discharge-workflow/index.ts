@@ -1,294 +1,3 @@
-/**
- * Tier 4.1: Discharge Workflow Orchestrator Edge Function
- * Purpose: Handle state machine transitions with role validation and audit logging
- * 
- * Endpoint: POST /functions/v1/discharge-workflow
- * Body: {
- *   workflowId: UUID,
- *   action: string,
- *   actorId: UUID,
- *   notes?: string,
- *   details?: Record<string, any>
- * }
- */
-
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// State machine definition: what transitions are allowed from each status
-const TRANSITIONS: Record<
-  string,
-  Record<string, { newStatus: string; newStep: number }>
-> = {
-  pending_review: {
-    clinical_clear: { newStatus: 'clinical_cleared', newStep: 2 },
-    cancel: { newStatus: 'cancelled', newStep: 0 },
-  },
-  clinical_cleared: {
-    nurse_confirm: { newStatus: 'nurse_confirmed', newStep: 3 },
-    cancel: { newStatus: 'cancelled', newStep: 0 },
-  },
-  nurse_confirmed: {
-    med_reconcile: { newStatus: 'med_reconciled', newStep: 4 },
-    cancel: { newStatus: 'cancelled', newStep: 0 },
-  },
-  med_reconciled: {
-    financial_clear: { newStatus: 'financial_cleared', newStep: 5 },
-    cancel: { newStatus: 'cancelled', newStep: 0 },
-  },
-  financial_cleared: {
-    checkout: { newStatus: 'discharged', newStep: 6 },
-    cancel: { newStatus: 'cancelled', newStep: 0 },
-  },
-  discharged: {
-    finalize: { newStatus: 'finalized', newStep: 7 },
-    cancel: { newStatus: 'cancelled', newStep: 0 },
-  },
-  cancelled: {}, // Terminal state - no transitions allowed
-  finalized: {}, // Terminal state - no transitions allowed
-};
-
-// Role permissions for each action
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  clinical_clear: ['doctor', 'admin'],
-  nurse_confirm: ['nurse', 'admin'],
-  med_reconcile: ['pharmacist', 'admin'],
-  financial_clear: ['billing', 'admin'],
-  checkout: ['receptionist', 'admin'],
-  finalize: ['receptionist', 'admin'],
-  cancel: ['doctor', 'nurse', 'admin'],
-};
-
-// Determine which roles should be notified at each status
-function getNotificationRoles(status: string): string[] {
-  const notificationMap: Record<string, string[]> = {
-    clinical_cleared: ['nurse'],
-    nurse_confirmed: ['pharmacist'],
-    med_reconciled: ['billing'],
-    financial_cleared: ['receptionist'],
-    discharged: ['receptionist'],
-    finalized: [],
-    cancelled: [],
-  };
-  return notificationMap[status] || [];
-}
-
-interface DischargeAction {
-  workflowId: string;
-  action: string;
-  actorId: string;
-  notes?: string;
-  details?: Record<string, unknown>;
-}
-
-serve(async (req: Request) => {
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-
-  try {
-    const { workflowId, action, actorId, notes, details } =
-      (await req.json()) as DischargeAction;
-
-    // Validate input
-    if (!workflowId || !action || !actorId) {
-      return new Response(
-        JSON.stringify({
-          error: 'Missing required fields: workflowId, action, actorId',
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 1: Fetch current workflow
-    console.log(`[Discharge] Fetching workflow: ${workflowId}`);
-    const { data: workflow, error: fetchError } = await supabase
-      .from('discharge_workflows')
-      .select('*')
-      .eq('id', workflowId)
-      .single();
-
-    if (fetchError || !workflow) {
-      console.error(`[Discharge] Workflow not found: ${workflowId}`, fetchError);
-      return new Response(
-        JSON.stringify({ error: 'Workflow not found', code: fetchError?.code }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 2: Validate state transition
-    const transitions = TRANSITIONS[workflow.status];
-    if (!transitions || !transitions[action]) {
-      console.warn(
-        `[Discharge] Invalid transition: ${workflow.status} -[${action}]-> ?`
-      );
-      return new Response(
-        JSON.stringify({
-          error: `Invalid transition: cannot perform '${action}' from status '${workflow.status}'`,
-          currentStatus: workflow.status,
-          allowedActions: Object.keys(transitions || {}),
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 3: Fetch actor's role
-    console.log(`[Discharge] Checking actor role: ${actorId}`);
-    const { data: userRole, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', actorId)
-      .single();
-
-    if (roleError || !userRole) {
-      console.error(`[Discharge] User role not found: ${actorId}`, roleError);
-      return new Response(
-        JSON.stringify({ error: 'User role not found' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 4: Check role permission
-    const allowedRoles = ROLE_PERMISSIONS[action];
-    if (!allowedRoles.includes(userRole.role)) {
-      console.warn(
-        `[Discharge] Permission denied: ${userRole.role} tried ${action}`
-      );
-      return new Response(
-        JSON.stringify({
-          error: `Forbidden: role '${userRole.role}' cannot perform action '${action}'`,
-          requiredRoles: allowedRoles,
-        }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 5: Apply state transition
-    const { newStatus, newStep } = transitions[action];
-    console.log(
-      `[Discharge] Transitioning ${workflowId}: ${workflow.status} → ${newStatus}`
-    );
-
-    const updateData: Record<string, unknown> = {
-      status: newStatus,
-      current_step: newStep,
-    };
-
-    // Track who performed each step and capture step-specific data
-    if (action === 'clinical_clear') {
-      updateData.doctor_clearance_by = actorId;
-      updateData.doctor_clearance_at = new Date().toISOString();
-      updateData.clinical_notes = {
-        ...(workflow.clinical_notes || {}),
-        cleared_at: new Date().toISOString(),
-        notes: notes || '',
-        ...details,
-      };
-    } else if (action === 'nurse_confirm') {
-      updateData.nurse_confirmed_by = actorId;
-      updateData.nurse_confirmed_at = new Date().toISOString();
-    } else if (action === 'med_reconcile') {
-      updateData.pharmacist_reconciliation_by = actorId;
-      updateData.pharmacist_reconciliation_at = new Date().toISOString();
-      updateData.medication_reconciliation = {
-        ...(workflow.medication_reconciliation || {}),
-        ...details,
-        reconciled_at: new Date().toISOString(),
-        notes: notes || '',
-      };
-    } else if (action === 'financial_clear') {
-      updateData.billing_clearance_by = actorId;
-      updateData.billing_clearance_at = new Date().toISOString();
-      updateData.financial_details = {
-        ...(workflow.financial_details || {}),
-        ...details,
-        cleared_at: new Date().toISOString(),
-      };
-    } else if (action === 'checkout') {
-      updateData.receptionist_checkout_by = actorId;
-      updateData.receptionist_checkout_at = new Date().toISOString();
-      updateData.checkout_details = {
-        ...(workflow.checkout_details || {}),
-        ...details,
-        completed_at: new Date().toISOString(),
-      };
-    } else if (action === 'finalize') {
-      // No additional data for finalize
-    } else if (action === 'cancel') {
-      updateData.cancellation_reason = notes || 'Not specified';
-    }
-
-    // Apply update
-    const { data: updatedWorkflow, error: updateError } = await supabase
-      .from('discharge_workflows')
-      .update(updateData)
-      .eq('id', workflowId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error(`[Discharge] Update failed: ${workflowId}`, updateError);
-      throw updateError;
-    }
-
-    console.log(`[Discharge] Transition complete: ${newStatus}`);
-
-    // Step 6: Send real-time notification to next actor
-    const notifyRoles = getNotificationRoles(newStatus);
-    if (notifyRoles.length > 0) {
-      console.log(`[Discharge] Notifying roles: ${notifyRoles.join(', ')}`);
-      await supabase
-        .channel(`discharge:${workflowId}`)
-        .send({
-          type: 'broadcast',
-          event: 'step_advanced',
-          payload: {
-            workflowId,
-            status: newStatus,
-            step: newStep,
-            notifyRoles,
-            message: `Discharge workflow advanced to step ${newStep}: ${newStatus}`,
-            timestamp: new Date().toISOString(),
-          },
-        });
-    }
-
-    // Return success
-    return new Response(
-      JSON.stringify({
-        success: true,
-        workflow: updatedWorkflow,
-        transition: {
-          from: workflow.status,
-          to: newStatus,
-          step: newStep,
-          action,
-          performer: actorId,
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (err) {
-    const error = err as Error;
-    console.error('[Discharge] Error:', error.message);
-    return new Response(
-      JSON.stringify({
-        error: error.message || 'Internal server error',
-        code: 'DISCHARGE_ERROR',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-});
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -496,6 +205,7 @@ async function initiateWorkflow(
     fromStep: "doctor",
     toStep: "pharmacist",
     reason: payload.reason ?? null,
+    beforeState: null,
   });
 
   await notifyRole(supabase, workflow as DischargeWorkflowRow, "pharmacist", {
@@ -553,11 +263,12 @@ async function approveWorkflow(
       metadata: nextMetadata,
     })
     .eq("id", workflow.id)
+    .eq("current_step", currentStep)
     .select("*")
     .single();
 
   if (error || !updatedWorkflow) {
-    return new Response(JSON.stringify({ error: "Failed to advance discharge workflow" }), {
+    return new Response(JSON.stringify({ error: "Failed to advance discharge workflow — it may have already been updated by another user" }), {
       status: 400,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
@@ -568,6 +279,7 @@ async function approveWorkflow(
     fromStep: currentStep,
     toStep: nextStep,
     reason: payload.reason ?? null,
+    beforeState: { status: workflow.status, current_step: workflow.current_step, rejection_reason: workflow.rejection_reason },
   });
 
   if (nextStep !== "completed") {
@@ -632,11 +344,12 @@ async function rejectWorkflow(
       },
     })
     .eq("id", workflow.id)
+    .eq("current_step", currentStep)
     .select("*")
     .single();
 
   if (error || !updatedWorkflow) {
-    return new Response(JSON.stringify({ error: "Failed to reject discharge workflow" }), {
+    return new Response(JSON.stringify({ error: "Failed to reject discharge workflow — it may have already been updated by another user" }), {
       status: 400,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
@@ -647,6 +360,7 @@ async function rejectWorkflow(
     fromStep: currentStep,
     toStep: previousStep,
     reason: payload.reason,
+    beforeState: { status: workflow.status, current_step: workflow.current_step, rejection_reason: workflow.rejection_reason },
   });
 
   const previousRole = previousStep === "billing" ? "receptionist" : previousStep;
@@ -667,8 +381,10 @@ async function cancelWorkflow(
   workflow: DischargeWorkflowRow,
   corsHeaders: Record<string, string>,
 ) {
-  if (!actor.roles.includes("doctor") && !actor.roles.includes("admin")) {
-    return new Response(JSON.stringify({ error: "Only doctor or admin can cancel discharge workflow" }), {
+  const isAdmin = actor.roles.includes("admin");
+  const isInitiatingDoctor = actor.roles.includes("doctor") && workflow.initiated_by === actor.userId;
+  if (!isAdmin && !isInitiatingDoctor) {
+    return new Response(JSON.stringify({ error: "Only the initiating doctor or an admin can cancel this discharge workflow" }), {
       status: 403,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
@@ -683,11 +399,12 @@ async function cancelWorkflow(
       last_action_at: new Date().toISOString(),
     })
     .eq("id", workflow.id)
+    .eq("current_step", workflow.current_step)
     .select("*")
     .single();
 
   if (error || !updatedWorkflow) {
-    return new Response(JSON.stringify({ error: "Failed to cancel discharge workflow" }), {
+    return new Response(JSON.stringify({ error: "Failed to cancel discharge workflow — it may have already been updated by another user" }), {
       status: 400,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
@@ -698,6 +415,7 @@ async function cancelWorkflow(
     fromStep: workflow.current_step,
     toStep: "cancelled",
     reason: null,
+    beforeState: { status: workflow.status, current_step: workflow.current_step, rejection_reason: workflow.rejection_reason },
   });
 
   return new Response(JSON.stringify({ success: true, workflow: updatedWorkflow }), {
@@ -715,9 +433,13 @@ async function writeAuditTrail(
     fromStep: string | null;
     toStep: string | null;
     reason: string | null;
+    beforeState?: { status: string; current_step: string; rejection_reason: string | null } | null;
   },
 ) {
-  const actorRole = actor.roles[0] ?? "unknown";
+  const actorRole = actor.roles.find((role) =>
+    (STEP_ROLE_MAP[transition.toStep as keyof typeof STEP_ROLE_MAP] ?? STEP_ROLE_MAP[transition.fromStep as keyof typeof STEP_ROLE_MAP] ?? [])
+      .includes(role as never)
+  ) ?? actor.roles[0] ?? "unknown";
 
   await supabase.from("discharge_workflow_audit").insert({
     workflow_id: workflow.id,
@@ -731,6 +453,12 @@ async function writeAuditTrail(
     reason: transition.reason,
     metadata: {
       actor_name: actor.fullName,
+      before_state: transition.beforeState ?? null,
+      after_state: {
+        status: workflow.status,
+        current_step: workflow.current_step,
+        rejection_reason: workflow.rejection_reason,
+      },
     },
   });
 

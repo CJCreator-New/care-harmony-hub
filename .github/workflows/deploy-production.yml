@@ -17,8 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run test
       - run: npm run build
-      - name: Strict Type-Check (warn-only)
-        continue-on-error: true
+      - name: Strict Type-Check (BLOCKING)
         run: npx tsc -p tsconfig.app.json --noEmit --strict
       - name: RLS Validation Gate (BLOCKING — pre-prod)
         env:

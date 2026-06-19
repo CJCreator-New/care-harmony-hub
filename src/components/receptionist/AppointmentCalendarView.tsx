@@ -12,7 +12,7 @@ import { devLog } from '@/utils/sanitize';
 interface Appointment {
   id: string;
   patient_id: string;
-  doctor_id: string;
+  doctor_id: string | null;
   scheduled_date: string;
   scheduled_time: string;
   appointment_type: string;

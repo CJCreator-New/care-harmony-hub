@@ -161,10 +161,10 @@ export function CriticalLabAlertBanner({
                 <p className="text-sm">{alert.primary_action_notes}</p>
               </div>
             )}
-            {alert.on_call_action_notes && (
+            {alert.on_call_action_taken && (
               <div className="p-2 bg-white rounded border">
                 <p className="text-xs font-medium text-gray-600">On-Call Action:</p>
-                <p className="text-sm">{alert.on_call_action_notes}</p>
+                <p className="text-sm">Action taken by on-call staff</p>
               </div>
             )}
           </div>

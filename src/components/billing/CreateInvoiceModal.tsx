@@ -47,6 +47,7 @@ const invoiceSchema = z.object({
   patientId: z.string().min(1, "Patient is required"),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
   items: z.array(invoiceItemSchema).min(1),
 });
 
@@ -82,6 +83,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
       patientId: "",
       dueDate: "",
       notes: "",
+      discountPercent: 0,
       items: [createInvoiceItem()],
     },
   });
@@ -91,12 +93,17 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
     name: "items",
   });
 
-  // Live subtotal without triggering re-render on every keystroke via watch
+  // Live totals computed from watched form values
   const watchedItems = form.watch("items");
+  const watchedDiscount = form.watch("discountPercent");
   const subtotal = watchedItems.reduce(
     (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
     0
   );
+  const TAX_RATE = 0.05; // 5% GST
+  const discountAmount = subtotal * ((Number(watchedDiscount) || 0) / 100);
+  const taxAmount = (subtotal - discountAmount) * TAX_RATE;
+  const total = subtotal - discountAmount + taxAmount;
 
   const handleOpenChange = (value: boolean) => {
     if (!value) form.reset();
@@ -306,11 +313,54 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
               ))}
             </div>
 
-            {/* Subtotal */}
-            <div className="flex justify-end p-3 bg-muted rounded-lg">
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{formatCurrency(subtotal)}</p>
+            {/* Discount field */}
+            <FormField
+              control={form.control}
+              name="discountPercent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Discount{" "}
+                    <span className="text-xs text-muted-foreground font-normal">(% Optional)</span>
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-36">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        placeholder="0"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Invoice breakdown */}
+            <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>Discount ({Number(watchedDiscount) || 0}%)</span>
+                  <span>− {formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-muted-foreground">
+                <span>GST (5%)</span>
+                <span>{formatCurrency(taxAmount)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-base border-t pt-1 mt-1">
+                <span>Total</span>
+                <span>{formatCurrency(total)}</span>
               </div>
             </div>
 

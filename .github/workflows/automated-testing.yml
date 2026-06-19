@@ -1,10 +1,6 @@
 name: Automated Testing & Issue Detection
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -101,7 +97,6 @@ jobs:
       
       - name: Run security tests
         run: npm run test:security
-        continue-on-error: true
       
       - name: Upload security report
         if: always()

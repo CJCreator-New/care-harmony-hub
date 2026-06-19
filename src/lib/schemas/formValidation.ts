@@ -18,13 +18,14 @@ export const clinicalEmailSchema = z
   .email('Please enter a valid email address')
   .max(254, 'Email too long');
 
-/** Phone number (E.164 format or loose formats) */
+/** Phone number (E.164 format or loose formats with spaces/dashes/parentheses) */
 export const phoneNumberSchema = z
   .string()
-  .regex(
-    /^(\+?[1-9]\d{1,14}|[\d\s\-()]{10,20})$/,
-    'Please enter a valid phone number'
-  )
+  .refine((val) => {
+    if (!val) return true;
+    const digitsOnly = val.trim().replace(/[\s\-()]/g, '');
+    return /^\+?[1-9]\d{6,14}$/.test(digitsOnly);
+  }, 'Please enter a valid phone number')
   .optional()
   .or(z.literal(''));
 
@@ -41,8 +42,8 @@ export const strongPasswordSchema = z
 /** Medical Record Number (MRN) - alphanumeric, 6-20 chars */
 export const mrnSchema = z
   .string()
-  .regex(/^[A-Z0-9]{6,20}$/, 'MRN must be 6-20 alphanumeric characters')
-  .toUpperCase();
+  .transform((val) => val.toUpperCase())
+  .pipe(z.string().regex(/^[A-Z0-9]{6,20}$/, 'MRN must be 6-20 alphanumeric characters'));
 
 /** Date of birth - ensures valid date in past */
 export const dateOfBirthSchema = z

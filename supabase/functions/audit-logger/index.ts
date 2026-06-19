@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { authorize, getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -28,8 +28,14 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'accountant', 'super_admin']);
-  if (authError) return authError;
+  const allowedRoles = ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'accountant', 'super_admin'];
+  const { actor, response } = await getAuthorizedActor(req, allowedRoles);
+  if (response || !actor) {
+    return response ?? new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -45,13 +51,16 @@ const handler = async (req: Request): Promise<Response> => {
     }
     const { action, events } = validation.data;
 
+    // Cross-hospital audit log access is restricted to super_admin.
+    const hospitalScope = actor.assignedRoles.includes('super_admin') ? null : actor.hospitalId;
+
     switch (action) {
       case 'log_event':
-        return await logAuditEvent(supabase, events, req);
+        return await logAuditEvent(supabase, events, req, corsHeaders);
       case 'get_audit_trail':
-        return await getAuditTrail(supabase, events);
+        return await getAuditTrail(supabase, events, hospitalScope, corsHeaders);
       case 'search_logs':
-        return await searchAuditLogs(supabase, events);
+        return await searchAuditLogs(supabase, events, hospitalScope, corsHeaders);
       default:
         throw new Error('Invalid action');
     }
@@ -63,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function logAuditEvent(supabase: any, event: AuditEvent, req: Request) {
+async function logAuditEvent(supabase: any, event: AuditEvent, req: Request, corsHeaders: Record<string, string>) {
   const clientIP = req.headers.get('x-forwarded-for') || 
                    req.headers.get('x-real-ip') || 
                    'unknown';
@@ -99,16 +108,20 @@ async function logAuditEvent(supabase: any, event: AuditEvent, req: Request) {
 
   return new Response(
     JSON.stringify({ success: true, logged: true }),
-    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
+    { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
 }
 
-async function getAuditTrail(supabase: any, { resource_type, resource_id, limit = 50 }: any) {
+async function getAuditTrail(supabase: any, { resource_type, resource_id, limit = 50 }: any, hospitalScope: string | null, corsHeaders: Record<string, string>) {
   let query = supabase
     .from('audit_logs')
     .select('*')
     .order('timestamp', { ascending: false })
     .limit(limit);
+
+  if (hospitalScope) {
+    query = query.eq('hospital_id', hospitalScope);
+  }
 
   if (resource_type) {
     query = query.eq('resource_type', resource_type);
@@ -123,16 +136,20 @@ async function getAuditTrail(supabase: any, { resource_type, resource_id, limit 
 
   return new Response(
     JSON.stringify({ audit_trail: data }),
-    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
+    { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
 }
 
-async function searchAuditLogs(supabase: any, { user_id, action, start_date, end_date, limit = 100 }: any) {
+async function searchAuditLogs(supabase: any, { user_id, action, start_date, end_date, limit = 100 }: any, hospitalScope: string | null, corsHeaders: Record<string, string>) {
   let query = supabase
     .from('audit_logs')
     .select('*')
     .order('timestamp', { ascending: false })
     .limit(limit);
+
+  if (hospitalScope) {
+    query = query.eq('hospital_id', hospitalScope);
+  }
 
   if (user_id) query = query.eq('user_id', user_id);
   if (action) query = query.eq('action', action);
@@ -144,7 +161,7 @@ async function searchAuditLogs(supabase: any, { user_id, action, start_date, end
 
   return new Response(
     JSON.stringify({ logs: data, total: data.length }),
-    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
+    { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
 }
 

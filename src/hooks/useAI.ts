@@ -241,7 +241,7 @@ export function useAI({ purpose, dataRetentionDays = 90 }: UseAIProps): UseAIRes
     error,
 
     // Compliance
-    complianceStatus,
+    complianceStatus: complianceStatus ?? null,
 
     // Utilities
     clearError,

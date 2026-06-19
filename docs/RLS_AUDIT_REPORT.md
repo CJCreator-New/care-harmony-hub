@@ -182,3 +182,16 @@ These tables explicitly **cannot** store:
 **Audit Status:** ✅ COMPLETE  
 **Recommendation:** ✅ ACCEPTABLE — Proceed without RLS changes  
 **Ready for Tier 1 Sign-Off:** ✅ YES
+
+---
+
+## Addendum: 2026-06-15 Follow-Up Audit
+
+A subsequent skill-driven audit/remediation pass (`docs/AUDIT_TRACKER.md`) re-checked RLS- and authorization-adjacent code paths and fixed several issues beyond the scope of this report's `USING(true)` review:
+
+- **F-011** (Critical): `supabase/functions/discharge-workflow/index.ts` contained a dead legacy `serve()` handler with no JWT verification and no hospital scoping, alongside the real hardened handler. Removed.
+- **F-013**: `src/utils/auditLogger.ts` writes to `activity_logs` without hospital scoping on some paths — fixed.
+- **F-018**: `discharge-workflow` `cancelWorkflow` was missing an ownership check — fixed.
+- **F-035** (High): `discharge-workflow` approve/reject/cancel transitions lacked optimistic-concurrency checks (`.eq("current_step", ...)`), allowing concurrent double-transitions — fixed.
+
+The conclusions of this report (permissive reference-table policies are acceptable; PHI tables are hospital-scoped) remain valid. See `AUDIT_TRACKER.md` for full details, fix references, and remaining deferred items (e.g., F-014: three parallel audit-logging systems not yet unified).

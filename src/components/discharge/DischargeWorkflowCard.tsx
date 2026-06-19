@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
-import type { DischargeWorkflow } from '@/hooks/useDischargeWorkflow';
+import { useAuth } from '@/contexts/AuthContext';
+import type { DischargeWorkflow, DischargeWorkflowStep } from '@/hooks/useDischargeWorkflow';
 
 interface DischargeWorkflowCardProps {
   workflow: DischargeWorkflow | null;
@@ -24,6 +24,10 @@ interface DischargeWorkflowCardProps {
   onFinalize: () => void;
   onCancel: (reason: string) => void;
 }
+
+const STEP_NUMBER: Record<DischargeWorkflowStep, number> = {
+  doctor: 2, nurse: 3, pharmacist: 4, billing: 5, completed: 7, cancelled: 0,
+};
 
 /**
  * Workflow step definitions
@@ -51,7 +55,7 @@ export function DischargeWorkflowCard({
   onFinalize,
   onCancel,
 }: DischargeWorkflowCardProps) {
-  const { hasRole } = usePermissions();
+  const { roles } = useAuth();
 
   // Map workflow to action buttons
   const actionMap = useMemo(
@@ -62,7 +66,7 @@ export function DischargeWorkflowCard({
       med_reconciled: { handler: onFinancialClear, label: 'Clear Financial Items', role: 'billing' },
       financial_cleared: { handler: onCheckout, label: 'Complete Checkout', role: 'receptionist' },
       discharged: { handler: onFinalize, label: 'Finalize Discharge', role: 'receptionist' },
-      finalized: { handler: () => {}, label: 'Completed', role: '' },
+      completed: { handler: () => {}, label: 'Completed', role: '' },
       cancelled: { handler: () => {}, label: 'Cancelled', role: '' },
     }),
     [onClinicalClear, onNurseConfirm, onMedReconcile, onFinancialClear, onCheckout, onFinalize]
@@ -72,7 +76,7 @@ export function DischargeWorkflowCard({
   const currentAction = workflow ? actionMap[workflow.status as keyof typeof actionMap] : null;
 
   // Check if user can perform current action
-  const canPerform = currentAction ? hasRole(currentAction.role) : false;
+  const canPerform = currentAction ? roles.some(r => r === currentAction.role) : false;
 
   if (isLoading) {
     return (
@@ -116,21 +120,22 @@ export function DischargeWorkflowCard({
 
   // Determine card styling based on status
   const getStatusColor = () => {
-    if (workflow.status === 'finalized') return 'border-green-200 bg-green-50';
+    if (workflow.status === 'completed') return 'border-green-200 bg-green-50';
     if (workflow.status === 'cancelled') return 'border-red-200 bg-red-50';
     return 'border-blue-200 bg-blue-50';
   };
 
   const getStatusIcon = () => {
-    if (workflow.status === 'finalized') return <CheckCircle className="h-5 w-5 text-green-600" />;
+    if (workflow.status === 'completed') return <CheckCircle className="h-5 w-5 text-green-600" />;
     if (workflow.status === 'cancelled') return <X className="h-5 w-5 text-red-600" />;
     return <Clock className="h-5 w-5 text-blue-600" />;
   };
 
   // Timeline display
   const timeline = WORKFLOW_STEPS.map((stepDef) => {
-    const isComplete = workflow.current_step > stepDef.step;
-    const isCurrent = workflow.current_step === stepDef.step;
+    const stepNum = STEP_NUMBER[workflow.current_step];
+    const isComplete = stepNum > stepDef.step;
+    const isCurrent = stepNum === stepDef.step;
     const isSkipped = workflow.status === 'cancelled';
 
     return (
@@ -152,7 +157,7 @@ export function DischargeWorkflowCard({
           </p>
           <p className="text-xs text-gray-500">{stepDef.role}</p>
         </div>
-        {stepDef.step === workflow.current_step && (
+        {stepDef.step === STEP_NUMBER[workflow.current_step] && (
           <Badge variant="outline" className="bg-blue-50 text-blue-700">
             Current
           </Badge>
@@ -174,7 +179,7 @@ export function DischargeWorkflowCard({
           </div>
           <Badge
             variant={
-              workflow.status === 'finalized' ? 'default' :
+              workflow.status === 'completed' ? 'default' :
               workflow.status === 'cancelled' ? 'destructive' :
               'secondary'
             }
@@ -195,13 +200,13 @@ export function DischargeWorkflowCard({
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
               <div>
                 <p className="font-medium text-red-900">Discharge Cancelled</p>
-                <p className="text-sm text-red-800">{workflow.cancellation_reason}</p>
+                <p className="text-sm text-red-800">{workflow.rejection_reason}</p>
               </div>
             </div>
           </div>
         )}
 
-        {workflow.status === 'finalized' && (
+        {workflow.status === 'completed' && (
           <div className="rounded-md border border-green-300 bg-green-50 p-3">
             <div className="flex gap-2">
               <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -216,7 +221,7 @@ export function DischargeWorkflowCard({
         )}
 
         {/* Action Buttons */}
-        {workflow.status !== 'finalized' && workflow.status !== 'cancelled' && currentAction && (
+        {workflow.status !== 'completed' && workflow.status !== 'cancelled' && currentAction && (
           <div className="flex gap-2 pt-2">
             <Button
               onClick={currentAction.handler}
@@ -235,7 +240,7 @@ export function DischargeWorkflowCard({
           </div>
         )}
 
-        {!canPerform && workflow.status !== 'finalized' && workflow.status !== 'cancelled' && (
+        {!canPerform && workflow.status !== 'completed' && workflow.status !== 'cancelled' && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
             ℹ️ Your role does not have permission for the current step. Awaiting {currentAction?.role}.
           </div>

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LabTechOperationsService } from '@/utils/labTechOperationsService';
 import { LabTechRBACManager } from '@/utils/labTechRBACManager';
-import type { LabTechUser, LabTechPermission } from '@/types/labtech';
+import { LabTechPermission } from '@/types/labtech';
+import type { LabTechUser } from '@/types/labtech';
 
 vi.mock('@/utils/sanitize', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
@@ -14,18 +15,18 @@ const mockLabTechUser: LabTechUser = {
   email: 'tech@hospital.com',
   isActive: true,
   permissions: [
-    'SPECIMEN_RECEIVE',
-    'SPECIMEN_PROCESS',
-    'SPECIMEN_REJECT',
-    'TEST_PERFORM',
-    'TEST_VERIFY',
-    'RESULT_REVIEW',
-    'RESULT_APPROVE',
-    'QC_PERFORM',
-    'QC_REVIEW',
-    'ANALYZER_OPERATE',
-    'ANALYZER_CALIBRATE',
-  ] as LabTechPermission[],
+    LabTechPermission.SPECIMEN_RECEIVE,
+    LabTechPermission.SPECIMEN_PROCESS,
+    LabTechPermission.SPECIMEN_REJECT,
+    LabTechPermission.TEST_PERFORM,
+    LabTechPermission.TEST_VERIFY,
+    LabTechPermission.RESULT_REVIEW,
+    LabTechPermission.RESULT_APPROVE,
+    LabTechPermission.QC_PERFORM,
+    LabTechPermission.QC_REVIEW,
+    LabTechPermission.ANALYZER_OPERATE,
+    LabTechPermission.ANALYZER_CALIBRATE,
+  ],
   hospitalId: 'hosp-001',
   department: 'laboratory',
   createdAt: new Date(),

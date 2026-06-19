@@ -5,7 +5,7 @@
  */
 
 interface SyncOptions {
-  tag: string;
+  tag?: string;
   minInterval?: number; // milliseconds
   maxRetries?: number;
 }
@@ -43,12 +43,13 @@ class BackgroundSyncManager {
     try {
       const registration = await navigator.serviceWorker.ready;
       
-      if (!registration.sync) {
+      const reg = registration as any;
+      if (!reg.sync) {
         console.warn('Service Worker sync not available');
         return;
       }
 
-      await registration.sync.register(tag);
+      await reg.sync.register(tag);
 
       // Track sync event locally
       this.syncEvents.set(tag, {
@@ -82,12 +83,13 @@ class BackgroundSyncManager {
     try {
       const registration = await navigator.serviceWorker.ready;
       
-      if (!registration.periodicSync) {
+      const reg = registration as any;
+      if (!reg.periodicSync) {
         console.warn('Service Worker periodic sync not available');
         return;
       }
 
-      await registration.periodicSync.register(tag, { minInterval });
+      await reg.periodicSync.register(tag, { minInterval });
       console.log(`[BackgroundSync] Registered periodic sync: ${tag} (${minInterval}ms)`);
     } catch (error) {
       console.error(`[BackgroundSync] Failed to register periodic sync for ${tag}:`, error);

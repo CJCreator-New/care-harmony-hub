@@ -13,7 +13,7 @@ import {
   AnalyzerStatus,
 } from '../types/labtech';
 import { LabTechRBACManager } from './labTechRBACManager';
-import { logAudit } from './auditLogQueue';
+import { logAudit } from './sanitize';
 
 export class LabTechOperationsService {
   private rbacManager: LabTechRBACManager;
@@ -24,6 +24,11 @@ export class LabTechOperationsService {
     this.rbacManager = rbacManager;
     this.labTechId = labTechId;
     this.hospitalId = hospitalId;
+  }
+
+  // Specimen validation requires either receive or process permissions
+  private canValidateSpecimen(): boolean {
+    return this.rbacManager.canReceiveSpecimen() || this.rbacManager.canProcessSpecimen();
   }
 
   // Receive Specimen
@@ -56,6 +61,10 @@ export class LabTechOperationsService {
 
   // Validate Specimen
   async validateSpecimen(specimenId: string): Promise<SpecimenValidation> {
+    if (!this.canValidateSpecimen()) {
+      throw new Error('Insufficient permissions to validate specimen');
+    }
+
     const validation: SpecimenValidation = {
       id: `valid_${Date.now()}`,
       specimenId,
@@ -80,8 +89,9 @@ export class LabTechOperationsService {
       throw new Error('Insufficient permissions to process specimen');
     }
 
-    const processed: Specimen = {
+    const processed: Specimen & { specimenId: string } = {
       id: specimenId,
+      specimenId,
       patientId: '',
       patientName: '',
       orderId: '',
@@ -103,13 +113,17 @@ export class LabTechOperationsService {
   }
 
   // Reject Specimen
-  async rejectSpecimen(specimenId: string, reason: string): Promise<Specimen> {
+  async rejectSpecimen(rejectionData: { specimenId: string; reason: string; notes?: string }): Promise<Specimen & { specimenId: string; reason: string }> {
     if (!this.rbacManager.canRejectSpecimen()) {
       throw new Error('Insufficient permissions to reject specimen');
     }
 
-    const rejected: Specimen = {
+    const { specimenId, reason, notes } = rejectionData;
+
+    const rejected: Specimen & { specimenId: string; reason: string } = {
       id: specimenId,
+      specimenId,
+      reason,
       patientId: '',
       patientName: '',
       orderId: '',
@@ -125,24 +139,29 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'reject_specimen', entity_type: 'specimen', entity_id: specimenId, details: { reason } });
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'reject_specimen', entity_type: 'specimen', entity_id: specimenId, details: { reason, notes } });
 
     return rejected;
   }
 
   // Perform Test
-  async performTest(specimenId: string, testCode: string): Promise<LabTest> {
+  async performTest(testData: { specimenId: string; testType: string; requestedBy?: string }): Promise<LabTest & { testId: string; testType: string }> {
     if (!this.rbacManager.canPerformTest()) {
       throw new Error('Insufficient permissions to perform test');
     }
 
-    const test: LabTest = {
-      id: `test_${Date.now()}`,
+    const { specimenId, testType, requestedBy } = testData;
+    const testId = `test_${Date.now()}`;
+
+    const test: LabTest & { testId: string; testType: string } = {
+      id: testId,
+      testId,
       specimenId,
       patientId: '',
-      testCode,
+      testCode: testType,
+      testType,
       testName: '',
-      orderingProvider: '',
+      orderingProvider: requestedBy || '',
       status: 'in_progress',
       startTime: new Date(),
       performedBy: this.labTechId,
@@ -150,9 +169,45 @@ export class LabTechOperationsService {
       updatedAt: new Date(),
     };
 
-    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'perform_test', entity_type: 'test', entity_id: test.id, details: { specimenId, testCode } });
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'perform_test', entity_type: 'test', entity_id: test.id, details: { specimenId, testType } });
 
     return test;
+  }
+
+  // Record Test Result
+  async recordResult(resultData: {
+    testId: string;
+    specimenId?: string;
+    values?: Record<string, number | string>;
+    referenceRange?: Record<string, string>;
+  }): Promise<Omit<TestResult, 'status' | 'referenceRange'> & {
+    testId: string;
+    status: string;
+    referenceRange?: Record<string, string> | string;
+    values?: Record<string, number | string>;
+  }> {
+    const { testId, specimenId, values, referenceRange } = resultData;
+
+    const result = {
+      id: `result_${Date.now()}`,
+      testId,
+      specimenId: specimenId || '',
+      patientId: '',
+      testCode: '',
+      testName: '',
+      resultValue: '',
+      resultUnit: '',
+      referenceRange,
+      status: 'completed',
+      values,
+      performedBy: this.labTechId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'record_result', entity_type: 'result', entity_id: testId, details: { specimenId, values, referenceRange } });
+
+    return result;
   }
 
   // Verify Test
@@ -241,26 +296,40 @@ export class LabTechOperationsService {
   }
 
   // Perform Quality Control
-  async performQC(analyzerId: string, testCode: string, qcLevel: 'low' | 'normal' | 'high'): Promise<QualityControl> {
+  async performQC(qcData: {
+    analyzerId: string;
+    qcType: string;
+    testCode?: string;
+    qcLevel?: 'low' | 'normal' | 'high';
+    parameters?: Record<string, number>;
+  }): Promise<Omit<QualityControl, 'status' | 'testCode' | 'qcLevel'> & {
+    qcStatus: string;
+    qcType: string;
+    parameters?: Record<string, number>;
+  }> {
     if (!this.rbacManager.canPerformQC()) {
       throw new Error('Insufficient permissions to perform QC');
     }
 
-    const qc: QualityControl = {
+    const { analyzerId, qcType, testCode, qcLevel, parameters } = qcData;
+
+    const qc = {
       id: `qc_${Date.now()}`,
       analyzerId,
-      testCode,
-      qcLevel,
+      qcType,
+      testCode: testCode || '',
+      qcLevel: qcLevel || 'normal',
       expectedValue: 0,
       expectedRange: '',
       actualValue: 0,
-      status: 'passed',
+      qcStatus: 'passed',
+      parameters,
       performedBy: this.labTechId,
       performedAt: new Date(),
       createdAt: new Date(),
     };
 
-    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'perform_qc', entity_type: 'analyzer', entity_id: analyzerId, details: { testCode, qcLevel } });
+    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'perform_qc', entity_type: 'analyzer', entity_id: analyzerId, details: { qcType, parameters } });
 
     return qc;
   }
@@ -329,22 +398,35 @@ export class LabTechOperationsService {
   }
 
   // Handle Critical Result
-  async handleCriticalResult(testId: string, resultData: Partial<TestResult>): Promise<CriticalResult> {
-    const critical: CriticalResult = {
+  async handleCriticalResult(criticalData: {
+    testId: string;
+    value: number;
+    criticalLow: number;
+    criticalHigh: number;
+    parameter?: string;
+  }): Promise<CriticalResult & { isCritical: boolean; alertTriggered: boolean }> {
+    const { testId, value, criticalLow, criticalHigh, parameter } = criticalData;
+    const isCritical = value < criticalLow || value > criticalHigh;
+
+    const critical: CriticalResult & { isCritical: boolean; alertTriggered: boolean } = {
       id: `crit_${Date.now()}`,
       testId,
-      specimenId: resultData.specimenId || '',
-      patientId: resultData.patientId || '',
+      specimenId: '',
+      patientId: '',
       patientName: '',
-      testName: resultData.testName || '',
-      resultValue: resultData.resultValue || '',
-      criticalThreshold: '',
+      testName: parameter || '',
+      resultValue: String(value),
+      criticalThreshold: `${criticalLow}-${criticalHigh}`,
       severity: 'critical',
       detectedAt: new Date(),
       acknowledged: false,
+      isCritical,
+      alertTriggered: isCritical,
     };
 
-    logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'detect_critical_result', entity_type: 'result', entity_id: critical.id, details: { testId } });
+    if (isCritical) {
+      logAudit({ hospital_id: this.hospitalId, user_id: this.labTechId, action_type: 'detect_critical_result', entity_type: 'result', entity_id: critical.id, details: { testId, value, parameter } });
+    }
 
     return critical;
   }

@@ -167,7 +167,7 @@ export function useActivityLogsPaginated(
       const pageCount = Math.ceil(total / pageSize);
 
       return {
-        logs: (data ?? []) as ActivityLogRow[],
+        logs: (data ?? []) as unknown as ActivityLogRow[],
         total,
         pageCount,
         currentPage: page,

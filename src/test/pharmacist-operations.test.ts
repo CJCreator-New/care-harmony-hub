@@ -84,8 +84,8 @@ describe('Pharmacy - Prescription Reception', () => {
   });
 
   it('should reject prescription if not authorized', async () => {
-    (PharmacistRBACManager.checkPermission as any).mockResolvedValueOnce(false);
-    
+    vi.spyOn(PharmacistRBACManager, 'checkPermission').mockResolvedValueOnce(false);
+
     await expect(() => receivePrescription(mockPrescription))
       .rejects
       .toThrow('Unauthorized to receive prescription');
@@ -172,13 +172,25 @@ describe('Pharmacy - Prescription Verification', () => {
 
   it('should log verification audit trail', async () => {
     await verifyPrescription(mockPrescription, mockPatient);
-    
+
     expect(logAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'PRESCRIPTION_VERIFIED',
         resourceId: 'rx-001',
       })
     );
+  });
+
+  it('should reject verification when prescription is missing', async () => {
+    await expect(() => verifyPrescription(null, mockPatient))
+      .rejects
+      .toThrow('Prescription not found');
+  });
+
+  it('should reject verification when patient is missing', async () => {
+    await expect(() => verifyPrescription(mockPrescription, null))
+      .rejects
+      .toThrow('Patient not found');
   });
 });
 
@@ -218,9 +230,21 @@ describe('Pharmacy - Dispensing Operations', () => {
 
   it('should generate label with correct information', async () => {
     const result = await fillPrescription(mockPrescription, mockInventory);
-    
+
     expect(result.label).toContain('500mg');
     expect(result.label).toContain('three times daily');
+  });
+
+  it('should reject fill when prescription is missing', async () => {
+    await expect(() => fillPrescription(null, mockInventory))
+      .rejects
+      .toThrow('Prescription not found');
+  });
+
+  it('should reject fill when inventory item is missing', async () => {
+    await expect(() => fillPrescription(mockPrescription, null))
+      .rejects
+      .toThrow('Inventory item not found');
   });
 
   it('should log dispensing audit trail', async () => {
@@ -235,11 +259,9 @@ describe('Pharmacy - Dispensing Operations', () => {
   });
 
   it('should update inventory after dispensing', async () => {
-    const updateInventorySpy = vi.spyOn({ updateInventory }, 'updateInventory');
-    
-    await fillPrescription(mockPrescription, mockInventory);
-    
-    expect(updateInventorySpy).toHaveBeenCalled();
+    const result = await fillPrescription(mockPrescription, mockInventory);
+
+    expect(result.remainingQuantity).toBeLessThan(mockInventory.quantity);
   });
 
   it('should flag low inventory threshold', async () => {

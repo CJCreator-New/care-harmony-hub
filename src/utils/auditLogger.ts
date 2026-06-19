@@ -13,7 +13,7 @@ export interface AuditLog {
   entity_type: string;
   entity_id: string;
   details: Record<string, unknown>;
-  ip_address?: string;
+  ip_address?: string | null;
   user_agent?: string;
   status: 'success' | 'failure';
   error_message?: string;
@@ -129,8 +129,13 @@ class AuditLogger {
     hospitalId: string,
     targetUserId: string,
     oldRole: string,
-    newRole: string
+    newRole: string,
+    changeReason: string
   ): Promise<AuditLog> {
+    if (!changeReason || !changeReason.trim()) {
+      throw new Error('change_reason is required for permission changes');
+    }
+
     return this.logAction(
       userId,
       hospitalId,
@@ -141,6 +146,7 @@ class AuditLogger {
         old_role: oldRole,
         new_role: newRole,
         changed_by: userId,
+        change_reason: changeReason,
       }
     );
   }
@@ -234,10 +240,11 @@ class AuditLogger {
   /**
    * Get client IP address
    */
-  private getClientIP(): string {
-    // In production, this would come from server headers
-    // For now, return a placeholder
-    return 'client-ip';
+  private getClientIP(): null {
+    // Client-side code cannot reliably determine the real IP address.
+    // The audit-logger edge function captures the real IP from x-forwarded-for headers
+    // for server-initiated audit events.
+    return null;
   }
 
   /**

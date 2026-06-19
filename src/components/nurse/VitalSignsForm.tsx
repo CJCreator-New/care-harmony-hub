@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import { useFeatureFlags } from "@/hooks/useFeatureFlags"
-import { useClinicalValidation } from "@/hooks/useClinicalValidation"
 import {
   Thermometer,
   Heart,
@@ -78,6 +77,18 @@ const vitalConfigs: Record<VitalType, { label: string; unit: string; icon: React
 }
 
 const sparklineKeys = Array.from({ length: 12 }, (_, index) => `spark-${index + 1}`)
+
+// Physiologically plausible bounds used to reject data-entry errors at save time.
+// Wider than `vitalConfigs.normalRange` so genuinely critical (but real) readings
+// can still be recorded.
+const ABSOLUTE_VITAL_LIMITS: Record<string, { min: number; max: number }> = {
+  temperature: { min: 25, max: 45 },
+  systolic: { min: 40, max: 300 },
+  diastolic: { min: 20, max: 200 },
+  pulse: { min: 20, max: 300 },
+  respiration: { min: 4, max: 60 },
+  spo2: { min: 0, max: 100 },
+}
 
 function getVitalStatus(
   value: number,
@@ -268,15 +279,34 @@ export function VitalSignsForm({
   })
   const [isSaving, setIsSaving] = useState(false)
   const [showToast, setShowToast] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const shouldReduceMotion = useReducedMotion()
   const { isEnabled } = useFeatureFlags()
   // Feature gate: V2 enhanced vital monitoring wraps behind nurse_flow_v2 flag
   // if (isEnabled('nurse_flow_v2')) { /* use enhanced v2 UI */ } else { /* legacy UI */ }
-  
-  // Clinical validation with age-appropriate ranges (requires patient age from props)
-  const { validateVital } = useClinicalValidation()
 
   const handleSave = async () => {
+    const enteredVitals = Object.entries(vitals).filter(([, value]) => value !== 0)
+
+    if (enteredVitals.length === 0) {
+      setSaveError('Enter at least one vital sign before saving')
+      setShowToast(true)
+      return
+    }
+
+    const outOfRange = enteredVitals.find(([key, value]) => {
+      const limits = ABSOLUTE_VITAL_LIMITS[key]
+      return limits && (value < limits.min || value > limits.max)
+    })
+
+    if (outOfRange) {
+      const [vitalKey, vitalValue] = outOfRange
+      setSaveError(`${vitalKey} value of ${vitalValue} is outside the physiologically plausible range`)
+      setShowToast(true)
+      return
+    }
+
+    setSaveError(null)
     setIsSaving(true)
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -459,12 +489,21 @@ export function VitalSignsForm({
       {/* Toast */}
       {showToast && (
         <div className="fixed bottom-4 right-4 z-50">
-          <Toast
-            title="Vitals Saved"
-            description="Vital signs have been recorded successfully."
-            variant="success"
-            onClose={() => setShowToast(false)}
-          />
+          {saveError ? (
+            <Toast
+              title="Cannot Save Vitals"
+              description={saveError}
+              variant="error"
+              onClose={() => setShowToast(false)}
+            />
+          ) : (
+            <Toast
+              title="Vitals Saved"
+              description="Vital signs have been recorded successfully."
+              variant="success"
+              onClose={() => setShowToast(false)}
+            />
+          )}
         </div>
       )}
     </div>

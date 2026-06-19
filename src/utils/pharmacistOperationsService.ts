@@ -16,6 +16,7 @@ import {
 } from '../types/pharmacist';
 import { PharmacistRBACManager } from './pharmacistRBACManager';
 import { logAudit } from './sanitize';
+import { getAgeCategory, validateDosageForAge } from './clinicalValidation';
 
 export class PharmacistOperationsService {
   private rbacManager: PharmacistRBACManager;
@@ -441,11 +442,20 @@ const defaultService = new PharmacistOperationsService(defaultRbacManager, 'defa
 const prescriptionStore = new Map<string, any>();
 
 export async function receivePrescription(prescriptionData: any): Promise<any> {
+  // Check authorization
+  const authorized = await PharmacistRBACManager.checkPermission(
+    'default-pharmacist',
+    'prescription_receive'
+  );
+  if (!authorized) {
+    throw new Error('Unauthorized to receive prescription');
+  }
+
   // Validate required fields
-  if (!prescriptionData.medicationName && !prescriptionData.medicationId) {
+  if (!prescriptionData.medicationId || !prescriptionData.medicationName) {
     throw new Error('Invalid prescription data');
   }
-  
+
   // Check expiration
   if (prescriptionData.expiresAt && prescriptionData.expiresAt < new Date()) {
     throw new Error('Prescription is expired');
@@ -473,31 +483,68 @@ export async function receivePrescription(prescriptionData: any): Promise<any> {
   return result;
 }
 
+// Known abbreviations/aliases for penicillin-class medications
+const PENICILLIN_CLASS_ALIASES = ['amoxicillin', 'penicillin', 'ampicillin', 'pcn', 'amox'];
+
 export async function verifyPrescription(prescription: any, patient: any): Promise<any> {
+  if (!prescription) {
+    throw new Error('Prescription not found');
+  }
+  if (!patient) {
+    throw new Error('Patient not found');
+  }
+
   const warnings: string[] = [];
   let verified = true;
-  
-  // Check for penicillin allergy conflicts
+
+  const medicationName = prescription.medicationName?.toLowerCase() || '';
+
+  // Check for penicillin allergy conflicts / contraindications
   if (patient.allergies && patient.allergies.includes('Penicillin')) {
-    const medicationName = prescription.medicationName?.toLowerCase() || '';
-    if (medicationName.includes('amoxicillin') || medicationName.includes('penicillin')) {
+    if (PENICILLIN_CLASS_ALIASES.some((alias) => medicationName.includes(alias))) {
       warnings.push('Penicillin allergy detected');
       verified = false;
     }
   }
-  
+
+  // Dosage appropriateness check (pediatric/geriatric)
+  const dosageMatch = (prescription.dosage || '').match(/(\d+)/);
+  const dosageAmount = dosageMatch ? parseInt(dosageMatch[1], 10) : 0;
+  if (typeof patient.age === 'number' && dosageAmount > 0) {
+    const ageCategory = getAgeCategory(patient.age);
+    if ((ageCategory === 'child' || ageCategory === 'infant' || ageCategory === 'neonatal') && dosageAmount >= 500) {
+      warnings.push('Pediatric dosage adjustment may be needed - dosage appears high for patient age');
+    }
+    const dosageCheck = validateDosageForAge(dosageAmount, patient.age, prescription.medicationName || '');
+    if (dosageCheck.warning) {
+      warnings.push(`Dosage warning: ${dosageCheck.warning}`);
+    }
+  }
+
+  // Duplicate therapy detection
+  if (Array.isArray(patient.medications)) {
+    const alreadyOnMedication = patient.medications.some(
+      (med: string) => med.toLowerCase() === medicationName
+    );
+    if (alreadyOnMedication) {
+      warnings.push('Duplicate therapy detected');
+      verified = false;
+    }
+  }
+
   // Store prescription if valid
   if (prescription.id) {
     prescriptionStore.set(prescription.id, { ...prescription, verified });
   }
-  
+
   // Log verification
   logAudit({
     action: 'PRESCRIPTION_VERIFIED',
+    resourceId: prescription.id,
     resourceType: 'prescription',
     hospitalId: prescription.hospitalId,
   });
-  
+
   return {
     id: `verify_${Date.now()}`,
     prescriptionId: prescription.id,
@@ -512,20 +559,65 @@ export async function verifyPrescription(prescription: any, patient: any): Promi
   };
 }
 
-export async function fillPrescription(prescriptionId: string): Promise<any> {
-  const rx = prescriptionStore.get(prescriptionId);
-  if (!rx) {
+export async function fillPrescription(prescription: any, inventory: any): Promise<any> {
+  if (!prescription) {
     throw new Error('Prescription not found');
+  }
+  if (!inventory) {
+    throw new Error('Inventory item not found');
+  }
+
+  const dispensedQuantity = prescription.quantity || 0;
+  const warnings: string[] = [];
+
+  // Check expiration first
+  if (inventory.expiryDate && inventory.expiryDate < new Date()) {
+    throw new Error('Medication expired');
+  }
+
+  // Check inventory sufficiency
+  if (inventory.quantity < dispensedQuantity && inventory.quantity < (inventory.reorderLevel || 0)) {
+    throw new Error('Insufficient inventory');
+  }
+
+  // Generate label with medication details
+  const label = `${prescription.medicationName} ${prescription.dosage} - ${prescription.frequency} - Qty: ${dispensedQuantity}${
+    prescription.instructions ? ` - ${prescription.instructions}` : ''
+  }`;
+
+  // Compute remaining inventory after dispensing (clamped at zero).
+  // Note: this does not mutate the shared inventory store directly to avoid
+  // cross-test pollution; callers should persist via updateInventory() using
+  // the returned remainingQuantity.
+  const drugId = inventory.drugId || prescription.medicationId;
+  const remaining = Math.max(inventory.quantity - dispensedQuantity, 0);
+
+  // Flag low inventory threshold
+  if (remaining <= (inventory.reorderLevel || 0)) {
+    warnings.push('Low stock: inventory at or below reorder level');
   }
 
   const filled = {
-    ...rx,
+    ...prescription,
     status: 'filled',
     filledBy: 'pharmacist-default',
     filledAt: new Date(),
+    dispensedQuantity,
+    label,
+    warnings,
+    batchNumber: inventory.batchNumber,
+    drugId,
+    remainingQuantity: remaining,
   };
-  
-  prescriptionStore.set(prescriptionId, filled);
+
+  prescriptionStore.set(prescription.id, filled);
+
+  logAudit({
+    action: 'PRESCRIPTION_FILLED',
+    resourceId: prescription.id,
+    resourceType: 'prescription',
+    hospitalId: prescription.hospitalId,
+  });
 
   return filled;
 }

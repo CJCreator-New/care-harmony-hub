@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Play, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { UATTestRunner } from '@/testing/UATTestRunner';
+import { UATTestRunner, UATReport } from '@/testing/UATTestRunner';
 import { sanitizeHtml, sanitizeLogMessage } from '@/utils/sanitize';
 
 export const UATDashboard = () => {
   const [isRunning, setIsRunning] = useState(false);
-  const [report, setReport] = useState(null);
+  const [report, setReport] = useState<UATReport | null>(null);
   
   const runTests = async () => {
     setIsRunning(true);

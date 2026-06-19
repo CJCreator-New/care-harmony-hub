@@ -277,7 +277,7 @@ export function useCreateConsultation() {
   return useMutation({
     mutationFn: async (data: ConsultationInsert) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
-      if (!hasPermission(primaryRole, 'consultations:write')) {
+      if (!hasPermission(primaryRole ?? undefined, 'consultations:write')) {
         throw new Error('You do not have permission to create consultations');
       }
 
@@ -360,7 +360,7 @@ export function useGetOrCreateConsultation() {
   return useMutation({
     mutationFn: async (patientId: string) => {
       if (!hospital?.id || !profile?.id) throw new Error('Not authenticated');
-      if (!hasPermission(primaryRole, 'consultations:write')) {
+      if (!hasPermission(primaryRole ?? undefined, 'consultations:write')) {
         throw new Error('You do not have permission to start consultations');
       }
 
@@ -451,7 +451,7 @@ export function useUpdateConsultation() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Consultation> & { id: string }) => {
-      if (!hasPermission(primaryRole, 'consultations:write')) {
+      if (!hasPermission(primaryRole ?? undefined, 'consultations:write')) {
         throw new Error('You do not have permission to update consultations');
       }
 
@@ -525,7 +525,7 @@ export function useAdvanceConsultationStep() {
 
   return useMutation({
     mutationFn: async ({ consultationId, currentStep }: { consultationId: string; currentStep: number }) => {
-      if (!hasPermission(primaryRole, 'consultations:write')) {
+      if (!hasPermission(primaryRole ?? undefined, 'consultations:write')) {
         throw new Error('You do not have permission to advance consultations');
       }
 

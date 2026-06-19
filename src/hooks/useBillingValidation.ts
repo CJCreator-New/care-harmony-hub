@@ -19,6 +19,7 @@ import {
   applyAdjustmentToInvoice,
   auditInvoiceForLeakage,
   calculateCopay,
+  calculateCopaySync,
   createChargeLine,
 } from '@/utils/billingValidator';
 import type {
@@ -119,7 +120,7 @@ export function useBillingValidation(initialInvoice?: BillingInvoice) {
     if (!invoice) return null;
 
     const calc = calculateInvoiceTotal(invoice);
-    const copay = invoice.insurance ? calculateCopay(calc.total, invoice.insurance) : 0;
+    const copay = invoice.insurance ? calculateCopaySync(calc.total, invoice.insurance) : 0;
 
     return {
       subtotal: calc.subtotal,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,7 +15,7 @@ interface MobileVitalsFormProps {
 }
 
 export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileVitalsFormProps) {
-  const { queueVital, isOnline } = useOfflineSync();
+  const { queueAction, isOnline } = useOfflineSync();
   const { toast } = useToast();
   const [isPortrait, setIsPortrait] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -35,11 +35,14 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
     chief_complaint: ''
   });
 
-  // Handle device orientation change
   const handleOrientationChange = () => {
-    const isPortraitNow = window.innerHeight > window.innerWidth;
-    setIsPortrait(isPortraitNow);
+    setIsPortrait(window.innerHeight > window.innerWidth);
   };
+
+  useEffect(() => {
+    window.addEventListener('resize', handleOrientationChange);
+    return () => window.removeEventListener('resize', handleOrientationChange);
+  }, []);
 
   const validateVitals = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -136,7 +139,7 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
         captured_at: new Date().toISOString()
       };
 
-      await queueVital(vitalData);
+      queueAction('create', 'vitals', vitalData as Record<string, unknown>);
 
       toast({
         title: 'Success',
@@ -181,7 +184,6 @@ export function MobileLandscapeVitalsForm({ isOpen, onClose, onSubmit }: MobileV
         className={`${
           isPortrait ? 'w-full max-w-md' : 'w-full max-w-5xl'
         } transition-all duration-300`}
-        onOrientationChange={handleOrientationChange}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

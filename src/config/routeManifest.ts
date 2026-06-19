@@ -37,7 +37,7 @@ export interface AppRouteManifestItem {
   badge?: string;
   releaseTier: ReleaseTier;
   featureFlag?: string;
-  testOwner: 'unit' | 'integration' | 'api-security' | 'e2e';
+  testOwner: 'unit' | 'integration' | 'api-security' | 'e2e' | 'observability';
   description?: string;
 }
 

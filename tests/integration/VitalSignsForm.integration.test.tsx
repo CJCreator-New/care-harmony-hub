@@ -47,7 +47,7 @@ describe('VitalSignsForm Integration Tests', () => {
     const inputs = screen.getAllByRole('spinbutton');
     for (const input of inputs) {
       await user.clear(input);
-      await user.type(input, '98');
+      await user.type(input, '42');
     }
 
     await user.click(screen.getByRole('button', { name: /save vital signs/i }));

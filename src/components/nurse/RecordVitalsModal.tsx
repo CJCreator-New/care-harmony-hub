@@ -235,7 +235,7 @@ export function RecordVitalsModal({
       });
 
       if (error) {
-        console.error('Supabase insert error:', error);
+        console.error('Supabase insert error:', { code: error.code, hint: error.hint });
         const errorMessage = error.message || 'Failed to record vitals';
         throw new Error(errorMessage);
       }
@@ -274,7 +274,7 @@ export function RecordVitalsModal({
       onOpenChange(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error recording vitals:', errorMessage, error);
+      console.error('Error recording vitals:', errorMessage);
       toast.error(`Failed to record vitals: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);

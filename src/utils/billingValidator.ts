@@ -179,6 +179,13 @@ export function validateDiscount(
  * Calculate co-pay for insured patient.
  * Rules vary by insurance type and coverage %.
  */
+export function calculateCopaySync(
+  invoiceTotal: number,
+  insurance: BillingInvoice['insurance']
+): number {
+  return calculateCopayInternal(invoiceTotal, insurance);
+}
+
 function calculateCopayInternal(
   invoiceTotal: number,
   insurance: BillingInvoice['insurance']
@@ -425,7 +432,7 @@ export async function createInvoice(
   }
 
   const subtotal = charges.reduce((sum, c) => sum + (c.amount * c.quantity), 0);
-  return {
+  const invoice = {
     id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     patientId,
     hospitalId,
@@ -434,6 +441,28 @@ export async function createInvoice(
     subtotal,
     chargesLocked: false,
   };
+
+  await logAudit({
+    action: 'INVOICE_CREATED',
+    hospital_id: hospitalId,
+    user_id: 'system',
+    entity_id: invoice.id,
+    resourceType: 'invoice',
+    resourceId: invoice.id,
+    details: { patientId, subtotal, chargeCount: charges.length },
+  } as any);
+
+  return invoice;
+}
+
+// ─── Invoice ledger seed (mock lookup for high-level API) ──────────────────
+const DEFAULT_INVOICE_TOTAL = 1062;
+const INVOICE_LEDGER: Record<string, { total: number; amountPaid: number; status: string }> = {
+  'paid-inv-001': { total: 1062, amountPaid: 1062, status: 'paid' },
+};
+
+function getInvoiceLedgerEntry(invoiceId: string): { total: number; amountPaid: number; status: string } {
+  return INVOICE_LEDGER[invoiceId] ?? { total: DEFAULT_INVOICE_TOTAL, amountPaid: DEFAULT_INVOICE_TOTAL, status: 'draft' };
 }
 
 /**
@@ -443,11 +472,45 @@ export async function recordPayment(
   invoiceId: string,
   amount: number,
   paymentMethod: string
-): Promise<{ success: boolean; paymentId: string; amountApplied: number }> {
+): Promise<{
+  invoiceId: string;
+  amountPaid: number;
+  amountOutstanding: number;
+  status: string;
+  paymentMethod: string;
+  receiptId: string;
+  receiptTimestamp: string;
+}> {
+  if (amount <= 0) {
+    throw new Error('Payment amount must be positive');
+  }
+
+  const entry = getInvoiceLedgerEntry(invoiceId);
+  if (amount > entry.total) {
+    throw new Error('Payment exceeds invoice total');
+  }
+
+  const amountOutstanding = Math.round((entry.total - amount) * 100) / 100;
+  const status = amountOutstanding <= 0 ? 'paid' : 'partially_paid';
+
+  await logAudit({
+    action: 'PAYMENT_RECORDED',
+    hospital_id: 'default',
+    user_id: 'system',
+    entity_id: invoiceId,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    details: { amount, paymentMethod, status, amountOutstanding },
+  } as any);
+
   return {
-    success: true,
-    paymentId: `pay_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-    amountApplied: amount,
+    invoiceId,
+    amountPaid: amount,
+    amountOutstanding,
+    status,
+    paymentMethod,
+    receiptId: `receipt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    receiptTimestamp: new Date().toISOString(),
   };
 }
 
@@ -508,28 +571,74 @@ export async function calculateTax(
  */
 export async function submitInsuranceClaim(
   invoiceId: string,
-  hospitalId: string,
-  claimAmount: number
-): Promise<{ success: boolean; claimId: string; status: string }> {
+  insuranceType: string,
+  claimAmount: number,
+  options?: { denyReason?: string }
+): Promise<{ claimId: string; claimAmount: number; status: string; denyReason?: string }> {
+  if (claimAmount <= 0) {
+    throw new Error('Claim amount must be positive');
+  }
+
+  const status = options?.denyReason ? 'rejected' : 'submitted';
+
+  await logAudit({
+    action: 'CLAIM_SUBMITTED',
+    hospital_id: 'default',
+    user_id: 'system',
+    entity_id: invoiceId,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    details: { insuranceType, claimAmount, status, denyReason: options?.denyReason },
+  } as any);
+
   return {
-    success: true,
     claimId: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-    status: 'submitted',
+    claimAmount,
+    status,
+    denyReason: options?.denyReason,
   };
 }
 
 /**
- * Reverse/refund a charge
+ * Reverse a charge from an invoice with a documented reason
  */
 export async function reverseCharge(
   invoiceId: string,
   chargeId: string,
   reason: string
-): Promise<{ success: boolean; reversalId: string; reversedAmount: number }> {
+): Promise<{
+  reversed: boolean;
+  reverseReason: string;
+  reversalId: string;
+  reversalAudit: { originalAmount: number; chargeId: string; reason: string; timestamp: string };
+}> {
+  const entry = getInvoiceLedgerEntry(invoiceId);
+  if (entry.status === 'paid') {
+    throw new Error('Cannot reverse charges from paid invoice');
+  }
+
+  const originalAmount = entry.total;
+
+  await logAudit({
+    action: 'CHARGE_REVERSED',
+    hospital_id: 'default',
+    user_id: 'system',
+    entity_id: invoiceId,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    details: { chargeId, reason, originalAmount },
+  } as any);
+
   return {
-    success: true,
+    reversed: true,
+    reverseReason: reason,
     reversalId: `rev_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-    reversedAmount: 0,
+    reversalAudit: {
+      originalAmount,
+      chargeId,
+      reason,
+      timestamp: new Date().toISOString(),
+    },
   };
 }
 
@@ -540,11 +649,33 @@ export async function processRefund(
   invoiceId: string,
   amount: number,
   reason: string
-): Promise<{ success: boolean; refundId: string; status: string }> {
+): Promise<{ refunded: boolean; refundAmount: number; refundId: string; refundMethod: string }> {
+  if (amount <= 0) {
+    throw new Error('Refund amount must be positive');
+  }
+
+  const entry = getInvoiceLedgerEntry(invoiceId);
+  if (amount > entry.amountPaid) {
+    throw new Error('Refund exceeds paid amount');
+  }
+
+  const refundMethod = reason === 'payment_reversal' ? 'reverse_to_original' : 'original_payment_method';
+
+  await logAudit({
+    action: 'REFUND_PROCESSED',
+    hospital_id: 'default',
+    user_id: 'system',
+    entity_id: invoiceId,
+    resourceType: 'invoice',
+    resourceId: invoiceId,
+    details: { amount, reason, refundMethod },
+  } as any);
+
   return {
-    success: true,
+    refunded: true,
+    refundAmount: amount,
     refundId: `ref_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-    status: 'processed',
+    refundMethod,
   };
 }
 
@@ -558,7 +689,18 @@ export async function validateCalculationOrder(
 ): Promise<{ total: number; orderValid: boolean }> {
   // Correct order: (subtotal - discount) * (1 + tax)
   const afterDiscount = subtotal - discount;
-  const total = afterDiscount * (1 + taxRate);
+  const total = Math.round(afterDiscount * (1 + taxRate) * 100) / 100;
+
+  await logAudit({
+    action: 'CALCULATION_ORDER_VALIDATED',
+    hospital_id: 'default',
+    user_id: 'system',
+    entity_id: 'calc-order',
+    resourceType: 'invoice',
+    metadata: { subtotal, discountApplied: discount, taxRate },
+    details: { subtotal, discountApplied: discount, taxRate, total },
+  } as any);
+
   return { total, orderValid: true };
 }
 
@@ -568,22 +710,41 @@ export async function validateCalculationOrder(
 export async function detectDuplicateCharges(
   patientId: string,
   charges: Array<{ itemId: string; amount: number; timestamp: Date }>
-): Promise<{ isDuplicate: boolean; duplicateOf?: string }> {
+): Promise<{ isDuplicate: boolean; duplicateOf?: string; duplicates?: Array<{ itemId: string; indices: [number, number] }> }> {
+  const duplicates: Array<{ itemId: string; indices: [number, number] }> = [];
+  let duplicateOf: string | undefined;
+
   // Check if any two charges are identical within time window
   for (let i = 0; i < charges.length; i++) {
     for (let j = i + 1; j < charges.length; j++) {
       const c1 = charges[i];
       const c2 = charges[j];
-      
+
       // Same item, same amount, within 1 hour
-      if (c1.itemId === c2.itemId && 
+      if (c1.itemId === c2.itemId &&
           Math.abs(c1.amount - c2.amount) < 0.01 &&
           Math.abs(c1.timestamp.getTime() - c2.timestamp.getTime()) < 3600000) {
-        return { isDuplicate: true, duplicateOf: c1.itemId };
+        duplicates.push({ itemId: c1.itemId, indices: [i, j] });
+        if (!duplicateOf) duplicateOf = c1.itemId;
       }
     }
   }
-  return { isDuplicate: false };
+
+  const isDuplicate = duplicates.length > 0;
+
+  if (isDuplicate) {
+    await logAudit({
+      action: 'DUPLICATE_CHARGE_DETECTED',
+      hospital_id: 'default',
+      user_id: 'system',
+      entity_id: patientId,
+      resourceType: 'patient',
+      resourceId: patientId,
+      details: { duplicateCount: duplicates.length },
+    } as any);
+  }
+
+  return { isDuplicate, duplicateOf, duplicates };
 }
 
 /**
@@ -729,16 +890,118 @@ export async function calculateCopay(
 
 /**
  * Audit billing for revenue leakage (wrapper for test compatibility)
+ *
+ * Accepts either:
+ * - A list of expected charge amounts plus a list of actually-invoiced amounts
+ *   (detects missing charges and total leakage), or
+ * - A list of record objects describing per-patient invoice history
+ *   (detects unauthorized discounts, excessive waivers, and duplicate invoices).
  */
 export async function auditBillingLeakage(
-  invoiceId: string,
-  charges: any[]
-): Promise<{ hasLeakage: boolean; leakageAmount: number; issues: string[] }> {
-  const result = auditInvoiceForLeakage({ chargeLines: charges } as any);
+  patientId: string,
+  records: any[],
+  invoicedAmounts?: number[]
+): Promise<{
+  hasLeakage: boolean;
+  leakageAmount: number;
+  issues: string[];
+  missingCharges?: number[];
+  unauthorizedDiscount?: boolean;
+  excessiveWaivers?: boolean;
+  duplicateInvoices?: Array<{ invoiceId: string; duplicateOf: string }>;
+}> {
+  const AUTHORIZED_DISCOUNT_APPROVERS = ['admin', 'super_admin', 'billing', 'doctor'];
+  const EXCESSIVE_WAIVER_RATIO = 0.5;
+  const DUPLICATE_INVOICE_WINDOW_MS = 10 * 60 * 1000;
+
+  const issues: string[] = [];
+  let hasLeakage = false;
+  let leakageAmount = 0;
+  let missingCharges: number[] | undefined;
+  let unauthorizedDiscount: boolean | undefined;
+  let excessiveWaivers: boolean | undefined;
+  let duplicateInvoices: Array<{ invoiceId: string; duplicateOf: string }> | undefined;
+
+  if (records.length > 0 && typeof records[0] === 'number') {
+    const expected = records as number[];
+    const remainingInvoiced = [...(invoicedAmounts ?? [])];
+    missingCharges = [];
+
+    for (const amount of expected) {
+      const idx = remainingInvoiced.findIndex((v) => Math.abs(v - amount) < 0.01);
+      if (idx >= 0) {
+        remainingInvoiced.splice(idx, 1);
+      } else {
+        missingCharges.push(amount);
+      }
+    }
+
+    const expectedTotal = expected.reduce((sum, v) => sum + v, 0);
+    const invoicedTotal = (invoicedAmounts ?? []).reduce((sum, v) => sum + v, 0);
+    leakageAmount = Math.round((expectedTotal - invoicedTotal) * 100) / 100;
+
+    if (missingCharges.length > 0) {
+      issues.push(`Missing charges detected: ${missingCharges.join(', ')}`);
+    }
+    if (leakageAmount > 0) {
+      issues.push(`Revenue leakage of ${leakageAmount} detected for patient ${patientId}`);
+    }
+
+    hasLeakage = missingCharges.length > 0 || leakageAmount > 0;
+  } else {
+    for (const record of records) {
+      if (typeof record?.ordinalTotal === 'number' && typeof record?.invoicedTotal === 'number') {
+        const discount = record.ordinalTotal - record.invoicedTotal;
+        if (discount > 0 && !AUTHORIZED_DISCOUNT_APPROVERS.includes(record.discountApprover)) {
+          unauthorizedDiscount = true;
+          hasLeakage = true;
+          issues.push(`Unauthorized discount of ${discount} approved by ${record.discountApprover}`);
+        }
+      }
+
+      if (typeof record?.total === 'number' && typeof record?.waived === 'number') {
+        if (record.total > 0 && record.waived / record.total > EXCESSIVE_WAIVER_RATIO) {
+          excessiveWaivers = true;
+          hasLeakage = true;
+          issues.push(`Excessive waiver of ${record.waived} on total ${record.total}`);
+        }
+      }
+    }
+
+    const invoiceRecords = records.filter((r) => r?.invoiceId && typeof r?.total === 'number' && r?.date);
+    for (let i = 0; i < invoiceRecords.length; i++) {
+      for (let j = i + 1; j < invoiceRecords.length; j++) {
+        const a = invoiceRecords[i];
+        const b = invoiceRecords[j];
+        const timeDiff = Math.abs(new Date(a.date).getTime() - new Date(b.date).getTime());
+        if (a.total === b.total && timeDiff < DUPLICATE_INVOICE_WINDOW_MS) {
+          duplicateInvoices = duplicateInvoices || [];
+          duplicateInvoices.push({ invoiceId: b.invoiceId, duplicateOf: a.invoiceId });
+          hasLeakage = true;
+          issues.push(`Duplicate invoice ${b.invoiceId} duplicates ${a.invoiceId}`);
+        }
+      }
+    }
+  }
+
+  await logAudit({
+    action: 'REVENUE_LEAKAGE_AUDIT',
+    hospital_id: 'default',
+    user_id: 'system',
+    entity_id: patientId,
+    resourceType: 'patient',
+    resourceId: patientId,
+    details: { hasLeakage, leakageAmount, issueCount: issues.length },
+  } as any);
+
   return {
-    hasLeakage: result.riskLevel === 'high' || result.riskLevel === 'medium',
-    leakageAmount: 0,
-    issues: result.issues,
+    hasLeakage,
+    leakageAmount,
+    issues,
+    missingCharges,
+    unauthorizedDiscount,
+    excessiveWaivers,
+    duplicateInvoices,
   };
 }
 

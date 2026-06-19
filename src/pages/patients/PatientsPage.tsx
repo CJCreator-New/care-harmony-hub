@@ -1,5 +1,5 @@
 import { useState, useCallback, memo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -180,6 +180,7 @@ PatientRow.displayName = 'PatientRow';
 
 export default function PatientsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { profile, primaryRole } = useAuth();
   const { canCreatePatients } = usePermissions();
@@ -422,7 +423,12 @@ export default function PatientsPage() {
                       navigate(`/patients/${patient.id}`);
                     }}
                     onBookAppointment={(patient) => {
-                      navigate(`/appointments?patient_id=${patient.id}&patient_name=${encodeURIComponent(`${patient.first_name} ${patient.last_name}`)}`);
+                      navigate('/appointments', {
+                        state: {
+                          patientId: patient.id,
+                          patientName: `${patient.first_name} ${patient.last_name}`,
+                        },
+                      });
                     }}
                   />
                 ))}
@@ -453,8 +459,7 @@ export default function PatientsPage() {
         onOpenChange={setRegistrationModalOpen}
         onSuccess={() => {
           setRegistrationModalOpen(false);
-          // Refresh current page data
-          window.location.reload();
+          queryClient.invalidateQueries({ queryKey: ['patients'] });
         }}
       />
     </DashboardLayout>

@@ -54,13 +54,51 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  const startTime = performance.now();
+  const requestStart = performance.now();
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/functions\/v1\/health-check/, '');
+
+  // GET /ready — lightweight readiness check (DB ping only)
+  if (path === '/ready' || path === '/ready/') {
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { error } = await supabase.from('hospitals').select('count').limit(1).single();
+      return new Response(
+        JSON.stringify({ ready: !error, timestamp: new Date().toISOString() }),
+        { status: error ? 503 : 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } catch {
+      return new Response(
+        JSON.stringify({ ready: false, timestamp: new Date().toISOString() }),
+        { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+  }
+
+  // GET /metrics — uptime + memory only, no external calls
+  if (path === '/metrics' || path === '/metrics/') {
+    const memoryUsage = Deno.memoryUsage?.();
+    return new Response(
+      JSON.stringify({
+        uptime_ms: Date.now() - startTime,
+        response_time_ms: Math.round(performance.now() - requestStart),
+        memory_usage_mb: memoryUsage ? Math.round(memoryUsage.heapUsed / 1024 / 1024) : 0,
+        timestamp: new Date().toISOString(),
+      }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
+  // GET /health (default) — full check
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -135,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
     const memoryUsage = Deno.memoryUsage?.();
     const memoryUsageMB = memoryUsage ? Math.round(memoryUsage.heapUsed / 1024 / 1024) : 0;
 
-    const responseTime = performance.now() - startTime;
+    const responseTime = performance.now() - requestStart;
     const uptime = Date.now() - startTime;
 
     const healthResponse: HealthCheckResponse = {
@@ -184,7 +222,7 @@ const handler = async (req: Request): Promise<Response> => {
         email_service: 'unhealthy',
       },
       metrics: {
-        response_time_ms: Math.round(performance.now() - startTime),
+        response_time_ms: Math.round(performance.now() - requestStart),
         memory_usage_mb: 0,
       },
     };

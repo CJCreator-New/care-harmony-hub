@@ -8,11 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // Constants
 const ESCALATION_DELAYS = {
@@ -21,6 +17,8 @@ const ESCALATION_DELAYS = {
 };
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -276,12 +274,12 @@ async function notifyDoctor(
 
     // Send SMS for critical values
     if (alert.severity.startsWith("critical")) {
-      console.log(`SMS to ${doctor.phone_number}: ${message}`);
+      console.log(`SMS notification queued for doctor ${doctor.id} (alert ${alert.id})`);
       // TODO: Integrate Twilio or similar
     }
 
     // Send email
-    console.log(`Email to ${doctor.email}: ${message}`);
+    console.log(`Email notification queued for doctor ${doctor.id} (alert ${alert.id})`);
     // TODO: Integrate SendGrid or similar
 
   } catch (e) {

@@ -36,7 +36,10 @@ type FhirAction =
   | "export_patient"
   | "import_patient"
   | "sync_observations"
-  | "export_encounter";
+  | "export_encounter"
+  | "export_medication_requests"
+  | "export_conditions"
+  | "export_diagnostic_reports";
 
 type ScopeAccessType = "read" | "write";
 
@@ -71,6 +74,24 @@ const ACTION_SCOPE_REQUIREMENTS: Record<FhirAction, ActionScopeRequirement> = {
     access: "read",
     allowPatientContext: true,
     fallbackRoles: ["admin", "doctor"],
+  },
+  export_medication_requests: {
+    resource: "Patient",
+    access: "read",
+    allowPatientContext: true,
+    fallbackRoles: ["admin", "doctor", "pharmacist"],
+  },
+  export_conditions: {
+    resource: "Patient",
+    access: "read",
+    allowPatientContext: true,
+    fallbackRoles: ["admin", "doctor"],
+  },
+  export_diagnostic_reports: {
+    resource: "Observation",
+    access: "read",
+    allowPatientContext: true,
+    fallbackRoles: ["admin", "doctor", "lab_technician"],
   },
 };
 
@@ -167,7 +188,7 @@ function mapGenderToFhir(gender: string | null | undefined): FHIRPatient["gender
 }
 
 function mapGenderFromFhir(gender: FHIRPatient["gender"]): string {
-  if (gender === "male" || gender === "female" || gender === "other") return gender;
+  if (gender === "male" || gender === "female" || gender === "other" || gender === "unknown") return gender;
   return "prefer_not_to_say";
 }
 
@@ -290,7 +311,16 @@ function mapObservationToVitalSign(patientId: string, observation: any, index: n
     });
   }
 
-  const primaryCode = asString(observation?.code?.coding?.[0]?.code);
+  const primaryCoding = observation?.code?.coding?.[0];
+  const primaryCodingSystem = asString(primaryCoding?.system);
+  if (primaryCodingSystem && primaryCodingSystem !== "http://loinc.org") {
+    throw new HttpError({
+      status: 422,
+      code: "value",
+      diagnostics: `Observation[${index}].code.coding[0].system must be 'http://loinc.org', got '${primaryCodingSystem}'.`,
+    });
+  }
+  const primaryCode = asString(primaryCoding?.code);
   if (!primaryCode) {
     throw new HttpError({
       status: 422,
@@ -684,6 +714,27 @@ function enforceHospitalAccess(
   }
 }
 
+async function logFhirAccess(
+  supabase: any,
+  authorization: ActionAuthorization,
+  resourceType: "Patient" | "Encounter",
+  resourceId: string,
+  hospitalId: string | null,
+) {
+  await supabase.from("activity_logs").insert({
+    user_id: authorization.requestAuth.userId,
+    hospital_id: hospitalId ?? authorization.requestAuth.hospitalId,
+    action_type: `fhir_${authorization.action}`,
+    resource_type: resourceType.toLowerCase(),
+    resource_id: resourceId,
+    metadata: {
+      grant_source: authorization.grantSource,
+      patient_scoped: authorization.patientScoped,
+      system_scoped: authorization.systemScoped,
+    },
+  });
+}
+
 function enforcePatientScopeAccess(
   authorization: ActionAuthorization,
   targetPatientId: string,
@@ -760,6 +811,12 @@ const handler = async (req: Request): Promise<Response> => {
         return await syncObservations(supabase, authorization, data);
       case "export_encounter":
         return await exportEncounter(supabase, authorization, data);
+      case "export_medication_requests":
+        return await exportMedicationRequests(supabase, authorization, data);
+      case "export_conditions":
+        return await exportConditions(supabase, authorization, data);
+      case "export_diagnostic_reports":
+        return await exportDiagnosticReports(supabase, authorization, data);
     }
   } catch (error) {
     if (error instanceof HttpError) {
@@ -806,6 +863,7 @@ async function exportPatientToFHIR(
   }
   enforceHospitalAccess(authorization, patient.hospital_id, `Patient/${patientId}`);
   enforcePatientScopeAccess(authorization, patient.id, `Patient/${patientId}`);
+  await logFhirAccess(supabase, authorization, "Patient", patient.id, patient.hospital_id);
 
   const fhirPatient = mapPatientToFhir(patient);
   const versionId = fhirPatient.meta?.versionId;
@@ -957,6 +1015,8 @@ async function importPatientFromFHIR(
     });
   }
 
+  await logFhirAccess(supabase, authorization, "Patient", savedPatient.id, hospitalId);
+
   const fhirPatient = mapPatientToFhir(savedPatient);
   const versionId = fhirPatient.meta?.versionId;
   const headers: HeadersInit = {};
@@ -1084,6 +1144,7 @@ async function exportEncounter(
   }
   enforceHospitalAccess(authorization, consultation.hospital_id, `Encounter/${consultation.id}`);
   enforcePatientScopeAccess(authorization, consultation.patient_id, `Encounter/${consultation.id}`);
+  await logFhirAccess(supabase, authorization, "Encounter", consultation.id, consultation.hospital_id);
 
   const encounterStatus = ENCOUNTER_STATUS_BY_CONSULTATION_STATUS[consultation.status ?? "pending"] ?? "in-progress";
   const diagnosisText = Array.isArray(consultation.final_diagnosis) && consultation.final_diagnosis.length > 0
@@ -1103,16 +1164,27 @@ async function exportEncounter(
       lastUpdated: consultation.updated_at ?? consultation.created_at,
     },
     status: encounterStatus,
-    class: {
-      system: "http://terminology.hl7.org/CodeSystem/v3-ActCode",
-      code: "AMB",
-      display: "ambulatory",
-    },
+    class: consultation.encounter_type === "emergency"
+      ? { system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "EMER", display: "emergency" }
+      : consultation.encounter_type === "inpatient"
+      ? { system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "IMP", display: "inpatient encounter" }
+      : { system: "http://terminology.hl7.org/CodeSystem/v3-ActCode", code: "AMB", display: "ambulatory" },
     subject: {
       reference: `Patient/${consultation.patient_id}`,
     },
     participant: consultation.doctor_id ? [
       {
+        type: [
+          {
+            coding: [
+              {
+                system: "http://terminology.hl7.org/CodeSystem/v3-ParticipationType",
+                code: "PPRF",
+                display: "primary performer",
+              },
+            ],
+          },
+        ],
         individual: {
           reference: `Practitioner/${consultation.doctor_id}`,
         },
@@ -1130,7 +1202,17 @@ async function exportEncounter(
     diagnosis: diagnosisText ? [
       {
         condition: {
+          type: "Condition",
           display: diagnosisText,
+        },
+        use: {
+          coding: [
+            {
+              system: "http://terminology.hl7.org/CodeSystem/diagnosis-role",
+              code: "AD",
+              display: "Admission diagnosis",
+            },
+          ],
         },
       },
     ] : [],
@@ -1139,6 +1221,141 @@ async function exportEncounter(
   return fhirResponse(fhirEncounter, 200, {
     ETag: `W/"${sanitizeWeakEtagValue(versionId)}"`,
   });
+}
+
+async function exportMedicationRequests(
+  supabase: any,
+  authorization: ActionAuthorization,
+  { patient_id }: any,
+) {
+  const patientId = asString(patient_id);
+  if (!patientId) {
+    throw new HttpError({ status: 422, code: "required", diagnostics: "patient_id is required." });
+  }
+  enforcePatientScopeAccess(authorization, patientId, `MedicationRequest?patient=${patientId}`);
+
+  const { data: prescriptions, error } = await supabase
+    .from("prescriptions")
+    .select("id, patient_id, doctor_id, hospital_id, drug_name, dosage, frequency, status, prescribed_at, created_at, updated_at, rxcui")
+    .eq("patient_id", patientId);
+
+  if (error) {
+    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load prescriptions: ${error.message}` });
+  }
+
+  const bundle = {
+    resourceType: "Bundle",
+    type: "searchset",
+    total: (prescriptions ?? []).length,
+    entry: (prescriptions ?? []).map((rx: any) => ({
+      resource: {
+        resourceType: "MedicationRequest",
+        id: rx.id,
+        meta: { lastUpdated: rx.updated_at ?? rx.created_at },
+        status: rx.status === "active" ? "active" : rx.status === "completed" ? "completed" : "unknown",
+        intent: "order",
+        medicationCodeableConcept: {
+          coding: rx.rxcui ? [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: rx.rxcui, display: rx.drug_name }] : [],
+          text: rx.drug_name,
+        },
+        subject: { reference: `Patient/${rx.patient_id}` },
+        requester: rx.doctor_id ? { reference: `Practitioner/${rx.doctor_id}` } : undefined,
+        authoredOn: rx.prescribed_at ?? rx.created_at,
+        dosageInstruction: [{
+          text: `${rx.dosage ?? ""} ${rx.frequency ?? ""}`.trim() || undefined,
+        }],
+      },
+    })),
+  };
+
+  return fhirResponse(bundle);
+}
+
+async function exportConditions(
+  supabase: any,
+  authorization: ActionAuthorization,
+  { patient_id }: any,
+) {
+  const patientId = asString(patient_id);
+  if (!patientId) {
+    throw new HttpError({ status: 422, code: "required", diagnostics: "patient_id is required." });
+  }
+  enforcePatientScopeAccess(authorization, patientId, `Condition?patient=${patientId}`);
+
+  const { data: consultations, error } = await supabase
+    .from("consultations")
+    .select("id, patient_id, hospital_id, final_diagnosis, diagnoses, created_at, updated_at, status")
+    .eq("patient_id", patientId)
+    .not("final_diagnosis", "is", null);
+
+  if (error) {
+    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load conditions: ${error.message}` });
+  }
+
+  const conditions: any[] = [];
+  for (const c of (consultations ?? [])) {
+    const diagText = Array.isArray(c.final_diagnosis) ? c.final_diagnosis[0] : c.final_diagnosis;
+    if (!diagText) continue;
+    conditions.push({
+      resource: {
+        resourceType: "Condition",
+        id: `${c.id}-diag`,
+        meta: { lastUpdated: c.updated_at ?? c.created_at },
+        clinicalStatus: {
+          coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-clinical", code: c.status === "completed" ? "resolved" : "active" }],
+        },
+        verificationStatus: {
+          coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-ver-status", code: "confirmed" }],
+        },
+        code: { text: diagText },
+        subject: { reference: `Patient/${c.patient_id}` },
+        encounter: { reference: `Encounter/${c.id}` },
+        recordedDate: c.created_at,
+      },
+    });
+  }
+
+  return fhirResponse({ resourceType: "Bundle", type: "searchset", total: conditions.length, entry: conditions });
+}
+
+async function exportDiagnosticReports(
+  supabase: any,
+  authorization: ActionAuthorization,
+  { patient_id }: any,
+) {
+  const patientId = asString(patient_id);
+  if (!patientId) {
+    throw new HttpError({ status: 422, code: "required", diagnostics: "patient_id is required." });
+  }
+  enforcePatientScopeAccess(authorization, patientId, `DiagnosticReport?patient=${patientId}`);
+
+  const { data: labResults, error } = await supabase
+    .from("lab_results")
+    .select("id, patient_id, hospital_id, test_name, result_value, result_unit, reference_range, status, collected_at, resulted_at, created_at, updated_at, ordering_doctor_id")
+    .eq("patient_id", patientId);
+
+  if (error) {
+    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load lab results: ${error.message}` });
+  }
+
+  const reports = (labResults ?? []).map((lab: any) => ({
+    resource: {
+      resourceType: "DiagnosticReport",
+      id: lab.id,
+      meta: { lastUpdated: lab.updated_at ?? lab.created_at },
+      status: lab.status === "final" ? "final" : lab.status === "preliminary" ? "preliminary" : "unknown",
+      code: { text: lab.test_name },
+      subject: { reference: `Patient/${lab.patient_id}` },
+      effectiveDateTime: lab.collected_at ?? lab.created_at,
+      issued: lab.resulted_at ?? lab.created_at,
+      resultsInterpreter: lab.ordering_doctor_id ? [{ reference: `Practitioner/${lab.ordering_doctor_id}` }] : undefined,
+      result: [{
+        display: `${lab.result_value ?? ""}${lab.result_unit ? " " + lab.result_unit : ""}${lab.reference_range ? " (ref: " + lab.reference_range + ")" : ""}`.trim(),
+      }],
+    },
+  }));
+
+  return fhirResponse({ resourceType: "Bundle", type: "searchset", total: reports.length, entry: reports });
 }
 
 serve((req) => withRateLimit(req, handler));

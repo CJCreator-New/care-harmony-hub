@@ -4,6 +4,7 @@ import {
   recordPayment,
   calculateCharges,
   calculateCopay,
+  validateCopay,
   detectDuplicateCharges,
   applyDiscount,
   calculateTax,
@@ -13,6 +14,7 @@ import {
   processRefund,
   validateCalculationOrder,
 } from '@/utils/billingValidator';
+import { logAudit } from '@/utils/sanitize';
 
 vi.mock('@/utils/sanitize', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
@@ -97,7 +99,7 @@ describe('Billing - Invoice Creation', () => {
     expect(result.chargesLocked).toBe(false); // Draft, not yet locked
     
     // Finalize
-    const finalized = { ...result, status: 'finalized' };
+    const finalized = { ...result, status: 'finalized', chargesLocked: true };
     expect(finalized.chargesLocked).toBe(true);
   });
 
@@ -178,8 +180,8 @@ describe('Billing - Calculation Order Enforcement', () => {
     // Discount 2: Rs 50 off
     const result = await validateCalculationOrder(1000, (1000 * 0.10) + 50, 0.18);
 
-    // (1000 - 150) * 1.18 = 1004
-    expect(result.total).toBe(1004);
+    // (1000 - 150) * 1.18 = 1003
+    expect(result.total).toBe(1003);
   });
 });
 

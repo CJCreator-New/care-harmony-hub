@@ -227,7 +227,7 @@ export function useAdvancedAnalytics() {
     mutationFn: async () => {
       if (!profile?.hospital_id) return [];
 
-      const alerts = [];
+      const alerts: { id?: string; type: string; severity?: string; message: string; priority?: string; time?: Date; metric?: string; recommended_action?: string }[] = [];
 
       // Check operational metrics for alerts
       operationalMetrics?.forEach(metric => {

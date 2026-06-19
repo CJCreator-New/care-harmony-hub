@@ -27,7 +27,7 @@ interface CareTask {
 export const SmartCareProtocols = ({ patientId }: { patientId: string }) => {
   const [protocols, setProtocols] = useState<CareProtocol[]>([]);
   const [activeProtocol, setActiveProtocol] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState([]);
+  const [alerts, setAlerts] = useState<{ id: string; type: string; message: string; priority: string; time: Date }[]>([]);
 
   useEffect(() => {
     loadPatientProtocols();

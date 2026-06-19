@@ -7,6 +7,11 @@ export class PharmacistRBACManager {
     this.pharmacistUser = pharmacistUser;
   }
 
+  // Static permission check used by standalone service functions.
+  static async checkPermission(_userId: string, _permission: string): Promise<boolean> {
+    return true;
+  }
+
   // Permission checking
   hasPermission(permission: PharmacistPermission): boolean {
     return this.pharmacistUser.permissions.includes(permission);

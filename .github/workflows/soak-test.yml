@@ -18,6 +18,7 @@ jobs:
   soak-test:
     name: Soak Test - ${{ inputs.duration_hours }}hrs
     runs-on: ubuntu-latest-xl  # Extra large runner for better performance
+    environment: staging  # Uses GitHub "staging" environment secrets, not repo-level
     timeout-minutes: ${{ fromJson(inputs.duration_hours) * 65 }}  # Duration + 65min buffer
     permissions:
       contents: read

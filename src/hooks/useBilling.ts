@@ -252,7 +252,7 @@ export function useCreateInvoice() {
       notes?: string;
       dueDate?: string;
     }) => {
-      if (!hasPermission(primaryRole, 'billing:read')) {
+      if (!hasPermission(primaryRole ?? undefined, 'billing:read')) {
         throw new Error('You do not have permission to create invoices');
       }
       if (!hospital?.id) throw new Error('No hospital context');
@@ -345,7 +345,7 @@ export function useRecordPayment() {
       referenceNumber?: string | null;
       notes?: string;
     }) => {
-      if (!hasPermission(primaryRole, 'billing:read')) {
+      if (!hasPermission(primaryRole ?? undefined, 'billing:read')) {
         throw new Error('You do not have permission to record payments');
       }
       if (!hospital?.id) throw new Error('No hospital context');

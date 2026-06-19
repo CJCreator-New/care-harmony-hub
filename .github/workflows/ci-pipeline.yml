@@ -47,7 +47,7 @@ jobs:
         run: npm ci
 
       - name: Run TypeScript check
-        run: npm run typecheck
+        run: npm run type-check
 
       - name: Run linter
         run: npm run lint -- --format json > lint-report.json || true

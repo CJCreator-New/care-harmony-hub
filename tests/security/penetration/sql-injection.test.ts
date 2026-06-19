@@ -20,8 +20,9 @@ describe('SQL Injection Prevention', () => {
           .select('*')
           .eq('email', payload);
         
-        // Should not execute malicious SQL
-        expect(error === null || data?.length === 0).toBe(true);
+        // Should not execute malicious SQL and must not return any matching rows
+        // (RLS may reject the query outright, in which case `data` is null)
+        expect(!data || data.length === 0).toBe(true);
       }
     });
 

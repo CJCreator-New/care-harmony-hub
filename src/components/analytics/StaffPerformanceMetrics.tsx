@@ -36,7 +36,7 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
     }
 
     return [
-      { name: 'Patient Throughput', value: role === 'doctor' ? 18 : 24, peerAverage: 15, unit: 'daily', trend: 'up' },
+      { name: 'Patient Throughput', value: role === 'nurse' ? 18 : 24, peerAverage: 15, unit: 'daily', trend: 'up' },
       { name: 'Completion Rate', value: 96, peerAverage: 92, unit: '%', trend: 'stable' },
       { name: 'Avg Turnaround', value: 14, peerAverage: 18, unit: 'mins', trend: 'down' },
       { name: 'Patient Satisfaction', value: 4.8, peerAverage: 4.3, unit: '/ 5.0', trend: 'up' },

@@ -44,7 +44,8 @@ interface UseAIMetricsReturn {
  * Hook to fetch AI metrics from Lovable API and system_metrics table
  */
 export function useAIMetrics(enabled: boolean = true): UseAIMetricsReturn {
-  const { user, hospitalId } = useAuth();
+  const { user, hospital } = useAuth();
+  const hospitalId = hospital?.id;
   const [metrics, setMetrics] = useState<AIMetricsData[]>([]);
   const [stats, setStats] = useState<AIUsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);

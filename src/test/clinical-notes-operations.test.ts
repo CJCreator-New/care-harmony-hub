@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { logAudit } from '@/utils/sanitize';
 import {
   createClinicalNote,
   updateClinicalNote,
@@ -12,6 +13,7 @@ import {
   auditNoteAccess,
   deleteDraft,
   restoreFromArchive,
+  clearNoteStore,
 } from '@/utils/clinicalNoteService';
 
 vi.mock('@/utils/sanitize', () => ({
@@ -45,6 +47,11 @@ const mockNoteData = {
   diagnosis: 'Acute Upper Respiratory Tract Infection',
   treatment: 'Prescribed amoxicillin 500mg TDS for 5 days.',
 };
+
+// Reset in-memory store before each test to prevent cross-test contamination
+beforeEach(() => {
+  clearNoteStore();
+});
 
 describe('Clinical Notes - Creation & Editing', () => {
   beforeEach(() => {

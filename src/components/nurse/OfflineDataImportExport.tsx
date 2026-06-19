@@ -19,7 +19,7 @@ interface ExportedData {
 }
 
 export function OfflineDataImportExport() {
-  const { cache, actions } = useOfflineSync();
+  const { cache } = useOfflineSync();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -35,8 +35,8 @@ export function OfflineDataImportExport() {
         data: {
           vitals: cache.vitals || [],
           medications: cache.medications || [],
-          patients: cache.patients || [],
-          offlineActions: actions || []
+          patients: cache.patientData || [],
+          offlineActions: cache.pendingActions || []
         }
       };
 
