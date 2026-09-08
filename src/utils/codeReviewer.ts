@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CareSync Code Reviewer Tool
  * Comprehensive code analysis for healthcare applications

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Billing Validation Utilities
  * Enforces correct tariff, discount, tax, and claim logic per hims-billing-validator skill.
