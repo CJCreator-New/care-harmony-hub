@@ -144,3 +144,12 @@ scripts/python-e2e/reports/
 
 # Stale alternate lockfiles (project uses npm)
 bun.lockb
+# scratch test artifacts
+test-run.txt
+test-results.json
+type-errors.txt
+*.tsbuildinfo
+tests/e2e/.recordings/
+playwright-report/
+test-results/
+*-test.png
