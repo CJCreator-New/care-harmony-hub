@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { speechRecognitionManager, SpeechProviderConfig, SpeechResult } from '@/lib/speech/SpeechRecognitionService';

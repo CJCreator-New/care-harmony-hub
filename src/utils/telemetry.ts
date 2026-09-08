@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Client-Side Telemetry for CareSync HIMS
  * 

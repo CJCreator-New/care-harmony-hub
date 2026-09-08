@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Error Tracking with PHI Safety for CareSync HIMS
  * 

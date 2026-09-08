@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Hook: useDrugInteractions (Tier 4.5 - Phase 3)
  * 

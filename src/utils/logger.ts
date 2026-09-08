@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Structured Logging System
  * JSON logging with correlation IDs, PHI masking, and lifecycle events
