@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -68,35 +68,13 @@ const featureItems = [
 
 export function NavigationHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isIdle, setIsIdle] = useState(false);
   const { scrollY } = useScroll();
   const { user } = useAuth();
-  
+
   // Animate header height based on scroll
   const headerHeight = useTransform(scrollY, [0, 100], [64, 56]);
   const headerBlur = useTransform(scrollY, [0, 100], [8, 16]);
   const logoRotation = useTransform(scrollY, [0, 500], [0, 5]);
-
-  // Idle pulse effect for CTA
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    
-    const resetIdle = () => {
-      setIsIdle(false);
-      clearTimeout(timeout);
-      timeout = setTimeout(() => setIsIdle(true), 5000);
-    };
-
-    resetIdle();
-    window.addEventListener('mousemove', resetIdle);
-    window.addEventListener('scroll', resetIdle);
-    
-    return () => {
-      window.removeEventListener('mousemove', resetIdle);
-      window.removeEventListener('scroll', resetIdle);
-      clearTimeout(timeout);
-    };
-  }, []);
 
   return (
     <motion.header 
@@ -163,14 +141,18 @@ export function NavigationHeader() {
               </NavigationMenuContent>
             </NavigationMenuItem>
 
-            {['Pricing', 'Security', 'Resources'].map((item) => (
-              <NavigationMenuItem key={item}>
+            {[
+              { label: 'Pricing', href: '#pricing' },
+              { label: 'Security', href: '#security' },
+              { label: 'Resources', href: '#faq' },
+            ].map((item) => (
+              <NavigationMenuItem key={item.label}>
                 <NavigationMenuLink
-                  href={`#${item.toLowerCase()}`}
+                  href={item.href}
                   className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground relative"
                 >
                   <span className="relative">
-                    {item === 'Resources' ? 'Resources' : item}
+                    {item.label}
                     <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
                   </span>
                 </NavigationMenuLink>
@@ -190,28 +172,12 @@ export function NavigationHeader() {
               <Button variant="ghost" asChild>
                 <Link to="/hospital/login">Sign In</Link>
               </Button>
-              <motion.div
-                animate={isIdle ? {
-                  boxShadow: [
-                    '0 0 0 0 hsl(var(--primary) / 0.4)',
-                    '0 0 0 8px hsl(var(--primary) / 0)',
-                    '0 0 0 0 hsl(var(--primary) / 0)',
-                  ],
-                } : {}}
-                transition={{
-                  duration: 1.5,
-                  repeat: isIdle ? Infinity : 0,
-                  repeatDelay: 0.5,
-                }}
-                className="rounded-lg"
-              >
-                <Button variant="hero" asChild>
-                  <Link to="/hospital/signup">
-                    <Stethoscope className="w-4 h-4 mr-2" />
-                    Book Demo
-                  </Link>
-                </Button>
-              </motion.div>
+              <Button variant="hero" asChild>
+                <Link to="/hospital/signup">
+                  <Stethoscope className="w-4 h-4 mr-2" />
+                  Book a Demo
+                </Link>
+              </Button>
             </>
           )}
         </div>
@@ -339,7 +305,7 @@ export function NavigationHeader() {
                     </Button>
                     <Button variant="hero" asChild className="w-full">
                       <Link to="/hospital/signup" onClick={() => setMobileOpen(false)}>
-                        Book Demo
+                        Book a Demo
                       </Link>
                     </Button>
                   </>

@@ -148,11 +148,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       <Helmet>
-        <title>Hospital Login | CareSync HIMS</title>
-        <meta name="description" content="Sign in to your CareSync HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
+        <title>Hospital Login | AROCORD-HIMS</title>
+        <meta name="description" content="Sign in to your AROCORD-HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
         <link rel="canonical" href="/hospital/login" />
-        <meta property="og:title" content="Hospital Login | CareSync HIMS" />
-        <meta property="og:description" content="Sign in to your CareSync HIMS hospital account." />
+        <meta property="og:title" content="Hospital Login | AROCORD-HIMS" />
+        <meta property="og:description" content="Sign in to your AROCORD-HIMS hospital account." />
         <meta property="og:url" content="/hospital/login" />
       </Helmet>
       {/* Left Panel - Branding */}

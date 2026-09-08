@@ -20,3 +20,15 @@ verify_jwt = true
 
 [functions.generate-2fa-secret]
 verify_jwt = true
+
+[functions.phi-crypto]
+verify_jwt = true
+
+[functions.drug-interaction-check]
+verify_jwt = true
+
+[functions.critical-lab-check]
+verify_jwt = true
+
+[functions.prescription-approval]
+verify_jwt = true

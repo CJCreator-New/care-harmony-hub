@@ -11,8 +11,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'CareSync HMS',
-        short_name: 'CareSync',
+        name: 'AROCORD-HIMS',
+        short_name: 'AROCORD',
         description: 'Complete Hospital Management System with offline capabilities',
         theme_color: '#0ea5e9',
         background_color: '#ffffff',

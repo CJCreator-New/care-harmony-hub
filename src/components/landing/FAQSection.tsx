@@ -91,7 +91,7 @@ const certifications = [
 
 export function FAQSection() {
   return (
-    <section id="faq" className="py-20 bg-muted/30">
+    <section id="faq" className="py-24 bg-background">
       <div className="container mx-auto px-4">
         <motion.div 
           className="text-center mb-12"

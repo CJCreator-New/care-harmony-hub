@@ -26,7 +26,7 @@ describe('PasswordPolicyManager', () => {
       const policy = await passwordPolicyManager.getPasswordPolicy();
 
       expect(policy).toBeDefined();
-      expect(policy.minLength).toBe(8);
+      expect(policy.minLength).toBe(12);
       expect(policy.requireUppercase).toBe(true);
       expect(policy.requireLowercase).toBe(true);
       expect(policy.requireNumbers).toBe(true);
@@ -77,7 +77,7 @@ describe('PasswordPolicyManager', () => {
       const result = await passwordPolicyManager.validatePassword('Short1!');
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Password must be at least 8 characters long');
+      expect(result.errors).toContain('Password must be at least 12 characters long');
     });
 
     it('should reject password without uppercase', async () => {

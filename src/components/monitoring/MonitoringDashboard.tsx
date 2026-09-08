@@ -188,7 +188,7 @@ export default function MonitoringDashboard() {
         <div>
           <h1 className="text-3xl font-bold">System Monitoring</h1>
           <p className="text-muted-foreground">
-            Real-time performance and error monitoring for CareSync HMS
+            Real-time performance and error monitoring for AROCORD-HIMS
           </p>
         </div>
         <div className="flex items-center gap-4">

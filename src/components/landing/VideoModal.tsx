@@ -36,8 +36,8 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
               </motion.div>
               <p className="text-lg font-semibold mb-2">Demo Video Coming Soon</p>
               <p className="text-sm text-muted-foreground text-center max-w-md">
-                See how CareSync streamlines hospital operations from patient registration 
-                to discharge. Schedule a live demo for a personalized walkthrough.
+                See how AROCORD-HIMS streamlines hospital operations from patient registration
+                to discharge. Book a demo for a personalized walkthrough.
               </p>
             </div>
             
@@ -56,7 +56,7 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
           <div className="mt-4 flex items-center justify-center gap-4">
             <Button variant="hero" asChild>
               <a href="/hospital/signup">
-                Schedule Live Demo
+                Book a Demo
               </a>
             </Button>
             <Button variant="outline" onClick={onClose}>

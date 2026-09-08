@@ -68,7 +68,7 @@ const App = () => {
     });
 
     const logger = getLogger();
-    logger.info('CareSync HMS initialized', {
+    logger.info('AROCORD-HIMS initialized', {
       version: appVersion,
       environment: appEnv,
       otelEndpoint,

@@ -52,7 +52,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
   const [showToast, setShowToast] = useState(false)
   const shouldReduceMotion = useReducedMotion()
 
-  const hospitalName = hospital?.name || "CareSync Healthcare"
+  const hospitalName = hospital?.name || "AROCORD Healthcare"
 
   // Mock patient data
   const mockPatients: Patient[] = [

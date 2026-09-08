@@ -145,7 +145,7 @@ export function DeviceManagement() {
         <CardHeader>
           <CardTitle>Your Devices</CardTitle>
           <CardDescription>
-            Devices that have accessed your CareSync account
+            Devices that have accessed your AROCORD-HIMS account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -265,7 +265,7 @@ export function DeviceManagement() {
               <div>
                 <p className="text-sm font-medium">Trust Only Known Devices</p>
                 <p className="text-xs text-muted-foreground">
-                  Only mark devices as trusted if you recognize them and regularly use them to access CareSync.
+                  Only mark devices as trusted if you recognize them and regularly use them to access AROCORD-HIMS.
                 </p>
               </div>
             </div>

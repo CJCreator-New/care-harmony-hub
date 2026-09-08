@@ -125,7 +125,7 @@ export const CodeReviewDashboard: React.FC<CodeReviewDashboardProps> = ({ classN
         <div>
           <h1 className="text-3xl font-bold">Code Review Dashboard</h1>
           <p className="text-muted-foreground">
-            Comprehensive code analysis for CareSync HMS
+            Comprehensive code analysis for AROCORD-HIMS
           </p>
         </div>
         <div className="flex gap-2">

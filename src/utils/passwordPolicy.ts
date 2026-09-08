@@ -15,6 +15,20 @@ export interface PasswordValidationResult {
   errors: string[];
 }
 
+// HIPAA-aligned minimum. Enforced as a hard floor even if a hospital configures a
+// lower value, so no account can fall below this length.
+export const HIPAA_MIN_PASSWORD_LENGTH = 12;
+
+const DEFAULT_PASSWORD_POLICY: PasswordPolicy = {
+  minLength: HIPAA_MIN_PASSWORD_LENGTH,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSymbols: true,
+  preventReuseCount: 5,
+  maxAgeDays: 90,
+};
+
 class PasswordPolicyManager {
   private static instance: PasswordPolicyManager;
 
@@ -29,16 +43,7 @@ class PasswordPolicyManager {
   async getPasswordPolicy(hospitalId?: string): Promise<PasswordPolicy> {
     try {
       if (!hospitalId) {
-        // Return default policy
-        return {
-          minLength: 8,
-          requireUppercase: true,
-          requireLowercase: true,
-          requireNumbers: true,
-          requireSymbols: true,
-          preventReuseCount: 5,
-          maxAgeDays: 90,
-        };
+        return { ...DEFAULT_PASSWORD_POLICY };
       }
 
       const { data, error } = await supabase
@@ -49,19 +54,12 @@ class PasswordPolicyManager {
 
       if (error || !data) {
         // Return default policy if no hospital-specific policy exists
-        return {
-          minLength: 8,
-          requireUppercase: true,
-          requireLowercase: true,
-          requireNumbers: true,
-          requireSymbols: true,
-          preventReuseCount: 5,
-          maxAgeDays: 90,
-        };
+        return { ...DEFAULT_PASSWORD_POLICY };
       }
 
       return {
-        minLength: data.min_length,
+        // Never allow a hospital to drop below the HIPAA minimum length.
+        minLength: Math.max(data.min_length ?? 0, HIPAA_MIN_PASSWORD_LENGTH),
         requireUppercase: data.require_uppercase,
         requireLowercase: data.require_lowercase,
         requireNumbers: data.require_numbers,
@@ -71,15 +69,7 @@ class PasswordPolicyManager {
       };
     } catch (error) {
       console.error('Error fetching password policy:', error);
-      return {
-        minLength: 8,
-        requireUppercase: true,
-        requireLowercase: true,
-        requireNumbers: true,
-        requireSymbols: true,
-        preventReuseCount: 5,
-        maxAgeDays: 90,
-      };
+      return { ...DEFAULT_PASSWORD_POLICY };
     }
   }
 

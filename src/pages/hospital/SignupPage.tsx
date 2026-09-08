@@ -231,11 +231,11 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex">
       <Helmet>
-        <title>Hospital Signup | CareSync HIMS</title>
-        <meta name="description" content="Create a new hospital account on CareSync HIMS to onboard staff, manage patients, and run a modern healthcare facility." />
+        <title>Hospital Signup | AROCORD-HIMS</title>
+        <meta name="description" content="Create a new hospital account on AROCORD-HIMS to onboard staff, manage patients, and run a modern healthcare facility." />
         <link rel="canonical" href="/hospital/signup" />
-        <meta property="og:title" content="Hospital Signup | CareSync HIMS" />
-        <meta property="og:description" content="Create a new hospital account on CareSync HIMS." />
+        <meta property="og:title" content="Hospital Signup | AROCORD-HIMS" />
+        <meta property="og:description" content="Create a new hospital account on AROCORD-HIMS." />
         <meta property="og:url" content="/hospital/signup" />
       </Helmet>
       {/* Left Panel - Branding */}

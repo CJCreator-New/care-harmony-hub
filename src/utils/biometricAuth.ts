@@ -71,7 +71,7 @@ class BiometricAuthManager {
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
         challenge: Uint8Array.from(atob(challenge), c => c.charCodeAt(0)),
         rp: {
-          name: 'CareSync HIMS',
+          name: 'AROCORD-HIMS',
           id: window.location.hostname,
         },
         user: {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Badge } from '@/components/ui/badge';
+import { SectionHeader } from '@/components/landing/SectionHeader';
 import {
   Clock,
   Shield,
@@ -105,17 +105,13 @@ export function MetricsSection() {
   const isInView = useInView(ref, { once: true, margin: '-100px' });
 
   return (
-    <section ref={ref} className="py-20 bg-muted/30">
+    <section ref={ref} className="py-24 bg-background">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4">Results</Badge>
-          <h2 className="font-display font-normal text-3xl md:text-4xl mb-4">
-            Measurable Outcomes for Your Hospital
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Real results from healthcare facilities using our platform
-          </p>
-        </div>
+        <SectionHeader
+          eyebrow="Proven Results"
+          title="Measurable outcomes for your hospital"
+          description="Real results from healthcare facilities running on our platform."
+        />
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {metrics.map((metric, index) => (

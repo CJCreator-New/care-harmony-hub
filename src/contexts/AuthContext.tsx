@@ -20,6 +20,7 @@ interface Profile {
   phone: string | null;
   avatar_url: string | null;
   two_factor_enabled: boolean | null;
+  two_factor_required?: boolean | null;
 }
 
 interface Hospital {
@@ -56,6 +57,10 @@ interface AuthContextType {
     hospitalData: Partial<Hospital>
   ) => Promise<{ error: Error | null }>;
   pendingRoleSelection: boolean;
+  /** True when a privileged role (admin/doctor) must enable 2FA before accessing PHI. */
+  pendingTwoFactor: boolean;
+  /** Re-fetch profile/roles for the current user (e.g. after enabling 2FA). */
+  reloadProfile: () => Promise<void>;
   confirmRoleSelection: (targetRole: UserRole) => void;
   switchRole: (targetRole: UserRole) => Promise<{ error: Error | null }>;
   // Biometric authentication methods
@@ -83,7 +88,12 @@ const ROLE_PRIORITY: UserRole[] = [
 ];
 
 const E2E_MOCK_AUTH_STORAGE_KEY = 'e2e-mock-auth-user';
-const E2E_MOCK_PASSWORD = import.meta.env.DEV ? 'TestPass123!' : '';
+// SECURITY: no credential literal in source. The mock-auth password is sourced from
+// VITE_E2E_MOCK_PASSWORD (see .env.test) and only honoured in DEV builds. Mock auth
+// itself additionally requires VITE_E2E_MOCK_AUTH === 'true'.
+const E2E_MOCK_PASSWORD = import.meta.env.DEV
+  ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '')
+  : '';
 
 type E2EMockUserConfig = {
   id: string;
@@ -760,6 +770,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles[0] ?? null;
   }, [preferredRole, roles]);
 
+  // SECURITY: privileged clinical roles (admin/doctor) must enable 2FA before they can
+  // access PHI. The requirement is server-authoritative (profiles.two_factor_required,
+  // set by a trigger on user_roles) with a defensive client-side fallback on roles.
+  // E2E mock auth is exempt so automated tests are not blocked.
+  const pendingTwoFactor = useMemo(() => {
+    if (isE2EMockAuthEnabled) return false;
+    if (!profile) return false;
+    const requiresTwoFactor =
+      profile.two_factor_required === true ||
+      roles.some((role) => role === 'admin' || role === 'doctor');
+    return requiresTwoFactor && profile.two_factor_enabled !== true;
+  }, [isE2EMockAuthEnabled, profile, roles]);
+
+  const reloadProfile = useCallback(async () => {
+    const effectiveUserId = user?.id ?? session?.user?.id;
+    if (effectiveUserId) {
+      await fetchUserData(effectiveUserId);
+    }
+  }, [fetchUserData, session, user]);
+
   // Lightweight synchronous confirm — used by RoleSelectionPage after the user
   // taps a role card. It sets preferredRole + persists it, then clears the gate.
   const confirmRoleSelection = useCallback((targetRole: UserRole) => {
@@ -861,6 +891,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isProfileReady,
         pendingRoleSelection,
+        pendingTwoFactor,
+        reloadProfile,
         confirmRoleSelection,
         login,
         signup,

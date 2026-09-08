@@ -95,7 +95,7 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            <CardTitle className="text-base">CareSync AI Assistant</CardTitle>
+            <CardTitle className="text-base">AROCORD AI Assistant</CardTitle>
           </div>
           {isAnalyzing && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
         </div>

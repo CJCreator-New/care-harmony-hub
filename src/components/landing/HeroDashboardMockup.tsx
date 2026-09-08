@@ -1,21 +1,9 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Calendar, Activity, Clock, TrendingUp, Bell } from 'lucide-react';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export function HeroDashboardMockup() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      setPrefersReducedMotion(e.matches);
-    };
-    
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <motion.div
@@ -35,7 +23,7 @@ export function HeroDashboardMockup() {
           </div>
           <div className="flex-1 mx-4">
             <div className="bg-background rounded-md px-3 py-1 text-xs text-muted-foreground text-center">
-              app.caresync.health/dashboard
+              app.arocord-hims.health/dashboard
             </div>
           </div>
         </div>

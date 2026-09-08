@@ -220,7 +220,7 @@ export function PricingSection() {
   const [isAnnual, setIsAnnual] = useState(false);
 
   return (
-    <section id="pricing" className="py-20 bg-background">
+    <section id="pricing" className="py-24 bg-muted/30">
       <div className="container mx-auto px-4">
         <motion.div 
           className="text-center mb-12"

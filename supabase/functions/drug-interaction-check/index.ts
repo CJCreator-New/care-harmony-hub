@@ -14,17 +14,23 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { getAuthorizedActor } from '../_shared/authorize.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 const RXNORM_API = 'https://rxnav.nlm.nih.gov/REST';
 const TIMEOUT_MS = 5000; // RxNorm API timeout
 
-interface CheckRequest {
-  patientId: string;
-  newDrugRxcui: string;
-  newDrugName?: string;
-  hospitalId: string;
-  userId: string;
-}
+// Clinical roles permitted to run interaction checks.
+const ALLOWED_ROLES = ['admin', 'doctor', 'pharmacist', 'nurse'];
+
+// patientId/newDrug come from the request; hospitalId and userId are derived from the
+// authenticated JWT (never trusted from the body) to prevent cross-hospital access.
+const checkRequestSchema = z.object({
+  patientId: z.string().uuid(),
+  newDrugRxcui: z.string().min(1).max(64),
+  newDrugName: z.string().max(255).optional(),
+});
 
 interface Interaction {
   interactingDrug: string;
@@ -141,29 +147,41 @@ function parseRxNormInteractions(data: any): Interaction[] {
 }
 
 serve(async (req) => {
-  // CORS headers
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
+  const corsHeaders = getCorsHeaders(req);
+  const json = (status: number, payload: Record<string, unknown>) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Parse request
-    const { patientId, newDrugRxcui, newDrugName, hospitalId, userId } = (await req.json()) as CheckRequest;
-
-    if (!patientId || !newDrugRxcui || !hospitalId || !userId) {
-      return new Response(
-        JSON.stringify({
-          error: 'Missing required parameters: patientId, newDrugRxcui, hospitalId, userId',
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    // ── AuthZ: derive identity & hospital from the JWT, not the request body ──
+    const { actor, response: authErr } = await getAuthorizedActor(req, ALLOWED_ROLES);
+    if (authErr) {
+      return new Response(await authErr.text(), {
+        status: authErr.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+    const hospitalId = actor!.hospitalId;
+    const userId = actor!.userId;
+    if (!hospitalId) {
+      return json(400, { error: 'Authenticated user is not associated with a hospital' });
+    }
+
+    // Validate the client-supplied portion of the request.
+    const parsed = checkRequestSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return json(400, {
+        error: 'Validation failed',
+        details: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
+      });
+    }
+    const { patientId, newDrugRxcui, newDrugName } = parsed.data;
 
     // Initialize Supabase client (service role for full access)
     const supabase = createClient(
@@ -185,15 +203,12 @@ serve(async (req) => {
 
     if (cached && !cacheError) {
       console.log(`Cache hit for patient ${patientId} + drug ${newDrugRxcui}`);
-      return new Response(
-        JSON.stringify({
-          severity: cached.severity_max,
-          interactions: cached.details?.interactions || [],
-          cacheHit: true,
-          timestamp: new Date().toISOString(),
-        } as CheckResponse),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
+      return json(200, {
+        severity: cached.severity_max,
+        interactions: cached.details?.interactions || [],
+        cacheHit: true,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     // ========================================================================
@@ -337,28 +352,24 @@ serve(async (req) => {
     // ========================================================================
     // 7. RETURN RESULT
     // ========================================================================
-    return new Response(
-      JSON.stringify({
-        severity: maxSeverity,
-        interactions,
-        cacheHit: false,
-        timestamp: new Date().toISOString(),
-      } as CheckResponse),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return json(200, {
+      severity: maxSeverity,
+      interactions,
+      cacheHit: false,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err: any) {
     console.error('Unexpected error in drug-interaction-check:', err);
 
-    return new Response(
-      JSON.stringify({
-        severity: 'none',
-        interactions: [],
-        cacheHit: false,
-        error: err.message,
-        timestamp: new Date().toISOString(),
-      } as CheckResponse),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    // Fail CLOSED: surface the failure so the caller can block/queue the prescription
+    // for review rather than silently treating it as "no interaction".
+    return json(500, {
+      severity: 'unknown',
+      interactions: [],
+      cacheHit: false,
+      error: 'Interaction check failed',
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 

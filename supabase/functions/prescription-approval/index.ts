@@ -10,6 +10,21 @@
 // @ts-ignore — Deno types
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+
+// Roles that can participate in the approval workflow (per-action RBAC enforced below).
+const AUTHORIZED_ROLES = ["admin", "doctor", "pharmacist", "nurse"];
+
+// actorId is intentionally NOT accepted from the body — it is derived from the JWT.
+const actionSchema = z.object({
+  workflowId: z.string().uuid(),
+  action: z.enum(["review", "approve", "reject", "clarify", "dispense", "complete"]),
+  reason: z.string().max(2000).optional(),
+  durWarnings: z.array(z.string()).optional(),
+  notes: z.string().max(2000).optional(),
+});
 
 // Type definitions
 interface WorkflowState {
@@ -167,35 +182,42 @@ async function performDURCheck(
 // ─── Main Handler ────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  // CORS headers
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-      },
+  const corsHeaders = getCorsHeaders(req);
+  const json = (status: number, payload: Record<string, unknown>) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // ── AuthZ: identity comes from the JWT, never the request body ──
+    const { actor, response: authErr } = await getAuthorizedActor(req, AUTHORIZED_ROLES);
+    if (authErr) {
+      return new Response(await authErr.text(), {
+        status: authErr.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const actorId = actor!.userId;
+
     // Initialize Supabase client with service role for server-side checks
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const payload: ActionPayload = await req.json();
-    const { workflowId, action, actorId, reason, durWarnings, notes } = payload;
-
-    // ─── Validation ──────────────────────────────────────────────────────────────
-
-    if (!workflowId || !action || !actorId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: workflowId, action, actorId" }),
-        { status: 400 }
-      );
+    const parsed = actionSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return json(400, {
+        error: "Validation failed",
+        details: parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", "),
+      });
     }
+    const { workflowId, action, reason, durWarnings, notes } = parsed.data;
 
     // Fetch workflow
     const { data: workflow, error: workflowError } = await supabase
@@ -205,51 +227,48 @@ serve(async (req: Request) => {
       .single();
 
     if (workflowError || !workflow) {
-      return new Response(JSON.stringify({ error: "Workflow not found" }), { status: 404 });
+      return json(404, { error: "Workflow not found" });
     }
 
     // ✅ Extract hospital_id from workflow for all subsequent queries
     const hospitalId = workflow.hospital_id;
     if (!hospitalId) {
-      return new Response(
-        JSON.stringify({ error: "Hospital context required for prescription workflow" }),
-        { status: 400 }
-      );
+      return json(400, { error: "Hospital context required for prescription workflow" });
     }
 
-    // ─── RBAC Check ──────────────────────────────────────────────────────────────
-
-    const { data: actor, error: actorError } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", actorId)
-      .eq("hospital_id", workflow.hospital_id)
-      .single();
-
-    if (actorError || !actor) {
-      return new Response(JSON.stringify({ error: "User role not found" }), { status: 403 });
+    // Prevent cross-hospital actions: caller's hospital must match the workflow's.
+    if (actor!.hospitalId && actor!.hospitalId !== hospitalId) {
+      return json(403, { error: "Forbidden - hospital scope mismatch" });
     }
+
+    // ─── RBAC Check (per-action) ──────────────────────────────────────────────────
+    // Use the roles from the verified JWT context (authorize.ts) rather than trusting
+    // a body-supplied actor id. This also fixes a latent bug where the previous lookup
+    // matched user_roles.user_id (auth uid) against a profile id.
 
     const allowedRoles = ALLOWED_ROLES[action] || [];
-    if (!allowedRoles.includes(actor.role)) {
-      return new Response(
-        JSON.stringify({
-          error: `Forbidden: ${actor.role} cannot perform ${action}. Allowed: ${allowedRoles.join(", ")}`,
-        }),
-        { status: 403 }
-      );
+    const actorRoleName = actor!.assignedRoles.find((role) => allowedRoles.includes(role));
+    if (!actorRoleName) {
+      return json(403, {
+        error: `Forbidden: your role(s) cannot perform ${action}. Allowed: ${allowedRoles.join(", ")}`,
+      });
     }
+
+    // Resolve the caller's profile id for columns that FK to profiles(id).
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", actorId)
+      .maybeSingle();
+    const profileId = callerProfile?.id ?? null;
 
     // ─── State Transition Validation ──────────────────────────────────────────────
 
     const nextState = getNextState(workflow, action);
     if (Object.keys(nextState).length === 0) {
-      return new Response(
-        JSON.stringify({
-          error: `Invalid transition: cannot ${action} from status ${workflow.status}`,
-        }),
-        { status: 400 }
-      );
+      return json(400, {
+        error: `Invalid transition: cannot ${action} from status ${workflow.status}`,
+      });
     }
 
     // ─── Perform Action-Specific Checks ──────────────────────────────────────────
@@ -271,9 +290,9 @@ serve(async (req: Request) => {
       }
     }
 
-    // Set approval metadata
+    // Set approval metadata (approved_by FKs to profiles.id)
     if (action === "approve") {
-      updateData.approved_by = actorId;
+      updateData.approved_by = profileId;
       updateData.approved_at = new Date().toISOString();
     }
 
@@ -298,10 +317,7 @@ serve(async (req: Request) => {
       .single();
 
     if (updateError) {
-      return new Response(
-        JSON.stringify({ error: `Update failed: ${updateError.message}` }),
-        { status: 500 }
-      );
+      return json(500, { error: `Update failed: ${updateError.message}` });
     }
 
     // ─── Audit Log ────────────────────────────────────────────────────────────────
@@ -315,7 +331,7 @@ serve(async (req: Request) => {
       details: {
         previous_status: workflow.status,
         new_status: updatedWorkflow.status,
-        actor_role: actor.role,
+        actor_role: actorRoleName,
         reason: reason || undefined,
       },
     });
@@ -337,27 +353,13 @@ serve(async (req: Request) => {
 
     // ─── Response ────────────────────────────────────────────────────────────────
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        workflow: updatedWorkflow,
-        durWarnings: updateData.dur_warnings,
-      }),
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        status: 200,
-      }
-    );
+    return json(200, {
+      success: true,
+      workflow: updatedWorkflow,
+      durWarnings: updateData.dur_warnings,
+    });
   } catch (err) {
     console.error("Workflow handler error:", err);
-    return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : String(err),
-      }),
-      { status: 500 }
-    );
+    return json(500, { error: "Workflow action failed" });
   }
 });

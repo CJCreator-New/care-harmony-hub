@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 // Types for encryption
 export interface EncryptionConfig {
   algorithm: 'AES-GCM';
@@ -18,204 +20,74 @@ export interface DataMaskingRule {
   maskFunction: (value: string) => string;
 }
 
-// Encryption key management
-class EncryptionKeyManager {
-  private static instance: EncryptionKeyManager;
-  private keys: Map<string, CryptoKey> = new Map();
-  private initialized = false;
-
-  private constructor() {
-    // Initialize asynchronously
-    this.initializeDefaultKey();
-  }
-
-  static getInstance(): EncryptionKeyManager {
-    if (!EncryptionKeyManager.instance) {
-      EncryptionKeyManager.instance = new EncryptionKeyManager();
-    }
-    return EncryptionKeyManager.instance;
-  }
-
-  async getKey(version: string = 'v1'): Promise<CryptoKey> {
-    // Ensure initialization is complete
-    if (!this.initialized) {
-      await this.initializeDefaultKey();
-    }
-
-    const key = this.keys.get(version);
-    if (!key) {
-      throw new Error(`Encryption key version ${version} not found`);
-    }
-    return key;
-  }
-
-  async rotateKey(): Promise<string> {
-    const newVersion = `v${Date.now()}`;
-    const newKey = await this.generateKey();
-    this.keys.set(newVersion, newKey);
-    return newVersion;
-  }
-
-  private async initializeDefaultKey(): Promise<void> {
-    if (this.initialized) return;
-
-    // SECURITY: Encryption keys must NEVER be shipped to the client. Any VITE_* value
-    // is embedded in the JS bundle and trivially extractable. In production we refuse
-    // to derive a key from a client-side value — PHI encryption must happen server-side
-    // (Supabase Edge Function with SUPABASE_ENCRYPTION_KEY or pgcrypto).
-    const clientKey = (import.meta as any).env?.VITE_ENCRYPTION_KEY;
-    if ((import.meta as any).env?.PROD) {
-      throw new Error(
-        'Client-side PHI encryption is disabled in production. Move encrypt/decrypt ' +
-        'operations to a server-side edge function and remove VITE_ENCRYPTION_KEY from .env.'
-      );
-    }
-    if (clientKey) {
-      console.warn(
-        'SECURITY WARNING: VITE_ENCRYPTION_KEY is present in client env. This key is ' +
-        'visible in the JS bundle and must NOT be used outside local development.'
-      );
-    }
-    const encryptionKey = clientKey || 'caresync-dev-key-do-not-use-in-prod';
-
-    try {
-      const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(encryptionKey),
-        'PBKDF2',
-        false,
-        ['deriveKey']
-      );
-
-      const key = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt: new TextEncoder().encode('care-sync-salt'),
-          iterations: 100000,
-          hash: 'SHA-256'
-        },
-        keyMaterial,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      );
-
-      this.keys.set('v1', key);
-      this.initialized = true;
-    } catch (error) {
-      console.error('Failed to initialize encryption key:', error);
-      throw error;
-    }
-  }
-
-  private async generateKey(): Promise<CryptoKey> {
-    return await crypto.subtle.generateKey(
-      { name: 'AES-GCM', length: 256 },
-      true,
-      ['encrypt', 'decrypt']
-    );
-  }
-}
-
-// Field-level encryption service
+// Field-level encryption service.
+//
+// SECURITY: Encryption keys live ONLY on the server. All crypto is delegated to the
+// `phi-crypto` Supabase Edge Function, which holds PHI_ENCRYPTION_KEY. No key material
+// is ever shipped to the client (HIPAA §164.312(a)(2)(iv)).
+// See supabase/functions/phi-crypto/index.ts.
 export class FieldEncryptionService {
-  private keyManager: EncryptionKeyManager;
+  /**
+   * Encrypt a batch of values in a single server round-trip.
+   */
+  async encryptFields(values: string[]): Promise<EncryptedData[]> {
+    if (values.length === 0) return [];
 
-  constructor() {
-    this.keyManager = EncryptionKeyManager.getInstance();
+    const { data, error } = await supabase.functions.invoke('phi-crypto', {
+      body: { action: 'encrypt', values },
+    });
+
+    if (error) {
+      console.error('Field encryption failed:', error.message);
+      throw new Error('Failed to encrypt field data');
+    }
+
+    const results = (data as { results?: EncryptedData[] } | null)?.results;
+    if (!results || results.length !== values.length) {
+      throw new Error('Failed to encrypt field data');
+    }
+    return results;
   }
 
   /**
-   * Encrypt sensitive field data
+   * Decrypt a batch of values in a single server round-trip.
+   */
+  async decryptFields(items: EncryptedData[]): Promise<string[]> {
+    if (items.length === 0) return [];
+
+    const { data, error } = await supabase.functions.invoke('phi-crypto', {
+      body: { action: 'decrypt', items },
+    });
+
+    if (error) {
+      console.error('Field decryption failed:', error.message);
+      throw new Error('Failed to decrypt field data');
+    }
+
+    const results = (data as { results?: string[] } | null)?.results;
+    if (!results || results.length !== items.length) {
+      throw new Error('Failed to decrypt field data');
+    }
+    return results;
+  }
+
+  /**
+   * Encrypt sensitive field data. `keyVersion` is accepted for API compatibility but
+   * the active key version is determined server-side.
    */
   async encryptField(value: string, keyVersion?: string): Promise<EncryptedData> {
     if (!value) return { encrypted: '', iv: '', keyVersion: keyVersion || 'v1' };
-
-    try {
-      const key = await this.keyManager.getKey(keyVersion);
-      const iv = this.generateIV();
-
-      if (!iv || iv.length === 0) {
-        throw new Error('Failed to generate IV');
-      }
-
-      const encodedValue = new TextEncoder().encode(value);
-      
-      // Use typed Uint8Array instead of unsafe casts
-      const ivBuffer = iv instanceof Uint8Array ? iv : new Uint8Array(iv as any);
-      
-      const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
-        key,
-        encodedValue
-      );
-
-      const encryptedBuffer = new Uint8Array(encrypted);
-      
-      return {
-        encrypted: this.arrayBufferToBase64(encryptedBuffer),
-        iv: this.arrayBufferToBase64(ivBuffer),
-        keyVersion: keyVersion || 'v1'
-      };
-    } catch (error) {
-      console.error('Field encryption failed:', error instanceof Error ? error.message : String(error));
-      throw new Error('Failed to encrypt field data');
-    }
+    const [result] = await this.encryptFields([value]);
+    return result;
   }
 
   /**
-   * Decrypt sensitive field data
+   * Decrypt sensitive field data.
    */
   async decryptField(encryptedData: EncryptedData): Promise<string> {
-    if (!encryptedData.encrypted) return '';
-
-    try {
-      const key = await this.keyManager.getKey(encryptedData.keyVersion);
-      const iv = this.base64ToArrayBuffer(encryptedData.iv);
-      const encrypted = this.base64ToArrayBuffer(encryptedData.encrypted);
-
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        encrypted
-      );
-
-      return new TextDecoder().decode(decrypted);
-    } catch (error) {
-      console.error('Field decryption failed:', error);
-      throw new Error('Failed to decrypt field data');
-    }
-  }
-
-  /**
-   * Generate initialization vector
-   */
-  private generateIV(): Uint8Array {
-    return crypto.getRandomValues(new Uint8Array(12)); // 96 bits for GCM
-  }
-
-  /**
-   * Convert ArrayBuffer to base64
-   */
-  private arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-  }
-
-  /**
-   * Convert base64 to ArrayBuffer
-   */
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
+    if (!encryptedData?.encrypted) return '';
+    const [result] = await this.decryptFields([encryptedData]);
+    return result;
   }
 }
 
@@ -317,12 +189,15 @@ export class SecureTransmissionService {
     const transmissionData = { ...data };
     const encryptionMetadata: Record<string, EncryptedData> = {};
 
-    for (const field of sensitiveFields) {
-      if (transmissionData[field]) {
-        const encrypted = await this.encryptionService.encryptField(String(transmissionData[field]));
-        encryptionMetadata[field] = encrypted;
-        transmissionData[field] = `__ENCRYPTED__${encrypted.keyVersion}`;
-      }
+    const fieldsToEncrypt = sensitiveFields.filter((field) => transmissionData[field]);
+    if (fieldsToEncrypt.length > 0) {
+      const encrypted = await this.encryptionService.encryptFields(
+        fieldsToEncrypt.map((field) => String(transmissionData[field]))
+      );
+      fieldsToEncrypt.forEach((field, i) => {
+        encryptionMetadata[field] = encrypted[i];
+        transmissionData[field] = `__ENCRYPTED__${encrypted[i].keyVersion}`;
+      });
     }
 
     return { data: transmissionData, encryptionMetadata };
@@ -337,10 +212,14 @@ export class SecureTransmissionService {
   ): Promise<Record<string, any>> {
     const restored = { ...data };
 
-    for (const [field, encrypted] of Object.entries(encryptionMetadata)) {
-      if (restored[field]?.startsWith('__ENCRYPTED__')) {
-        restored[field] = await this.encryptionService.decryptField(encrypted);
-      }
+    const entries = Object.entries(encryptionMetadata).filter(
+      ([field]) => typeof restored[field] === 'string' && restored[field].startsWith('__ENCRYPTED__')
+    );
+    if (entries.length > 0) {
+      const decrypted = await this.encryptionService.decryptFields(entries.map(([, enc]) => enc));
+      entries.forEach(([field], i) => {
+        restored[field] = decrypted[i];
+      });
     }
 
     return restored;
@@ -351,4 +230,3 @@ export class SecureTransmissionService {
 export const fieldEncryption = new FieldEncryptionService();
 export const dataMasking = new DataMaskingService();
 export const secureTransmission = new SecureTransmissionService();
-export const keyManager = EncryptionKeyManager.getInstance();

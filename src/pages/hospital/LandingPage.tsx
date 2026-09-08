@@ -4,22 +4,18 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion, MotionConfig } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Testimonial } from '@/components/ui/design-testimonial';
-import { Hero } from '@/components/ui/hero';
 import { NavigationHeader } from '@/components/landing/NavigationHeader';
+import { SectionHeader } from '@/components/landing/SectionHeader';
+import { Testimonial } from '@/components/ui/design-testimonial';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import {
   Shield,
-  Users,
-  Calendar,
-  Stethoscope,
   Pill,
   TestTube2,
   CheckCircle2,
   ArrowRight,
-  Building2,
+  CalendarCheck,
   Play,
   IdCard,
   Bed,
@@ -34,12 +30,8 @@ const PricingSection = lazy(() => import('@/components/landing/PricingSection').
 const FAQSection = lazy(() => import('@/components/landing/FAQSection').then(m => ({ default: m.FAQSection })));
 const EnhancedFooter = lazy(() => import('@/components/landing/EnhancedFooter').then(m => ({ default: m.EnhancedFooter })));
 const FloatingCTA = lazy(() => import('@/components/landing/FloatingCTA').then(m => ({ default: m.FloatingCTA })));
-const UrgencyBanner = lazy(() => import('@/components/landing/UrgencyBanner').then(m => ({ default: m.UrgencyBanner })));
-const SocialProofPopup = lazy(() => import('@/components/landing/SocialProofPopup').then(m => ({ default: m.SocialProofPopup })));
 const HeroDashboardMockup = lazy(() => import('@/components/landing/HeroDashboardMockup').then(m => ({ default: m.HeroDashboardMockup })));
-
 const ScrollProgress = lazy(() => import('@/components/landing/ScrollProgress').then(m => ({ default: m.ScrollProgress })));
-const CursorTrail = lazy(() => import('@/components/landing/CursorTrail').then(m => ({ default: m.CursorTrail })));
 
 // Skeletons for Suspense
 const SectionSkeleton = () => (
@@ -52,12 +44,12 @@ const features = [
   {
     icon: IdCard,
     title: 'Unified Patient Records',
-    description: 'Single electronic medical record accessible across all departments. Reduce redundant data entry by 70%.',
+    description: 'A single electronic medical record accessible across every department. Reduce redundant data entry by 70%.',
   },
   {
     icon: Bed,
-    title: 'OP/IP and OT Management',
-    description: 'Streamlined outpatient queues, inpatient admission, and OR scheduling. Reduce wait times and optimize bed utilization.',
+    title: 'OP/IP & OT Management',
+    description: 'Streamlined outpatient queues, inpatient admission, and OR scheduling. Cut wait times and optimize bed utilization.',
   },
   {
     icon: BarChart3,
@@ -66,27 +58,33 @@ const features = [
   },
   {
     icon: Pill,
-    title: 'Pharmacy and Lab Integration',
-    description: 'Connect with pharmacy systems and diagnostic equipment. Real-time inventory and test result management.',
+    title: 'Pharmacy & Lab Integration',
+    description: 'Connect pharmacy systems and diagnostic equipment with real-time inventory and test-result management.',
   },
   {
     icon: Shield,
-    title: 'Compliance and Security',
-    description: 'Enterprise-grade encryption, role-based access, audit logs. Built for HIPAA and NABH compliance.',
+    title: 'Compliance & Security',
+    description: 'Enterprise-grade encryption, role-based access, and audit logs. Built for HIPAA and NABH compliance.',
   },
   {
     icon: TestTube2,
-    title: 'Analytics and Reporting',
+    title: 'Analytics & Reporting',
     description: 'Real-time dashboards for KPIs, revenue, and patient metrics. Make data-driven decisions instantly.',
   },
 ];
 
-const trustBadges = [
-  { label: 'ISO 27001', icon: Shield },
-  { label: 'HIPAA Ready', icon: CheckCircle2 },
-  { label: 'NABH Compliant', icon: CheckCircle2 },
-  { label: '99.9% Uptime', icon: CheckCircle2 },
+const trustBadges = ['ISO 27001', 'HIPAA Ready', 'NABH Compliant', '99.9% Uptime'];
+
+const securityFeatures = [
+  'End-to-end encryption for all data',
+  'Role-based access control (RBAC)',
+  'Complete, immutable audit logging',
+  'HIPAA-compliant infrastructure',
+  'Regular security audits & penetration testing',
+  'Automated backup & disaster recovery',
 ];
+
+const complianceBadges = ['ISO', 'HIPAA', 'SOC2', 'NABH'];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -107,23 +105,23 @@ export default function LandingPage() {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const openVideoModal = () => setIsVideoOpen(true);
   const closeVideoModal = () => setIsVideoOpen(false);
-  
+
   return (
     <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>CareSync HIMS | Modern Hospital Management System</title>
-        <meta name="description" content="Streamline your hospital operations with CareSync. Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
+        <title>AROCORD-HIMS | Modern Hospital Management System</title>
+        <meta name="description" content="Streamline your hospital operations with AROCORD-HIMS. Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
         <meta name="keywords" content="hospital management system, HIMS, EMR, healthcare software, clinic management, medical records" />
         <link rel="canonical" href="/hospital" />
         <meta property="og:url" content="/hospital" />
-        <meta property="og:title" content="CareSync HIMS | Modern Hospital Management System" />
+        <meta property="og:title" content="AROCORD-HIMS | Modern Hospital Management System" />
         <meta property="og:description" content="Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            "name": "CareSync HIMS",
+            "name": "AROCORD-HIMS",
             "applicationCategory": "HealthApplication",
             "operatingSystem": "Web",
             "offers": { "@type": "Offer", "price": "0.00", "priceCurrency": "USD" },
@@ -150,165 +148,154 @@ export default function LandingPage() {
         </script>
       </Helmet>
 
-      {/* Cursor Trail Effect */}
-      <Suspense fallback={null}>
-        <CursorTrail />
-      </Suspense>
-      
       {/* Scroll Progress Indicator */}
       <Suspense fallback={null}>
         <ScrollProgress />
       </Suspense>
-      
+
       {/* Floating CTA */}
       <Suspense fallback={null}>
         <FloatingCTA />
       </Suspense>
-      
-      {/* Social Proof Popups */}
-      <Suspense fallback={null}>
-        <SocialProofPopup />
-      </Suspense>
-      
+
       {/* Navigation Header */}
       <NavigationHeader />
-      
-      {/* Urgency Banner */}
-      <Suspense fallback={null}>
-        <UrgencyBanner />
-      </Suspense>
 
-      {/* Hero Section with Dashboard Mockup */}
-      <div className="pt-10" style={{
-        background: [
-          'radial-gradient(ellipse 90% 60% at 20% 0%, hsl(173 65% 42% / 0.1) 0%, transparent 70%)',
-          'radial-gradient(ellipse 60% 40% at 80% 80%, hsl(199 89% 48% / 0.07) 0%, transparent 60%)',
-          'hsl(215 30% 98%)'
-        ].join(', ')
-      }}>
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: Hero Content */}
-            <Hero
-              gradient={true}
-              blur={true}
-              className="pt-16 pb-10 lg:pt-24 lg:pb-16"
-              title={
-                <>
-                  Modern Hospital Management
-                  <br />
-                  <span className="text-primary">Built for Safer Patient Care</span>
-                </>
-              }
-              subtitle="Unified operations from outpatient to inpatient to billing. Enterprise-grade security. HIPAA-ready compliance."
-              subtitleClassName="max-w-xl"
+      {/* ── Hero ─────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-background pt-28 lg:pt-32 pb-16 lg:pb-24">
+        {/* Single, theme-aware radial mesh — one cohesive background treatment */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: [
+              'radial-gradient(ellipse 90% 60% at 12% 0%, hsl(var(--primary) / 0.10) 0%, transparent 70%)',
+              'radial-gradient(ellipse 60% 50% at 88% 95%, hsl(var(--info) / 0.08) 0%, transparent 60%)',
+            ].join(', '),
+          }}
+        />
+
+        <div className="container relative mx-auto px-4">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* Left: copy */}
+            <motion.div
+              className="text-center lg:text-left"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
             >
-              {/* Action Buttons */}
+              <motion.span
+                variants={itemVariants}
+                className="eyebrow text-primary inline-flex items-center gap-2"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                Hospital Information Management System
+              </motion.span>
+
+              <motion.h1
+                variants={itemVariants}
+                className="font-display font-normal text-4xl md:text-5xl lg:text-6xl leading-[1.08] tracking-tight mt-5 mb-6 text-balance"
+              >
+                Modern hospital management,
+                <span className="text-primary"> built for safer patient care</span>
+              </motion.h1>
+
+              <motion.p
+                variants={itemVariants}
+                className="lead mx-auto lg:mx-0 mb-8"
+              >
+                Unify outpatient, inpatient, OT, pharmacy, lab, and billing on one secure
+                platform — with enterprise-grade security and HIPAA-ready compliance.
+              </motion.p>
+
+              {/* Primary + secondary CTA */}
               <motion.div
-                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mt-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                variants={itemVariants}
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3"
               >
                 <Button variant="hero" size="xl" asChild>
                   <Link to="/hospital/signup">
-                    <Building2 className="w-5 h-5 mr-2" />
-                    Schedule 30-min Demo
+                    <CalendarCheck className="w-5 h-5 mr-2" />
+                    Book a Demo
                   </Link>
                 </Button>
                 <Button variant="outline" size="xl" onClick={openVideoModal}>
                   <Play className="w-5 h-5 mr-2" />
-                  View Demo Video
+                  Watch 2-min Overview
                 </Button>
               </motion.div>
 
-              {/* Trust Badges */}
-              <motion.div 
-                className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
+              {/* Slim trust strip */}
+              <motion.div
+                variants={itemVariants}
+                className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2"
               >
-                {trustBadges.map((badge, index) => (
-                  <motion.div
-                    key={badge.label}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.6 + index * 0.1 }}
+                <span className="text-xs text-muted-foreground">Trusted &amp; compliant:</span>
+                {trustBadges.map((badge) => (
+                  <span
+                    key={badge}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground/70"
                   >
-                    <Badge variant="secondary" className="px-3 py-1">
-                      <badge.icon className="w-3 h-3 mr-1" />
-                      {badge.label}
-                    </Badge>
-                  </motion.div>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                    {badge}
+                  </span>
                 ))}
               </motion.div>
-            </Hero>
+            </motion.div>
 
-            {/* Right: Dashboard Mockup */}
-            <div className="hidden lg:block">
-              <Suspense fallback={<Skeleton className="h-[400px] w-full rounded-xl" />}>
+            {/* Right: product visual (now visible on every breakpoint) */}
+            <motion.div
+              className="w-full max-w-lg mx-auto lg:max-w-none"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+            >
+              <Suspense fallback={<Skeleton className="h-[360px] w-full rounded-xl" />}>
                 <HeroDashboardMockup />
               </Suspense>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Video Modal */}
       <VideoModal isOpen={isVideoOpen} onClose={closeVideoModal} />
 
-      {/* Social Proof / Logo Carousel */}
+      {/* ── Social proof: logos (tinted) ─────────────────────── */}
       <Suspense fallback={<div className="h-20" />}>
         <LogoCarousel />
       </Suspense>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <Badge variant="secondary" className="mb-4">Features</Badge>
-            <h2 className="font-display font-normal text-3xl md:text-4xl mb-4">
-              Everything You Need to Manage Healthcare
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              A complete suite of tools designed for healthcare professionals, 
-              from front desk to clinical staff.
-            </p>
-          </motion.div>
+      {/* ── Outcome metrics (white) ──────────────────────────── */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <MetricsSection />
+      </Suspense>
 
-          <motion.div 
+      {/* ── Features (tinted) ────────────────────────────────── */}
+      <section id="features" className="py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <SectionHeader
+            eyebrow="Capabilities"
+            title="Everything you need to run modern healthcare"
+            description="A complete suite for every role — from front desk to clinical staff to finance."
+          />
+
+          <motion.div
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
           >
-            {features.map((feature, index) => (
+            {features.map((feature) => (
               <motion.div
                 key={feature.title}
                 variants={itemVariants}
-                whileHover={{ 
-                  y: -8,
-                  rotateX: 2,
-                  rotateY: 2,
-                }}
-                transition={{ type: 'spring', stiffness: 300 }}
-                className="group p-6 rounded-xl bg-card border border-border hover:shadow-lg hover:border-primary/20 transition-all duration-300 cursor-pointer"
-                style={{ transformStyle: 'preserve-3d' }}
+                className="group p-6 rounded-2xl bg-card border border-border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30"
               >
-                <motion.div 
-                  className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4"
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                >
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4 transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
                   <feature.icon className="w-6 h-6" />
-                </motion.div>
+                </div>
                 <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
               </motion.div>
@@ -317,238 +304,155 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Workflow Tabs */}
+      {/* ── Workflows (white) ────────────────────────────────── */}
       <Suspense fallback={<SectionSkeleton />}>
         <WorkflowTabs />
       </Suspense>
 
-      {/* Metrics Section */}
-      <Suspense fallback={<SectionSkeleton />}>
-        <MetricsSection />
-      </Suspense>
-
-      {/* Pricing Section */}
-      <Suspense fallback={<SectionSkeleton />}>
-        <PricingSection />
-      </Suspense>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            className="text-center mb-8"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <Badge variant="secondary" className="mb-4">Trusted by Healthcare Leaders</Badge>
-            <h2 className="font-display font-normal text-3xl md:text-4xl mb-4">
-              What Our Clients Say
-            </h2>
-          </motion.div>
-          <Testimonial />
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <Suspense fallback={<SectionSkeleton />}>
-        <FAQSection />
-      </Suspense>
-
-      {/* Security Section */}
-      <section id="security" className="py-20 bg-background overflow-hidden">
+      {/* ── Security & Compliance (tinted) ───────────────────── */}
+      <section id="security" className="py-24 bg-muted/30 overflow-hidden">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
             >
-              <Badge variant="secondary" className="mb-4">Security & Compliance</Badge>
-              <h2 className="font-display font-normal text-3xl md:text-4xl mb-6">
-                Enterprise-Grade Security for Healthcare
+              <span className="eyebrow text-primary block mb-3">Security &amp; Compliance</span>
+              <h2 className="font-display font-normal text-3xl md:text-4xl mb-5 text-balance">
+                Enterprise-grade security for healthcare
               </h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                Your patients' data deserves the highest level of protection. 
-                Our platform is built with security-first architecture and full HIPAA compliance.
+              <p className="lead mb-8">
+                Your patients' data deserves the highest level of protection. Our platform is
+                built with a security-first architecture and full HIPAA compliance.
               </p>
 
               <ul className="space-y-4">
-                {[
-                  'End-to-end encryption for all data',
-                  'Role-based access control (RBAC)',
-                  'Complete audit logging',
-                  'HIPAA compliant infrastructure',
-                  'Regular security audits and penetration testing',
-                  'Automated backup and disaster recovery',
-                ].map((item, index) => (
-                  <motion.li 
-                    key={item} 
-                    className="flex items-center gap-3"
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      whileInView={{ scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: index * 0.1 + 0.2, type: 'spring' }}
-                    >
-                      <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                    </motion.div>
+                {securityFeatures.map((item) => (
+                  <li key={item} className="flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                     <span>{item}</span>
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
             </motion.div>
 
-            <motion.div 
+            {/* Calm, static compliance composition */}
+            <motion.div
               className="relative"
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
             >
-              <div className="aspect-square rounded-2xl bg-gradient-to-br from-primary/20 to-info/20 p-8 flex items-center justify-center relative overflow-hidden">
-                {/* Orbiting badges */}
-                <motion.div
-                  className="absolute w-full h-full"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                >
-                  {['ISO', 'HIPAA', 'SOC2', 'NABH'].map((badge, index) => (
-                    <motion.div
-                      key={badge}
-                      className="absolute w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center text-xs font-bold shadow-lg"
-                      style={{
-                        top: '50%',
-                        left: '50%',
-                        transform: `rotate(${index * 90}deg) translateX(140px) rotate(-${index * 90}deg)`,
-                      }}
-                    >
-                      {badge}
-                    </motion.div>
-                  ))}
-                </motion.div>
-                
-                {/* Central shield */}
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.05, 1],
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Shield className="w-32 h-32 text-primary" />
-                </motion.div>
-                
-                {/* Pulsing aura rings */}
+              <div className="aspect-square max-w-md mx-auto rounded-3xl bg-gradient-to-br from-primary/15 to-info/15 p-8 flex items-center justify-center relative overflow-hidden border border-border/50">
+                {/* static concentric rings */}
                 {[1, 2, 3].map((ring) => (
-                  <motion.div
+                  <div
                     key={ring}
-                    className="absolute rounded-full border-2 border-primary/30"
-                    style={{
-                      width: 80 + ring * 60,
-                      height: 80 + ring * 60,
-                    }}
-                    animate={{
-                      scale: [1, 1.1, 1],
-                      opacity: [0.3, 0.1, 0.3],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: ring * 0.3,
-                    }}
+                    className="absolute rounded-full border border-primary/20"
+                    style={{ width: 110 + ring * 70, height: 110 + ring * 70 }}
                   />
                 ))}
+
+                {/* static orbiting compliance badges */}
+                {complianceBadges.map((badge, index) => (
+                  <div
+                    key={badge}
+                    className="absolute w-14 h-14 rounded-full bg-card border border-border flex items-center justify-center text-xs font-bold shadow-md"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      transform: `rotate(${index * 90}deg) translateX(130px) rotate(-${index * 90}deg) translate(-50%, -50%)`,
+                    }}
+                  >
+                    {badge}
+                  </div>
+                ))}
+
+                {/* central shield */}
+                <div className="relative z-10 flex items-center justify-center w-28 h-28 rounded-2xl bg-card border border-border shadow-lg">
+                  <Shield className="w-14 h-14 text-primary" />
+                </div>
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section with Particles */}
-      <section id="contact" className="py-20 bg-sidebar text-sidebar-foreground relative overflow-hidden">
-        {/* Floating particles */}
-        <div className="absolute inset-0 pointer-events-none">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <motion.div
-              key={`particle-${i}`}
-              className="absolute w-2 h-2 rounded-full bg-sidebar-primary/20"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                y: [0, -30, 0],
-                x: [0, Math.random() * 20 - 10, 0],
-                opacity: [0.2, 0.5, 0.2],
-              }}
-              transition={{
-                duration: 3 + Math.random() * 2,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
-            />
-          ))}
+      {/* ── Testimonials (white) ─────────────────────────────── */}
+      <section id="testimonials" className="py-24 bg-background">
+        <div className="container mx-auto px-4">
+          <SectionHeader
+            eyebrow="Trusted by healthcare leaders"
+            title="What our clients say"
+          />
+          <Testimonial />
         </div>
-        
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <motion.h2 
-            className="font-display font-normal text-3xl md:text-4xl mb-4 text-sidebar-primary-foreground"
+      </section>
+
+      {/* ── Pricing (tinted) ─────────────────────────────────── */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <PricingSection />
+      </Suspense>
+
+      {/* ── FAQ (white) ──────────────────────────────────────── */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <FAQSection />
+      </Suspense>
+
+      {/* ── Final CTA band (dark) ────────────────────────────── */}
+      <section id="contact" className="py-24 bg-sidebar text-sidebar-foreground relative overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 60% at 50% 0%, hsl(var(--sidebar-primary) / 0.15) 0%, transparent 70%)',
+          }}
+        />
+
+        <div className="container mx-auto px-4 text-center relative z-10 max-w-3xl">
+          <motion.h2
+            className="font-display font-normal text-3xl md:text-4xl mb-4 text-sidebar-primary-foreground text-balance"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            Ready to Modernize Your Hospital Operations?
+            Ready to modernize your hospital operations?
           </motion.h2>
-          <motion.p 
-            className="text-lg text-sidebar-foreground/80 mb-8 max-w-2xl mx-auto"
+          <motion.p
+            className="text-lg text-sidebar-foreground/80 mb-8 mx-auto"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
           >
-            Join <motion.span
-              className="font-bold text-sidebar-primary-foreground"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-            >
-              500+
-            </motion.span> healthcare providers managing better patient care with our platform
+            Join <span className="font-bold text-sidebar-primary-foreground">500+</span> healthcare
+            providers managing better patient care with AROCORD-HIMS.
           </motion.p>
-          <motion.div 
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          <motion.div
+            className="flex flex-col sm:flex-row items-center justify-center gap-5"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <Button size="xl" variant="hero" asChild>
+              <Link to="/hospital/signup">
+                Book a Demo
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Link>
+            </Button>
+            <Link
+              to="/hospital/signup"
+              className="text-sm text-sidebar-foreground/80 hover:text-sidebar-primary-foreground underline-offset-4 hover:underline"
             >
-              <Button size="xl" variant="hero" asChild>
-                <Link to="/hospital/signup">
-                  Schedule 30-min Demo
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Link>
-              </Button>
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button size="xl" variant="outline" className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent" asChild>
-                <Link to="/hospital/signup">
-                  Start Free 14-day Trial
-                </Link>
-              </Button>
-            </motion.div>
+              Or start a free 14-day trial →
+            </Link>
           </motion.div>
-          <motion.p 
+          <motion.p
             className="mt-6 text-sm text-sidebar-foreground/60"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}

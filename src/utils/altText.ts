@@ -2,8 +2,8 @@
 
 export const ALT_TEXT = {
   // Logo and branding
-  logo: 'CareSync Hospital Management System Logo',
-  logoSmall: 'CareSync Logo',
+  logo: 'AROCORD-HIMS Hospital Management System Logo',
+  logoSmall: 'AROCORD-HIMS Logo',
   
   // User avatars
   avatar: (name: string) => `${name}'s profile picture`,

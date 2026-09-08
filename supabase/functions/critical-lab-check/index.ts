@@ -8,6 +8,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 // Constants
@@ -16,26 +18,61 @@ const ESCALATION_DELAYS = {
   to_er_minutes: 10,
 };
 
+// Roles permitted to record lab results / trigger critical-value escalation.
+const ALLOWED_ROLES = ["admin", "lab_technician", "doctor", "nurse"];
+
+const labCheckSchema = z.object({
+  labResultId: z.string().uuid(),
+  labResult: z.object({
+    hospital_id: z.string().uuid(),
+    patient_id: z.string().uuid(),
+    test_code: z.string().min(1),
+    test_name: z.string().optional(),
+    result_value: z.union([z.string(), z.number()]),
+    unit: z.string().optional(),
+    ordering_doctor_id: z.string().uuid(),
+  }).passthrough(),
+});
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  const json = (status: number, payload: Record<string, unknown>) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // ── AuthZ: verify caller + hospital scope ──
+    const { actor, response: authErr } = await getAuthorizedActor(req, ALLOWED_ROLES);
+    if (authErr) {
+      return new Response(await authErr.text(), {
+        status: authErr.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { labResultId, labResult } = await req.json();
+    const parsed = labCheckSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return json(400, {
+        error: "Validation failed",
+        details: parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", "),
+      });
+    }
+    const { labResultId, labResult } = parsed.data;
 
-    if (!labResultId || !labResult) {
-      return new Response(
-        JSON.stringify({ error: "Missing labResultId or labResult data" }),
-        { status: 400, headers: corsHeaders }
-      );
+    // Prevent cross-hospital access: the lab result must belong to the caller's hospital.
+    if (labResult.hospital_id !== actor!.hospitalId) {
+      return json(403, { error: "Forbidden - hospital scope mismatch" });
     }
 
     // Check if this is a critical value

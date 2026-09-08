@@ -43,49 +43,17 @@ export function FloatingCTA() {
           }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2"
         >
-          {prefersReducedMotion ? (
-            <div className="rounded-full">
-              <Button
-                variant="hero"
-                size="lg"
-                className="shadow-lg"
-                asChild
-              >
-                <Link to="/hospital/signup">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book Demo
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <motion.div
-              animate={{
-                boxShadow: [
-                  '0 0 0 0 hsl(var(--primary) / 0.4)',
-                  '0 0 0 10px hsl(var(--primary) / 0)',
-                  '0 0 0 0 hsl(var(--primary) / 0)',
-                ],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 1,
-              }}
-              className="rounded-full"
-            >
-              <Button
-                variant="hero"
-                size="lg"
-                className="shadow-lg hover:scale-105 transition-transform"
-                asChild
-              >
-                <Link to="/hospital/signup">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book Demo
-                </Link>
-              </Button>
-            </motion.div>
-          )}
+          <Button
+            variant="hero"
+            size="lg"
+            className="shadow-lg transition-transform hover:scale-105"
+            asChild
+          >
+            <Link to="/hospital/signup">
+              <Calendar className="w-4 h-4 mr-2" />
+              Book a Demo
+            </Link>
+          </Button>
           
           <Button
             variant="ghost"

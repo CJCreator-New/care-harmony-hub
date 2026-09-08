@@ -19,6 +19,7 @@ const AdminRoleSetupPage = lazy(() => import('../pages/hospital/AdminRoleSetupPa
 const AccountSetupPage = lazy(() => import('../pages/hospital/AccountSetupPage'));
 const QuickAccessPage = lazy(() => import('../pages/hospital/QuickAccessPage'));
 const RoleSelectionPage = lazy(() => import('../pages/hospital/RoleSelectionPage'));
+const MandatoryTwoFactorSetupPage = lazy(() => import('../pages/hospital/MandatoryTwoFactorSetupPage'));
 const PatientRegisterPage = lazy(() => import('../pages/patient/PatientRegisterPage'));
 const PatientLoginPage = lazy(() => import('../pages/patient/PatientLoginPage'));
 const Dashboard = lazy(() => import('../pages/Dashboard'));
@@ -82,7 +83,7 @@ export type RouteDefinition = {
 };
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles, pendingRoleSelection } = useAuth();
+  const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles, pendingRoleSelection, pendingTwoFactor } = useAuth();
   const persistedTestRole = getDevTestRole(roles);
   const effectiveRoleCount = persistedTestRole ? 1 : roles.length;
 
@@ -140,6 +141,26 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (pendingRoleSelection) return <Navigate to="/hospital/select-role" replace />;
+
+  // SECURITY: privileged roles (admin/doctor) must complete 2FA enrollment before
+  // any PHI access. See AuthContext.pendingTwoFactor.
+  if (pendingTwoFactor) return <Navigate to="/hospital/two-factor-setup" replace />;
+
+  return <>{children}</>;
+}
+
+function TwoFactorSetupRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, isProfileReady, pendingTwoFactor } = useAuth();
+
+  if (isLoading || !isProfileReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+  if (!isAuthenticated) return <Navigate to="/hospital/login" replace />;
+  if (!pendingTwoFactor) return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 }
@@ -245,6 +266,7 @@ export const publicRoutes: RouteDefinition[] = [
   { path: '/hospital/forgot-password', element: <PublicRoute><ForgotPasswordPage /></PublicRoute> },
   { path: '/hospital/reset-password', element: <ResetPasswordPage /> },
   { path: '/hospital/select-role', element: <RoleSelectionRoute><RoleSelectionPage /></RoleSelectionRoute> },
+  { path: '/hospital/two-factor-setup', element: <TwoFactorSetupRoute><MandatoryTwoFactorSetupPage /></TwoFactorSetupRoute> },
   { path: '/hospital/join/:token', element: <PublicRoute><JoinPage /></PublicRoute> },
   { path: '/quick-access', element: <QuickAccessPage /> },
   { path: '/patient-register', element: <PublicRoute><PatientRegisterPage /></PublicRoute> },

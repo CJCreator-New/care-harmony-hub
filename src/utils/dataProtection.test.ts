@@ -1,4 +1,63 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+
+// Crypto now lives server-side in the `phi-crypto` edge function. Mock the Supabase
+// client's `functions.invoke` to perform the same AES-256-GCM round-trip locally so
+// these tests continue to validate encrypt/decrypt symmetry without a key in the bundle.
+vi.mock('@/integrations/supabase/client', () => {
+  let cachedKey: CryptoKey | null = null;
+  const getKey = async () => {
+    if (cachedKey) return cachedKey;
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode('test-only-phi-key'),
+      'PBKDF2',
+      false,
+      ['deriveKey'],
+    );
+    cachedKey = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: new TextEncoder().encode('care-sync-salt'), iterations: 1000, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+    return cachedKey;
+  };
+  const toB64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+  const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+  return {
+    supabase: {
+      functions: {
+        invoke: async (name: string, opts: { body: any }) => {
+          if (name !== 'phi-crypto') return { data: null, error: new Error('unknown function') };
+          const key = await getKey();
+          const { action } = opts.body;
+          if (action === 'encrypt') {
+            const results = await Promise.all(
+              (opts.body.values as string[]).map(async (value) => {
+                if (!value) return { encrypted: '', iv: '', keyVersion: 'v1' };
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value));
+                return { encrypted: toB64(new Uint8Array(ct)), iv: toB64(iv), keyVersion: 'v1' };
+              }),
+            );
+            return { data: { results }, error: null };
+          }
+          const results = await Promise.all(
+            (opts.body.items as Array<{ encrypted: string; iv: string }>).map(async (item) => {
+              if (!item?.encrypted) return '';
+              const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(item.iv) }, key, fromB64(item.encrypted));
+              return new TextDecoder().decode(pt);
+            }),
+          );
+          return { data: { results }, error: null };
+        },
+      },
+    },
+  };
+});
+
 import { FieldEncryptionService, DataMaskingService, SecureTransmissionService } from '@/utils/dataProtection';
 
 describe('Data Protection Services', () => {

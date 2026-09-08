@@ -118,7 +118,7 @@ export function initializeSentry(
 
     // Set initial application context
     Sentry.setContext('application', {
-      name: 'CareSync HMS',
+      name: 'AROCORD-HIMS',
       version: import.meta.env.VITE_APP_VERSION || '1.0.0',
       environment,
       healthcare_system: true,

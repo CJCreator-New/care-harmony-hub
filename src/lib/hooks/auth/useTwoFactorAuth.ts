@@ -48,7 +48,7 @@ export const useTwoFactorAuth = () => {
       const backupCodes = generateBackupCodes();
       
       // Create TOTP URI for QR code
-      const issuer = 'CareSync';
+      const issuer = 'AROCORD-HIMS';
       const account = profile?.email || user.email || 'user';
       const totpUri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export function TwoFactorSetup() {
+export function TwoFactorSetup({ onEnabled }: { onEnabled?: () => void } = {}) {
   const { user } = useAuth();
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +64,7 @@ export function TwoFactorSetup() {
 
         setIsEnabled(true);
         toast.success('2FA enabled successfully');
+        onEnabled?.();
       } else {
         toast.error('Invalid verification code');
       }
