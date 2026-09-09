@@ -1,7 +1,7 @@
 /**
  * Clinical Domain Validation Utilities
  * Enforces medically correct logic, realistic ranges, age/drug appropriateness per hims-domain-expert skill
- * 
+ *
  * Core invariants for patient safety:
  * - Vital signs ranges per clinical standards
  * - Age-based dosage and alert logic (pediatric/adult/geriatric)
@@ -86,18 +86,30 @@ export function validateDosageForAge(
 
   // High-risk pediatric drugs: maximum thresholds
   if (category === 'neonatal' && dosageMg > 10) {
-    return { valid: false, warning: `Neonatal dose >10mg is typically contraindicated for ${drugName}` };
+    return {
+      valid: false,
+      warning: `Neonatal dose >10mg is typically contraindicated for ${drugName}`,
+    };
   }
   if (category === 'infant' && dosageMg > 50) {
-    return { valid: false, warning: `Infant dose >50mg requires close supervision for ${drugName}` };
+    return {
+      valid: false,
+      warning: `Infant dose >50mg requires close supervision for ${drugName}`,
+    };
   }
   if (category === 'child' && dosageMg > 500) {
-    return { valid: false, warning: `Child dose >500mg unusually high for ${drugName}, verify age-adjusted calculation` };
+    return {
+      valid: false,
+      warning: `Child dose >500mg unusually high for ${drugName}, verify age-adjusted calculation`,
+    };
   }
 
   // Geriatric dose caution: typically 50% of adult
   if (category === 'geriatric' && dosageMg > 1500) {
-    return { valid: true, warning: `Geriatric high dose detected (${dosageMg}mg). Verify renal/hepatic adjustment.` };
+    return {
+      valid: true,
+      warning: `Geriatric high dose detected (${dosageMg}mg). Verify renal/hepatic adjustment.`,
+    };
   }
 
   return { valid: true };
@@ -179,7 +191,10 @@ const ROUTE_RESTRICTIONS: Record<string, Route[]> = {
 /**
  * Validate drug-route combination.
  */
-export function validateDrugRoute(drugName: string, route: Route): { valid: boolean; warning?: string } {
+export function validateDrugRoute(
+  drugName: string,
+  route: Route
+): { valid: boolean; warning?: string } {
   const normalized = drugName.toLowerCase();
   const allowedRoutes = Object.entries(ROUTE_RESTRICTIONS).find(([drug]) =>
     normalized.includes(drug)
@@ -254,35 +269,8 @@ export function classifyVitalStatus(
 
 // ─── Allergy & Contraindication Checks ────────────────────────────────────────
 
-/**
- * Clinical Drug Allergen Classes and cross-reactive medications.
- */
-const ALLERGEN_CLASS_MAP: Record<string, string[]> = {
-  penicillin: ['amoxicillin', 'ampicillin', 'piperacillin', 'penicillin', 'augmentin', 'cloxacillin'],
-  sulfa: ['sulfamethoxazole', 'sulfadiazine', 'bactrim', 'septra', 'sulfasalazine'],
-  nsaid: ['ibuprofen', 'naproxen', 'indomethacin', 'ketorolac', 'meloxicam', 'celecoxib', 'aspirin', 'advil', 'motrin'],
-  cephalosporin: ['cephalexin', 'cefazolin', 'ceftriaxone', 'cefuroxime', 'cefepime'],
-  opioid: ['morphine', 'codeine', 'oxycodone', 'hydrocodone', 'fentanyl', 'tramadol', 'hydromorphone'],
-  aspirin: ['aspirin', 'acetylsalicylic acid', 'bayer'],
-};
-
-/**
- * Normalizes an allergy input string to its core clinical root class.
- */
-function normalizeAllergyTerm(allergy: string): string {
-  let cleaned = allergy.toLowerCase().trim();
-  // Strip common suffixes
-  cleaned = cleaned.replace(/\b(allergy|allergies|hypersensitivity|adverse reaction|intolerance)\b/g, '').trim();
-
-  // Standardize acronyms and plurals
-  if (cleaned === 'pcn' || cleaned === 'penicillins') return 'penicillin';
-  if (cleaned === 'sulfas' || cleaned === 'sulfonamide' || cleaned === 'sulfonamides') return 'sulfa';
-  if (cleaned === 'nsaids') return 'nsaid';
-  if (cleaned === 'cephalosporins') return 'cephalosporin';
-  if (cleaned === 'opioids' || cleaned === 'opiates') return 'opioid';
-
-  return cleaned;
-}
+import { ALLERGEN_CLASS_MAP, normalizeAllergyTerm } from '@/modules/order-safety';
+export { ALLERGEN_CLASS_MAP, normalizeAllergyTerm };
 
 /**
  * Check for drug-allergy conflict with normalized clinical taxonomy.
@@ -300,7 +288,10 @@ export function checkDrugAllergyConflict(
 
     // 1. Direct name match (e.g. allergy is "amoxicillin" and prescribed drug is "amoxicillin 500mg")
     const cleanedAllergy = normalizeAllergyTerm(allergy);
-    if (cleanedAllergy.length > 2 && (normalizedDrug.includes(cleanedAllergy) || cleanedAllergy.includes(normalizedDrug))) {
+    if (
+      cleanedAllergy.length > 2 &&
+      (normalizedDrug.includes(cleanedAllergy) || cleanedAllergy.includes(normalizedDrug))
+    ) {
       conflicts.push(allergy);
       continue;
     }

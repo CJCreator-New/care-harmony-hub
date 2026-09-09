@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  ReactNode,
+} from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
@@ -6,7 +14,7 @@ import { sanitizeLogMessage } from '@/utils/sanitize';
 import { deviceManager } from '@/utils/deviceManager';
 import { passwordPolicyManager } from '@/utils/passwordPolicy';
 import { biometricAuthManager } from '@/utils/biometricAuth';
-import { useSessionTimeout } from '@/lib/hooks';
+import { useSessionTimeout } from '@/lib/hooks/auth';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 
@@ -53,9 +61,7 @@ interface AuthContextType {
     lastName: string
   ) => Promise<{ error: Error | null; userId?: string }>;
   logout: () => Promise<void>;
-  createHospitalAndProfile: (
-    hospitalData: Partial<Hospital>
-  ) => Promise<{ error: Error | null }>;
+  createHospitalAndProfile: (hospitalData: Partial<Hospital>) => Promise<{ error: Error | null }>;
   pendingRoleSelection: boolean;
   /** True when a privileged role (admin/doctor) must enable 2FA before accessing PHI. */
   pendingTwoFactor: boolean;
@@ -91,9 +97,7 @@ const E2E_MOCK_AUTH_STORAGE_KEY = 'e2e-mock-auth-user';
 // SECURITY: no credential literal in source. The mock-auth password is sourced from
 // VITE_E2E_MOCK_PASSWORD (see .env.test) and only honoured in DEV builds. Mock auth
 // itself additionally requires VITE_E2E_MOCK_AUTH === 'true'.
-const E2E_MOCK_PASSWORD = import.meta.env.DEV
-  ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '')
-  : '';
+const E2E_MOCK_PASSWORD = import.meta.env.DEV ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '') : '';
 
 type E2EMockUserConfig = {
   id: string;
@@ -103,78 +107,80 @@ type E2EMockUserConfig = {
   hospitalId: string;
 };
 
-const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = import.meta.env.DEV ? {
-  'admin@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000010',
-    firstName: 'Admin',
-    lastName: 'User',
-    role: 'admin',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'doctor@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000011',
-    firstName: 'Doctor',
-    lastName: 'User',
-    role: 'doctor',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'nurse@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000012',
-    firstName: 'Nurse',
-    lastName: 'User',
-    role: 'nurse',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'reception@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000013',
-    firstName: 'Reception',
-    lastName: 'User',
-    role: 'receptionist',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'receptionist@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000013',
-    firstName: 'Reception',
-    lastName: 'User',
-    role: 'receptionist',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'pharmacy@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000014',
-    firstName: 'Pharmacy',
-    lastName: 'User',
-    role: 'pharmacist',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'pharmacist@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000014',
-    firstName: 'Pharmacy',
-    lastName: 'User',
-    role: 'pharmacist',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'lab@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000015',
-    firstName: 'Lab',
-    lastName: 'User',
-    role: 'lab_technician',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'labtech@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000015',
-    firstName: 'Lab',
-    lastName: 'User',
-    role: 'lab_technician',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-  'patient@testgeneral.com': {
-    id: '00000000-0000-0000-0000-000000000016',
-    firstName: 'Patient',
-    lastName: 'User',
-    role: 'patient',
-    hospitalId: '00000000-0000-0000-0000-000000000001',
-  },
-} : {};
+const E2E_MOCK_USERS: Record<string, E2EMockUserConfig> = import.meta.env.DEV
+  ? {
+      'admin@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000010',
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'doctor@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000011',
+        firstName: 'Doctor',
+        lastName: 'User',
+        role: 'doctor',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'nurse@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000012',
+        firstName: 'Nurse',
+        lastName: 'User',
+        role: 'nurse',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'reception@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000013',
+        firstName: 'Reception',
+        lastName: 'User',
+        role: 'receptionist',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'receptionist@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000013',
+        firstName: 'Reception',
+        lastName: 'User',
+        role: 'receptionist',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'pharmacy@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000014',
+        firstName: 'Pharmacy',
+        lastName: 'User',
+        role: 'pharmacist',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'pharmacist@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000014',
+        firstName: 'Pharmacy',
+        lastName: 'User',
+        role: 'pharmacist',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'lab@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000015',
+        firstName: 'Lab',
+        lastName: 'User',
+        role: 'lab_technician',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'labtech@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000015',
+        firstName: 'Lab',
+        lastName: 'User',
+        role: 'lab_technician',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+      'patient@testgeneral.com': {
+        id: '00000000-0000-0000-0000-000000000016',
+        firstName: 'Patient',
+        lastName: 'User',
+        role: 'patient',
+        hospitalId: '00000000-0000-0000-0000-000000000001',
+      },
+    }
+  : {};
 
 const getE2EMockUser = (email: string): E2EMockUserConfig | null => {
   const normalizedEmail = email.trim().toLowerCase();
@@ -263,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: 'admin@testgeneral.com',
       license_number: 'LIC-E2E-001',
     });
-    
+
     // Check for dev test role override in localStorage
     let effectiveRole = mockUser.role;
     try {
@@ -274,7 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore storage errors
     }
-    
+
     setRoles([effectiveRole]);
     setPreferredRole(effectiveRole);
     setIsProfileReady(true);
@@ -316,7 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           p_event_type: 'logout',
           p_user_agent: navigator.userAgent,
           p_details: {},
-          p_severity: 'info'
+          p_severity: 'info',
         });
       }
 
@@ -377,7 +383,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId);
 
       if (rolesData) {
-        const userRoles = rolesData.map(r => r.role as UserRole);
+        const userRoles = rolesData.map((r) => r.role as UserRole);
         const devTestRole = getDevTestRole(userRoles);
         const effectiveRoles = devTestRole ? [devTestRole] : userRoles;
 
@@ -403,7 +409,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user data:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+      console.error(
+        'Error fetching user data:',
+        sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error')
+      );
     } finally {
       setIsProfileReady(true);
     }
@@ -435,55 +444,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isMounted = false;
       };
     }
-    
+
     // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (!isMounted) return;
-        
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-
-        if (currentSession?.user) {
-          // Use requestIdleCallback or microtask to avoid deadlock
-          queueMicrotask(() => {
-            if (isMounted && currentSession.user) {
-              fetchUserData(currentSession.user.id);
-            }
-          });
-        } else {
-          setProfile(null);
-          setHospital(null);
-          setRoles([]);
-        }
-        setIsLoading(false);
-      }
-    );
-
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!isMounted) return;
+
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+
       if (currentSession?.user) {
-        fetchUserData(currentSession.user.id);
+        // Use requestIdleCallback or microtask to avoid deadlock
+        queueMicrotask(() => {
+          if (isMounted && currentSession.user) {
+            fetchUserData(currentSession.user.id);
+          }
+        });
       } else {
-        setIsProfileReady(true);
+        setProfile(null);
+        setHospital(null);
+        setRoles([]);
       }
       setIsLoading(false);
-    }).catch((err) => {
-      // Clear stale auth state and unblock the UI so routes can render.
-      if (!isMounted) return;
-      console.error('getSession failed:', sanitizeLogMessage(err instanceof Error ? err.message : String(err)));
-      void supabase.auth.signOut().catch(() => undefined);
-      setSession(null);
-      setUser(null);
-      setProfile(null);
-      setHospital(null);
-      setRoles([]);
-      setIsProfileReady(true);
-      setIsLoading(false);
     });
+
+    // Then check for existing session
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: currentSession } }) => {
+        if (!isMounted) return;
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        if (currentSession?.user) {
+          fetchUserData(currentSession.user.id);
+        } else {
+          setIsProfileReady(true);
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        // Clear stale auth state and unblock the UI so routes can render.
+        if (!isMounted) return;
+        console.error(
+          'getSession failed:',
+          sanitizeLogMessage(err instanceof Error ? err.message : String(err))
+        );
+        void supabase.auth.signOut().catch(() => undefined);
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setHospital(null);
+        setRoles([]);
+        setIsProfileReady(true);
+        setIsLoading(false);
+      });
 
     return () => {
       isMounted = false;
@@ -506,198 +521,208 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPreferredRole(null);
   }, [roles]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    if (isE2EMockAuthEnabled) {
-      const mockUser = getE2EMockUser(email);
-      if (!mockUser || password !== E2E_MOCK_PASSWORD) {
-        return {
-          error: new Error(
-            !mockUser
-              ? `Mock auth: no account for "${email}". Use one of the test emails (e.g. admin@testgeneral.com).`
-              : `Mock auth: wrong password. Use "${E2E_MOCK_PASSWORD}" for all test accounts.`
-          ),
-        };
+  const login = useCallback(
+    async (email: string, password: string) => {
+      if (isE2EMockAuthEnabled) {
+        const mockUser = getE2EMockUser(email);
+        if (!mockUser || password !== E2E_MOCK_PASSWORD) {
+          return {
+            error: new Error(
+              !mockUser
+                ? `Mock auth: no account for "${email}". Use one of the test emails (e.g. admin@testgeneral.com).`
+                : `Mock auth: wrong password. Use "${E2E_MOCK_PASSWORD}" for all test accounts.`
+            ),
+          };
+        }
+        applyE2EMockAuthState(email, mockUser);
+        return { error: null };
       }
-      applyE2EMockAuthState(email, mockUser);
-      return { error: null };
-    }
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        // Log failed login attempt
-        await supabase.rpc('log_security_event', {
-          p_user_id: null,
-          p_event_type: 'login_failure',
-          p_ip_address: null,
-          p_user_agent: navigator.userAgent,
-          p_details: { email, error: error.message },
-          p_severity: 'warning'
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
         });
+
+        if (error) {
+          // Log failed login attempt
+          await supabase.rpc('log_security_event', {
+            p_user_id: null,
+            p_event_type: 'login_failure',
+            p_ip_address: null,
+            p_user_agent: navigator.userAgent,
+            p_details: { email, error: error.message },
+            p_severity: 'warning',
+          });
+          return { error: error as Error };
+        }
+
+        if (data.user) {
+          // Register device and log successful login
+          const device = await deviceManager.registerDevice(data.user.id);
+          await deviceManager.updateDeviceActivity(device?.device_id || '');
+
+          await supabase.rpc('log_security_event', {
+            p_user_id: data.user.id,
+            p_event_type: 'login_success',
+            p_device_id: device?.id,
+            p_ip_address: null,
+            p_user_agent: navigator.userAgent,
+            p_details: { email },
+            p_severity: 'info',
+          });
+        }
+
+        return { error: null };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+          return {
+            error: new Error(
+              'Network error: unable to reach authentication server. Check your network or SUPABASE URL.'
+            ),
+          };
+        }
         return { error: error as Error };
       }
+    },
+    [applyE2EMockAuthState, isE2EMockAuthEnabled]
+  );
 
-      if (data.user) {
-        // Register device and log successful login
-        const device = await deviceManager.registerDevice(data.user.id);
-        await deviceManager.updateDeviceActivity(device?.device_id || '');
+  const signup = useCallback(
+    async (email: string, password: string, firstName: string, lastName: string) => {
+      if (isE2EMockAuthEnabled) {
+        if (!email || !password) {
+          return { error: new Error('Email and password are required') };
+        }
 
-        await supabase.rpc('log_security_event', {
-          p_user_id: data.user.id,
-          p_event_type: 'login_success',
-          p_device_id: device?.id,
-          p_ip_address: null,
-          p_user_agent: navigator.userAgent,
-          p_details: { email },
-          p_severity: 'info'
+        const mockUserId = `e2e-signup-${Date.now()}`;
+        const nowIso = new Date().toISOString();
+        const mockSupabaseUser = {
+          id: mockUserId,
+          aud: 'authenticated',
+          role: 'authenticated',
+          email,
+          email_confirmed_at: nowIso,
+          phone: '',
+          confirmation_sent_at: nowIso,
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: { first_name: firstName, last_name: lastName },
+          identities: [],
+          created_at: nowIso,
+          updated_at: nowIso,
+          is_anonymous: false,
+        } as User;
+        const mockSession = {
+          access_token: `e2e-access-${mockUserId}`,
+          refresh_token: `e2e-refresh-${mockUserId}`,
+          expires_in: 60 * 60,
+          expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+          token_type: 'bearer',
+          user: mockSupabaseUser,
+        } as Session;
+
+        setUser(mockSupabaseUser);
+        setSession(mockSession);
+        setProfile({
+          id: `profile-${mockUserId}`,
+          user_id: mockUserId,
+          hospital_id: '00000000-0000-0000-0000-000000000001',
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone: null,
+          avatar_url: null,
+          two_factor_enabled: false,
         });
+        setHospital({
+          id: '00000000-0000-0000-0000-000000000001',
+          name: 'Test General Hospital',
+          address: '123 Test Street',
+          city: 'Test City',
+          state: 'TS',
+          zip: '12345',
+          phone: '(555) 123-4567',
+          email: 'admin@testgeneral.com',
+          license_number: 'LIC-E2E-001',
+        });
+        // Keep roles empty on initial signup so the normal role-setup flow applies.
+        setRoles([]);
+        setPreferredRole(null);
+        return { error: null, userId: mockUserId };
       }
 
-      return { error: null };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-        return { error: new Error('Network error: unable to reach authentication server. Check your network or SUPABASE URL.') };
-      }
-      return { error: error as Error };
-    }
-  }, [applyE2EMockAuthState, isE2EMockAuthEnabled]);
+      try {
+        // Validate password against policy
+        const passwordValidation = await passwordPolicyManager.validatePassword(password);
+        if (!passwordValidation.isValid) {
+          return {
+            error: new Error(
+              `Password does not meet requirements: ${passwordValidation.errors.join(', ')}`
+            ),
+          };
+        }
 
-  const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
-    if (isE2EMockAuthEnabled) {
-      if (!email || !password) {
-        return { error: new Error('Email and password are required') };
-      }
+        const redirectUrl = `${window.location.origin}/dashboard`;
 
-      const mockUserId = `e2e-signup-${Date.now()}`;
-      const nowIso = new Date().toISOString();
-      const mockSupabaseUser = {
-        id: mockUserId,
-        aud: 'authenticated',
-        role: 'authenticated',
-        email,
-        email_confirmed_at: nowIso,
-        phone: '',
-        confirmation_sent_at: nowIso,
-        app_metadata: { provider: 'email', providers: ['email'] },
-        user_metadata: { first_name: firstName, last_name: lastName },
-        identities: [],
-        created_at: nowIso,
-        updated_at: nowIso,
-        is_anonymous: false,
-      } as User;
-      const mockSession = {
-        access_token: `e2e-access-${mockUserId}`,
-        refresh_token: `e2e-refresh-${mockUserId}`,
-        expires_in: 60 * 60,
-        expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
-        token_type: 'bearer',
-        user: mockSupabaseUser,
-      } as Session;
-
-      setUser(mockSupabaseUser);
-      setSession(mockSession);
-      setProfile({
-        id: `profile-${mockUserId}`,
-        user_id: mockUserId,
-        hospital_id: '00000000-0000-0000-0000-000000000001',
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone: null,
-        avatar_url: null,
-        two_factor_enabled: false,
-      });
-      setHospital({
-        id: '00000000-0000-0000-0000-000000000001',
-        name: 'Test General Hospital',
-        address: '123 Test Street',
-        city: 'Test City',
-        state: 'TS',
-        zip: '12345',
-        phone: '(555) 123-4567',
-        email: 'admin@testgeneral.com',
-        license_number: 'LIC-E2E-001',
-      });
-      // Keep roles empty on initial signup so the normal role-setup flow applies.
-      setRoles([]);
-      setPreferredRole(null);
-      return { error: null, userId: mockUserId };
-    }
-
-    try {
-      // Validate password against policy
-      const passwordValidation = await passwordPolicyManager.validatePassword(password);
-      if (!passwordValidation.isValid) {
-        return {
-          error: new Error(`Password does not meet requirements: ${passwordValidation.errors.join(', ')}`)
-        };
-      }
-
-      const redirectUrl = `${window.location.origin}/dashboard`;
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectUrl,
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+            },
           },
-        },
-      });
-
-      if (error) {
-        // Log signup failure
-        await supabase.rpc('log_security_event', {
-          p_user_id: null,
-          p_event_type: 'signup_failure',
-          p_ip_address: null,
-          p_user_agent: navigator.userAgent,
-          p_details: { email, error: error.message },
-          p_severity: 'warning'
         });
-        return { error: error as Error };
-      }
 
-      // Create profile for the new user
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
+        if (error) {
+          // Log signup failure
+          await supabase.rpc('log_security_event', {
+            p_user_id: null,
+            p_event_type: 'signup_failure',
+            p_ip_address: null,
+            p_user_agent: navigator.userAgent,
+            p_details: { email, error: error.message },
+            p_severity: 'warning',
+          });
+          return { error: error as Error };
+        }
+
+        // Create profile for the new user
+        if (data.user) {
+          const { error: profileError } = await supabase.from('profiles').insert({
             user_id: data.user.id,
             first_name: firstName,
             last_name: lastName,
             email: email,
           });
 
-        if (profileError) {
-          console.error('Error creating profile:', sanitizeLogMessage(profileError.message));
+          if (profileError) {
+            console.error('Error creating profile:', sanitizeLogMessage(profileError.message));
+          }
+
+          // Log successful signup
+          await supabase.rpc('log_security_event', {
+            p_user_id: data.user.id,
+            p_event_type: 'signup_success',
+            p_ip_address: null,
+            p_user_agent: navigator.userAgent,
+            p_details: { email },
+            p_severity: 'info',
+          });
+
+          return { error: null, userId: data.user.id };
         }
 
-        // Log successful signup
-        await supabase.rpc('log_security_event', {
-          p_user_id: data.user.id,
-          p_event_type: 'signup_success',
-          p_ip_address: null,
-          p_user_agent: navigator.userAgent,
-          p_details: { email },
-          p_severity: 'info'
-        });
-
-        return { error: null, userId: data.user.id };
+        return { error: null };
+      } catch (error) {
+        return { error: error as Error };
       }
-
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
-  }, [isE2EMockAuthEnabled]);
+    },
+    [isE2EMockAuthEnabled]
+  );
 
   const createHospitalAndProfile = useCallback(
     async (hospitalData: Partial<Hospital>) => {
@@ -752,7 +777,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { error: null };
       } catch (error) {
-        console.error('Error creating hospital and profile:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
+        console.error(
+          'Error creating hospital and profile:',
+          sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error')
+        );
         return { error: error as Error };
       }
     },
@@ -792,46 +820,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Lightweight synchronous confirm — used by RoleSelectionPage after the user
   // taps a role card. It sets preferredRole + persists it, then clears the gate.
-  const confirmRoleSelection = useCallback((targetRole: UserRole) => {
-    if (!roles.includes(targetRole)) return;
-    setPreferredRole(targetRole);
-    setPendingRoleSelection(false);
-    try {
-      window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, targetRole);
-    } catch {
-      // ignore storage errors
-    }
-  }, [roles]);
-
-  const switchRole = useCallback(async (targetRole: UserRole) => {
-    if (!roles.includes(targetRole)) {
-      return { error: new Error('Role not assigned to user') };
-    }
-
-    try {
-      if (user) {
-        await supabase.rpc('log_security_event', {
-          p_user_id: user.id,
-          p_event_type: 'role_switch',
-          p_user_agent: navigator.userAgent,
-          p_details: { from: primaryRole, to: targetRole },
-          p_severity: 'info'
-        });
-      }
-
+  const confirmRoleSelection = useCallback(
+    (targetRole: UserRole) => {
+      if (!roles.includes(targetRole)) return;
       setPreferredRole(targetRole);
+      setPendingRoleSelection(false);
       try {
         window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, targetRole);
       } catch {
-        // Ignore storage errors
+        // ignore storage errors
+      }
+    },
+    [roles]
+  );
+
+  const switchRole = useCallback(
+    async (targetRole: UserRole) => {
+      if (!roles.includes(targetRole)) {
+        return { error: new Error('Role not assigned to user') };
       }
 
-      return { error: null };
-    } catch (error) {
-      console.error('Error switching role:', sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error'));
-      return { error: error as Error };
-    }
-  }, [primaryRole, roles, user]);
+      try {
+        if (user) {
+          await supabase.rpc('log_security_event', {
+            p_user_id: user.id,
+            p_event_type: 'role_switch',
+            p_user_agent: navigator.userAgent,
+            p_details: { from: primaryRole, to: targetRole },
+            p_severity: 'info',
+          });
+        }
+
+        setPreferredRole(targetRole);
+        try {
+          window.localStorage.setItem(PREFERRED_ROLE_STORAGE_KEY, targetRole);
+        } catch {
+          // Ignore storage errors
+        }
+
+        return { error: null };
+      } catch (error) {
+        console.error(
+          'Error switching role:',
+          sanitizeLogMessage(error instanceof Error ? error.message : 'Unknown error')
+        );
+        return { error: error as Error };
+      }
+    },
+    [primaryRole, roles, user]
+  );
 
   useEffect(() => {
     if (user) {
@@ -851,11 +888,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return biometricAuthManager.isBiometricAvailable();
   }, []);
 
-  const registerBiometric = useCallback(async (userName: string, userDisplayName: string) => {
-    const currentUserId = user?.id;
-    if (!currentUserId) return false;
-    return await biometricAuthManager.registerBiometricCredential(currentUserId, userName, userDisplayName);
-  }, [user]);
+  const registerBiometric = useCallback(
+    async (userName: string, userDisplayName: string) => {
+      const currentUserId = user?.id;
+      if (!currentUserId) return false;
+      return await biometricAuthManager.registerBiometricCredential(
+        currentUserId,
+        userName,
+        userDisplayName
+      );
+    },
+    [user]
+  );
 
   const authenticateWithBiometric = useCallback(async () => {
     const currentUserId = user?.id;
@@ -870,9 +914,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // Password policy methods
-  const validatePassword = useCallback(async (password: string) => {
-    return await passwordPolicyManager.validatePassword(password, hospital?.id || undefined);
-  }, [hospital?.id]);
+  const validatePassword = useCallback(
+    async (password: string) => {
+      return await passwordPolicyManager.validatePassword(password, hospital?.id || undefined);
+    },
+    [hospital?.id]
+  );
 
   const generateSecurePassword = useCallback(() => {
     return passwordPolicyManager.generateSecurePassword();

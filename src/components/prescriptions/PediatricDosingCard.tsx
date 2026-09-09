@@ -3,7 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Baby, AlertTriangle, Calculator, Info } from 'lucide-react';
 import { PediatricDosing, DoseCalculation } from '@/types/pharmacy';
@@ -22,7 +28,7 @@ interface PediatricDosingCardProps {
 export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
   drugName,
   patientData,
-  onDoseCalculated
+  onDoseCalculated,
 }) => {
   const [pediatricProtocols, setPediatricProtocols] = useState<PediatricDosing[]>([]);
   const [selectedProtocol, setSelectedProtocol] = useState<PediatricDosing | null>(null);
@@ -95,13 +101,43 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
     const { weight_kg, age_months } = patientData;
 
     // Check age and weight minimums
-    if (protocol.weight_based_dose.min_age_months && age_months < protocol.weight_based_dose.min_age_months) {
+    if (
+      protocol.weight_based_dose.min_age_months &&
+      age_months < protocol.weight_based_dose.min_age_months
+    ) {
       return null;
     }
 
-    if (protocol.weight_based_dose.min_weight_kg && weight_kg < protocol.weight_based_dose.min_weight_kg) {
+    if (
+      protocol.weight_based_dose.min_weight_kg &&
+      weight_kg < protocol.weight_based_dose.min_weight_kg
+    ) {
       return null;
     }
+
+    const frequencyMap: Record<string, number> = {
+      q4h: 6,
+      'q4-6h': 5,
+      q6h: 4,
+      'q6-8h': 3,
+      q8h: 3,
+      BID: 2,
+      TID: 3,
+      QID: 4,
+      daily: 1,
+    };
+    const dosesPerDay = frequencyMap[protocol.frequency] || 1;
+
+    // Calculate raw weight-based dose before capping
+    const rawSingleDose =
+      Math.round(weight_kg * protocol.weight_based_dose.dose_mg_per_kg * 10) / 10;
+    const rawDailyDose = rawSingleDose * dosesPerDay;
+    const singleLimit = protocol.max_dose.max_single_dose_mg;
+    const dailyLimit = protocol.max_dose.max_daily_dose_mg;
+    const isOverLimitHardStop = Boolean(
+      (singleLimit && rawSingleDose > singleLimit * 2) ||
+      (dailyLimit && rawDailyDose > dailyLimit * 2)
+    );
 
     // Call validated AAP dosing engine
     const isHighDose = protocol.id.includes('high-dose');
@@ -111,20 +147,16 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
       ageMonths: age_months,
       frequency: protocol.frequency,
       isHighDoseProtocol: isHighDose,
+      prescribedDoseMg: rawSingleDose,
     });
 
-    const frequencyMap: Record<string, number> = {
-      'q4h': 6,
-      'q4-6h': 5,
-      'q6h': 4,
-      'q6-8h': 3,
-      'q8h': 3,
-      'BID': 2,
-      'TID': 3,
-      'QID': 4,
-      'daily': 1,
-    };
-    const dosesPerDay = frequencyMap[protocol.frequency] || 1;
+    const isHardStop = Boolean(validation.isHardStop || isOverLimitHardStop);
+    const warnings = [...validation.warnings];
+    if (isHardStop && !warnings.some((w) => w.includes('CRITICAL SAFETY STOP'))) {
+      warnings.push(
+        `🚨 CRITICAL SAFETY STOP: Weight-based dose (${Math.round(rawSingleDose)} mg single / ${Math.round(rawDailyDose)} mg/day) exceeds 200% of maximum safety threshold. Prescribing blocked.`
+      );
+    }
 
     const result: DoseCalculation = {
       patient_weight_kg: weight_kg,
@@ -136,20 +168,21 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
         frequency: protocol.frequency,
       },
       max_dose: {
-        amount: validation.recommendedDailyDoseMg || (validation.recommendedSingleDoseMg * dosesPerDay),
+        amount:
+          validation.recommendedDailyDoseMg || validation.recommendedSingleDoseMg * dosesPerDay,
         unit: 'mg',
         period: 'daily',
       },
       adjustments_applied: validation.adjustmentsApplied,
-      warnings: validation.warnings,
-      isHardStop: validation.isHardStop,
+      warnings,
+      isHardStop,
     };
 
     return result;
   };
 
   const handleProtocolSelect = (protocolId: string) => {
-    const protocol = pediatricProtocols.find(p => p.id === protocolId);
+    const protocol = pediatricProtocols.find((p) => p.id === protocolId);
     if (protocol) {
       setSelectedProtocol(protocol);
       const calc = calculatePediatricDose(protocol);
@@ -163,9 +196,9 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
   useEffect(() => {
     const protocols = getPediatricProtocols(drugName);
     const ageGroup = getAgeGroup(patientData.age_months);
-    const filteredProtocols = protocols.filter(p => p.age_group === ageGroup);
+    const filteredProtocols = protocols.filter((p) => p.age_group === ageGroup);
     setPediatricProtocols(filteredProtocols);
-    
+
     if (filteredProtocols.length > 0) {
       const initialProtocol = filteredProtocols[0];
       setSelectedProtocol(initialProtocol);
@@ -196,7 +229,9 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
           </div>
           <div>
             <Label className="text-xs text-blue-600">Age</Label>
-            <p className="font-semibold">{patientData.age_years} years ({patientData.age_months} months)</p>
+            <p className="font-semibold">
+              {patientData.age_years} years ({patientData.age_months} months)
+            </p>
           </div>
           <div>
             <Label className="text-xs text-blue-600">Age Group</Label>
@@ -225,7 +260,8 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
               <SelectContent>
                 {pediatricProtocols.map((protocol) => (
                   <SelectItem key={protocol.id} value={protocol.id}>
-                    {protocol.weight_based_dose.dose_mg_per_kg} mg/kg {protocol.frequency} ({protocol.route})
+                    {protocol.weight_based_dose.dose_mg_per_kg} mg/kg {protocol.frequency} (
+                    {protocol.route})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -238,12 +274,18 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              <strong>Eligibility:</strong> 
+              <strong>Eligibility:</strong>
               {selectedProtocol.weight_based_dose.min_age_months && (
-                <span> Minimum age: {selectedProtocol.weight_based_dose.min_age_months} months</span>
+                <span>
+                  {' '}
+                  Minimum age: {selectedProtocol.weight_based_dose.min_age_months} months
+                </span>
               )}
               {selectedProtocol.weight_based_dose.min_weight_kg && (
-                <span> | Minimum weight: {selectedProtocol.weight_based_dose.min_weight_kg} kg</span>
+                <span>
+                  {' '}
+                  | Minimum weight: {selectedProtocol.weight_based_dose.min_weight_kg} kg
+                </span>
               )}
             </AlertDescription>
           </Alert>
@@ -253,11 +295,15 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
         {calculation && selectedProtocol && (
           <div className="space-y-3">
             {calculation.isHardStop && (
-              <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 text-red-950">
+              <Alert
+                variant="destructive"
+                className="border-2 border-red-600 bg-red-50 text-red-950"
+              >
                 <AlertTriangle className="h-5 w-5 text-red-600" />
                 <AlertDescription className="font-semibold">
-                  ⛔ HARD STOP: Excessive dosage detected (&gt;200% maximum safe ceiling). Automatic prescribing is blocked.
-                  Please consult an attending pediatrician or clinical pharmacist immediately.
+                  ⛔ HARD STOP: Excessive dosage detected (&gt;200% maximum safe ceiling). Automatic
+                  prescribing is blocked. Please consult an attending pediatrician or clinical
+                  pharmacist immediately.
                 </AlertDescription>
               </Alert>
             )}
@@ -265,15 +311,18 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 border rounded-lg">
                 <h4 className="font-medium text-sm text-gray-600 mb-2">Calculated Dose</h4>
-                <p className={`text-xl font-bold ${calculation.isHardStop ? 'text-red-600' : 'text-green-600'}`}>
+                <p
+                  className={`text-xl font-bold ${calculation.isHardStop ? 'text-red-600' : 'text-green-600'}`}
+                >
                   {calculation.calculated_dose.amount} mg
                 </p>
                 <p className="text-sm text-gray-500">{calculation.calculated_dose.frequency}</p>
                 <p className="text-xs text-gray-400">
-                  ({selectedProtocol.weight_based_dose.dose_mg_per_kg} mg/kg × {patientData.weight_kg} kg)
+                  ({selectedProtocol.weight_based_dose.dose_mg_per_kg} mg/kg ×{' '}
+                  {patientData.weight_kg} kg)
                 </p>
               </div>
-              
+
               {calculation.max_dose && (
                 <div className="p-3 border rounded-lg">
                   <h4 className="font-medium text-sm text-gray-600 mb-2">Daily Total</h4>
@@ -306,7 +355,10 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
                 <h4 className="font-medium text-sm">Adjustments Applied:</h4>
                 <ul className="space-y-1">
                   {calculation.adjustments_applied.map((adjustment) => (
-                    <li key={adjustment} className="text-sm text-orange-700 flex items-center gap-2">
+                    <li
+                      key={adjustment}
+                      className="text-sm text-orange-700 flex items-center gap-2"
+                    >
                       <div className="w-2 h-2 bg-orange-500 rounded-full" />
                       {adjustment}
                     </li>
@@ -345,7 +397,7 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
 
         {/* Recalculate Button */}
         {selectedProtocol && (
-          <Button 
+          <Button
             onClick={() => {
               const calc = calculatePediatricDose(selectedProtocol);
               setCalculation(calc);
