@@ -61,7 +61,79 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const parsed = labCheckSchema.safeParse(await req.json().catch(() => null));
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody) {
+      return json(400, { error: "Missing request body" });
+    }
+
+    // ── Action: Doctor Acknowledgment (Halts Escalation) ──
+    if (rawBody.action === "acknowledge") {
+      const alertId = rawBody.alertId;
+      if (!alertId) return json(400, { error: "Missing alertId for acknowledgment" });
+
+      const now = new Date().toISOString();
+      const { data: updated, error: ackErr } = await supabase
+        .from("lab_alert_escalations")
+        .update({ status: "acknowledged", acknowledged_at: now, acknowledged_by: actor!.userId })
+        .eq("alert_id", alertId)
+        .eq("hospital_id", actor!.hospitalId)
+        .select();
+
+      if (ackErr) {
+        return json(500, { error: "Failed to acknowledge escalation queue", details: ackErr.message });
+      }
+
+      await supabase
+        .from("critical_lab_alerts")
+        .update({ status: "acknowledged", acknowledged_by: actor!.userId, acknowledged_at: now })
+        .eq("id", alertId)
+        .eq("hospital_id", actor!.hospitalId);
+
+      return json(200, {
+        success: true,
+        message: "Alert acknowledged, escalations halted",
+        count: updated?.length || 0,
+      });
+    }
+
+    // ── Action: Process Due Escalations (Worker Runner) ──
+    if (rawBody.action === "process_escalations") {
+      const now = new Date().toISOString();
+      const { data: pendingEscalations, error: fetchErr } = await supabase
+        .from("lab_alert_escalations")
+        .select("*")
+        .eq("hospital_id", actor!.hospitalId)
+        .eq("status", "pending")
+        .lte("scheduled_for", now);
+
+      if (fetchErr) {
+        return json(500, { error: "Failed to fetch pending escalations", details: fetchErr.message });
+      }
+
+      const processed = [];
+      for (const esc of (pendingEscalations || [])) {
+        await supabase
+          .from("lab_alert_escalations")
+          .update({ status: "escalated", processed_at: now })
+          .eq("id", esc.id);
+
+        if (esc.escalation_level === "on_call") {
+          await scheduleEscalation(
+            supabase,
+            esc.alert_id,
+            esc.hospital_id,
+            null,
+            "er",
+            5 * 60 * 1000
+          );
+        }
+        processed.push({ id: esc.id, alert_id: esc.alert_id, level: esc.escalation_level });
+      }
+
+      return json(200, { success: true, processedCount: processed.length, processed });
+    }
+
+    const parsed = labCheckSchema.safeParse(rawBody);
     if (!parsed.success) {
       return json(400, {
         error: "Validation failed",
@@ -207,11 +279,11 @@ serve(async (req) => {
 async function checkCriticalValue(
   supabase: any,
   labResult: any
-): Promise<{ severity: string; isCritical: boolean }> {
+): Promise<{ severity: string; isCritical: boolean; reason?: string }> {
   try {
-    // 1. Resolve age group from patient demographics
-    let ageGroup = "adult";
-    if (labResult.patient_id) {
+    // 1. Resolve age group from patient demographics or direct parameter
+    let ageGroup = labResult.age_group || "adult";
+    if (!labResult.age_group && labResult.patient_id) {
       const { data: patient } = await supabase
         .from("patients")
         .select("date_of_birth")
@@ -220,14 +292,20 @@ async function checkCriticalValue(
 
       if (patient?.date_of_birth) {
         const birthDate = new Date(patient.date_of_birth);
-        const ageYears = (Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-        if (ageYears < 1) ageGroup = "infant";
+        const ageMs = Date.now() - birthDate.getTime();
+        const ageDays = ageMs / (24 * 60 * 60 * 1000);
+        const ageYears = ageDays / 365.25;
+
+        if (ageDays < 28) ageGroup = "neonate";
+        else if (ageYears < 1) ageGroup = "infant";
         else if (ageYears < 12) ageGroup = "pediatric";
+        else if (ageYears < 18) ageGroup = "adolescent";
         else if (ageYears >= 65) ageGroup = "geriatric";
+        else ageGroup = "adult";
       }
     }
 
-    // 2. Query critical ranges for resolved age group, falling back to adult
+    // 2. Query critical ranges for resolved age group, falling back to pediatric then adult
     let { data: ranges } = await supabase
       .from("lab_critical_ranges")
       .select("critical_low, critical_high, warning_low, warning_high")
@@ -236,6 +314,18 @@ async function checkCriticalValue(
       .eq("is_active", true)
       .eq("age_group", ageGroup)
       .maybeSingle();
+
+    if (!ranges && (ageGroup === "neonate" || ageGroup === "infant")) {
+      const { data: pedRanges } = await supabase
+        .from("lab_critical_ranges")
+        .select("critical_low, critical_high, warning_low, warning_high")
+        .eq("hospital_id", labResult.hospital_id)
+        .eq("test_code", labResult.test_code)
+        .eq("is_active", true)
+        .eq("age_group", "pediatric")
+        .maybeSingle();
+      if (pedRanges) ranges = pedRanges;
+    }
 
     if (!ranges && ageGroup !== "adult") {
       const { data: fallbackRanges } = await supabase
@@ -251,7 +341,7 @@ async function checkCriticalValue(
 
     if (!ranges) {
       console.warn("No critical ranges configured for test:", labResult.test_code, "— failing closed for physician verification");
-      return { severity: "unverified_review_required", isCritical: true };
+      return { severity: "unverified_review_required", isCritical: true, reason: "Missing reference range - requires immediate manual review" };
     }
 
     const value = parseFloat(labResult.result_value);
@@ -275,7 +365,7 @@ async function checkCriticalValue(
     return { severity: "normal", isCritical: false };
   } catch (e) {
     console.error("Critical value check failed, failing closed:", e);
-    return { severity: "error_review_required", isCritical: true };
+    return { severity: "error_review_required", isCritical: true, reason: "Error during range evaluation - requires clinician review" };
   }
 }
 

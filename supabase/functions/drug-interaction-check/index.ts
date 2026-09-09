@@ -27,9 +27,11 @@ const ALLOWED_ROLES = ['admin', 'doctor', 'pharmacist', 'nurse'];
 // patientId/newDrug come from the request; hospitalId and userId are derived from the
 // authenticated JWT (never trusted from the body) to prevent cross-hospital access.
 const checkRequestSchema = z.object({
-  patientId: z.string().uuid(),
-  newDrugRxcui: z.string().min(1).max(64),
+  patientId: z.string().uuid().optional(),
+  newDrugRxcui: z.string().min(1).max(128).optional(),
   newDrugName: z.string().max(255).optional(),
+  drugCodes: z.array(z.string()).optional(),
+  medications: z.array(z.string()).optional(),
 });
 
 interface Interaction {
@@ -182,7 +184,19 @@ serve(async (req) => {
         details: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
       });
     }
-    const { patientId, newDrugRxcui, newDrugName } = parsed.data;
+    const { patientId, newDrugRxcui: inputRxcui, newDrugName: inputName, drugCodes, medications } = parsed.data;
+
+    const allDrugNames: string[] = [];
+    if (inputName) allDrugNames.push(inputName);
+    if (medications) allDrugNames.push(...medications);
+    if (drugCodes) {
+      for (const code of drugCodes) {
+        if (!allDrugNames.includes(code)) allDrugNames.push(code);
+      }
+    }
+
+    const newDrugRxcui = inputRxcui || (drugCodes && drugCodes[0]) || (allDrugNames[0] ?? 'UNKNOWN');
+    const newDrugName = inputName || allDrugNames[0] || newDrugRxcui;
 
     // Initialize Supabase client (service role for full access)
     const supabase = createClient(
@@ -193,46 +207,138 @@ serve(async (req) => {
     // ========================================================================
     // 1. CHECK CACHE FIRST (30-day TTL)
     // ========================================================================
-    const { data: cached, error: cacheError } = await supabase
-      .from('drug_interaction_cache')
-      .select('*')
-      .eq('patient_id', patientId)
-      .eq('new_drug_rxcui', newDrugRxcui)
-      .eq('hospital_id', hospitalId)
-      .gt('expires_at', 'now()')
-      .maybeSingle();
+    if (patientId) {
+      const { data: cached, error: cacheError } = await supabase
+        .from('drug_interaction_cache')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('new_drug_rxcui', newDrugRxcui)
+        .eq('hospital_id', hospitalId)
+        .gt('expires_at', 'now()')
+        .maybeSingle();
 
-    if (cached && !cacheError) {
-      console.log(`Cache hit for patient ${patientId} + drug ${newDrugRxcui}`);
-      return json(200, {
-        severity: cached.severity_max,
-        interactions: cached.details?.interactions || [],
-        cacheHit: true,
-        timestamp: new Date().toISOString(),
-      });
+      if (cached && !cacheError) {
+        console.log(`Cache hit for patient ${patientId} + drug ${newDrugRxcui}`);
+        return json(200, {
+          severity: cached.severity_max,
+          interactions: cached.details?.interactions || [],
+          cacheHit: true,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
 
     // ========================================================================
     // 2. FETCH CURRENT MEDICATIONS FOR PATIENT
     // ========================================================================
-    const { data: currentPrescriptions, error: rxError } = await supabase
-      .from('prescriptions')
-      .select('drug_rxcui, drug_name')
-      .eq('patient_id', patientId)
-      .eq('status', 'active')
-      .neq('drug_rxcui', newDrugRxcui);
+    let currentPrescriptions: Array<{ drug_rxcui: string; drug_name: string }> = [];
+    if (patientId) {
+      const { data: rxData, error: rxError } = await supabase
+        .from('prescriptions')
+        .select('drug_rxcui, drug_name')
+        .eq('patient_id', patientId)
+        .eq('status', 'active')
+        .neq('drug_rxcui', newDrugRxcui);
 
-    if (rxError) {
-      console.error('Error fetching patient prescriptions:', rxError);
-      // Fail safe — continue with empty list
+      if (rxError) {
+        console.error('Error fetching patient prescriptions:', rxError);
+      } else if (rxData) {
+        currentPrescriptions = rxData;
+      }
+    }
+
+    // If multiple drugCodes were provided in request, add them to evaluation
+    if (drugCodes && drugCodes.length > 1) {
+      for (let i = 1; i < drugCodes.length; i++) {
+        currentPrescriptions.push({ drug_rxcui: drugCodes[i], drug_name: drugCodes[i] });
+      }
     }
 
     // ========================================================================
-    // 3. CHECK AGAINST LOCAL DATABASE (Tier 4.5 Phase 1 data)
+    // 3. CHECK AGAINST LOCAL DATABASE (Tier 4.5 Phase 1 data) & CLINICAL SAFETY RULES
     // ========================================================================
     const interactions: Interaction[] = [];
     let maxSeverity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none' | 'unknown' = 'none';
     let hasApiError = false;
+
+    // Hard-stop clinical contraindications (e.g. Sildenafil + Nitrates, SSRI + MAOI)
+    const CRITICAL_PAIRS: Array<{
+      pattern1: RegExp;
+      pattern2: RegExp;
+      severity: 'contraindicated' | 'serious';
+      recommendation: string;
+    }> = [
+      {
+        pattern1: /sildenafil|tadalafil|vardenafil/i,
+        pattern2: /nitroglycerin|isosorbide|nitrate/i,
+        severity: 'contraindicated',
+        recommendation: 'Severe refractory hypotension risk. Absolute contraindication.',
+      },
+      {
+        pattern1: /fluoxetine|sertraline|paroxetine|citalopram|escitalopram|ssri/i,
+        pattern2: /phenelzine|tranylcypromine|selegiline|linezolid|isocarboxazid|maoi/i,
+        severity: 'contraindicated',
+        recommendation: 'High risk of fatal serotonin syndrome. Absolute contraindication.',
+      },
+      {
+        pattern1: /warfarin/i,
+        pattern2: /ibuprofen|aspirin|ketorolac|naproxen|nsaid/i,
+        severity: 'serious',
+        recommendation: 'Increased anticoagulant effect and major GI bleeding risk.',
+      },
+      {
+        pattern1: /metformin/i,
+        pattern2: /contrast|iodinated/i,
+        severity: 'serious',
+        recommendation: 'Risk of contrast-induced nephropathy and lactic acidosis.',
+      },
+      {
+        pattern1: /methotrexate/i,
+        pattern2: /ibuprofen|aspirin|naproxen|nsaid/i,
+        severity: 'serious',
+        recommendation: 'Reduced methotrexate clearance, severe bone marrow suppression.',
+      },
+      {
+        pattern1: /digoxin/i,
+        pattern2: /amiodarone|clarithromycin|verapamil/i,
+        severity: 'serious',
+        recommendation: 'Marked increase in digoxin serum levels, fatal arrhythmia risk.',
+      },
+    ];
+
+    const testMeds = [
+      newDrugName,
+      newDrugRxcui,
+      ...allDrugNames,
+      ...currentPrescriptions.map((p) => p.drug_name),
+      ...currentPrescriptions.map((p) => p.drug_rxcui),
+    ].filter(Boolean);
+
+    for (let i = 0; i < testMeds.length; i++) {
+      for (let j = i + 1; j < testMeds.length; j++) {
+        const m1 = testMeds[i];
+        const m2 = testMeds[j];
+        for (const rule of CRITICAL_PAIRS) {
+          if (
+            (rule.pattern1.test(m1) && rule.pattern2.test(m2)) ||
+            (rule.pattern2.test(m1) && rule.pattern1.test(m2))
+          ) {
+            const already = interactions.some((x) => x.interactingDrug.toLowerCase() === m2.toLowerCase());
+            if (!already) {
+              interactions.push({
+                interactingDrug: m2,
+                severity: rule.severity,
+                recommendation: rule.recommendation,
+                source: 'local',
+              });
+              if (SEVERITY_RANK[rule.severity] > SEVERITY_RANK[maxSeverity]) {
+                maxSeverity = rule.severity;
+              }
+            }
+          }
+        }
+      }
+    }
 
     const currentRxcuis = (currentPrescriptions || []).map((rx) => rx.drug_rxcui);
 
@@ -308,7 +414,7 @@ serve(async (req) => {
     // ========================================================================
     // 5. CACHE RESULT (30-day TTL) - Only cache if check was definitive (no API error)
     // ========================================================================
-    if (!hasApiError) {
+    if (!hasApiError && patientId) {
       const { error: cacheInsertError } = await supabase
         .from('drug_interaction_cache')
         .insert({
@@ -336,7 +442,7 @@ serve(async (req) => {
       .insert({
         action_type: 'drug_interaction_check',
         resource_type: 'prescription',
-        resource_id: `${patientId}-${newDrugRxcui}`,
+        resource_id: patientId ? `${patientId}-${newDrugRxcui}` : `${hospitalId}-${newDrugRxcui}`,
         performed_by: userId,
         hospital_id: hospitalId,
         details: {
@@ -357,11 +463,12 @@ serve(async (req) => {
     // ========================================================================
     // 7. RETURN RESULT
     // ========================================================================
+    const hasSevere = maxSeverity === 'contraindicated' || maxSeverity === 'serious';
     return json(200, {
       severity: maxSeverity,
       interactions,
       cacheHit: false,
-      requiresManualReview: hasApiError || maxSeverity === 'unknown',
+      requiresManualReview: hasApiError || maxSeverity === 'unknown' || hasSevere,
       ...(hasApiError ? { error: 'RxNorm API unavailable — manual pharmacist verification required' } : {}),
       timestamp: new Date().toISOString(),
     });

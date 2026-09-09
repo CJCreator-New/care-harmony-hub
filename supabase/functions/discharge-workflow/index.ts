@@ -99,10 +99,11 @@ const handler = async (req: Request): Promise<Response> => {
       .from("discharge_workflows")
       .select("*")
       .eq("id", payload.workflowId)
+      .eq("hospital_id", actor.hospitalId)
       .single();
 
     if (workflowError || !workflow) {
-      return new Response(JSON.stringify({ error: "Workflow not found" }), {
+      return new Response(JSON.stringify({ error: "Workflow not found or access denied" }), {
         status: 404,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -252,26 +253,51 @@ async function approveWorkflow(
     [`${currentStep}_approved_by`]: actor.userId,
   };
 
-  const { data: updatedWorkflow, error } = await supabase
-    .from("discharge_workflows")
-    .update({
-      current_step: nextStep,
-      status: nextStatus,
-      last_action_by: actor.userId,
-      last_action_at: now,
-      rejection_reason: null,
-      metadata: nextMetadata,
-    })
-    .eq("id", workflow.id)
-    .eq("current_step", currentStep)
-    .select("*")
-    .single();
+  // Attempt atomic row-locked transition via RPC first (ADR-0003)
+  const { data: rpcWorkflow, error: rpcError } = await supabase.rpc(
+    "transition_discharge_workflow",
+    {
+      p_workflow_id: workflow.id,
+      p_hospital_id: actor.hospitalId,
+      p_expected_step: currentStep,
+      p_next_step: nextStep,
+      p_next_status: nextStatus,
+      p_actor_id: actor.userId,
+      p_rejection_reason: null,
+      p_metadata: nextMetadata,
+    }
+  );
 
-  if (error || !updatedWorkflow) {
-    return new Response(JSON.stringify({ error: "Failed to advance discharge workflow — it may have already been updated by another user" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+  let updatedWorkflow = rpcWorkflow;
+
+  if (rpcError || !updatedWorkflow) {
+    // Fallback to optimistic concurrency with strict hospital and step pinning
+    const { data: directWorkflow, error: directError } = await supabase
+      .from("discharge_workflows")
+      .update({
+        current_step: nextStep,
+        status: nextStatus,
+        last_action_by: actor.userId,
+        last_action_at: now,
+        rejection_reason: null,
+        metadata: nextMetadata,
+      })
+      .eq("id", workflow.id)
+      .eq("hospital_id", actor.hospitalId)
+      .eq("current_step", currentStep)
+      .select("*")
+      .single();
+
+    if (directError || !directWorkflow) {
+      return new Response(
+        JSON.stringify({ error: "Failed to advance discharge workflow — conflict detected or already updated by another user" }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    updatedWorkflow = directWorkflow;
   }
 
   await writeAuditTrail(supabase, updatedWorkflow as DischargeWorkflowRow, actor, {
@@ -329,30 +355,57 @@ async function rejectWorkflow(
   const previousStep = PREVIOUS_STEP[currentStep as keyof typeof PREVIOUS_STEP];
   const now = new Date().toISOString();
 
-  const { data: updatedWorkflow, error } = await supabase
-    .from("discharge_workflows")
-    .update({
-      current_step: previousStep,
-      status: "in_progress",
-      last_action_by: actor.userId,
-      last_action_at: now,
-      rejection_reason: payload.reason,
-      metadata: {
+  const { data: rpcWorkflow, error: rpcError } = await supabase.rpc(
+    "transition_discharge_workflow",
+    {
+      p_workflow_id: workflow.id,
+      p_hospital_id: actor.hospitalId,
+      p_expected_step: currentStep,
+      p_next_step: previousStep,
+      p_next_status: "in_progress",
+      p_actor_id: actor.userId,
+      p_rejection_reason: payload.reason,
+      p_metadata: {
         ...(workflow.metadata || {}),
         [`${currentStep}_rejected_at`]: now,
         [`${currentStep}_rejected_by`]: actor.userId,
       },
-    })
-    .eq("id", workflow.id)
-    .eq("current_step", currentStep)
-    .select("*")
-    .single();
+    }
+  );
 
-  if (error || !updatedWorkflow) {
-    return new Response(JSON.stringify({ error: "Failed to reject discharge workflow — it may have already been updated by another user" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+  let updatedWorkflow = rpcWorkflow;
+
+  if (rpcError || !updatedWorkflow) {
+    const { data: directWorkflow, error: directError } = await supabase
+      .from("discharge_workflows")
+      .update({
+        current_step: previousStep,
+        status: "in_progress",
+        last_action_by: actor.userId,
+        last_action_at: now,
+        rejection_reason: payload.reason,
+        metadata: {
+          ...(workflow.metadata || {}),
+          [`${currentStep}_rejected_at`]: now,
+          [`${currentStep}_rejected_by`]: actor.userId,
+        },
+      })
+      .eq("id", workflow.id)
+      .eq("hospital_id", actor.hospitalId)
+      .eq("current_step", currentStep)
+      .select("*")
+      .single();
+
+    if (directError || !directWorkflow) {
+      return new Response(
+        JSON.stringify({ error: "Failed to reject discharge workflow — conflict detected or already updated by another user" }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    updatedWorkflow = directWorkflow;
   }
 
   await writeAuditTrail(supabase, updatedWorkflow as DischargeWorkflowRow, actor, {
@@ -399,15 +452,19 @@ async function cancelWorkflow(
       last_action_at: new Date().toISOString(),
     })
     .eq("id", workflow.id)
+    .eq("hospital_id", actor.hospitalId)
     .eq("current_step", workflow.current_step)
     .select("*")
     .single();
 
   if (error || !updatedWorkflow) {
-    return new Response(JSON.stringify({ error: "Failed to cancel discharge workflow — it may have already been updated by another user" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({ error: "Failed to cancel discharge workflow — conflict detected or already updated by another user" }),
+      {
+        status: 409,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
   }
 
   await writeAuditTrail(supabase, updatedWorkflow as DischargeWorkflowRow, actor, {

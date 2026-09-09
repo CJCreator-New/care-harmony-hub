@@ -233,7 +233,7 @@ export function extractHospitalContext(req: any): HospitalContext | null {
  * );
  * ```
  */
-export function ensureHospitalContextMiddleware(req: any, reply: any, done: Function): void {
+export function ensureHospitalContextMiddleware(req: any, reply: any, done: (err?: Error) => void): void {
   try {
     const context = extractHospitalContext(req);
     validateHospitalContext(context);

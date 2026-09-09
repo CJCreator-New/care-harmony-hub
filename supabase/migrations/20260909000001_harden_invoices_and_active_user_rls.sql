@@ -129,3 +129,85 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- 5. activity_logs: Append-only immutability and write hospital scoping
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'activity_logs') THEN
+    DROP TRIGGER IF EXISTS trg_activity_logs_immutable ON public.activity_logs;
+    CREATE TRIGGER trg_activity_logs_immutable
+    BEFORE UPDATE OR DELETE ON public.activity_logs
+    FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_log_mutation();
+
+    -- Explicit RLS denies for update and delete
+    DROP POLICY IF EXISTS "activity_logs_no_update" ON public.activity_logs;
+    CREATE POLICY "activity_logs_no_update" ON public.activity_logs
+      FOR UPDATE TO authenticated USING (false) WITH CHECK (false);
+
+    DROP POLICY IF EXISTS "activity_logs_no_delete" ON public.activity_logs;
+    CREATE POLICY "activity_logs_no_delete" ON public.activity_logs
+      FOR DELETE TO authenticated USING (false);
+
+    -- Enforce hospital scoping on write to prevent cross-hospital injection
+    DROP POLICY IF EXISTS "Staff can insert activity logs" ON public.activity_logs;
+    CREATE POLICY "Staff can insert activity logs"
+    ON public.activity_logs
+    FOR INSERT
+    WITH CHECK (
+      user_id = auth.uid()
+      AND (
+        hospital_id IS NULL
+        OR public.user_belongs_to_hospital(auth.uid(), hospital_id)
+      )
+    );
+  END IF;
+END;
+$$;
+
+-- 6. user_roles: Enforce 7 Canonical Roles and Purge super_admin
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'user_roles') THEN
+    -- Ensure any legacy super_admin roles are mapped to admin
+    UPDATE public.user_roles SET role = 'admin' WHERE role = 'super_admin';
+
+    ALTER TABLE public.user_roles 
+      DROP CONSTRAINT IF EXISTS chk_canonical_roles;
+
+    ALTER TABLE public.user_roles
+      ADD CONSTRAINT chk_canonical_roles
+      CHECK (role IN ('admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'));
+  END IF;
+END;
+$$;
+
+-- 7. Ensure audit_logs table exists for ABAC and clinical checks
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID,
+  hospital_id UUID REFERENCES public.hospitals(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id UUID,
+  details JSONB DEFAULT '{}'::jsonb,
+  ip_address TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "audit_logs_hospital_admin_read" ON public.audit_logs
+  FOR SELECT USING (
+    public.user_belongs_to_hospital(auth.uid(), hospital_id)
+    AND EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role = 'admin'
+        AND ur.hospital_id = hospital_id
+    )
+  );
+
+CREATE POLICY "audit_logs_authenticated_insert" ON public.audit_logs
+  FOR INSERT WITH CHECK (
+    user_id IS NULL OR user_id = auth.uid()
+  );

@@ -327,11 +327,13 @@ export class ABACManager {
     conditionsMet: boolean
   ): Promise<void> {
     try {
-      await supabase.from('audit_logs').insert({
+      await supabase.from('activity_logs').insert({
         user_id: request.user.id,
-        action: `access_${request.action}`,
-        resource_type: request.resource.type,
-        resource_id: request.resource.id,
+        hospital_id: request.user.hospitalId,
+        action_type: `access_${request.action}`,
+        entity_type: request.resource.type,
+        entity_id: request.resource.id,
+        status: policy.effect === 'allow' ? 'success' : 'failure',
         details: {
           policy_id: policy.id,
           policy_name: policy.name,
@@ -354,7 +356,6 @@ export class ABACManager {
         },
         ip_address: request.environment.ipAddress,
         user_agent: request.environment.userAgent,
-        hospital_id: request.user.hospitalId
       });
     } catch (error) {
       console.error('Failed to log access decision:', error);

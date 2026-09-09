@@ -36,10 +36,6 @@ export function BusinessIntelligenceDashboard() {
     }
   }, [dateRange, searchParams, setSearchParams]);
 
-  if (isLoading) {
-    return <div className="p-4">Loading analytics...</div>;
-  }
-
   const revenueData = useMemo(() => (
     financialMetrics?.revenue_by_service
       ? Object.entries(financialMetrics.revenue_by_service).map(([service, revenue]) => ({
@@ -57,6 +53,10 @@ export function BusinessIntelligenceDashboard() {
         }))
       : []
   ), [clinicalMetrics?.diagnosis_distribution]);
+
+  if (isLoading) {
+    return <div className="p-4">Loading analytics...</div>;
+  }
 
   return (
     <div className="space-y-6">

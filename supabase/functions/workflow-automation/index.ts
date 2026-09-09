@@ -38,9 +38,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const authErr = await authorize(req, ['admin', 'doctor', 'nurse'])
-  if (authErr) return authErr
-
   try {
     const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse'])
     if (response || !actor) return response ?? new Response('Unauthorized', { status: 401, headers: corsHeaders })
@@ -60,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { action, data } = validation.data;
     const scopedData = {
       ...(data ?? {}),
-      hospital_id: actor.hospitalId ?? data?.hospital_id ?? null,
+      hospital_id: actor.hospitalId,
     };
 
     switch (action) {

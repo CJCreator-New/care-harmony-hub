@@ -214,7 +214,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={(e) => {
                 const next = !sidebarCollapsed;
                 setSidebarCollapsed(next);
-                try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+                try { localStorage.setItem('sidebar-collapsed', String(next)); } catch { /* ignore localStorage error */ }
                 // BUG-24: Blur the button after collapse so focus doesn't accidentally
                 // remain on it — preventing scroll/keyboard events from re-triggering shortcuts.
                 (e.currentTarget as HTMLButtonElement).blur();

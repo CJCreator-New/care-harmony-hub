@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Baby, AlertTriangle, Calculator, Info } from 'lucide-react';
 import { PediatricDosing, DoseCalculation } from '@/types/pharmacy';
+import { AAP_DOSING_RULES, validatePediatricDose } from '@/utils/pediatricDosingEngine';
 
 interface PediatricDosingCardProps {
   drugName: string;
@@ -28,169 +29,59 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
   const [calculation, setCalculation] = useState<DoseCalculation | null>(null);
   const [indication, setIndication] = useState<string>('');
 
-  // Mock pediatric dosing data (in real app, fetch from database)
+  // Derived from validated AAP dosing guidelines in pediatricDosingEngine
   const getPediatricProtocols = (drug: string): PediatricDosing[] => {
-    const mockProtocols: Record<string, PediatricDosing[]> = {
-      'Acetaminophen': [
-        {
-          id: '1',
-          drug_name: 'Acetaminophen',
-          age_group: 'infant',
-          weight_based_dose: {
-            dose_mg_per_kg: 15,
-            min_weight_kg: 3,
-            min_age_months: 2
-          },
-          max_dose: {
-            max_single_dose_mg: 160,
-            max_daily_dose_mg: 800
-          },
-          frequency: 'q4-6h',
-          route: 'PO',
-          special_considerations: [
-            'Do not exceed 5 doses in 24h',
-            'Use weight-based dosing when possible',
-            'Avoid in severe hepatic impairment'
-          ],
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          drug_name: 'Acetaminophen',
-          age_group: 'child',
-          weight_based_dose: {
-            dose_mg_per_kg: 15,
-            min_weight_kg: 10,
-            min_age_months: 24
-          },
-          max_dose: {
-            max_single_dose_mg: 650,
-            max_daily_dose_mg: 3000
-          },
-          frequency: 'q4-6h',
-          route: 'PO',
-          special_considerations: [
-            'Do not exceed 5 doses in 24h',
-            'Check for other acetaminophen-containing products'
-          ],
-          created_at: new Date().toISOString()
-        }
-      ],
-      'Amoxicillin': [
-        {
-          id: '3a',
-          drug_name: 'Amoxicillin',
-          age_group: 'infant',
-          weight_based_dose: {
-            dose_mg_per_kg: 12.5, // Standard AAP dose: 25 mg/kg/day divided BID
-            min_weight_kg: 3,
-            min_age_months: 2
-          },
-          max_dose: {
-            max_single_dose_mg: 500,
-            max_daily_dose_mg: 1000
-          },
-          frequency: 'BID',
-          route: 'PO',
-          special_considerations: [
-            'Standard-dose AAP protocol (25 mg/kg/day divided BID) for mild-to-moderate infections',
-            'Max 500 mg/dose, 1000 mg/day',
-            'Complete full course; monitor for hypersensitivity'
-          ],
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3b',
-          drug_name: 'Amoxicillin',
-          age_group: 'infant',
-          weight_based_dose: {
-            dose_mg_per_kg: 45, // High-dose AAP: 90 mg/kg/day divided BID
-            min_weight_kg: 3,
-            min_age_months: 2
-          },
-          max_dose: {
-            max_single_dose_mg: 1000,
-            max_daily_dose_mg: 2000
-          },
-          frequency: 'BID',
-          route: 'PO',
-          special_considerations: [
-            'High-dose AAP protocol (90 mg/kg/day divided BID) for severe otitis media / resistant S. pneumoniae',
-            'Max single dose 1000 mg, max daily dose 2000 mg',
-            'Complete full course; monitor for allergic reactions'
-          ],
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3c',
-          drug_name: 'Amoxicillin',
-          age_group: 'child',
-          weight_based_dose: {
-            dose_mg_per_kg: 12.5,
-            min_weight_kg: 10,
-            min_age_months: 24
-          },
-          max_dose: {
-            max_single_dose_mg: 500,
-            max_daily_dose_mg: 1000
-          },
-          frequency: 'BID',
-          route: 'PO',
-          special_considerations: [
-            'Standard-dose AAP protocol (25 mg/kg/day divided BID)',
-            'Max 500 mg/dose, 1000 mg/day'
-          ],
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3d',
-          drug_name: 'Amoxicillin',
-          age_group: 'child',
-          weight_based_dose: {
-            dose_mg_per_kg: 45,
-            min_weight_kg: 10,
-            min_age_months: 24
-          },
-          max_dose: {
-            max_single_dose_mg: 1000,
-            max_daily_dose_mg: 2000
-          },
-          frequency: 'BID',
-          route: 'PO',
-          special_considerations: [
-            'High-dose AAP protocol (90 mg/kg/day divided BID) for acute otitis media / resistant pathogens',
-            'Max single dose 1000 mg, max daily dose 2000 mg'
-          ],
-          created_at: new Date().toISOString()
-        }
-      ],
-      'Ibuprofen': [
-        {
-          id: '4',
-          drug_name: 'Ibuprofen',
-          age_group: 'infant',
-          weight_based_dose: {
-            dose_mg_per_kg: 10,
-            min_weight_kg: 5,
-            min_age_months: 6
-          },
-          max_dose: {
-            max_single_dose_mg: 200,
-            max_daily_dose_mg: 800
-          },
-          frequency: 'q6-8h',
-          route: 'PO',
-          special_considerations: [
-            'Avoid in dehydration',
-            'Take with food',
-            'Monitor renal function'
-          ],
-          created_at: new Date().toISOString()
-        }
-      ]
-    };
+    const key = drug.toLowerCase().trim();
+    const matchedKey = Object.keys(AAP_DOSING_RULES).find((k) => key.includes(k));
+    if (!matchedKey) return [];
 
-    return mockProtocols[drug] || [];
+    const rule = AAP_DOSING_RULES[matchedKey];
+    const protocols: PediatricDosing[] = [
+      {
+        id: `${matchedKey}-standard`,
+        drug_name: rule.drugName,
+        age_group: patientData.age_months < 24 ? 'infant' : 'child',
+        weight_based_dose: {
+          dose_mg_per_kg: rule.doseMgPerKg,
+          min_weight_kg: rule.minWeightKg || 3,
+          min_age_months: rule.minAgeMonths || 1,
+        },
+        max_dose: {
+          max_single_dose_mg: rule.maxSingleDoseMg,
+          max_daily_dose_mg: rule.maxDailyDoseMg,
+        },
+        frequency: rule.defaultFrequency,
+        route: 'PO',
+        special_considerations: rule.specialConsiderations,
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    if (rule.highDoseMgPerKg) {
+      protocols.push({
+        id: `${matchedKey}-high-dose`,
+        drug_name: rule.drugName,
+        age_group: patientData.age_months < 24 ? 'infant' : 'child',
+        weight_based_dose: {
+          dose_mg_per_kg: rule.highDoseMgPerKg,
+          min_weight_kg: rule.minWeightKg || 3,
+          min_age_months: rule.minAgeMonths || 1,
+        },
+        max_dose: {
+          max_single_dose_mg: rule.maxSingleDoseMg,
+          max_daily_dose_mg: rule.maxDailyDoseMg,
+        },
+        frequency: rule.defaultFrequency,
+        route: 'PO',
+        special_considerations: [
+          'High-dose AAP protocol for severe infections / resistant pathogens',
+          ...rule.specialConsiderations,
+        ],
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    return protocols;
   };
 
   const getAgeGroup = (ageMonths: number): string => {
@@ -202,20 +93,26 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
 
   const calculatePediatricDose = (protocol: PediatricDosing): DoseCalculation | null => {
     const { weight_kg, age_months } = patientData;
-    
+
     // Check age and weight minimums
     if (protocol.weight_based_dose.min_age_months && age_months < protocol.weight_based_dose.min_age_months) {
       return null;
     }
-    
+
     if (protocol.weight_based_dose.min_weight_kg && weight_kg < protocol.weight_based_dose.min_weight_kg) {
       return null;
     }
 
-    // Calculate raw weight-based dose
-    const rawCalculatedDose = weight_kg * protocol.weight_based_dose.dose_mg_per_kg;
+    // Call validated AAP dosing engine
+    const isHighDose = protocol.id.includes('high-dose');
+    const validation = validatePediatricDose({
+      drugName,
+      weightKg: weight_kg,
+      ageMonths: age_months,
+      frequency: protocol.frequency,
+      isHighDoseProtocol: isHighDose,
+    });
 
-    // Calculate daily dose based on frequency
     const frequencyMap: Record<string, number> = {
       'q4h': 6,
       'q4-6h': 5,
@@ -225,63 +122,27 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
       'BID': 2,
       'TID': 3,
       'QID': 4,
-      'daily': 1
+      'daily': 1,
     };
-
     const dosesPerDay = frequencyMap[protocol.frequency] || 1;
-    const rawDailyDose = rawCalculatedDose * dosesPerDay;
-
-    // Hard Stop Safety Rule: Flag lethal overdose if calculated dose > 2x max limit
-    const singleLimit = protocol.max_dose.max_single_dose_mg;
-    const dailyLimit = protocol.max_dose.max_daily_dose_mg;
-    const isSingleOverdose = Boolean(singleLimit && rawCalculatedDose > singleLimit * 2);
-    const isDailyOverdose = Boolean(dailyLimit && rawDailyDose > dailyLimit * 2);
-    const isHardStop = isSingleOverdose || isDailyOverdose;
-
-    // Apply maximum dose limits
-    let finalDose = rawCalculatedDose;
-    const warnings: string[] = [];
-    const adjustmentsApplied: string[] = [];
-
-    if (isHardStop) {
-      warnings.push(
-        `🚨 CRITICAL SAFETY STOP: Weight-based dose (${Math.round(rawCalculatedDose)} mg single / ${Math.round(rawDailyDose)} mg/day) exceeds 200% of maximum safety threshold. Prescribing blocked. Attending physician and clinical pharmacist consultation mandatory.`
-      );
-      adjustmentsApplied.push('Blocked: Potential lethal overdose (>2x maximum limit)');
-    }
-
-    if (protocol.max_dose.max_single_dose_mg && finalDose > protocol.max_dose.max_single_dose_mg) {
-      finalDose = protocol.max_dose.max_single_dose_mg;
-      warnings.push(`Dose capped at maximum single dose of ${protocol.max_dose.max_single_dose_mg} mg`);
-      adjustmentsApplied.push('Applied maximum single dose limit');
-    }
-
-    const dailyDose = finalDose * dosesPerDay;
-
-    if (protocol.max_dose.max_daily_dose_mg && dailyDose > protocol.max_dose.max_daily_dose_mg) {
-      const adjustedSingleDose = protocol.max_dose.max_daily_dose_mg / dosesPerDay;
-      finalDose = Math.round(adjustedSingleDose * 10) / 10;
-      warnings.push(`Daily dose capped at ${protocol.max_dose.max_daily_dose_mg} mg/day`);
-      adjustmentsApplied.push('Applied maximum daily dose limit');
-    }
 
     const result: DoseCalculation = {
       patient_weight_kg: weight_kg,
       patient_age_years: Math.floor(age_months / 12),
       indication,
       calculated_dose: {
-        amount: Math.round(finalDose * 10) / 10,
+        amount: validation.recommendedSingleDoseMg,
         unit: 'mg',
-        frequency: protocol.frequency
+        frequency: protocol.frequency,
       },
       max_dose: {
-        amount: dailyLimit || (finalDose * dosesPerDay),
+        amount: validation.recommendedDailyDoseMg || (validation.recommendedSingleDoseMg * dosesPerDay),
         unit: 'mg',
-        period: 'daily'
+        period: 'daily',
       },
-      adjustments_applied: adjustmentsApplied,
-      warnings,
-      isHardStop,
+      adjustments_applied: validation.adjustmentsApplied,
+      warnings: validation.warnings,
+      isHardStop: validation.isHardStop,
     };
 
     return result;

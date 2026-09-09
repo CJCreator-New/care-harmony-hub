@@ -184,16 +184,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
   const [selectedInsurance, setSelectedInsurance] = useState('all');
 
   // Authorization Check
-  if (!['billing_manager', 'hospital_admin', 'cfo', 'accounting'].includes(role)) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Unauthorized: Only billing managers and administrators can access this dashboard
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  const isAuthorized = role === 'admin' || role === 'receptionist' || ['billing_manager', 'hospital_admin', 'cfo', 'accounting'].includes(role);
 
   /**
    * QUERY: Fetch overall billing metrics
@@ -213,6 +204,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
       return data as BillingMetrics;
     },
     staleTime: 300000, // 5 minute cache
+    enabled: isAuthorized,
   });
 
   /**
@@ -230,6 +222,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
       if (error && error.code !== 'PGRST116') throw error;
       return (data || { current: 0, age_30_60: 0, age_60_90: 0, age_90_120: 0, age_120_plus: 0 }) as InvoiceAging;
     },
+    enabled: isAuthorized,
   });
 
   /**
@@ -249,6 +242,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
       if (error) throw error;
       return data as ClaimMetrics;
     },
+    enabled: isAuthorized,
   });
 
   /**
@@ -268,6 +262,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
       if (error) throw error;
       return data as DailyCashflow[];
     },
+    enabled: isAuthorized,
   });
 
   /**
@@ -287,6 +282,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
       if (error) throw error;
       return data as ProviderPerformance[];
     },
+    enabled: isAuthorized,
   });
 
   /**
@@ -302,6 +298,7 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
       if (error) throw error;
       return data as InsurancePreAuthStatus[];
     },
+    enabled: isAuthorized,
   });
 
   /**
@@ -313,6 +310,17 @@ export const BillingDashboard: React.FC<BillingDashboardProps> = ({
     overdueDays: metrics ? metrics.average_dso : 0,
     daysToResolveComplaints: claimMetrics ? claimMetrics.average_processing_days : 0,
   }), [metrics, claimMetrics]);
+
+  if (!isAuthorized) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Unauthorized: Only billing managers and administrators can access this dashboard
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   if (metricsLoading) {
     return (

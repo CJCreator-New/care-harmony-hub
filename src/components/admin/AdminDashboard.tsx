@@ -23,16 +23,6 @@ export function AdminDashboard() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Check admin access
-  if (!AdminRBACManager.canAccessAdminPanel(primaryRole ?? undefined)) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>You do not have permission to access the admin panel.</AlertDescription>
-      </Alert>
-    );
-  }
-
   // Check specific permissions
   const permissions = useMemo(() => ({
     canManageUsers: AdminRBACManager.hasPermission(primaryRole ?? undefined, AdminPermission.USER_CREATE),
@@ -53,6 +43,16 @@ export function AdminDashboard() {
     ],
     [],
   );
+
+  // Check admin access
+  if (!AdminRBACManager.canAccessAdminPanel(primaryRole ?? undefined)) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>You do not have permission to access the admin panel.</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">

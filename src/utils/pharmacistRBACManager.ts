@@ -3,31 +3,74 @@ import { supabase } from '@/integrations/supabase/client';
 
 export class PharmacistRBACManager {
   private pharmacistUser: PharmacistUser;
+  private static mockRoleRegistry = new Map<string, string>();
 
   constructor(pharmacistUser: PharmacistUser) {
     this.pharmacistUser = pharmacistUser;
   }
 
-  // Static permission check verifying real pharmacist/admin role
-  static async checkPermission(userId: string, _permission?: string): Promise<boolean> {
-    if (!userId) return false;
-    if (import.meta.env.MODE === 'test' && (userId === 'default-pharmacist' || userId.startsWith('test-') || userId.startsWith('mock-'))) {
-      return true;
-    }
-    try {
-      const { data: userRole, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .in('role', ['pharmacist', 'admin'])
-        .maybeSingle();
-
-      if (error || !userRole) return false;
-      return true;
-    } catch {
-      return false;
+  static setMockUserRoleForTesting(userId: string, role: string) {
+    if (import.meta.env.MODE === 'test') {
+      this.mockRoleRegistry.set(userId, role);
     }
   }
+
+  static clearMockRolesForTesting() {
+    this.mockRoleRegistry.clear();
+  }
+
+  // Static permission check verifying real pharmacist/admin role and valid permissions
+  static async checkPermission(userId: string, permission?: string): Promise<boolean> {
+    if (!userId) return false;
+
+    let role: string | null = null;
+    if (import.meta.env.MODE === 'test' && this.mockRoleRegistry.has(userId)) {
+      role = this.mockRoleRegistry.get(userId) || null;
+    } else {
+      try {
+        const { data: userRole, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (error || !userRole) return false;
+        role = userRole.role;
+      } catch {
+        return false;
+      }
+    }
+
+    // Only pharmacist and admin have access
+    if (role !== 'pharmacist' && role !== 'admin') {
+      return false;
+    }
+
+    // If a specific permission is queried, verify against pharmacist permissions
+    if (permission) {
+      // Admin has full oversight
+      if (role === 'admin') return true;
+
+      // Check against valid PharmacistPermission enum values
+      const validPermissions = Object.values(PharmacistPermission).map((p) => p.toLowerCase());
+      const normalizedPermission = permission.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const isValid = validPermissions.some(
+        (vp) => vp === normalizedPermission || normalizedPermission.includes(vp) || vp.includes(normalizedPermission)
+      );
+      if (!isValid) return false;
+    }
+
+    return true;
+  }
+
+  static async canDispenseMedication(userId: string): Promise<boolean> {
+    return this.checkPermission(userId, PharmacistPermission.DISPENSING_PROCESS);
+  }
+
+  static async canVerifyPrescription(userId: string): Promise<boolean> {
+    return this.checkPermission(userId, PharmacistPermission.PRESCRIPTION_VERIFY);
+  }
+
 
   // Permission checking
   hasPermission(permission: PharmacistPermission): boolean {

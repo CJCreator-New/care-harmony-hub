@@ -15,21 +15,29 @@ export const useTwoFactorAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [setupData, setSetupData] = useState<TwoFactorSetup | null>(null);
 
-  // Generate a random secret (base32 encoded)
+  // Generate a cryptographically secure random secret (base32 encoded)
   const generateSecret = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    const randomBytes = new Uint8Array(32);
+    window.crypto.getRandomValues(randomBytes);
     let secret = '';
     for (let i = 0; i < 32; i++) {
-      secret += chars[Math.floor(Math.random() * chars.length)];
+      secret += chars[randomBytes[i] % chars.length];
     }
     return secret;
   };
 
-  // Generate backup codes
+  // Generate cryptographically secure backup codes
   const generateBackupCodes = () => {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const codes: string[] = [];
     for (let i = 0; i < 8; i++) {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const randomBytes = new Uint8Array(6);
+      window.crypto.getRandomValues(randomBytes);
+      let code = '';
+      for (let j = 0; j < 6; j++) {
+        code += chars[randomBytes[j] % chars.length];
+      }
       codes.push(code);
     }
     return codes;
@@ -76,28 +84,38 @@ export const useTwoFactorAuth = () => {
 
     setIsLoading(true);
     try {
-      // In a real implementation, you would verify the TOTP code server-side
-      // For now, we'll just save the secret and enable 2FA
-      
-      // Check if code is 6 digits
+      // 1. Check if code is 6 digits
       if (!/^\d{6}$/.test(code)) {
         toast.error('Please enter a valid 6-digit code');
         return false;
       }
 
-      const { data, error: storeError } = await supabase.functions.invoke('store-2fa-secret', {
+      // 2. Stage the secret securely via backend
+      const { data: storeData, error: storeError } = await supabase.functions.invoke('store-2fa-secret', {
         body: {
           secret: setupData.secret,
           backupCodes: setupData.backupCodes,
         },
       });
 
-      if (storeError) {
-        throw storeError;
+      if (storeError || !storeData?.success) {
+        throw new Error(storeData?.error || storeError?.message || 'Failed to stage 2FA secret');
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to enable 2FA');
+      // 3. Cryptographically verify the submitted TOTP code with the server
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-totp', {
+        body: { code },
+      });
+
+      if (verifyError || !verifyData?.success) {
+        // Rollback staged secret on verification failure
+        await supabase
+          .from('two_factor_secrets')
+          .delete()
+          .eq('user_id', user.id);
+
+        toast.error(verifyData?.error || 'Invalid 2FA code. Verification failed.');
+        return false;
       }
 
       toast.success('Two-factor authentication enabled successfully');
@@ -105,7 +123,7 @@ export const useTwoFactorAuth = () => {
       return true;
     } catch (error) {
       console.error('Error enabling 2FA:', error);
-      toast.error('Failed to enable 2FA');
+      toast.error(error instanceof Error ? error.message : 'Failed to enable 2FA');
       return false;
     } finally {
       setIsLoading(false);

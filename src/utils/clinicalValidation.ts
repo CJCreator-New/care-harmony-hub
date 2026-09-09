@@ -290,8 +290,9 @@ function normalizeAllergyTerm(allergy: string): string {
 export function checkDrugAllergyConflict(
   drugName: string,
   allergyList: string[]
-): { safe: boolean; conflictingAllergy?: string } {
+): { safe: boolean; hasConflict: boolean; conflictingAllergy?: string; conflicts: string[] } {
   const normalizedDrug = drugName.toLowerCase().trim();
+  const conflicts: string[] = [];
 
   for (const allergy of allergyList) {
     const rawAllergyLower = allergy.toLowerCase().trim();
@@ -300,7 +301,8 @@ export function checkDrugAllergyConflict(
     // 1. Direct name match (e.g. allergy is "amoxicillin" and prescribed drug is "amoxicillin 500mg")
     const cleanedAllergy = normalizeAllergyTerm(allergy);
     if (cleanedAllergy.length > 2 && (normalizedDrug.includes(cleanedAllergy) || cleanedAllergy.includes(normalizedDrug))) {
-      return { safe: false, conflictingAllergy: allergy };
+      conflicts.push(allergy);
+      continue;
     }
 
     // 2. Class cross-reactivity match
@@ -311,12 +313,18 @@ export function checkDrugAllergyConflict(
     if (classKey) {
       const contraDrugs = ALLERGEN_CLASS_MAP[classKey] || [];
       if (contraDrugs.some((d) => normalizedDrug.includes(d))) {
-        return { safe: false, conflictingAllergy: allergy };
+        conflicts.push(allergy);
       }
     }
   }
 
-  return { safe: true };
+  const hasConflict = conflicts.length > 0;
+  return {
+    safe: !hasConflict,
+    hasConflict,
+    conflictingAllergy: conflicts[0],
+    conflicts,
+  };
 }
 
 // ─── Clinical Invariant Guards ───────────────────────────────────────────────

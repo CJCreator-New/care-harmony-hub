@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 
 interface LowStockMedication {
   id: string;
@@ -22,7 +22,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'pharmacist']);
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'pharmacist']);
   if (authError) return authError;
 
   try {
@@ -31,9 +31,9 @@ const handler = async (req: Request): Promise<Response> => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Checking for low stock medications...');
+    console.log(`Checking for low stock medications in hospital ${actor!.hospitalId}...`);
 
-    // Get all active medications that are below minimum stock
+    // Get active medications strictly for the actor's hospital
     const { data: medications, error: medError } = await supabase
       .from('medications')
       .select(`
@@ -46,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
         manufacturer
       `)
       .eq('is_active', true)
-      .lt('current_stock', supabase.rpc as any);
+      .eq('hospital_id', actor!.hospitalId);
 
     if (medError) {
       console.error('Error fetching medications:', medError);

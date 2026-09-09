@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
 import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -27,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'receptionist']);
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'receptionist']);
   if (authError) return authError;
 
   try {
@@ -46,13 +46,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     switch (action) {
       case 'verify_eligibility':
-        return await verifyInsuranceEligibility(supabase, data);
+        return await verifyInsuranceEligibility(supabase, data, actor!);
       case 'submit_claim':
-        return await submitInsuranceClaim(supabase, data);
+        return await submitInsuranceClaim(supabase, data, actor!);
       case 'check_claim_status':
-        return await checkClaimStatus(supabase, data);
+        return await checkClaimStatus(supabase, data, actor!);
       case 'process_payment':
-        return await processInsurancePayment(supabase, data);
+        return await processInsurancePayment(supabase, data, actor!);
       default:
         throw new Error('Invalid action');
     }
@@ -64,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function verifyInsuranceEligibility(supabase: any, { patient_id, policy_number, hospital_id }: any) {
+async function verifyInsuranceEligibility(supabase: any, { patient_id, policy_number }: any, actor: any) {
   // Mock insurance verification - in production, integrate with actual insurance APIs
   const eligibilityResponse = {
     eligible: true,
@@ -77,12 +77,12 @@ async function verifyInsuranceEligibility(supabase: any, { patient_id, policy_nu
     prior_authorization_required: false,
   };
 
-  // Store verification result
+  // Store verification result strictly pinned to actor's hospital
   const { error } = await supabase
     .from('insurance_verifications')
     .insert({
       patient_id,
-      hospital_id: hospital_id ?? null,
+      hospital_id: actor.hospitalId,
       policy_number,
       verification_date: new Date().toISOString(),
       eligible: eligibilityResponse.eligible,
@@ -97,7 +97,7 @@ async function verifyInsuranceEligibility(supabase: any, { patient_id, policy_nu
   );
 }
 
-async function submitInsuranceClaim(supabase: any, claim: InsuranceClaim) {
+async function submitInsuranceClaim(supabase: any, claim: InsuranceClaim, actor: any) {
   const claimId = crypto.randomUUID();
   
   // Generate EDI 837 format (simplified)
@@ -118,11 +118,12 @@ async function submitInsuranceClaim(supabase: any, claim: InsuranceClaim) {
     total_charge: claim.total_amount,
   };
 
-  // Store claim in database
+  // Store claim in database pinned to actor's hospital
   const { error } = await supabase
     .from('insurance_claims')
     .insert({
       id: claimId,
+      hospital_id: actor.hospitalId,
       patient_id: claim.patient_id,
       policy_number: claim.policy_number,
       provider_name: claim.provider_name,
@@ -151,14 +152,20 @@ async function submitInsuranceClaim(supabase: any, claim: InsuranceClaim) {
   );
 }
 
-async function checkClaimStatus(supabase: any, { claim_id }: any) {
+async function checkClaimStatus(supabase: any, { claim_id }: any, actor: any) {
   const { data: claim, error } = await supabase
     .from('insurance_claims')
     .select('*')
     .eq('id', claim_id)
+    .eq('hospital_id', actor.hospitalId)
     .single();
 
-  if (error) throw error;
+  if (error || !claim) {
+    return new Response(JSON.stringify({ error: 'Claim not found in actor hospital scope' }), {
+      status: 404,
+      headers: { "Content-Type": "application/json", ...defaultCorsHeaders }
+    });
+  }
 
   // Mock status check - in production, query insurance API
   const statusResponse = {
@@ -180,7 +187,8 @@ async function checkClaimStatus(supabase: any, { claim_id }: any) {
       approved_amount: statusResponse.approved_amount,
       patient_responsibility: statusResponse.patient_responsibility,
     })
-    .eq('id', claim_id);
+    .eq('id', claim_id)
+    .eq('hospital_id', actor.hospitalId);
 
   return new Response(
     JSON.stringify(statusResponse),
@@ -188,7 +196,22 @@ async function checkClaimStatus(supabase: any, { claim_id }: any) {
   );
 }
 
-async function processInsurancePayment(supabase: any, { claim_id, payment_amount }: any) {
+async function processInsurancePayment(supabase: any, { claim_id, payment_amount }: any, actor: any) {
+  // Ensure claim belongs to actor hospital
+  const { data: claim, error: claimErr } = await supabase
+    .from('insurance_claims')
+    .select('id')
+    .eq('id', claim_id)
+    .eq('hospital_id', actor.hospitalId)
+    .maybeSingle();
+
+  if (claimErr || !claim) {
+    return new Response(JSON.stringify({ error: 'Claim not found in actor hospital scope' }), {
+      status: 404,
+      headers: { "Content-Type": "application/json", ...defaultCorsHeaders }
+    });
+  }
+
   const paymentId = crypto.randomUUID();
   
   // Record insurance payment

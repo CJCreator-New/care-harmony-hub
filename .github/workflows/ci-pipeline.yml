@@ -50,7 +50,7 @@ jobs:
         run: npm run type-check
 
       - name: Run linter
-        run: npm run lint -- --format json > lint-report.json || true
+        run: npm run lint -- --format json > lint-report.json
 
       - name: Run unit tests
         run: npm run test:unit -- --coverage --reporter=json --outputFile=coverage.json

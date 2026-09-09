@@ -253,7 +253,7 @@ describe('RLS Policy Audit - Hospital Scope Enforcement', () => {
 
     it('all RLS policies should use hospital_id from auth.jwt()', () => {
       // Every policy uses: USING (hospital_id = auth.jwt()->'hospital_id'::text)
-      const policyStructure = 'auth.jwt()->' hospital_id'::text';
+      const policyStructure = "auth.jwt()->'hospital_id'::text";
       expect(policyStructure).toBeDefined();
     });
 

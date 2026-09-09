@@ -107,14 +107,10 @@ export function useEdgeCaseResilience() {
           setTimeout(() => reject(new Error('Mutation timeout')), timeout)
         );
 
-        try {
-          result = await Promise.race([
-            retryWithBackoff(fn, { maxAttempts, ...retryOptions }),
-            timeoutPromise,
-          ]);
-        } catch (err) {
-          throw err;
-        }
+        result = await Promise.race([
+          retryWithBackoff(fn, { maxAttempts, ...retryOptions }),
+          timeoutPromise,
+        ]);
 
         // Track successful submission
         idempotencyTracker.track(key, { success: true, data: result });

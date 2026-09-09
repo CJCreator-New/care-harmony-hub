@@ -179,7 +179,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PermissionCategory.VITALS_READ,
     PermissionCategory.VITALS_WRITE,
     PermissionCategory.PHARMACY_READ,
-    PermissionCategory.PHARMACY_DISPENSE,
     PermissionCategory.LAB_READ,
     PermissionCategory.INVENTORY_READ,
     PermissionCategory.SETTINGS_READ,

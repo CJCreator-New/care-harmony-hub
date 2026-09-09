@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { authorize } from '../_shared/authorize.ts'
+import { getAuthorizedActor } from '../_shared/authorize.ts'
 import { validateRequest } from '../_shared/validation.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
@@ -17,7 +17,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse'])
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse'])
   if (authError) return authError
 
   try {
@@ -33,7 +33,22 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const { patient_id, hospital_id } = validation.data;
+    const { patient_id } = validation.data;
+
+    // Verify patient belongs strictly to caller's hospital
+    const { data: patient, error: patientErr } = await supabaseClient
+      .from('patients')
+      .select('id')
+      .eq('id', patient_id)
+      .eq('hospital_id', actor!.hospitalId)
+      .maybeSingle();
+
+    if (patientErr || !patient) {
+      return new Response(JSON.stringify({ error: "Forbidden: patient not found in caller hospital scope" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 1. Fetch latest 5 readings for trend analysis
     const { data: vitals, error: vitalsError } = await supabaseClient

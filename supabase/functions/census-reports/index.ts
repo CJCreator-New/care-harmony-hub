@@ -1,18 +1,18 @@
 // supabase/functions/census-reports/index.ts
 // Ward Census Report — server-side aggregation offloaded from the SPA.
-// Roles: admin, doctor, nurse, super_admin
+// Roles: admin, doctor, nurse
 // Rate limit: 30 req / 60s (analytics preset)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest, validationErrorResponse } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const requestSchema = z.object({
-  hospital_id: z.string().uuid(),
+  hospital_id: z.string().uuid().optional(),
   date:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // YYYY-MM-DD, defaults to today
   view:        z.enum(['daily', 'weekly', 'monthly']).optional().default('daily'),
 });
@@ -24,13 +24,22 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse']);
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse']);
   if (authError) return authError;
 
   const validation = await validateRequest(req, requestSchema);
   if (!validation.success) return validationErrorResponse(validation.error);
 
-  const { hospital_id, date, view } = validation.data;
+  // Pin hospital_id strictly to the authenticated actor's hospital context
+  if (validation.data.hospital_id && validation.data.hospital_id !== actor!.hospitalId) {
+    return new Response(JSON.stringify({ error: "Forbidden: hospital scope mismatch" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const hospital_id = actor!.hospitalId;
+  const { date, view } = validation.data;
   const reportDate = date ?? new Date().toISOString().split('T')[0];
 
   try {

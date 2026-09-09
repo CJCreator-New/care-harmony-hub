@@ -50,17 +50,56 @@ type PersistedSupabaseSession = {
 
 const isBrowser = typeof window !== 'undefined';
 
-const safeStorage: Storage = {
+// SEC-006: Proactively purge legacy JWT auth keys from localStorage to prevent XSS exfiltration
+if (isBrowser) {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && (k.startsWith('sb-') || k.includes('auth-token') || k.includes('supabase.auth'))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => window.localStorage.removeItem(k));
+  } catch {
+    /* ignore storage error */
+  }
+}
+
+export const safeStorage: Storage = {
   get length() {
-    return isBrowser ? window.localStorage.length : 0;
+    return isBrowser ? window.sessionStorage.length : 0;
   },
   clear() {
-    if (isBrowser) window.localStorage.clear();
+    if (isBrowser) {
+      window.sessionStorage.clear();
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.includes('auth-token') || k.includes('supabase.auth'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => window.localStorage.removeItem(k));
+      } catch {
+        /* ignore */
+      }
+    }
   },
   getItem(key: string) {
     if (!isBrowser) return null;
 
-    const raw = window.localStorage.getItem(key);
+    // Ensure legacy token in localStorage is purged if accessed
+    try {
+      if (window.localStorage.getItem(key)) {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    const raw = window.sessionStorage.getItem(key);
     if (!raw) return null;
 
     try {
@@ -70,24 +109,39 @@ const safeStorage: Storage = {
       const hasRefreshToken = typeof parsed.refresh_token === 'string' && parsed.refresh_token.length > 0;
 
       if (isExpired || !hasRefreshToken) {
-        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
         return null;
       }
     } catch {
-      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
       return null;
     }
 
     return raw;
   },
   key(index: number) {
-    return isBrowser ? window.localStorage.key(index) : null;
+    return isBrowser ? window.sessionStorage.key(index) : null;
   },
   removeItem(key: string) {
-    if (isBrowser) window.localStorage.removeItem(key);
+    if (isBrowser) {
+      window.sessionStorage.removeItem(key);
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+    }
   },
   setItem(key: string, value: string) {
-    if (isBrowser) window.localStorage.setItem(key, value);
+    if (isBrowser) {
+      // SEC-006: Ensure token is NEVER saved to persistent localStorage
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+      window.sessionStorage.setItem(key, value);
+    }
   },
 };
 

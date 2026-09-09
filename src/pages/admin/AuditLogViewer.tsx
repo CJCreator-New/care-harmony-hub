@@ -64,15 +64,7 @@ export function AuditLogViewer({
   const { hasPermission } = usePermissions();
   const { hospital, user } = useAuth();
 
-  // Ensure admin access
-  if (!hasPermission('audit-logs')) {
-    return (
-      <div className="flex items-center justify-center min-h-screen gap-3 text-amber-600">
-        <AlertCircle className="h-5 w-5" />
-        <span>You do not have permission to view audit logs.</span>
-      </div>
-    );
-  }
+  const hasAuditPermission = hasPermission('audit-logs');
 
   // Filter state
   const [page, setPage] = useState(1);
@@ -90,11 +82,11 @@ export function AuditLogViewer({
   // Query data
   const { data, isLoading, error, refetch } = useActivityLogsPaginated(
     filters,
-    true
+    hasAuditPermission
   );
 
   const { data: filterOptions, isLoading: isLoadingFilters } =
-    useActivityLogFilterOptions(true);
+    useActivityLogFilterOptions(hasAuditPermission);
 
   // Action types for badge coloring
   const getActionColor = (action: string): string => {
@@ -239,6 +231,15 @@ export function AuditLogViewer({
 
     return items;
   }, [page, data?.pageCount]);
+
+  if (!hasAuditPermission) {
+    return (
+      <div className="flex items-center justify-center min-h-screen gap-3 text-amber-600">
+        <AlertCircle className="h-5 w-5" />
+        <span>You do not have permission to view audit logs.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

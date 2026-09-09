@@ -160,7 +160,7 @@ async function performDURCheck(
       }
     }
 
-    // DUR Check 3: Age-specific contraindications (stub)
+    // DUR Check 3: Age-specific contraindications
     const patientAge = prescription.patient?.age_years;
     if (patientAge && patientAge < 12) {
       const pediatricConcern = prescription.items.some((item: any) =>
@@ -168,6 +168,33 @@ async function performDURCheck(
       );
       if (pediatricConcern) {
         warnings.push("Pediatric drug concern: verify appropriateness for age");
+      }
+    }
+
+    // DUR Check 4: Pediatric weight-based dosing check (AAP guidelines)
+    const patientWeight = prescription.patient?.weight_kg;
+    if (patientAge && patientAge < 18 && patientWeight && patientWeight > 0) {
+      for (const item of prescription.items || []) {
+        const drug = (item.medication_name || "").toLowerCase();
+        const doseMg = item.dose_mg || 0;
+        const freq = (item.frequency || "BID").toUpperCase();
+        const dosesPerDay = freq.includes("TID") ? 3 : freq.includes("QID") ? 4 : freq.includes("Q4") ? 5 : 2;
+        const dailyDose = doseMg * dosesPerDay;
+        const mgKgDay = dailyDose / patientWeight;
+
+        if (drug.includes("amoxicillin") && mgKgDay > 90 * 1.1) {
+          warnings.push(
+            `Pediatric overdose warning: Amoxicillin ${Math.round(mgKgDay)} mg/kg/day exceeds 110% of AAP maximum guideline (90 mg/kg/day). Clinical override required.`
+          );
+        } else if ((drug.includes("acetaminophen") || drug.includes("paracetamol")) && mgKgDay > 75 * 1.1) {
+          warnings.push(
+            `Pediatric overdose warning: Acetaminophen ${Math.round(mgKgDay)} mg/kg/day exceeds 110% of AAP maximum guideline (75 mg/kg/day). Clinical override required.`
+          );
+        } else if (drug.includes("ibuprofen") && mgKgDay > 40 * 1.1) {
+          warnings.push(
+            `Pediatric overdose warning: Ibuprofen ${Math.round(mgKgDay)} mg/kg/day exceeds 110% of AAP maximum guideline (40 mg/kg/day). Clinical override required.`
+          );
+        }
       }
     }
 

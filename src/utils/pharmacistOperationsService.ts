@@ -762,7 +762,7 @@ const inventoryStore = new Map<string, any>([
 ]);
 
 export async function getInventory(medicationId: string): Promise<any> {
-  let inventory = inventoryStore.get(medicationId) || {
+  const inventory = inventoryStore.get(medicationId) || {
     drugId: medicationId,
     medicationName: 'Unknown Medication',
     quantity: 50,
@@ -786,7 +786,7 @@ export async function getInventory(medicationId: string): Promise<any> {
 }
 
 export async function updateInventory(medicationId: string, quantityChange: number): Promise<any> {
-  let inventory = inventoryStore.get(medicationId) || {
+  const inventory = inventoryStore.get(medicationId) || {
     drugId: medicationId,
     medicationName: 'Unknown Medication',
     quantity: 100,

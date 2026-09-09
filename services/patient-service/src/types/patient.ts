@@ -111,7 +111,7 @@ export interface PatientsResponse {
   success: true;
 }
 
-export interface PatientSearchResponse extends PatientsResponse {}
+export type PatientSearchResponse = PatientsResponse;
 
 // Error response type
 export interface ErrorResponse {

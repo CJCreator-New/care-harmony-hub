@@ -1,19 +1,19 @@
 // supabase/functions/billing-reconciliation/index.ts
 // Billing Reconciliation Report — matches services rendered to invoiced line items,
 // flags unbilled services and overdue balances.
-// Roles: admin, super_admin
+// Roles: admin
 // Rate limit: 20 req / 60s
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest, validationErrorResponse } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const requestSchema = z.object({
-  hospital_id:  z.string().uuid(),
+  hospital_id:  z.string().uuid().optional(),
   period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),  // YYYY-MM-DD
   period_end:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   include_line_items: z.boolean().optional().default(false),
@@ -26,13 +26,22 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin']);
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin']);
   if (authError) return authError;
 
   const validation = await validateRequest(req, requestSchema);
   if (!validation.success) return validationErrorResponse(validation.error);
 
-  const { hospital_id, period_start, period_end, include_line_items } = validation.data;
+  // Pin hospital_id strictly to the authenticated actor's hospital context
+  if (validation.data.hospital_id && validation.data.hospital_id !== actor!.hospitalId) {
+    return new Response(JSON.stringify({ error: "Forbidden: hospital scope mismatch" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const hospital_id = actor!.hospitalId;
+  const { period_start, period_end, include_line_items } = validation.data;
 
   try {
     const supabase = createClient(

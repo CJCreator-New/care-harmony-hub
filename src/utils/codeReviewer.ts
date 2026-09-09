@@ -540,7 +540,7 @@ export class CodeReviewer {
     const categoryConfig = this.config.categories[category];
     const patterns = categoryConfig?.filePatterns || ['**/*'];
 
-    let files: string[] = [];
+    const files: string[] = [];
     for (const pattern of patterns) {
       const matches = await glob(pattern, {
         cwd: this.config.basePath,

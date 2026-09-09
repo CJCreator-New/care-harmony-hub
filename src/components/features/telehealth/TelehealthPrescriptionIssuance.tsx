@@ -155,14 +155,7 @@ export const TelehealthPrescriptionIssuance: React.FC<TelehealthPrescriptionIssu
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Check authorization
-  if (role !== 'doctor' && role !== 'nurse_practitioner' && role !== 'physician_assistant') {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Unauthorized: Only licensed prescribers can issue prescriptions</AlertDescription>
-      </Alert>
-    );
-  }
+  const isAuthorized = role === 'doctor' || role === 'nurse_practitioner' || role === 'physician_assistant';
 
   /**
    * QUERY: Fetch active telehealth session
@@ -184,7 +177,7 @@ export const TelehealthPrescriptionIssuance: React.FC<TelehealthPrescriptionIssu
       return data as TelehealthSession;
     },
     staleTime: 5000, // Refresh every 5 seconds
-    enabled: !!sessionId,
+    enabled: isAuthorized && !!sessionId,
   });
 
   /**
@@ -202,6 +195,7 @@ export const TelehealthPrescriptionIssuance: React.FC<TelehealthPrescriptionIssu
       if (error) throw error;
       return data as Medication[];
     },
+    enabled: isAuthorized,
   });
 
   /**
@@ -219,6 +213,7 @@ export const TelehealthPrescriptionIssuance: React.FC<TelehealthPrescriptionIssu
       if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
       return (data || { allergies: [], restrictions: [] }) as PatientAllergyProfile;
     },
+    enabled: isAuthorized && !!patientId,
   });
 
   /**
@@ -355,6 +350,15 @@ export const TelehealthPrescriptionIssuance: React.FC<TelehealthPrescriptionIssu
     },
     [formulary, allergyProfile, selectedMedications]
   );
+
+  if (!isAuthorized) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>Unauthorized: Only licensed prescribers can issue prescriptions</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (sessionLoading) {
     return (

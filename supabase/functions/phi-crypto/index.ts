@@ -166,18 +166,33 @@ serve(async (req) => {
     // ── AuthZ: Scoped contextual authorization check to eliminate Decryption Oracle (SEC-001) ──
     const resourceType = body.resourceType as string | undefined;
     const resourceId = body.resourceId as string | undefined;
+    let targetTable: string | null = null;
 
     if (resourceType && resourceId) {
       const tableMap: Record<string, string> = {
         patient: "patients",
+        patients: "patients",
         consultation: "consultations",
+        consultations: "consultations",
+        clinical_note: "clinical_notes",
+        clinical_notes: "clinical_notes",
         prescription: "prescriptions",
+        prescriptions: "prescriptions",
         profile: "profiles",
+        profiles: "profiles",
+        vital: "vitals",
+        vitals: "vitals",
         lab_result: "lab_results",
-        audit_log: "audit_logs",
+        lab_results: "lab_results",
+        document: "documents",
+        documents: "documents",
+        audit_log: "activity_logs",
+        audit_logs: "activity_logs",
+        activity_log: "activity_logs",
+        activity_logs: "activity_logs",
       };
-      const tableName = tableMap[resourceType];
-      if (!tableName) {
+      targetTable = tableMap[resourceType.toLowerCase()];
+      if (!targetTable) {
         return json(400, { error: `Invalid resourceType: ${resourceType}` });
       }
 
@@ -188,7 +203,7 @@ serve(async (req) => {
       });
 
       const { data: record, error: probeError } = await userClient
-        .from(tableName)
+        .from(targetTable)
         .select("id")
         .eq("id", resourceId)
         .maybeSingle();
@@ -216,6 +231,29 @@ serve(async (req) => {
     const results = await Promise.all(
       (items as EncryptedData[]).map((it) => decryptValue(it, key)),
     );
+
+    // ── Audit Log: Log immutable event to activity_logs for HIPAA §164.312(b) ──
+    try {
+      const { data: callerProfile } = await adminClient
+        .from("profiles")
+        .select("hospital_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (callerProfile?.hospital_id) {
+        await adminClient.from("activity_logs").insert({
+          user_id: user.id,
+          hospital_id: callerProfile.hospital_id,
+          action_type: "PHI_DECRYPT",
+          entity_type: targetTable || resourceType || "admin_direct",
+          entity_id: resourceId || null,
+          details: { itemCount: (items as EncryptedData[]).length },
+        });
+      }
+    } catch (logErr) {
+      console.warn("Failed to write phi decrypt audit log:", logErr);
+    }
+
     return json(200, { results });
   } catch (err) {
     // Never leak key/crypto internals to the client.

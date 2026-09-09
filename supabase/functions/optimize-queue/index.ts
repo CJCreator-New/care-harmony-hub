@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { authorize } from '../_shared/authorize.ts'
+import { getAuthorizedActor } from '../_shared/authorize.ts'
 import { validateRequest } from '../_shared/validation.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const queueSchema = z.object({
-  hospital_id: z.string().uuid(),
+  hospital_id: z.string().uuid().optional(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -16,7 +16,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const authError = await authorize(req, ['admin', 'receptionist', 'nurse', 'doctor'])
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'receptionist', 'nurse', 'doctor'])
   if (authError) return authError
 
   try {
@@ -32,7 +32,16 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const { hospital_id } = validation.data;
+    
+    // Pin hospital_id strictly to the authenticated actor's hospital context
+    if (validation.data.hospital_id && validation.data.hospital_id !== actor!.hospitalId) {
+      return new Response(JSON.stringify({ error: "Forbidden: hospital scope mismatch" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const hospital_id = actor!.hospitalId;
 
     // 1. Fetch current waiting queue with patient and appointment info
     const { data: queue, error: queueError } = await supabaseClient
