@@ -90,11 +90,11 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician', 'super_admin']);
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
   if (authError) return authError;
 
   try {
-    const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'lab_technician', 'super_admin']);
+    const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
     if (response || !actor) {
       return response ?? new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

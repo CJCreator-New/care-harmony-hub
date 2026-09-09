@@ -757,7 +757,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: getCorsHeaders(req) });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician', 'super_admin']);
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
   if (authError) return authError;
 
   try {

@@ -104,6 +104,9 @@ tests/e2e/.auth/
 *.webm
 *-report.html
 
+# Local agent skills and configuration
+.agents/
+
 # Supabase
 .supabase/
 

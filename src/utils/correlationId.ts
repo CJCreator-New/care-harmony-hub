@@ -248,7 +248,7 @@ export function generateTraceparent(
 export interface ClinicalContext {
   hospitalId: string;
   userId: string;
-  userRole: 'doctor' | 'nurse' | 'pharmacist' | 'lab_technician' | 'receptionist' | 'admin' | 'super_admin';
+  userRole: 'doctor' | 'nurse' | 'pharmacist' | 'lab_technician' | 'receptionist' | 'admin' | 'patient';
   patientId?: string;
 }
 

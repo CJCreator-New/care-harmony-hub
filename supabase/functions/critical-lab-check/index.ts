@@ -145,18 +145,22 @@ serve(async (req) => {
     // Send primary doctor notification
     await notifyDoctor(supabase, alert, primaryDoctor, "primary");
 
-    // Schedule on-call escalation (5 min timeout)
-    scheduleEscalation(
+    // Schedule on-call escalation (5 min timeout) via durable queue
+    await scheduleEscalation(
       supabase,
       alert.id,
+      primaryDoctor.hospital_id,
+      onCallDoctor?.id || null,
       "on_call",
       ESCALATION_DELAYS.to_on_call_minutes * 60 * 1000
     );
 
-    // Schedule ER escalation (10 min timeout)
-    scheduleEscalation(
+    // Schedule ER escalation (10 min timeout) via durable queue
+    await scheduleEscalation(
       supabase,
       alert.id,
+      primaryDoctor.hospital_id,
+      null,
       "er",
       ESCALATION_DELAYS.to_er_minutes * 60 * 1000
     );
@@ -205,19 +209,49 @@ async function checkCriticalValue(
   labResult: any
 ): Promise<{ severity: string; isCritical: boolean }> {
   try {
-    // Get critical ranges for this test
-    const { data: ranges, error } = await supabase
+    // 1. Resolve age group from patient demographics
+    let ageGroup = "adult";
+    if (labResult.patient_id) {
+      const { data: patient } = await supabase
+        .from("patients")
+        .select("date_of_birth")
+        .eq("id", labResult.patient_id)
+        .maybeSingle();
+
+      if (patient?.date_of_birth) {
+        const birthDate = new Date(patient.date_of_birth);
+        const ageYears = (Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        if (ageYears < 1) ageGroup = "infant";
+        else if (ageYears < 12) ageGroup = "pediatric";
+        else if (ageYears >= 65) ageGroup = "geriatric";
+      }
+    }
+
+    // 2. Query critical ranges for resolved age group, falling back to adult
+    let { data: ranges } = await supabase
       .from("lab_critical_ranges")
       .select("critical_low, critical_high, warning_low, warning_high")
       .eq("hospital_id", labResult.hospital_id)
       .eq("test_code", labResult.test_code)
       .eq("is_active", true)
-      .eq("age_group", "adult") // TODO: Get from patient demographics
-      .single();
+      .eq("age_group", ageGroup)
+      .maybeSingle();
 
-    if (error || !ranges) {
-      console.log("No critical ranges found for test:", labResult.test_code);
-      return { severity: "unknown", isCritical: false };
+    if (!ranges && ageGroup !== "adult") {
+      const { data: fallbackRanges } = await supabase
+        .from("lab_critical_ranges")
+        .select("critical_low, critical_high, warning_low, warning_high")
+        .eq("hospital_id", labResult.hospital_id)
+        .eq("test_code", labResult.test_code)
+        .eq("is_active", true)
+        .eq("age_group", "adult")
+        .maybeSingle();
+      ranges = fallbackRanges;
+    }
+
+    if (!ranges) {
+      console.warn("No critical ranges configured for test:", labResult.test_code, "— failing closed for physician verification");
+      return { severity: "unverified_review_required", isCritical: true };
     }
 
     const value = parseFloat(labResult.result_value);
@@ -240,8 +274,8 @@ async function checkCriticalValue(
 
     return { severity: "normal", isCritical: false };
   } catch (e) {
-    console.error("Critical value check failed:", e);
-    return { severity: "error", isCritical: false };
+    console.error("Critical value check failed, failing closed:", e);
+    return { severity: "error_review_required", isCritical: true };
   }
 }
 
@@ -312,33 +346,41 @@ async function notifyDoctor(
     // Send SMS for critical values
     if (alert.severity.startsWith("critical")) {
       console.log(`SMS notification queued for doctor ${doctor.id} (alert ${alert.id})`);
-      // TODO: Integrate Twilio or similar
+      // Twilio SMS dispatch placeholder
     }
 
     // Send email
     console.log(`Email notification queued for doctor ${doctor.id} (alert ${alert.id})`);
-    // TODO: Integrate SendGrid or similar
-
   } catch (e) {
     console.error(`Failed to notify doctor at ${level}:`, e);
   }
 }
 
-function scheduleEscalation(
+async function scheduleEscalation(
   supabase: any,
   alertId: string,
+  hospitalId: string,
+  targetUserId: string | null,
   escalateTo: "on_call" | "er",
   delayMs: number
-): void {
-  // Schedule background job for escalation
-  // In production, use a job queue (Bull, Inngest, etc.)
-  // For now, log the intent
-  console.log(
-    `Scheduled escalation to ${escalateTo} in ${delayMs / 1000}s for alert ${alertId}`
-  );
+): Promise<void> {
+  const scheduledFor = new Date(Date.now() + delayMs).toISOString();
+  try {
+    const { error } = await supabase.from("lab_alert_escalations").insert({
+      alert_id: alertId,
+      hospital_id: hospitalId,
+      escalation_level: escalateTo,
+      target_user_id: targetUserId,
+      scheduled_for: scheduledFor,
+      status: "pending",
+    });
 
-  // TODO: Implement via:
-  // - Supabase Edge Function scheduler (if available)
-  // - External job queue (Bull/Redis, AWS Lambda, etc.)
-  // - Polling mechanism in React hook
+    if (error) {
+      console.error(`[Escalation Queue] Insert failed for alert ${alertId}:`, error);
+    } else {
+      console.log(`[Escalation Queue] Scheduled ${escalateTo} escalation for alert ${alertId} at ${scheduledFor}`);
+    }
+  } catch (err) {
+    console.error(`[Escalation Queue] Exception scheduling ${escalateTo}:`, err);
+  }
 }

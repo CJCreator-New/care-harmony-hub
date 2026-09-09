@@ -78,23 +78,88 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
       ],
       'Amoxicillin': [
         {
-          id: '3',
+          id: '3a',
           drug_name: 'Amoxicillin',
           age_group: 'infant',
           weight_based_dose: {
-            dose_mg_per_kg: 45,
+            dose_mg_per_kg: 12.5, // Standard AAP dose: 25 mg/kg/day divided BID
             min_weight_kg: 3,
-            min_age_months: 3
+            min_age_months: 2
           },
           max_dose: {
-            max_daily_dose_mg: 3000
+            max_single_dose_mg: 500,
+            max_daily_dose_mg: 1000
           },
           frequency: 'BID',
           route: 'PO',
           special_considerations: [
-            'Adjust for severe infections (90 mg/kg/day)',
-            'Complete full course',
-            'Monitor for allergic reactions'
+            'Standard-dose AAP protocol (25 mg/kg/day divided BID) for mild-to-moderate infections',
+            'Max 500 mg/dose, 1000 mg/day',
+            'Complete full course; monitor for hypersensitivity'
+          ],
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '3b',
+          drug_name: 'Amoxicillin',
+          age_group: 'infant',
+          weight_based_dose: {
+            dose_mg_per_kg: 45, // High-dose AAP: 90 mg/kg/day divided BID
+            min_weight_kg: 3,
+            min_age_months: 2
+          },
+          max_dose: {
+            max_single_dose_mg: 1000,
+            max_daily_dose_mg: 2000
+          },
+          frequency: 'BID',
+          route: 'PO',
+          special_considerations: [
+            'High-dose AAP protocol (90 mg/kg/day divided BID) for severe otitis media / resistant S. pneumoniae',
+            'Max single dose 1000 mg, max daily dose 2000 mg',
+            'Complete full course; monitor for allergic reactions'
+          ],
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '3c',
+          drug_name: 'Amoxicillin',
+          age_group: 'child',
+          weight_based_dose: {
+            dose_mg_per_kg: 12.5,
+            min_weight_kg: 10,
+            min_age_months: 24
+          },
+          max_dose: {
+            max_single_dose_mg: 500,
+            max_daily_dose_mg: 1000
+          },
+          frequency: 'BID',
+          route: 'PO',
+          special_considerations: [
+            'Standard-dose AAP protocol (25 mg/kg/day divided BID)',
+            'Max 500 mg/dose, 1000 mg/day'
+          ],
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '3d',
+          drug_name: 'Amoxicillin',
+          age_group: 'child',
+          weight_based_dose: {
+            dose_mg_per_kg: 45,
+            min_weight_kg: 10,
+            min_age_months: 24
+          },
+          max_dose: {
+            max_single_dose_mg: 1000,
+            max_daily_dose_mg: 2000
+          },
+          frequency: 'BID',
+          route: 'PO',
+          special_considerations: [
+            'High-dose AAP protocol (90 mg/kg/day divided BID) for acute otitis media / resistant pathogens',
+            'Max single dose 1000 mg, max daily dose 2000 mg'
           ],
           created_at: new Date().toISOString()
         }
@@ -135,7 +200,7 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
     return 'adolescent';
   };
 
-  const calculatePediatricDose = (protocol: PediatricDosing) => {
+  const calculatePediatricDose = (protocol: PediatricDosing): DoseCalculation | null => {
     const { weight_kg, age_months } = patientData;
     
     // Check age and weight minimums
@@ -147,19 +212,8 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
       return null;
     }
 
-    // Calculate weight-based dose
-    const calculatedDose = weight_kg * protocol.weight_based_dose.dose_mg_per_kg;
-    
-    // Apply maximum dose limits
-    let finalDose = calculatedDose;
-    const warnings: string[] = [];
-    const adjustmentsApplied: string[] = [];
-
-    if (protocol.max_dose.max_single_dose_mg && calculatedDose > protocol.max_dose.max_single_dose_mg) {
-      finalDose = protocol.max_dose.max_single_dose_mg;
-      warnings.push(`Dose capped at maximum single dose of ${protocol.max_dose.max_single_dose_mg} mg`);
-      adjustmentsApplied.push('Applied maximum single dose limit');
-    }
+    // Calculate raw weight-based dose
+    const rawCalculatedDose = weight_kg * protocol.weight_based_dose.dose_mg_per_kg;
 
     // Calculate daily dose based on frequency
     const frequencyMap: Record<string, number> = {
@@ -175,6 +229,33 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
     };
 
     const dosesPerDay = frequencyMap[protocol.frequency] || 1;
+    const rawDailyDose = rawCalculatedDose * dosesPerDay;
+
+    // Hard Stop Safety Rule: Flag lethal overdose if calculated dose > 2x max limit
+    const singleLimit = protocol.max_dose.max_single_dose_mg;
+    const dailyLimit = protocol.max_dose.max_daily_dose_mg;
+    const isSingleOverdose = Boolean(singleLimit && rawCalculatedDose > singleLimit * 2);
+    const isDailyOverdose = Boolean(dailyLimit && rawDailyDose > dailyLimit * 2);
+    const isHardStop = isSingleOverdose || isDailyOverdose;
+
+    // Apply maximum dose limits
+    let finalDose = rawCalculatedDose;
+    const warnings: string[] = [];
+    const adjustmentsApplied: string[] = [];
+
+    if (isHardStop) {
+      warnings.push(
+        `🚨 CRITICAL SAFETY STOP: Weight-based dose (${Math.round(rawCalculatedDose)} mg single / ${Math.round(rawDailyDose)} mg/day) exceeds 200% of maximum safety threshold. Prescribing blocked. Attending physician and clinical pharmacist consultation mandatory.`
+      );
+      adjustmentsApplied.push('Blocked: Potential lethal overdose (>2x maximum limit)');
+    }
+
+    if (protocol.max_dose.max_single_dose_mg && finalDose > protocol.max_dose.max_single_dose_mg) {
+      finalDose = protocol.max_dose.max_single_dose_mg;
+      warnings.push(`Dose capped at maximum single dose of ${protocol.max_dose.max_single_dose_mg} mg`);
+      adjustmentsApplied.push('Applied maximum single dose limit');
+    }
+
     const dailyDose = finalDose * dosesPerDay;
 
     if (protocol.max_dose.max_daily_dose_mg && dailyDose > protocol.max_dose.max_daily_dose_mg) {
@@ -194,12 +275,13 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
         frequency: protocol.frequency
       },
       max_dose: {
-        amount: dailyDose,
+        amount: dailyLimit || (finalDose * dosesPerDay),
         unit: 'mg',
         period: 'daily'
       },
       adjustments_applied: adjustmentsApplied,
-      warnings
+      warnings,
+      isHardStop,
     };
 
     return result;
@@ -223,9 +305,10 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
     const filteredProtocols = protocols.filter(p => p.age_group === ageGroup);
     setPediatricProtocols(filteredProtocols);
     
-    if (filteredProtocols.length === 1) {
-      setSelectedProtocol(filteredProtocols[0]);
-      const calc = calculatePediatricDose(filteredProtocols[0]);
+    if (filteredProtocols.length > 0) {
+      const initialProtocol = filteredProtocols[0];
+      setSelectedProtocol(initialProtocol);
+      const calc = calculatePediatricDose(initialProtocol);
       setCalculation(calc);
       if (calc) {
         onDoseCalculated(calc);
@@ -274,7 +357,7 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
         {pediatricProtocols.length > 1 && (
           <div>
             <Label>Dosing Protocol</Label>
-            <Select onValueChange={handleProtocolSelect}>
+            <Select value={selectedProtocol?.id} onValueChange={handleProtocolSelect}>
               <SelectTrigger>
                 <SelectValue placeholder="Select dosing protocol" />
               </SelectTrigger>
@@ -308,10 +391,20 @@ export const PediatricDosingCard: React.FC<PediatricDosingCardProps> = ({
         {/* Dose Calculation */}
         {calculation && selectedProtocol && (
           <div className="space-y-3">
+            {calculation.isHardStop && (
+              <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 text-red-950">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <AlertDescription className="font-semibold">
+                  ⛔ HARD STOP: Excessive dosage detected (&gt;200% maximum safe ceiling). Automatic prescribing is blocked.
+                  Please consult an attending pediatrician or clinical pharmacist immediately.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 border rounded-lg">
                 <h4 className="font-medium text-sm text-gray-600 mb-2">Calculated Dose</h4>
-                <p className="text-xl font-bold text-green-600">
+                <p className={`text-xl font-bold ${calculation.isHardStop ? 'text-red-600' : 'text-green-600'}`}>
                   {calculation.calculated_dose.amount} mg
                 </p>
                 <p className="text-sm text-gray-500">{calculation.calculated_dose.frequency}</p>

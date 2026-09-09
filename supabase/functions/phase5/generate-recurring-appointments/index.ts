@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { addDays, addWeeks, addMonths, isBefore, isAfter, format } from "https://esm.sh/date-fns@2.29.3";
+import { getCorsHeaders } from "../../_shared/cors.ts";
+import { authorize } from "../../_shared/authorize.ts";
 
 interface RecurrencePattern {
   id: string;
@@ -83,11 +85,20 @@ async function checkConflict(
  * Triggered: Daily at midnight
  */
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const authError = await authorize(req, ['admin', 'receptionist']);
+  if (authError) return authError;
 
   try {
     console.log("Starting recurring appointment generation...");
@@ -210,7 +221,7 @@ serve(async (req) => {
         errors: errors,
         message: `Generated ${generatedCount} recurring appointments`,
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error generating recurring appointments:", error);
@@ -231,7 +242,7 @@ serve(async (req) => {
         error: "Internal server error",
         message: (error as Error).message,
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

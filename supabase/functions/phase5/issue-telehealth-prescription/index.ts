@@ -8,6 +8,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { getCorsHeaders } from '../../_shared/cors.ts';
+import { getAuthorizedActor } from '../../_shared/authorize.ts';
 
 interface IssuePrescriptionRequest {
   appointment_id: string;
@@ -309,24 +311,45 @@ async function createAuditLog(
  * Main handler for prescription issuance
  */
 serve(async (req) => {
-  try {
-    // Validate request method
-    if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
-        { status: 405, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor']);
+  if (authError) {
+    const errorBody = await authError.text();
+    return new Response(errorBody, {
+      status: authError.status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
     // Parse request body
     const request: IssuePrescriptionRequest = await req.json();
+
+    // Enforce tenant boundary
+    if (actor?.hospitalId && request.hospital_id && actor.hospitalId !== request.hospital_id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - cross-hospital access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Validate required fields
     if (!request.appointment_id || !request.telehealth_session_id || !request.patient_id ||
         !request.doctor_id || !request.hospital_id || !request.medications || request.medications.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -343,7 +366,7 @@ serve(async (req) => {
           status: 'error',
           message: 'Telehealth session is not active or invalid',
         }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -358,7 +381,7 @@ serve(async (req) => {
           status: 'error',
           message: 'Doctor does not have permission to issue prescriptions',
         }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -371,7 +394,7 @@ serve(async (req) => {
           status: 'error',
           message: 'One or more medications are invalid or not in hospital formulary',
         }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -384,7 +407,7 @@ serve(async (req) => {
           status: 'error',
           message: 'Failed to create prescription record',
         }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -410,7 +433,7 @@ serve(async (req) => {
       } as IssuePrescriptionResponse),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   } catch (error) {
@@ -421,7 +444,7 @@ serve(async (req) => {
         message: 'Internal server error',
         error: String(error),
       }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -162,6 +162,57 @@ serve(async (req) => {
     if (!Array.isArray(items)) {
       return json(400, { error: "items must be an array of EncryptedData" });
     }
+
+    // ── AuthZ: Scoped contextual authorization check to eliminate Decryption Oracle (SEC-001) ──
+    const resourceType = body.resourceType as string | undefined;
+    const resourceId = body.resourceId as string | undefined;
+
+    if (resourceType && resourceId) {
+      const tableMap: Record<string, string> = {
+        patient: "patients",
+        consultation: "consultations",
+        prescription: "prescriptions",
+        profile: "profiles",
+        lab_result: "lab_results",
+        audit_log: "audit_logs",
+      };
+      const tableName = tableMap[resourceType];
+      if (!tableName) {
+        return json(400, { error: `Invalid resourceType: ${resourceType}` });
+      }
+
+      // Probe using caller's JWT to verify PostgreSQL RLS allows this read
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const userClient = createClient(Deno.env.get("SUPABASE_URL")!, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: record, error: probeError } = await userClient
+        .from(tableName)
+        .select("id")
+        .eq("id", resourceId)
+        .maybeSingle();
+
+      if (probeError || !record) {
+        return json(403, { error: "Forbidden: You do not have permission to access this resource" });
+      }
+    } else {
+      // If resource context is omitted, only hospital administrators may decrypt
+      const { data: userRoles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const roles = (userRoles || []).map((r: any) => r.role);
+      const isAdmin = roles.includes("admin");
+
+      if (!isAdmin) {
+        return json(403, {
+          error: "Forbidden: resourceType and resourceId are required for non-admin decryption",
+        });
+      }
+    }
+
     const results = await Promise.all(
       (items as EncryptedData[]).map((it) => decryptValue(it, key)),
     );

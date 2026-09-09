@@ -234,6 +234,7 @@ export interface DoseCalculation {
   };
   adjustments_applied: string[];
   warnings: string[];
+  isHardStop?: boolean;
 }
 
 // Pharmacy workflow status

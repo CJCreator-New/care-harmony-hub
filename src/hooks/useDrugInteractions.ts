@@ -17,7 +17,7 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { toast } from 'sonner';
 
 export interface InteractionResult {
-  severity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none';
+  severity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none' | 'unknown';
   interactions: Array<{
     interactingDrug: string;
     severity: string;
@@ -26,6 +26,8 @@ export interface InteractionResult {
   }>;
   cacheHit: boolean;
   timestamp: string;
+  error?: string;
+  requiresManualReview?: boolean;
 }
 
 interface UseDrugInteractionsReturn {
@@ -134,27 +136,30 @@ export function useDrugInteractions(): UseDrugInteractionsReturn {
 
   /**
    * Can we dispense this medication?
-   * Returns false ONLY if contraindicated (blocks dispensing)
-   * Serious requires approval but doesn't block
+   * FAIL-CLOSED: Returns false if no check has been completed or if contraindicated/unknown
    */
   const canDispense = useCallback((check: InteractionResult | null): boolean => {
-    if (!check) return true; // No check = safe to proceed
-    return check.severity !== 'contraindicated'; // Only contraindicated blocks
+    if (!check) return false; // Fail-closed: No check = not cleared to proceed
+    if (check.severity === 'contraindicated' || check.severity === 'unknown') return false;
+    return true;
   }, []);
 
   /**
    * Does this interaction require doctor approval?
    */
   const requiresApproval = useCallback((check: InteractionResult | null): boolean => {
-    if (!check) return false;
-    return check.severity === 'serious';
+    if (!check) return true; // Fail-closed: unverified requires pharmacist/doctor approval
+    return check.severity === 'serious' || check.severity === 'unknown';
   }, []);
 
   /**
    * Get user-friendly message for display
    */
   const getMessage = useCallback((check: InteractionResult | null): string => {
-    if (!check || check.severity === 'none') {
+    if (!check) {
+      return '⚠️ Interaction check unavailable — Pharmacist manual verification required';
+    }
+    if (check.severity === 'none') {
       return '✓ No drug interactions detected';
     }
 
@@ -163,9 +168,10 @@ export function useDrugInteractions(): UseDrugInteractionsReturn {
       serious: `⚠️ SERIOUS interaction — Doctor approval required (${check.interactions.length} interaction)`,
       moderate: `⚠️ Moderate interaction detected — Use caution (${check.interactions.length} interaction)`,
       minor: `ℹ️ Minor interaction — Patient counseling recommended (${check.interactions.length} interaction)`,
+      unknown: `⚠️ Interaction check incomplete — Pharmacist manual verification required`,
     };
 
-    return messages[check.severity];
+    return messages[check.severity] || '⚠️ Interaction check unavailable — Pharmacist manual verification required';
   }, []);
 
   /**

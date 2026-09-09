@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { logAudit } from './sanitize';
 
 const noteStore = new Map<string, any>();
@@ -409,8 +408,8 @@ export async function deleteDraft(noteId: string): Promise<any> {
 
   const now = new Date();
 
-  // Signed/locked notes are archived rather than hard-deleted
-  if (note.signed || note.locked) {
+  // Locked/finalized notes are archived rather than hard-deleted
+  if (note.locked) {
     const archived = { ...note, archived: true, deletedAt: now, status: 'archived' };
     noteStore.set(noteId, archived);
 
@@ -423,6 +422,11 @@ export async function deleteDraft(noteId: string): Promise<any> {
     });
 
     return archived;
+  }
+
+  // Signed notes cannot be deleted
+  if (note.signed) {
+    throw new Error('Cannot delete signed note');
   }
 
   const deleted = { ...note, deleted: true, deletedAt: now, status: 'deleted' };

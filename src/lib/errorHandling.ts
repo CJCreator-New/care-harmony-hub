@@ -104,6 +104,9 @@ export const logError = (error: ApplicationError) => {
     case ErrorSeverity.INFO:
       console.info('[INFO]', sanitized);
       break;
+    default:
+      console.error('[ERROR]', sanitized);
+      break;
   }
 };
 

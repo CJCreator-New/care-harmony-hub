@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
+import { authorize } from "../_shared/authorize.ts";
 
 interface Appointment {
   id: string;
@@ -31,6 +32,9 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const authError = await authorize(req, ['admin', 'receptionist']);
+  if (authError) return authError;
 
   try {
     console.log("Starting appointment reminder check...");

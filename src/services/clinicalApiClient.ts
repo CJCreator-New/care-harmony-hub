@@ -10,11 +10,11 @@ class ClinicalApiClient {
    * Call this method when user logs in or session changes
    */
   setAuthHeaders(session: { access_token?: string } | null) {
-    const apiKey = import.meta.env.VITE_API_KEY || 'caresync_frontend_key_2026_secure';
+    const apiKey = import.meta.env.VITE_API_KEY || '';
 
     this.authHeaders = {
       'Content-Type': 'application/json',
-      'X-API-Key': apiKey,
+      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
     };
 
     if (session?.access_token) {
@@ -26,9 +26,10 @@ class ClinicalApiClient {
    * Clear authentication headers (e.g., on logout)
    */
   clearAuthHeaders() {
+    const apiKey = import.meta.env.VITE_API_KEY || '';
     this.authHeaders = {
       'Content-Type': 'application/json',
-      'X-API-Key': import.meta.env.VITE_API_KEY || 'caresync_frontend_key_2026_secure',
+      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
     };
   }
 

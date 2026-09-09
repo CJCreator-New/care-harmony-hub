@@ -20,7 +20,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'super_admin']);
+  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']);
   if (authError) return authError;
 
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");

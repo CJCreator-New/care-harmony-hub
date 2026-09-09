@@ -28,7 +28,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const allowedRoles = ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'accountant', 'super_admin'];
+  const allowedRoles = ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
   const { actor, response } = await getAuthorizedActor(req, allowedRoles);
   if (response || !actor) {
     return response ?? new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -51,8 +51,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
     const { action, events } = validation.data;
 
-    // Cross-hospital audit log access is restricted to super_admin.
-    const hospitalScope = actor.assignedRoles.includes('super_admin') ? null : actor.hospitalId;
+    // All audit log queries are strictly hospital-scoped to the authenticated actor
+    const hospitalScope = actor.hospitalId;
 
     switch (action) {
       case 'log_event':

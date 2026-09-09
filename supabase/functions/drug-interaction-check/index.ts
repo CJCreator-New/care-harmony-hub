@@ -40,11 +40,12 @@ interface Interaction {
 }
 
 interface CheckResponse {
-  severity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none';
+  severity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none' | 'unknown';
   interactions: Interaction[];
   cacheHit: boolean;
   timestamp: string;
   error?: string;
+  requiresManualReview?: boolean;
 }
 
 // Severity ranking: higher number = more severe
@@ -230,7 +231,8 @@ serve(async (req) => {
     // 3. CHECK AGAINST LOCAL DATABASE (Tier 4.5 Phase 1 data)
     // ========================================================================
     const interactions: Interaction[] = [];
-    let maxSeverity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none' = 'none';
+    let maxSeverity: 'contraindicated' | 'serious' | 'moderate' | 'minor' | 'none' | 'unknown' = 'none';
+    let hasApiError = false;
 
     const currentRxcuis = (currentPrescriptions || []).map((rx) => rx.drug_rxcui);
 
@@ -296,32 +298,34 @@ serve(async (req) => {
 
         console.log(`RxNorm returned ${rxnormInteractions.length} interactions`);
       } catch (err: any) {
-        // Log error but don't fail — patient safety concern if we block all prescriptions
-        console.error('RxNorm API error (non-fatal):', err.message);
-        // Fail-safe: assume 'minor' severity, continue
-        maxSeverity = 'minor';
+        // Fail-closed: do NOT downgrade to minor or assume safe; pharmacist must manually review
+        console.error('RxNorm API error (fail-closed):', err.message);
+        maxSeverity = 'unknown';
+        hasApiError = true;
       }
     }
 
     // ========================================================================
-    // 5. CACHE RESULT (30-day TTL)
+    // 5. CACHE RESULT (30-day TTL) - Only cache if check was definitive (no API error)
     // ========================================================================
-    const { error: cacheInsertError } = await supabase
-      .from('drug_interaction_cache')
-      .insert({
-        hospital_id: hospitalId,
-        patient_id: patientId,
-        new_drug_rxcui: newDrugRxcui,
-        new_drug_name: newDrugName || 'Unknown',
-        interactions_found: interactions.length,
-        severity_max: maxSeverity,
-        details: { interactions },
-        checked_by: userId,
-      });
+    if (!hasApiError) {
+      const { error: cacheInsertError } = await supabase
+        .from('drug_interaction_cache')
+        .insert({
+          hospital_id: hospitalId,
+          patient_id: patientId,
+          new_drug_rxcui: newDrugRxcui,
+          new_drug_name: newDrugName || 'Unknown',
+          interactions_found: interactions.length,
+          severity_max: maxSeverity,
+          details: { interactions },
+          checked_by: userId,
+        });
 
-    if (cacheInsertError) {
-      console.error('Error caching DDI check result:', cacheInsertError);
-      // Non-critical, continue
+      if (cacheInsertError) {
+        console.error('Error caching DDI check result:', cacheInsertError);
+        // Non-critical, continue
+      }
     }
 
     // ========================================================================
@@ -341,6 +345,7 @@ serve(async (req) => {
           interactions_found: interactions.length,
           severity: maxSeverity,
           cacheHit: false,
+          hasApiError,
         },
       });
 
@@ -356,6 +361,8 @@ serve(async (req) => {
       severity: maxSeverity,
       interactions,
       cacheHit: false,
+      requiresManualReview: hasApiError || maxSeverity === 'unknown',
+      ...(hasApiError ? { error: 'RxNorm API unavailable — manual pharmacist verification required' } : {}),
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {

@@ -38,11 +38,11 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const authErr = await authorize(req, ['admin', 'doctor', 'nurse', 'super_admin'])
+  const authErr = await authorize(req, ['admin', 'doctor', 'nurse'])
   if (authErr) return authErr
 
   try {
-    const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'super_admin'])
+    const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse'])
     if (response || !actor) return response ?? new Response('Unauthorized', { status: 401, headers: corsHeaders })
 
     const supabaseClient = createClient(

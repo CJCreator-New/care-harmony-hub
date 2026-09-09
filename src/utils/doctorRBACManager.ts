@@ -28,18 +28,24 @@ export const DOCTOR_PERMISSIONS: Record<string, DoctorPermission[]> = {
 
 export class DoctorRBACManager {
   static hasPermission(role: UserRole | undefined, permission: DoctorPermission): boolean {
-    if (!role || role !== 'doctor') return false;
+    if (!role) return false;
+    if (role === 'admin') return true;
+    if (role !== 'doctor') return false;
     const permissions = DOCTOR_PERMISSIONS['doctor'] || [];
     return permissions.includes(permission);
   }
 
   static hasAnyPermission(role: UserRole | undefined, permissions: DoctorPermission[]): boolean {
-    if (!role || role !== 'doctor') return false;
+    if (!role) return false;
+    if (role === 'admin') return true;
+    if (role !== 'doctor') return false;
     return permissions.some(p => this.hasPermission(role, p));
   }
 
   static hasAllPermissions(role: UserRole | undefined, permissions: DoctorPermission[]): boolean {
-    if (!role || role !== 'doctor') return false;
+    if (!role) return false;
+    if (role === 'admin') return true;
+    if (role !== 'doctor') return false;
     return permissions.every(p => this.hasPermission(role, p));
   }
 

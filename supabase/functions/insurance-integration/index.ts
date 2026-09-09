@@ -27,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'receptionist', 'accountant', 'super_admin']);
+  const authError = await authorize(req, ['admin', 'receptionist']);
   if (authError) return authError;
 
   try {

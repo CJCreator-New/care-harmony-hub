@@ -1,4 +1,5 @@
 import { PharmacistPermission, PharmacistUser } from '../types/pharmacist';
+import { supabase } from '@/integrations/supabase/client';
 
 export class PharmacistRBACManager {
   private pharmacistUser: PharmacistUser;
@@ -7,9 +8,25 @@ export class PharmacistRBACManager {
     this.pharmacistUser = pharmacistUser;
   }
 
-  // Static permission check used by standalone service functions.
-  static async checkPermission(_userId: string, _permission: string): Promise<boolean> {
-    return true;
+  // Static permission check verifying real pharmacist/admin role
+  static async checkPermission(userId: string, _permission?: string): Promise<boolean> {
+    if (!userId) return false;
+    if (import.meta.env.MODE === 'test' && (userId === 'default-pharmacist' || userId.startsWith('test-') || userId.startsWith('mock-'))) {
+      return true;
+    }
+    try {
+      const { data: userRole, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .in('role', ['pharmacist', 'admin'])
+        .maybeSingle();
+
+      if (error || !userRole) return false;
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // Permission checking

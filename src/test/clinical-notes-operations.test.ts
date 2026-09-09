@@ -418,6 +418,7 @@ describe('Clinical Notes - Draft Management & Recovery', () => {
   it('should archive instead of permanently delete finalized notes', async () => {
     const note = await createClinicalNote(mockNoteData);
     await signClinicalNote(note.id, mockDoctor.id);
+    await lockClinicalNote(note.id);
 
     const result = await deleteDraft(note.id);
 
@@ -427,6 +428,7 @@ describe('Clinical Notes - Draft Management & Recovery', () => {
   it('should restore archived note', async () => {
     const note = await createClinicalNote(mockNoteData);
     await signClinicalNote(note.id, mockDoctor.id);
+    await lockClinicalNote(note.id);
     await deleteDraft(note.id);
 
     const restored = await restoreFromArchive(note.id);
@@ -438,6 +440,7 @@ describe('Clinical Notes - Draft Management & Recovery', () => {
   it('should prevent duplicate recovery', async () => {
     const note = await createClinicalNote(mockNoteData);
     await signClinicalNote(note.id, mockDoctor.id);
+    await lockClinicalNote(note.id);
     await deleteDraft(note.id);
     await restoreFromArchive(note.id);
 

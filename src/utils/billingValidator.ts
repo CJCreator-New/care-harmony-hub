@@ -910,7 +910,7 @@ export async function auditBillingLeakage(
   excessiveWaivers?: boolean;
   duplicateInvoices?: Array<{ invoiceId: string; duplicateOf: string }>;
 }> {
-  const AUTHORIZED_DISCOUNT_APPROVERS = ['admin', 'super_admin', 'billing', 'doctor'];
+  const AUTHORIZED_DISCOUNT_APPROVERS = ['admin', 'doctor'];
   const EXCESSIVE_WAIVER_RATIO = 0.5;
   const DUPLICATE_INVOICE_WINDOW_MS = 10 * 60 * 1000;
 

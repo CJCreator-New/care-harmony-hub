@@ -255,28 +255,67 @@ export function classifyVitalStatus(
 // ─── Allergy & Contraindication Checks ────────────────────────────────────────
 
 /**
- * Common drug-allergy incompatibilities (simplified).
+ * Clinical Drug Allergen Classes and cross-reactive medications.
  */
-const ALLERGY_CONTRAINDICATIONS: Record<string, string[]> = {
-  'penicillin allergy': ['amoxicillin', 'ampicillin', 'piperacillin'],
-  'sulfa allergy': ['sulfamethoxazole', 'sulfadiazine'],
-  'nsaid allergy': ['ibuprofen', 'naproxen', 'indomethacin'],
+const ALLERGEN_CLASS_MAP: Record<string, string[]> = {
+  penicillin: ['amoxicillin', 'ampicillin', 'piperacillin', 'penicillin', 'augmentin', 'cloxacillin'],
+  sulfa: ['sulfamethoxazole', 'sulfadiazine', 'bactrim', 'septra', 'sulfasalazine'],
+  nsaid: ['ibuprofen', 'naproxen', 'indomethacin', 'ketorolac', 'meloxicam', 'celecoxib', 'aspirin', 'advil', 'motrin'],
+  cephalosporin: ['cephalexin', 'cefazolin', 'ceftriaxone', 'cefuroxime', 'cefepime'],
+  opioid: ['morphine', 'codeine', 'oxycodone', 'hydrocodone', 'fentanyl', 'tramadol', 'hydromorphone'],
+  aspirin: ['aspirin', 'acetylsalicylic acid', 'bayer'],
 };
 
 /**
- * Check for drug-allergy conflict.
+ * Normalizes an allergy input string to its core clinical root class.
+ */
+function normalizeAllergyTerm(allergy: string): string {
+  let cleaned = allergy.toLowerCase().trim();
+  // Strip common suffixes
+  cleaned = cleaned.replace(/\b(allergy|allergies|hypersensitivity|adverse reaction|intolerance)\b/g, '').trim();
+
+  // Standardize acronyms and plurals
+  if (cleaned === 'pcn' || cleaned === 'penicillins') return 'penicillin';
+  if (cleaned === 'sulfas' || cleaned === 'sulfonamide' || cleaned === 'sulfonamides') return 'sulfa';
+  if (cleaned === 'nsaids') return 'nsaid';
+  if (cleaned === 'cephalosporins') return 'cephalosporin';
+  if (cleaned === 'opioids' || cleaned === 'opiates') return 'opioid';
+
+  return cleaned;
+}
+
+/**
+ * Check for drug-allergy conflict with normalized clinical taxonomy.
  */
 export function checkDrugAllergyConflict(
   drugName: string,
   allergyList: string[]
 ): { safe: boolean; conflictingAllergy?: string } {
-  const normalizedDrug = drugName.toLowerCase();
+  const normalizedDrug = drugName.toLowerCase().trim();
+
   for (const allergy of allergyList) {
-    const conflictingDrugs = ALLERGY_CONTRAINDICATIONS[allergy.toLowerCase()] || [];
-    if (conflictingDrugs.some((d) => normalizedDrug.includes(d))) {
+    const rawAllergyLower = allergy.toLowerCase().trim();
+    if (!rawAllergyLower) continue;
+
+    // 1. Direct name match (e.g. allergy is "amoxicillin" and prescribed drug is "amoxicillin 500mg")
+    const cleanedAllergy = normalizeAllergyTerm(allergy);
+    if (cleanedAllergy.length > 2 && (normalizedDrug.includes(cleanedAllergy) || cleanedAllergy.includes(normalizedDrug))) {
       return { safe: false, conflictingAllergy: allergy };
     }
+
+    // 2. Class cross-reactivity match
+    const classKey = Object.keys(ALLERGEN_CLASS_MAP).find(
+      (key) => key === cleanedAllergy || cleanedAllergy.includes(key)
+    );
+
+    if (classKey) {
+      const contraDrugs = ALLERGEN_CLASS_MAP[classKey] || [];
+      if (contraDrugs.some((d) => normalizedDrug.includes(d))) {
+        return { safe: false, conflictingAllergy: allergy };
+      }
+    }
   }
+
   return { safe: true };
 }
 

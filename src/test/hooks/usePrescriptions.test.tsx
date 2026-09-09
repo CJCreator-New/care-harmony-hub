@@ -170,10 +170,7 @@ describe('useCreatePrescription', () => {
       ).rejects.toThrow();
     });
   });
-});{
-    vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
-  }
+});
 
 describe('useDispensePrescription', () => {
   beforeEach(() => {

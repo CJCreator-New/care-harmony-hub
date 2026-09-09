@@ -19,8 +19,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // Only admin/super_admin may trigger test execution
-  const authErr = await authorize(req, ['admin', 'super_admin'])
+  // Only admin may trigger test execution
+  const authErr = await authorize(req, ['admin'])
   if (authErr) return authErr
 
   // Remote arbitrary-script execution is disabled — callers should use the

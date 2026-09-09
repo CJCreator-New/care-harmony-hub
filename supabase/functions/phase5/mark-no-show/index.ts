@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../../_shared/cors.ts";
+import { authorize } from "../../_shared/authorize.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -16,11 +18,20 @@ interface NoShowRequest {
  * Triggered: By scheduler, 15 minutes after appointment start time
  */
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const authError = await authorize(req, ['admin', 'receptionist', 'doctor', 'nurse']);
+  if (authError) return authError;
 
   try {
     const { appointmentId, reasonCode = "no_show" }: NoShowRequest = await req.json();
