@@ -7,6 +7,7 @@
  * F.I.R.S.T.: Fast (<1ms), Isolated, Repeatable, Self-validating, Timely
  */
 import { describe, it, expect, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock all heavy transitive deps pulled in by useConsultations and its imports
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
@@ -67,31 +68,39 @@ describe('transformConsultationFromService', () => {
   });
 
   it('normalises "in-progress" status to "clinical_assessment"', () => {
-    const result = transformConsultationFromService(makeServiceConsultation({ status: 'in-progress' }));
+    const result = transformConsultationFromService(
+      makeServiceConsultation({ status: 'in-progress' })
+    );
     expect(result.status).toBe('clinical_assessment');
   });
 
   it('normalises "in_progress" status to "clinical_assessment"', () => {
     const svc = makeServiceConsultation({ status: 'in-progress' });
     // Override status to simulate in_progress string from DB
-    const result = transformConsultationFromService({ ...svc, status: 'in_progress' as any });
+    const result = transformConsultationFromService({ ...svc, status: fromAny('in_progress') });
     expect(result.status).toBe('clinical_assessment');
   });
 
   it('preserves "completed" status unchanged', () => {
-    const result = transformConsultationFromService(makeServiceConsultation({ status: 'completed' }));
+    const result = transformConsultationFromService(
+      makeServiceConsultation({ status: 'completed' })
+    );
     expect(result.status).toBe('completed');
     expect(result.consultation_status).toBe('completed');
   });
 
   it('preserves "cancelled" status unchanged', () => {
-    const result = transformConsultationFromService(makeServiceConsultation({ status: 'cancelled' }));
+    const result = transformConsultationFromService(
+      makeServiceConsultation({ status: 'cancelled' })
+    );
     expect(result.status).toBe('cancelled');
     expect(result.consultation_status).toBe('cancelled');
   });
 
   it('sets consultation_status to "active" for in-progress', () => {
-    const result = transformConsultationFromService(makeServiceConsultation({ status: 'in-progress' }));
+    const result = transformConsultationFromService(
+      makeServiceConsultation({ status: 'in-progress' })
+    );
     expect(result.consultation_status).toBe('active');
   });
 

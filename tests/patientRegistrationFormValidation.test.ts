@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import {
   PatientRegistrationSchema,
   PatientRegistrationFormData,
@@ -14,7 +15,7 @@ import { z } from 'zod';
 
 /**
  * HP-2 PR2: PatientRegistrationForm Validation Tests
- * 
+ *
  * Comprehensive test coverage for patient registration schema:
  * - 25+ test cases across 7 test suites
  * - Schema validation (happy path & edge cases)
@@ -53,13 +54,13 @@ function createValidPatientData(): PatientRegistrationFormData {
 // ============================================================================
 
 describe('PatientRegistrationSchema - Utility Functions', () => {
-  
   it('calculateAge: returns correct age for adult patient', () => {
     const dob = new Date('1990-05-15');
     const age = calculateAge(dob);
-    // Age should be between 33-34 depending on current date
-    expect(age).toBeGreaterThanOrEqual(33);
-    expect(age).toBeLessThanOrEqual(35);
+    const now = new Date();
+    const expectedAge =
+      now.getFullYear() - 1990 - (now < new Date(now.getFullYear(), 4, 15) ? 1 : 0);
+    expect(age).toBe(expectedAge);
   });
 
   it('calculateAge: handles newborn correctly (age 0)', () => {
@@ -132,7 +133,6 @@ describe('PatientRegistrationSchema - Utility Functions', () => {
     expect(shouldUseAddressAutocomplete('XX')).toBe(false);
     expect(shouldUseAddressAutocomplete('ZZ')).toBe(false);
   });
-
 });
 
 // ============================================================================
@@ -140,7 +140,6 @@ describe('PatientRegistrationSchema - Utility Functions', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - AddressSchema', () => {
-  
   it('accepts valid address', async () => {
     const validAddress = {
       street: '123 Main Street',
@@ -184,7 +183,6 @@ describe('PatientRegistrationSchema - AddressSchema', () => {
     };
     await expect(AddressSchema.parseAsync(invalid)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -192,7 +190,6 @@ describe('PatientRegistrationSchema - AddressSchema', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - EmergencyContactSchema', () => {
-  
   it('accepts valid emergency contact', async () => {
     const validEC = {
       fullName: 'Jane Doe',
@@ -234,7 +231,6 @@ describe('PatientRegistrationSchema - EmergencyContactSchema', () => {
     };
     await expect(EmergencyContactSchema.parseAsync(invalid)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -242,7 +238,6 @@ describe('PatientRegistrationSchema - EmergencyContactSchema', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - InsuranceSchema', () => {
-  
   it('accepts valid insurance information', async () => {
     const validIns = {
       providerId: 'BCBS',
@@ -275,7 +270,6 @@ describe('PatientRegistrationSchema - InsuranceSchema', () => {
     };
     await expect(InsuranceSchema.parseAsync(invalid)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -283,10 +277,11 @@ describe('PatientRegistrationSchema - InsuranceSchema', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - Personal Information', () => {
-  
   it('accepts valid first name', async () => {
     const data = createValidPatientData();
-    const result = await PatientRegistrationSchema.pick({ firstName: true }).parseAsync({ firstName: data.firstName });
+    const result = await PatientRegistrationSchema.pick({ firstName: true }).parseAsync({
+      firstName: data.firstName,
+    });
     expect(result.firstName).toBe('John');
   });
 
@@ -312,7 +307,7 @@ describe('PatientRegistrationSchema - Personal Information', () => {
   it('accepts valid genders', async () => {
     const data = createValidPatientData();
     ['M', 'F', 'Other', 'Prefer not to say'].forEach(async (gender) => {
-      data.gender = gender as any;
+      data.gender = fromAny(gender);
       const result = await PatientRegistrationSchema.parseAsync(data);
       expect(result.gender).toBe(gender);
     });
@@ -320,10 +315,9 @@ describe('PatientRegistrationSchema - Personal Information', () => {
 
   it('rejects invalid gender', async () => {
     const data = createValidPatientData();
-    data.gender = 'invalid' as any;
+    data.gender = fromAny('invalid');
     await expect(PatientRegistrationSchema.parseAsync(data)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -331,7 +325,6 @@ describe('PatientRegistrationSchema - Personal Information', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - Date of Birth & Age', () => {
-  
   it('accepts valid DOB (34 year old)', async () => {
     const data = createValidPatientData();
     const result = await PatientRegistrationSchema.parseAsync(data);
@@ -379,7 +372,6 @@ describe('PatientRegistrationSchema - Date of Birth & Age', () => {
     const result = await PatientRegistrationSchema.parseAsync(data);
     expect(result.dateOfBirth).toBeDefined();
   });
-
 });
 
 // ============================================================================
@@ -387,7 +379,6 @@ describe('PatientRegistrationSchema - Date of Birth & Age', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - Contact Information', () => {
-  
   it('accepts valid email', async () => {
     const data = createValidPatientData();
     const result = await PatientRegistrationSchema.parseAsync(data);
@@ -426,7 +417,6 @@ describe('PatientRegistrationSchema - Contact Information', () => {
     // After transformation, should have + prefix
     expect(result.phoneNumber).toContain('+1');
   });
-
 });
 
 // ============================================================================
@@ -434,7 +424,6 @@ describe('PatientRegistrationSchema - Contact Information', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - Complete Registration', () => {
-  
   it('accepts complete valid patient registration with all fields', async () => {
     const data = createValidPatientData();
     data.emergencyContact = {
@@ -467,13 +456,13 @@ describe('PatientRegistrationSchema - Complete Registration', () => {
 
   it('rejects registration missing firstName', async () => {
     const data = createValidPatientData();
-    delete (data as any).firstName;
+    delete fromAny(data).firstName;
     await expect(PatientRegistrationSchema.parseAsync(data)).rejects.toThrow();
   });
 
   it('rejects registration missing required address fields', async () => {
     const data = createValidPatientData();
-    delete (data.address as any).postalCode;
+    delete fromAny(data.address).postalCode;
     await expect(PatientRegistrationSchema.parseAsync(data)).rejects.toThrow();
   });
 
@@ -482,7 +471,6 @@ describe('PatientRegistrationSchema - Complete Registration', () => {
     data.hospitalId = 'not-a-uuid';
     await expect(PatientRegistrationSchema.parseAsync(data)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -490,7 +478,6 @@ describe('PatientRegistrationSchema - Complete Registration', () => {
 // ============================================================================
 
 describe('PatientRegistrationSchema - Edge Cases & Security', () => {
-  
   it('rejects extra fields (strict mode)', async () => {
     const data: any = createValidPatientData();
     data.extraField = 'should be rejected';
@@ -530,5 +517,4 @@ describe('PatientRegistrationSchema - Edge Cases & Security', () => {
     const result = await PatientRegistrationSchema.parseAsync(data);
     expect(result.phoneNumber).toBeDefined();
   });
-
 });

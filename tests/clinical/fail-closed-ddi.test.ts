@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { useDrugInteractions, InteractionResult } from '@/hooks/useDrugInteractions';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -54,7 +55,9 @@ describe('TEST-GAPS: Fail-Closed Clinical Drug-Drug Interaction (DDI) Safety Sui
 
       expect(result.current.canDispense(unknownResult)).toBe(false);
       expect(result.current.requiresApproval(unknownResult)).toBe(true);
-      expect(result.current.getMessage(unknownResult)).toContain('Pharmacist manual verification required');
+      expect(result.current.getMessage(unknownResult)).toContain(
+        'Pharmacist manual verification required'
+      );
     });
 
     it('blocks dispensing for "contraindicated" interactions', () => {
@@ -137,10 +140,12 @@ describe('TEST-GAPS: Fail-Closed Clinical Drug-Drug Interaction (DDI) Safety Sui
 
     it('returns null and defaults to fail-closed state when Edge Function returns an error object', async () => {
       const invokeMock = vi.mocked(supabase.functions.invoke);
-      invokeMock.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'Timeout calling RxNorm API' },
-      } as any);
+      invokeMock.mockResolvedValueOnce(
+        fromPartial({
+          data: null,
+          error: fromPartial({ message: 'Timeout calling RxNorm API' }),
+        })
+      );
 
       const { result } = renderHook(() => useDrugInteractions());
 

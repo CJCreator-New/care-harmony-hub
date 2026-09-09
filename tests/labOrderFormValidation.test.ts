@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import {
   LabOrderSchema,
   LabOrderFormData,
@@ -18,7 +19,7 @@ import { z } from 'zod';
 
 /**
  * HP-2 PR3: LabOrderForm Validation Tests
- * 
+ *
  * Comprehensive test coverage for lab order schema:
  * - 25+ test cases across 7 test suites
  * - Schema validation (happy path & edge cases)
@@ -54,7 +55,6 @@ function createValidLabOrder(): LabOrderFormData {
 // ============================================================================
 
 describe('LabOrderSchema - Utility Functions', () => {
-  
   it('getTestDetails: returns correct test information', () => {
     const test = getTestDetails('CBC');
     expect(test).toBeDefined();
@@ -132,7 +132,6 @@ describe('LabOrderSchema - Utility Functions', () => {
     expect(getRecommendedFastingHours('CMP')).toBe(12);
     expect(getRecommendedFastingHours('LIPID')).toBe(12);
   });
-
 });
 
 // ============================================================================
@@ -140,7 +139,6 @@ describe('LabOrderSchema - Utility Functions', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Test Selection', () => {
-  
   it('accepts valid test code', async () => {
     const order = createValidLabOrder();
     const result = await LabOrderSchema.parseAsync(order);
@@ -149,7 +147,7 @@ describe('LabOrderSchema - Test Selection', () => {
 
   it('rejects missing test code', async () => {
     const order = createValidLabOrder();
-    delete (order as any).testCode;
+    delete fromAny(order).testCode;
     await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow();
   });
 
@@ -176,7 +174,6 @@ describe('LabOrderSchema - Test Selection', () => {
       expect(result.testCode).toBe(test.code);
     }
   });
-
 });
 
 // ============================================================================
@@ -184,7 +181,6 @@ describe('LabOrderSchema - Test Selection', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Specimen & Collection Method', () => {
-  
   it('accepts valid blood specimen with venipuncture', async () => {
     const order = createValidLabOrder();
     order.specimenType = 'blood';
@@ -220,10 +216,9 @@ describe('LabOrderSchema - Specimen & Collection Method', () => {
 
   it('rejects invalid specimen type', async () => {
     const order = createValidLabOrder();
-    (order as any).specimenType = 'invalid_specimen';
+    fromAny(order).specimenType = 'invalid_specimen';
     await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -231,7 +226,6 @@ describe('LabOrderSchema - Specimen & Collection Method', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Fasting Requirements', () => {
-  
   it('accepts CBC order without fasting requirement', async () => {
     const order = createValidLabOrder();
     order.testCode = 'CBC';
@@ -276,7 +270,6 @@ describe('LabOrderSchema - Fasting Requirements', () => {
       'Fasting cannot exceed 24 hours'
     );
   });
-
 });
 
 // ============================================================================
@@ -284,7 +277,6 @@ describe('LabOrderSchema - Fasting Requirements', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Clinical Indication', () => {
-  
   it('accepts valid clinical indication (min 10 chars)', async () => {
     const order = createValidLabOrder();
     order.clinicalIndication = 'Patient has symptoms';
@@ -295,9 +287,7 @@ describe('LabOrderSchema - Clinical Indication', () => {
   it('rejects short clinical indication (< 10 chars)', async () => {
     const order = createValidLabOrder();
     order.clinicalIndication = 'Short';
-    await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow(
-      'at least 10 characters'
-    );
+    await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow('at least 10 characters');
   });
 
   it('accepts maximum length indication (500 chars)', async () => {
@@ -312,7 +302,6 @@ describe('LabOrderSchema - Clinical Indication', () => {
     order.clinicalIndication = 'A'.repeat(501);
     await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow();
   });
-
 });
 
 // ============================================================================
@@ -320,7 +309,6 @@ describe('LabOrderSchema - Clinical Indication', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Priority & STAT Orders', () => {
-  
   it('accepts routine priority', async () => {
     const order = createValidLabOrder();
     order.priority = 'ROUTINE';
@@ -344,14 +332,15 @@ describe('LabOrderSchema - Priority & STAT Orders', () => {
 
   it('rejects invalid priority', async () => {
     const order = createValidLabOrder();
-    (order as any).priority = 'EMERGENCY';
+    fromAny(order).priority = 'EMERGENCY';
     await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow();
   });
 
   it('STAT order with comprehensive indication passes', async () => {
     const order = createValidLabOrder();
     order.priority = 'STAT';
-    order.clinicalIndication = 'Patient with severe chest pain, likely MI, troponin needed immediately';
+    order.clinicalIndication =
+      'Patient with severe chest pain, likely MI, troponin needed immediately';
     const result = await LabOrderSchema.parseAsync(order);
     expect(result.priority).toBe('STAT');
   });
@@ -364,7 +353,6 @@ describe('LabOrderSchema - Priority & STAT Orders', () => {
       'STAT orders require comprehensive'
     );
   });
-
 });
 
 // ============================================================================
@@ -372,7 +360,6 @@ describe('LabOrderSchema - Priority & STAT Orders', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Complete Lab Order', () => {
-  
   it('accepts complete valid lab order', async () => {
     const order = createValidLabOrder();
     const result = await LabOrderSchema.parseAsync(order);
@@ -403,7 +390,7 @@ describe('LabOrderSchema - Complete Lab Order', () => {
 
   it('rejects order with missing required fields', async () => {
     const order = createValidLabOrder();
-    delete (order as any).clinicalIndication;
+    delete fromAny(order).clinicalIndication;
     await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow();
   });
 
@@ -420,7 +407,6 @@ describe('LabOrderSchema - Complete Lab Order', () => {
     const result = await LabOrderSchema.parseAsync(order);
     expect(result.additionalNotes).toBe('');
   });
-
 });
 
 // ============================================================================
@@ -428,7 +414,6 @@ describe('LabOrderSchema - Complete Lab Order', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Hospital & Provider Context', () => {
-  
   it('accepts valid hospital UUID', async () => {
     const order = createValidLabOrder();
     order.hospitalId = '550e8400-e29b-41d4-a716-446655440001';
@@ -465,7 +450,6 @@ describe('LabOrderSchema - Hospital & Provider Context', () => {
     order.patientId = 'not-a-patient-id';
     await expect(LabOrderSchema.parseAsync(order)).rejects.toThrow('Invalid patient ID');
   });
-
 });
 
 // ============================================================================
@@ -473,7 +457,6 @@ describe('LabOrderSchema - Hospital & Provider Context', () => {
 // ============================================================================
 
 describe('LabOrderSchema - Edge Cases & Security', () => {
-  
   it('handles maximum length special handling (200 chars)', async () => {
     const order = createValidLabOrder();
     order.specialHandling = 'A'.repeat(200);
@@ -526,5 +509,4 @@ describe('LabOrderSchema - Edge Cases & Security', () => {
     const result = await LabOrderSchema.parseAsync(order);
     expect(isFastingRequired(result.testCode)).toBe(true);
   });
-
 });

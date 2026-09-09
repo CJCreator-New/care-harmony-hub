@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { sanitizeLogMessage, sanitizeForLog } from '../src/utils/sanitize';
 
 /**
@@ -18,7 +19,6 @@ import { sanitizeLogMessage, sanitizeForLog } from '../src/utils/sanitize';
 // ============================================================================
 
 describe('PHI Sanitization - Utility Functions', () => {
-  
   it('sanitizes social security numbers (XXX-XX-XXXX format)', () => {
     const message = 'Patient SSN 123-45-6789 invalid';
     const result = sanitizeLogMessage(message);
@@ -87,14 +87,14 @@ describe('PHI Sanitization - Utility Functions', () => {
   });
 
   it('handles edge case: null-like values', () => {
-    const result1 = sanitizeLogMessage(null as any);
-    const result2 = sanitizeLogMessage(undefined as any);
+    const result1 = sanitizeLogMessage(fromAny(null));
+    const result2 = sanitizeLogMessage(fromAny(undefined));
     expect(typeof result1).toBe('string');
     expect(typeof result2).toBe('string');
   });
 
   it('handles edge case: non-string input', () => {
-    const result = sanitizeLogMessage({ message: 'error' } as any);
+    const result = sanitizeLogMessage(fromAny({ message: 'error' }));
     expect(typeof result).toBe('string');
   });
 
@@ -110,7 +110,6 @@ describe('PHI Sanitization - Utility Functions', () => {
     const result2 = sanitizeForLog(message);
     expect(result1).toBe(result2);
   });
-
 });
 
 // ============================================================================
@@ -118,7 +117,6 @@ describe('PHI Sanitization - Utility Functions', () => {
 // ============================================================================
 
 describe('Error Message Sanitization - Real-World Scenarios', () => {
-
   it('sanitizes database error with patient data', () => {
     const dbError = 'INSERT failed for patient john.doe@hospital.com with SSN 123-45-6789';
     const sanitized = sanitizeLogMessage(dbError);
@@ -170,7 +168,6 @@ describe('Error Message Sanitization - Real-World Scenarios', () => {
     expect(sanitized).toContain('bed 5');
     expect(sanitized).not.toContain('123-45-6789');
   });
-
 });
 
 // ============================================================================
@@ -178,7 +175,6 @@ describe('Error Message Sanitization - Real-World Scenarios', () => {
 // ============================================================================
 
 describe('Logging Compliance - HIPAA Standards', () => {
-
   let consoleErrorSpy: any;
   let consoleLogSpy: any;
 
@@ -195,9 +191,9 @@ describe('Logging Compliance - HIPAA Standards', () => {
     const patientSSN = '123-45-6789';
     const message = `Patient ${patientSSN} admission failed`;
     const sanitized = sanitizeForLog(message);
-    
+
     console.error(sanitized);
-    
+
     expect(consoleErrorSpy).toHaveBeenCalled();
     const loggedMessage = consoleErrorSpy.mock.calls[0][0];
     expect(loggedMessage).not.toContain(patientSSN);
@@ -208,9 +204,9 @@ describe('Logging Compliance - HIPAA Standards', () => {
     const phone = '555-123-4567';
     const message = `Contact failed for ${phone}`;
     const sanitized = sanitizeForLog(message);
-    
+
     console.error(sanitized);
-    
+
     expect(consoleErrorSpy).toHaveBeenCalled();
     const loggedMessage = consoleErrorSpy.mock.calls[0][0];
     expect(loggedMessage).not.toContain(phone);
@@ -221,9 +217,9 @@ describe('Logging Compliance - HIPAA Standards', () => {
     const email = 'patient@hospital.com';
     const message = `Notification to ${email} failed`;
     const sanitized = sanitizeForLog(message);
-    
+
     console.error(sanitized);
-    
+
     expect(consoleErrorSpy).toHaveBeenCalled();
     const loggedMessage = consoleErrorSpy.mock.calls[0][0];
     expect(loggedMessage).not.toContain(email);
@@ -234,15 +230,14 @@ describe('Logging Compliance - HIPAA Standards', () => {
     const card = '4532-1234-5678-9010';
     const message = `Card charge failed: ${card}`;
     const sanitized = sanitizeForLog(message);
-    
+
     console.error(sanitized);
-    
+
     expect(consoleErrorSpy).toHaveBeenCalled();
     const loggedMessage = consoleErrorSpy.mock.calls[0][0];
     expect(loggedMessage).not.toContain(card);
     expect(loggedMessage).toContain('[CARD]');
   });
-
 });
 
 // ============================================================================
@@ -250,7 +245,6 @@ describe('Logging Compliance - HIPAA Standards', () => {
 // ============================================================================
 
 describe('PHI Sanitization - Edge Cases', () => {
-
   it('handles false positives: legitimate numbers that look like SSN', () => {
     // Version number that resembles SSN pattern
     const message = 'Version 123-45-6789 released';
@@ -298,7 +292,6 @@ describe('PHI Sanitization - Edge Cases', () => {
     expect(result).toContain('[SSN]');
     expect(result).toContain('[PHONE]');
   });
-
 });
 
 // ============================================================================
@@ -306,7 +299,6 @@ describe('PHI Sanitization - Edge Cases', () => {
 // ============================================================================
 
 describe('PHI Sanitization - Performance & Constraints', () => {
-
   it('sanitizes large message within 5000 char limit', () => {
     const largeMessage = `
       Patient SSN 123-45-6789 with email test@hospital.com 
@@ -335,16 +327,15 @@ describe('PHI Sanitization - Performance & Constraints', () => {
     const largeMessage = Array(100)
       .fill('Patient SSN 123-45-6789 with phone 555-123-4567')
       .join(' ');
-    
+
     const start = performance.now();
     const result = sanitizeLogMessage(largeMessage);
     const duration = performance.now() - start;
-    
+
     expect(duration).toBeLessThan(100); // Should sanitize in <100ms
     expect(result).toContain('[SSN]');
     expect(result).toContain('[PHONE]');
   });
-
 });
 
 // ============================================================================
@@ -352,12 +343,11 @@ describe('PHI Sanitization - Performance & Constraints', () => {
 // ============================================================================
 
 describe('HIPAA Compliance - Error Handling Standards', () => {
-
   it('never logs unencrypted patient MRN/UHID', () => {
     const mrn = 'MRN12345678';
     const message = `Patient ${mrn} admitted`;
     const sanitized = sanitizeForLog(message);
-    
+
     // Current sanitizer may not catch MRN format - document this limitation
     // In production, MRN calls should use encryption layer
     expect(typeof sanitized).toBe('string');
@@ -386,5 +376,4 @@ describe('HIPAA Compliance - Error Handling Standards', () => {
     expect(sanitized).not.toContain('123-45-6789');
     expect(sanitized).toContain('[SSN]');
   });
-
 });

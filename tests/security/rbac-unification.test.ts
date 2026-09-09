@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import fs from 'node:fs';
 import path from 'node:path';
 import { UnifiedAuthService } from '@/services/unifiedAuthService';
@@ -30,16 +31,24 @@ describe('RBAC-UNIFY: Consolidated Authorization & Boundary Testing (Ticket 15)'
       expect(UnifiedAuthService.hasPermission('admin', 'patients:read')).toBe(true);
 
       // Doctor has consultation and prescription access
-      expect(UnifiedAuthService.hasPermission('doctor', PermissionCategory.CONSULTATION_READ)).toBe(true);
+      expect(UnifiedAuthService.hasPermission('doctor', PermissionCategory.CONSULTATION_READ)).toBe(
+        true
+      );
       expect(UnifiedAuthService.hasPermission('doctor', 'consultations:read')).toBe(true);
-      expect(UnifiedAuthService.hasPermission('doctor', PermissionCategory.PRESCRIPTION_READ)).toBe(true);
+      expect(UnifiedAuthService.hasPermission('doctor', PermissionCategory.PRESCRIPTION_READ)).toBe(
+        true
+      );
 
       // Pharmacist has pharmacy dispense access
-      expect(UnifiedAuthService.hasPermission('pharmacist', PermissionCategory.PHARMACY_DISPENSE)).toBe(true);
+      expect(
+        UnifiedAuthService.hasPermission('pharmacist', PermissionCategory.PHARMACY_DISPENSE)
+      ).toBe(true);
       expect(UnifiedAuthService.hasPermission('pharmacist', 'pharmacy:write')).toBe(true);
 
       // Lab technician has lab upload results access
-      expect(UnifiedAuthService.hasPermission('lab_technician', PermissionCategory.LAB_UPLOAD_RESULTS)).toBe(true);
+      expect(
+        UnifiedAuthService.hasPermission('lab_technician', PermissionCategory.LAB_UPLOAD_RESULTS)
+      ).toBe(true);
       expect(UnifiedAuthService.hasPermission('lab_technician', 'lab:write')).toBe(true);
     });
 
@@ -85,7 +94,7 @@ describe('RBAC-UNIFY: Consolidated Authorization & Boundary Testing (Ticket 15)'
     it('denies all billing permissions to doctor role across UnifiedAuthService and types/rbac', () => {
       billingPermissions.forEach((perm) => {
         expect(UnifiedAuthService.hasPermission('doctor', perm)).toBe(false);
-        expect(checkEnumPermission('doctor', perm as any)).toBe(false);
+        expect(checkEnumPermission('doctor', fromAny(perm))).toBe(false);
         expect(checkStringPermission('doctor', perm)).toBe(false);
       });
     });
@@ -93,16 +102,22 @@ describe('RBAC-UNIFY: Consolidated Authorization & Boundary Testing (Ticket 15)'
     it('denies all billing permissions to nurse role across UnifiedAuthService and types/rbac', () => {
       billingPermissions.forEach((perm) => {
         expect(UnifiedAuthService.hasPermission('nurse', perm)).toBe(false);
-        expect(checkEnumPermission('nurse', perm as any)).toBe(false);
+        expect(checkEnumPermission('nurse', fromAny(perm))).toBe(false);
         expect(checkStringPermission('nurse', perm)).toBe(false);
       });
     });
 
     it('allows billing permissions to admin and receptionist', () => {
       expect(UnifiedAuthService.hasPermission('admin', PermissionCategory.BILLING_READ)).toBe(true);
-      expect(UnifiedAuthService.hasPermission('admin', PermissionCategory.BILLING_INVOICE)).toBe(true);
-      expect(UnifiedAuthService.hasPermission('receptionist', PermissionCategory.BILLING_READ)).toBe(true);
-      expect(UnifiedAuthService.hasPermission('receptionist', PermissionCategory.BILLING_INVOICE)).toBe(true);
+      expect(UnifiedAuthService.hasPermission('admin', PermissionCategory.BILLING_INVOICE)).toBe(
+        true
+      );
+      expect(
+        UnifiedAuthService.hasPermission('receptionist', PermissionCategory.BILLING_READ)
+      ).toBe(true);
+      expect(
+        UnifiedAuthService.hasPermission('receptionist', PermissionCategory.BILLING_INVOICE)
+      ).toBe(true);
     });
   });
 
@@ -116,11 +131,21 @@ describe('RBAC-UNIFY: Consolidated Authorization & Boundary Testing (Ticket 15)'
     });
 
     it('verifies patient self-service permissions', () => {
-      expect(PatientRBACManager.hasPermission('patient', PatientPermission.PORTAL_ACCESS)).toBe(true);
-      expect(PatientRBACManager.hasPermission('patient', PatientPermission.APPOINTMENT_READ)).toBe(true);
-      expect(PatientRBACManager.hasPermission('patient', PatientPermission.APPOINTMENT_BOOK)).toBe(true);
-      expect(PatientRBACManager.hasPermission('patient', PatientPermission.BILLING_READ)).toBe(true);
-      expect(PatientRBACManager.hasPermission('patient', PatientPermission.PROFILE_UPDATE)).toBe(true);
+      expect(PatientRBACManager.hasPermission('patient', PatientPermission.PORTAL_ACCESS)).toBe(
+        true
+      );
+      expect(PatientRBACManager.hasPermission('patient', PatientPermission.APPOINTMENT_READ)).toBe(
+        true
+      );
+      expect(PatientRBACManager.hasPermission('patient', PatientPermission.APPOINTMENT_BOOK)).toBe(
+        true
+      );
+      expect(PatientRBACManager.hasPermission('patient', PatientPermission.BILLING_READ)).toBe(
+        true
+      );
+      expect(PatientRBACManager.hasPermission('patient', PatientPermission.PROFILE_UPDATE)).toBe(
+        true
+      );
     });
 
     it('strictly enforces own-record access constraint (auth.uid === recordOwnerId)', () => {
@@ -160,7 +185,9 @@ describe('RBAC-UNIFY: Consolidated Authorization & Boundary Testing (Ticket 15)'
     it('ensures all 7 canonical roles are recognized without error', () => {
       expect(canonicalRoles.length).toBe(7);
       canonicalRoles.forEach((role) => {
-        expect(() => UnifiedAuthService.hasPermission(role, PermissionCategory.PATIENT_READ)).not.toThrow();
+        expect(() =>
+          UnifiedAuthService.hasPermission(role, PermissionCategory.PATIENT_READ)
+        ).not.toThrow();
       });
     });
   });

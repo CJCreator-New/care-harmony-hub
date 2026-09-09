@@ -10,13 +10,14 @@ Blocked by: none
 - **Description**: While `.env` is currently git-ignored, git revision history contains tracked commits exposing live Supabase project URLs, service keys, and anonymous API keys (expiring in 2082).
 
 ## Technical Requirements
-1. Run `git-filter-repo` (or BFG Repo-Cleaner) to completely purge historical `.env`, `.env.kong`, and associated secret tokens from all git branches and tags.
-2. In Supabase Dashboard, rotate:
+1. Interactive Wizard: Execute `powershell -ExecutionPolicy Bypass -File scripts/secrets-rotation-wizard.ps1` to walk through the 6-stage guided procedure.
+2. Run `git-filter-repo` (or BFG Repo-Cleaner) to completely purge historical `.env`, `.env.kong`, and associated secret tokens from all git branches and tags.
+3. In Supabase Dashboard, rotate:
    - Database user passwords.
    - JWT secret and Anon / Service-Role API keys.
    - Webhook signing secrets.
-3. Update environment variables in GitHub Secrets, Vercel/production deployment, and local `.env.example`.
-4. Run `trufflehog` or `gitleaks` to verify that git history is completely free of credential leaks.
+4. Update environment variables in GitHub Secrets, Vercel/production deployment, and local `.env.example`.
+5. Run `trufflehog` or `gitleaks` to verify that git history is completely free of credential leaks.
 
 ## Acceptance Criteria
 - [ ] **AC-1 (History Sanitization)**:

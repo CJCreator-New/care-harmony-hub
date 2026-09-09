@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import {
   validateBreakGlassOverride,
   sanitizeBreakGlassReason,
@@ -19,7 +20,8 @@ describe('Phase 4: Break-Glass Override System', () => {
   describe('validateBreakGlassOverride', () => {
     it('should accept valid break-glass override', () => {
       const override = validateBreakGlassOverride({
-        reason: 'Patient experiencing critical hypertension - emergency treatment required immediately due to cardiac risk',
+        reason:
+          'Patient experiencing critical hypertension - emergency treatment required immediately due to cardiac risk',
         emergency_level: 'critical',
         approved_by_role: 'emergency_physician',
         related_patient_id: '123e4567-e89b-12d3-a456-426614174000',
@@ -58,7 +60,7 @@ describe('Phase 4: Break-Glass Override System', () => {
       expect(() =>
         validateBreakGlassOverride({
           reason: 'Valid clinical emergency reason for override request now',
-          emergency_level: 'invalid' as any,
+          emergency_level: fromAny('invalid'),
           approved_by_role: 'emergency_physician',
           related_patient_id: '123e4567-e89b-12d3-a456-426614174000',
           override_type: 'clinical_judgment_override',
@@ -90,7 +92,8 @@ describe('Phase 4: Break-Glass Override System', () => {
     });
 
     it('should preserve clinical details', () => {
-      const reason = 'Patient experiencing cardiac arrhythmia with heart rate 150 - emergency intervention required';
+      const reason =
+        'Patient experiencing cardiac arrhythmia with heart rate 150 - emergency intervention required';
       const sanitized = sanitizeBreakGlassReason(reason);
       expect(sanitized).toContain('cardiac arrhythmia');
       expect(sanitized).toContain('150');
@@ -113,7 +116,10 @@ describe('Phase 4: Break-Glass Override System', () => {
     });
 
     it('should allow head_pharmacist only for medication/system overrides', () => {
-      const medicineResult = canApproveBreakGlass('head_pharmacist', 'emergency_medication_dispense');
+      const medicineResult = canApproveBreakGlass(
+        'head_pharmacist',
+        'emergency_medication_dispense'
+      );
       expect(medicineResult.allowed).toBe(true);
 
       const dischargeResult = canApproveBreakGlass('head_pharmacist', 'critical_discharge');
@@ -129,7 +135,7 @@ describe('Phase 4: Break-Glass Override System', () => {
         'clinical_judgment_override',
       ];
 
-      types.forEach(type => {
+      types.forEach((type) => {
         const result = canApproveBreakGlass('admin', type);
         expect(result.allowed).toBe(true);
       });
@@ -141,7 +147,7 @@ describe('Phase 4: Break-Glass Override System', () => {
       const now = new Date('2026-03-31T12:00:00Z').getTime();
       const expiration = calculateBreakGlassExpiration(now);
       const expiresAt = new Date(expiration).getTime();
-      
+
       expect(expiresAt - now).toBe(60 * 60 * 1000); // Exactly 1 hour
     });
 
@@ -157,9 +163,9 @@ describe('Phase 4: Break-Glass Override System', () => {
       const now = Date.now();
       const thirtyMinutesAhead = new Date(now + 30 * 60 * 1000).toISOString();
       const remaining = getBreakGlassRemainingTime(thirtyMinutesAhead);
-      
+
       // Allow 1 second tolerance
-      expect(Math.abs(remaining - (30 * 60 * 1000))).toBeLessThan(1000);
+      expect(Math.abs(remaining - 30 * 60 * 1000)).toBeLessThan(1000);
     });
 
     it('should return 0 for expired overrides', () => {
@@ -183,7 +189,7 @@ describe('Phase 4: Break-Glass Override System', () => {
     it('should consider completion time in escalation calc', () => {
       const created = new Date('2026-03-31T12:00:00Z').toISOString();
       const completed = new Date('2026-03-31T12:00:30Z').toISOString();
-      
+
       // 30 seconds difference - no escalation
       expect(shouldEscalateToAdmin(created, completed)).toBe(false);
 
@@ -198,18 +204,19 @@ describe('Phase 4: Break-Glass Override System', () => {
       const reason = 'Patient experiencing critical cardiac event - immediate intervention needed';
       const hash1 = await hashBreakGlassReason(reason);
       const hash2 = await hashBreakGlassReason(reason);
-      
+
       expect(hash1).toBe(hash2);
       expect(hash1.length).toBeGreaterThan(0); // Should produce non-empty hash
     });
 
     it('should generate different hash for different reasons', async () => {
       const reason1 = 'Patient experiencing critical cardiac event - immediate intervention needed';
-      const reason2 = 'Patient experiencing critical respiratory event - immediate intervention needed';
-      
+      const reason2 =
+        'Patient experiencing critical respiratory event - immediate intervention needed';
+
       const hash1 = await hashBreakGlassReason(reason1);
       const hash2 = await hashBreakGlassReason(reason2);
-      
+
       expect(hash1).not.toBe(hash2);
     });
   });

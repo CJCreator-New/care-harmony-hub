@@ -5,10 +5,10 @@
  * Ensures proper authorization, sequencing, and audit trails
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = "doctor" | "nurse" | "receptionist" | "billing" | "admin" | "pharmacy";
-export type WorkflowState = "initiated" | "in_progress" | "completed" | "failed" | "rejected";
+export type UserRole = 'doctor' | 'nurse' | 'receptionist' | 'billing' | 'admin' | 'pharmacy';
+export type WorkflowState = 'initiated' | 'in_progress' | 'completed' | 'failed' | 'rejected';
 
 export interface WorkflowStep {
   step_id: string;
@@ -32,38 +32,33 @@ export interface WorkflowExecution {
   data_accumulation: Record<string, any>;
 }
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
-
 /**
  * Appointment Scheduling Workflow
  * Receptionist → Doctor → Nurse confirmation
  */
 const APPOINTMENT_WORKFLOW: WorkflowStep[] = [
   {
-    step_id: "appointment.create",
-    step_name: "Create Appointment",
-    allowed_roles: ["receptionist"],
-    required_data_fields: ["patient_id", "doctor_id", "appointment_date", "reason"],
-    next_steps: ["appointment.doctor_confirm"],
+    step_id: 'appointment.create',
+    step_name: 'Create Appointment',
+    allowed_roles: ['receptionist'],
+    required_data_fields: ['patient_id', 'doctor_id', 'appointment_date', 'reason'],
+    next_steps: ['appointment.doctor_confirm'],
     timeout_minutes: 60,
   },
   {
-    step_id: "appointment.doctor_confirm",
-    step_name: "Doctor Confirmation",
-    allowed_roles: ["doctor"],
-    required_data_fields: ["appointment_id", "confirmed"],
-    next_steps: ["appointment.nurse_confirm", "appointment.rejected"],
+    step_id: 'appointment.doctor_confirm',
+    step_name: 'Doctor Confirmation',
+    allowed_roles: ['doctor'],
+    required_data_fields: ['appointment_id', 'confirmed'],
+    next_steps: ['appointment.nurse_confirm', 'appointment.rejected'],
     timeout_minutes: 120,
   },
   {
-    step_id: "appointment.nurse_confirm",
-    step_name: "Nurse Pre-Check",
-    allowed_roles: ["nurse"],
-    required_data_fields: ["vital_signs", "allergy_check"],
-    next_steps: ["appointment.completed"],
+    step_id: 'appointment.nurse_confirm',
+    step_name: 'Nurse Pre-Check',
+    allowed_roles: ['nurse'],
+    required_data_fields: ['vital_signs', 'allergy_check'],
+    next_steps: ['appointment.completed'],
     timeout_minutes: 30,
   },
 ];
@@ -74,26 +69,26 @@ const APPOINTMENT_WORKFLOW: WorkflowStep[] = [
  */
 const PRESCRIPTION_WORKFLOW: WorkflowStep[] = [
   {
-    step_id: "prescription.create",
-    step_name: "Issue Prescription",
-    allowed_roles: ["doctor"],
-    required_data_fields: ["patient_id", "medication", "dosage", "frequency"],
-    next_steps: ["prescription.pharmacist_verify"],
+    step_id: 'prescription.create',
+    step_name: 'Issue Prescription',
+    allowed_roles: ['doctor'],
+    required_data_fields: ['patient_id', 'medication', 'dosage', 'frequency'],
+    next_steps: ['prescription.pharmacist_verify'],
     timeout_minutes: 5,
   },
   {
-    step_id: "prescription.pharmacist_verify",
-    step_name: "Pharmacy Verification",
-    allowed_roles: ["pharmacy"],
-    required_data_fields: ["pharmacy_id", "verified"],
-    next_steps: ["prescription.patient_notified"],
+    step_id: 'prescription.pharmacist_verify',
+    step_name: 'Pharmacy Verification',
+    allowed_roles: ['pharmacy'],
+    required_data_fields: ['pharmacy_id', 'verified'],
+    next_steps: ['prescription.patient_notified'],
     timeout_minutes: 15,
   },
   {
-    step_id: "prescription.patient_notified",
-    step_name: "Patient Notification",
-    allowed_roles: ["nurse", "receptionist"],
-    required_data_fields: ["notification_method"],
+    step_id: 'prescription.patient_notified',
+    step_name: 'Patient Notification',
+    allowed_roles: ['nurse', 'receptionist'],
+    required_data_fields: ['notification_method'],
     next_steps: [],
   },
 ];
@@ -104,42 +99,42 @@ const PRESCRIPTION_WORKFLOW: WorkflowStep[] = [
  */
 const BILLING_WORKFLOW: WorkflowStep[] = [
   {
-    step_id: "billing.clinical_complete",
-    step_name: "Clinical Work Complete",
-    allowed_roles: ["doctor"],
-    required_data_fields: ["appointment_id", "procedures", "diagnoses"],
-    next_steps: ["billing.generate_claim"],
+    step_id: 'billing.clinical_complete',
+    step_name: 'Clinical Work Complete',
+    allowed_roles: ['doctor'],
+    required_data_fields: ['appointment_id', 'procedures', 'diagnoses'],
+    next_steps: ['billing.generate_claim'],
     timeout_minutes: 0, // Immediate
   },
   {
-    step_id: "billing.generate_claim",
-    step_name: "Generate Insurance Claim",
-    allowed_roles: ["billing"],
-    required_data_fields: ["claim_id", "edi_837"],
-    next_steps: ["billing.submit_insurance"],
+    step_id: 'billing.generate_claim',
+    step_name: 'Generate Insurance Claim',
+    allowed_roles: ['billing'],
+    required_data_fields: ['claim_id', 'edi_837'],
+    next_steps: ['billing.submit_insurance'],
     timeout_minutes: 60,
   },
   {
-    step_id: "billing.submit_insurance",
-    step_name: "Submit EDI Claim",
-    allowed_roles: ["billing"],
-    required_data_fields: ["insurance_id", "submission_timestamp"],
-    next_steps: ["billing.process_patient_responsibility"],
+    step_id: 'billing.submit_insurance',
+    step_name: 'Submit EDI Claim',
+    allowed_roles: ['billing'],
+    required_data_fields: ['insurance_id', 'submission_timestamp'],
+    next_steps: ['billing.process_patient_responsibility'],
     timeout_minutes: 5,
   },
   {
-    step_id: "billing.process_patient_responsibility",
-    step_name: "Calculate Patient Copay",
-    allowed_roles: ["billing"],
-    required_data_fields: ["copay_amount", "deductible", "coinsurance"],
-    next_steps: ["billing.send_invoice"],
+    step_id: 'billing.process_patient_responsibility',
+    step_name: 'Calculate Patient Copay',
+    allowed_roles: ['billing'],
+    required_data_fields: ['copay_amount', 'deductible', 'coinsurance'],
+    next_steps: ['billing.send_invoice'],
     timeout_minutes: 5,
   },
   {
-    step_id: "billing.send_invoice",
-    step_name: "Send Invoice to Patient",
-    allowed_roles: ["receptionist"],
-    required_data_fields: ["invoice_id"],
+    step_id: 'billing.send_invoice',
+    step_name: 'Send Invoice to Patient',
+    allowed_roles: ['receptionist'],
+    required_data_fields: ['invoice_id'],
     next_steps: [],
   },
 ];
@@ -150,26 +145,26 @@ const BILLING_WORKFLOW: WorkflowStep[] = [
  */
 const CLINICAL_NOTES_WORKFLOW: WorkflowStep[] = [
   {
-    step_id: "notes.create",
-    step_name: "Enter Clinical Notes",
-    allowed_roles: ["doctor"],
-    required_data_fields: ["appointment_id", "findings", "assessment", "plan"],
-    next_steps: ["notes.sign"],
+    step_id: 'notes.create',
+    step_name: 'Enter Clinical Notes',
+    allowed_roles: ['doctor'],
+    required_data_fields: ['appointment_id', 'findings', 'assessment', 'plan'],
+    next_steps: ['notes.sign'],
     timeout_minutes: 30,
   },
   {
-    step_id: "notes.sign",
-    step_name: "Digitally Sign Notes",
-    allowed_roles: ["doctor"],
-    required_data_fields: ["signature_data", "private_key"],
-    next_steps: ["notes.nurse_observations"],
+    step_id: 'notes.sign',
+    step_name: 'Digitally Sign Notes',
+    allowed_roles: ['doctor'],
+    required_data_fields: ['signature_data', 'private_key'],
+    next_steps: ['notes.nurse_observations'],
     timeout_minutes: 10,
   },
   {
-    step_id: "notes.nurse_observations",
-    step_name: "Add Nurse Observations (append-only)",
-    allowed_roles: ["nurse"],
-    required_data_fields: ["observation_text", "category"],
+    step_id: 'notes.nurse_observations',
+    step_name: 'Add Nurse Observations (append-only)',
+    allowed_roles: ['nurse'],
+    required_data_fields: ['observation_text', 'category'],
     next_steps: [],
   },
 ];
@@ -178,7 +173,7 @@ const CLINICAL_NOTES_WORKFLOW: WorkflowStep[] = [
  * Initialize workflow execution
  */
 export async function initializeWorkflow(
-  workflowType: "appointment" | "prescription" | "billing" | "clinical_notes",
+  workflowType: 'appointment' | 'prescription' | 'billing' | 'clinical_notes',
   hospitalId: string,
   initiatedBy: string,
   userRole: UserRole,
@@ -197,17 +192,13 @@ export async function initializeWorkflow(
 
   // Validate authorization
   if (!firstStep.allowed_roles.includes(userRole)) {
-    throw new Error(
-      `Role ${userRole} not authorized to initiate ${workflowType} workflow`
-    );
+    throw new Error(`Role ${userRole} not authorized to initiate ${workflowType} workflow`);
   }
 
   // Validate required data
-  const missingFields = firstStep.required_data_fields.filter(
-    (field) => !(field in initialData)
-  );
+  const missingFields = firstStep.required_data_fields.filter((field) => !(field in initialData));
   if (missingFields.length > 0) {
-    throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+    throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
 
   // Create workflow execution record
@@ -217,7 +208,7 @@ export async function initializeWorkflow(
     initiated_by: initiatedBy,
     initiated_by_role: userRole,
     started_at: new Date().toISOString(),
-    state: "in_progress",
+    state: 'in_progress',
     current_step: firstStep.step_id,
     steps_completed: [],
     pending_steps: workflow.slice(1),
@@ -225,33 +216,44 @@ export async function initializeWorkflow(
   };
 
   // Persist workflow execution
-  const { error } = await supabase
-    .from("workflow_executions")
-    .insert([
-      {
-        workflow_id: execution.workflow_id,
-        workflow_type: workflowType,
-        hospital_id: hospitalId,
-        initiated_by: initiatedBy,
-        initiated_by_role: userRole,
-        started_at: execution.started_at,
-        state: "in_progress",
-        current_step: firstStep.step_id,
-        data_accumulation: execution.data_accumulation,
-      },
-    ]);
+  const { error } = await supabase.from('workflow_executions').insert([
+    {
+      workflow_id: execution.workflow_id,
+      workflow_type: workflowType,
+      hospital_id: hospitalId,
+      initiated_by: initiatedBy,
+      initiated_by_role: userRole,
+      started_at: execution.started_at,
+      state: 'in_progress',
+      current_step: firstStep.step_id,
+      data_accumulation: execution.data_accumulation,
+    },
+  ]);
 
   if (error) throw error;
 
   // Audit log
-  await supabase.from("audit_logs").insert([
+  await supabase.from('audit_logs').insert([
     {
       user_id: initiatedBy,
       action: `WORKFLOW_INITIATED`,
-      table_name: "workflow_executions",
+      table_name: 'workflow_executions',
       record_id: execution.workflow_id,
       description: `Initialized ${workflowType} workflow`,
       created_at: new Date().toISOString(),
+    },
+  ]);
+
+  // Audit log initial step data for compliance
+  await supabase.from('workflow_audit_logs').insert([
+    {
+      workflow_id: execution.workflow_id,
+      step_id: firstStep.step_id,
+      performed_by: initiatedBy,
+      user_role: userRole,
+      step_data: initialData,
+      completed_at: new Date().toISOString(),
+      hospital_id: hospitalId,
     },
   ]);
 
@@ -284,33 +286,28 @@ export async function advanceWorkflowStep(
   const workflowSteps = workflowTypes[workflowType];
   const currentStep = workflowSteps.find((s) => s.step_id === stepId);
 
-  if (!currentStep) throw new Error("Invalid workflow step");
+  if (!currentStep) throw new Error('Invalid workflow step');
 
   // Validate authorization
   if (!currentStep.allowed_roles.includes(userRole)) {
-    throw new Error(
-      `Role ${userRole} not authorized to perform step ${stepId}`
-    );
-  }
-
-  // Validate required data
-  const missingFields = currentStep.required_data_fields.filter(
-    (field) => !(field in stepData)
-  );
-  if (missingFields.length > 0) {
-    throw new Error(
-      `Step ${stepId} requires: ${missingFields.join(", ")}`
-    );
+    throw new Error(`Role ${userRole} not authorized to perform step ${stepId}`);
   }
 
   // Get current execution
   const { data: execution } = await supabase
-    .from("workflow_executions")
-    .select("*")
-    .eq("workflow_id", workflowId)
+    .from('workflow_executions')
+    .select('*')
+    .eq('workflow_id', workflowId)
     .single();
 
-  if (!execution) throw new Error("Workflow not found");
+  if (!execution) throw new Error('Workflow not found');
+
+  // Validate required data (can be in stepData or accumulated in workflow)
+  const accumulated = { ...(execution.data_accumulation || {}), ...stepData };
+  const missingFields = currentStep.required_data_fields.filter((field) => !(field in accumulated));
+  if (missingFields.length > 0) {
+    throw new Error(`Step ${stepId} requires: ${missingFields.join(', ')}`);
+  }
 
   // Determine next step
   const nextStepIds = currentStep.next_steps;
@@ -319,7 +316,7 @@ export async function advanceWorkflowStep(
   // Update execution
   const updatedExecution = {
     current_step: nextStep?.step_id || null,
-    state: nextStep ? "in_progress" : ("completed" as WorkflowState),
+    state: nextStep ? 'in_progress' : ('completed' as WorkflowState),
     data_accumulation: {
       ...execution.data_accumulation,
       ...stepData,
@@ -329,18 +326,18 @@ export async function advanceWorkflowStep(
   };
 
   const { error: updateError } = await supabase
-    .from("workflow_executions")
+    .from('workflow_executions')
     .update(updatedExecution)
-    .eq("workflow_id", workflowId);
+    .eq('workflow_id', workflowId);
 
   if (updateError) throw updateError;
 
   // Audit log
-  await supabase.from("audit_logs").insert([
+  await supabase.from('audit_logs').insert([
     {
       user_id: performedBy,
       action: `WORKFLOW_STEP_COMPLETED`,
-      table_name: "workflow_executions",
+      table_name: 'workflow_executions',
       record_id: workflowId,
       description: `Completed step: ${stepId}`,
       created_at: new Date().toISOString(),
@@ -348,7 +345,7 @@ export async function advanceWorkflowStep(
   ]);
 
   // Audit log step data for compliance
-  await supabase.from("workflow_audit_logs").insert([
+  await supabase.from('workflow_audit_logs').insert([
     {
       workflow_id: workflowId,
       step_id: stepId,
@@ -366,9 +363,7 @@ export async function advanceWorkflowStep(
 /**
  * Validate workflow compliance
  */
-export async function validateWorkflowCompliance(
-  workflowId: string
-): Promise<{
+export async function validateWorkflowCompliance(workflowId: string): Promise<{
   is_compliant: boolean;
   violations: string[];
   steps_authorized: boolean;
@@ -376,45 +371,44 @@ export async function validateWorkflowCompliance(
   data_integrity: boolean;
 }> {
   const { data: execution } = await supabase
-    .from("workflow_executions")
-    .select("*")
-    .eq("workflow_id", workflowId)
+    .from('workflow_executions')
+    .select('*')
+    .eq('workflow_id', workflowId)
     .single();
 
-  if (!execution) throw new Error("Workflow not found");
+  if (!execution) throw new Error('Workflow not found');
 
   const violations: string[] = [];
 
   // Check step authorization
   const { data: auditLogs } = await supabase
-    .from("workflow_audit_logs")
-    .select("*")
-    .eq("workflow_id", workflowId);
+    .from('workflow_audit_logs')
+    .select('*')
+    .eq('workflow_id', workflowId);
 
   const stepsAuthorized =
     auditLogs?.every((log) => {
-      const workflowType = workflowId.split("-")[0] as keyof typeof WORKFLOWS;
+      const workflowType = workflowId.split('-')[0] as keyof typeof WORKFLOWS;
       const workflow = WORKFLOWS[workflowType];
       const step = workflow.find((s) => s.step_id === log.step_id);
       return step?.allowed_roles.includes(log.user_role);
     }) ?? true;
 
-  if (!stepsAuthorized) violations.push("Unauthorized step execution detected");
+  if (!stepsAuthorized) violations.push('Unauthorized step execution detected');
 
   // Check audit trail completeness
   const auditTrailComplete = auditLogs && auditLogs.length > 0;
-  if (!auditTrailComplete) violations.push("Incomplete audit trail");
+  if (!auditTrailComplete) violations.push('Incomplete audit trail');
 
   // Check data integrity
   const { data: steps } = await supabase
-    .from("workflow_audit_logs")
-    .select("step_data")
-    .eq("workflow_id", workflowId);
+    .from('workflow_audit_logs')
+    .select('step_data')
+    .eq('workflow_id', workflowId);
 
   const dataIntegrity =
-    steps?.every((step) => step.step_data && Object.keys(step.step_data).length > 0) ??
-    true;
-  if (!dataIntegrity) violations.push("Data integrity issues detected");
+    steps?.every((step) => step.step_data && Object.keys(step.step_data).length > 0) ?? true;
+  if (!dataIntegrity) violations.push('Data integrity issues detected');
 
   return {
     is_compliant: violations.length === 0,
@@ -425,7 +419,7 @@ export async function validateWorkflowCompliance(
   };
 }
 
-const WORKFLOWS = {
+export const WORKFLOWS = {
   appointment: APPOINTMENT_WORKFLOW,
   prescription: PRESCRIPTION_WORKFLOW,
   billing: BILLING_WORKFLOW,

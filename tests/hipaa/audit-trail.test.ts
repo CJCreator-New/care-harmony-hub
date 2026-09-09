@@ -1,13 +1,13 @@
 /**
  * Phase 3A: HIPAA & Data Protection — Audit Trail Tests (Practical Execution)
- * 
+ *
  * Test Suite: Audit Trail Integrity & PHI Logging Verification
  * Objective: Verify that audit trails capture all PHI access without leaking PHI data
- * 
+ *
  * HIPAA Compliance: §164.312(b) - Audit Controls
- * "Implement hardware, software, and/or procedural mechanisms that record and examine 
+ * "Implement hardware, software, and/or procedural mechanisms that record and examine
  *  activity in information systems containing or using electronic protected health information"
- * 
+ *
  * 20 Test Cases (Adapted to Codebase):
  * ✅ Audit trail structure validation (4 tests)
  * ✅ PHI masking functionality (5 tests)
@@ -17,6 +17,7 @@
  */
 
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { sanitizeForLog } from '@/utils/sanitize';
 import { maskPHI } from '@/utils/logger';
 
@@ -76,8 +77,8 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
     });
 
     it('HIPAA-AT-005: Should handle null/undefined gracefully', () => {
-      const nullResult = maskPHI(null as any);
-      const undefinedResult = maskPHI(undefined as any);
+      const nullResult = maskPHI(fromAny(null));
+      const undefinedResult = maskPHI(fromAny(undefined));
 
       // Should not throw and should return string
       expect(typeof nullResult).toBe('string');
@@ -188,7 +189,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
     it('HIPAA-AT-014: Should have immutable audit log table', () => {
       // This test verifies the expected audit log structure exists
       // In a real scenario, this would query the database schema
-      
+
       const expectedFields = [
         'audit_id',
         'event_time',
@@ -201,11 +202,11 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
         'after_state',
         'source_ip',
         'patient_id',
-        'immutable_lock'
+        'immutable_lock',
       ];
 
       // Validate structure requirements
-      expectedFields.forEach(field => {
+      expectedFields.forEach((field) => {
         expect(field).toBeTruthy();
         expect(field.length).toBeGreaterThan(0);
       });
@@ -214,7 +215,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
     it('HIPAA-AT-015: Should enforce append-only audit logs', () => {
       // Verify that audit log entries cannot be modified or deleted
       // This would be enforced by RLS policies in Supabase
-      
+
       const auditEntry = {
         immutable_lock: true,
         timestamp: new Date().toISOString(),
@@ -229,7 +230,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
 
     it('HIPAA-AT-016: Should prevent direct deletion of audit entries', () => {
       // Verify that audit trail uses amendment pattern for corrections
-      
+
       const auditCorrection = {
         amends_audit_id: 'original-entry-uuid',
         action: 'AMENDED',
@@ -250,10 +251,10 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
   describe('RLS Policy Validation', () => {
     it('HIPAA-AT-017: Should enforce hospital-scoped audit access', () => {
       // Verify that RLS policy restricts audit log access by hospital
-      
+
       const hospitalA = 'hospital-a-uuid';
       const hospitalB = 'hospital-b-uuid';
-      
+
       // User from hospital A should not see hospital B audit logs
       const userHospital = hospitalA;
       const auditEntryHospital = hospitalB;
@@ -264,8 +265,8 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
 
     it('HIPAA-AT-018: Should prevent role-based access violations', () => {
       // Verify that user roles restrict audit log visibility
-      
-      const receptionist =  { role: 'receptionist', canReadAuditLog: false };
+
+      const receptionist = { role: 'receptionist', canReadAuditLog: false };
       const doctor = { role: 'doctor', canReadAuditLog: true };
       const admin = { role: 'admin', canReadAuditLog: true };
 
@@ -276,7 +277,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
 
     it('HIPAA-AT-019: Should log access to audit logs (meta-audit)', () => {
       // Verify that accessing audit logs is itself logged
-      
+
       const metaAuditEntry = {
         action: 'AUDIT_LOG_READ',
         actor_id: 'user-uuid',
@@ -295,23 +296,23 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
   // ============================================================================
   /*
    * Phase 3A Audit Trail Test Summary:
-   * 
+   *
    * ✅ 5 tests: PHI masking functionality
    * ✅ 4 tests: Sanitization effectiveness
    * ✅ 4 tests: PHI leakage prevention patterns
    * ✅ 3 tests: Audit log structure validation
    * ✅ 3 tests: RLS policy validation
-   * 
+   *
    * **TOTAL: 19 Tests**
-   * 
+   *
    * Success Criteria:
    * ✅ All tests passing
    * ✅ No PHI in sanitized outputs
    * ✅ Masking functions work correctly
    * ✅ RLS policies enforced
-   * 
+   *
    * Documentation: docs/HIPAA_AUDIT/01_PHI_INVENTORY.md
-   * 
+   *
    * Next: RLS Enforcement Tests (25 tests)
    */
 });

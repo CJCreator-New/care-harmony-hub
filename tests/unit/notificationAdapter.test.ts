@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 // T-73: Notification adapter
 // Validates that sendNotification routes correctly and strips PHI from log output
@@ -47,7 +48,7 @@ describe('Notification Adapter (T-73)', () => {
 
   it('accepts a well-formed notification payload', async () => {
     await expect(
-      sendNotification(mockSupabase as any, {
+      sendNotification(fromPartial(mockSupabase), {
         recipient_id: 'user-uuid',
         type: 'critical_vitals',
         title: 'Critical Alert',
@@ -58,7 +59,7 @@ describe('Notification Adapter (T-73)', () => {
 
   it('throws when recipient_id is missing', async () => {
     await expect(
-      sendNotification(mockSupabase as any, {
+      sendNotification(fromPartial(mockSupabase), {
         recipient_id: '',
         type: 'critical_vitals',
         title: 'Alert',
@@ -69,7 +70,7 @@ describe('Notification Adapter (T-73)', () => {
 
   it('throws when type is missing', async () => {
     await expect(
-      sendNotification(mockSupabase as any, {
+      sendNotification(fromPartial(mockSupabase), {
         recipient_id: 'user-uuid',
         type: '',
         title: 'Alert',
