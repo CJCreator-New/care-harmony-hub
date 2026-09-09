@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+.scratch
+.gemini
+.husky
+package-lock.json
+*.min.js
