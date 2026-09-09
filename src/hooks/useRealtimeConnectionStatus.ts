@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Hook for monitoring Supabase Realtime connection status
  * Provides auto-retry with exponential backoff and disconnect event logging

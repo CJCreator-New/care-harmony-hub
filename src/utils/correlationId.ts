@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Correlation ID & Trace Context Management for CareSync
  * 

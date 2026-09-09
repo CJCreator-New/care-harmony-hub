@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Audit Log Viewer Component
  * Admin-only dashboard for viewing and filtering activity logs

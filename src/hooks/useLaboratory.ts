@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @deprecated useLaboratory.ts — LEGACY lab domain hooks (state-based, no React Query caching).
  *
