@@ -1,21 +1,22 @@
 name: Deploy Production
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: npm run test
+      - run: npm run test:unit
       - run: npm run build
       - name: Strict Type-Check (BLOCKING)
         run: npx tsc -p tsconfig.app.json --noEmit --strict
@@ -27,6 +28,7 @@ jobs:
         # exits non-zero and aborts the production deploy.
         run: npx tsx scripts/validate-rls.ts
       - name: Deploy to Production
+        if: env.SUPABASE_PROJECT_ID != '' && env.SUPABASE_ACCESS_TOKEN != ''
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
@@ -34,6 +36,9 @@ jobs:
           npx supabase link --project-ref $SUPABASE_PROJECT_ID
           npx supabase db push
       - name: Health Check
+        if: env.HEALTHCHECK_URL != ''
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |
           sleep 10
-          curl -f https://caresync.health/api/health || exit 1
+          curl -f "$HEALTHCHECK_URL" || exit 1

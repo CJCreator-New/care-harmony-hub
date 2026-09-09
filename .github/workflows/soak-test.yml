@@ -1,39 +1,39 @@
 name: 24hr Staging Soak Test
 
 on:
-  workflow_dispatch:  # Manual trigger from Actions tab
+  workflow_dispatch: # Manual trigger from Actions tab
     inputs:
       duration_hours:
-        description: "Test duration in hours (1-24)"
+        description: 'Test duration in hours (1-24)'
         required: true
-        default: "24"
+        default: '24'
         type: string
       workers:
-        description: "Number of parallel workers (1-8)"
+        description: 'Number of parallel workers (1-8)'
         required: true
-        default: "4"
+        default: '4'
         type: string
 
 jobs:
   soak-test:
     name: Soak Test - ${{ inputs.duration_hours }}hrs
-    runs-on: ubuntu-latest-xl  # Extra large runner for better performance
-    environment: staging  # Uses GitHub "staging" environment secrets, not repo-level
-    timeout-minutes: ${{ fromJson(inputs.duration_hours) * 65 }}  # Duration + 65min buffer
+    runs-on: ubuntu-latest-xl # Extra large runner for better performance
+    environment: staging # Uses GitHub "staging" environment secrets, not repo-level
+    timeout-minutes: ${{ fromJson(inputs.duration_hours) * 65 }} # Duration + 65min buffer
     permissions:
       contents: read
       actions: read
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -60,7 +60,7 @@ jobs:
           echo "Workers: ${{ inputs.workers }}"
           echo "Target: critical-path.spec.ts"
           echo ""
-          
+
           # Run critical-path tests with high retry count to sustain load
           npx playwright test \
             tests/e2e/tests/workflows/critical-path.spec.ts \
@@ -70,7 +70,7 @@ jobs:
             --reporter=html,json,xml \
             --timeout=60000 \
             --max-failures=100
-          
+
           TEST_EXIT_CODE=$?
           echo ""
           echo "✅ Soak test completed at $(date -u)"
@@ -81,7 +81,7 @@ jobs:
         if: always()
         run: |
           echo "📊 Collecting test metrics..."
-          
+
           if [ -f "test-results/test-results.json" ]; then
             echo "Test Results Summary:"
             echo "---"
@@ -90,7 +90,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: soak-test-results-${{ github.run_id }}
           path: |
