@@ -1,73 +1,53 @@
+# CareSync HIMS — Complete the Comprehensive Audit
 
-# Enhancement Opportunities — CareSync HIMS
+All seven investigations have now reported back. Every finding below was confirmed by reading the actual files (and, for the database, by querying the live backend), so the remaining work is assembling and writing the report — no further guesswork.
 
-Based on a scan of the codebase, production readiness report, memory files, and current architecture, here are the enhancements I see — grouped by impact tier. This is **research/advisory** — pick which ones you want to act on.
+## What gets produced
 
----
+A single new document, `docs/AUDIT_2026-09.md`, with the 12 requested sections:
 
-## Tier 1 — Production-Blocking (close out before go-live)
+1. Audit consolidation and documentation integrity
+2. RBAC and permission systems
+3. Backend function authentication and tenant scoping
+4. Clinical safety (dosing, interactions, allergies, critical labs)
+5. Lab and discharge workflows
+6. Security and HIPAA
+7. Database and access rules
+8. Testing
+9. Build and release pipeline
+10. Performance and reliability
+11. Workflow interconnections
+12. Prioritised recommendations
 
-From `docs/PRODUCTION_READINESS_REPORT.md`:
-1. **Enable leaked-password protection** in Supabase Auth (P2 linter warning, 1-click fix)
-2. **Review the 1 permissive `USING(true)` RLS policy** flagged by the linter
-3. **Run 24hr staging soak** with the new `critical-path.spec.ts` Playwright suite
-4. **Wire `scripts/validate-rls.ts` as a blocking CI gate** (currently only created, not enforced)
+Each finding carries an ID, severity, exact file and line references, and a tag of VERIFIED, DISCREPANCY, or NEW.
 
----
+Two supporting edits:
+- Replace `docs/COMPREHENSIVE_AUDIT_REPORT.md` with a short notice pointing at the new report, because the old one cites backend functions and audit documents that no longer exist.
+- Update `docs/INDEX.md` to list the new report.
 
-## Tier 2 — Code Quality & Type Safety
+## Headline findings the report will carry
 
-5. **Eliminate the 18 `@ts-nocheck` files** — incrementally type them, starting with `RoleProtectedRoute.tsx` and `orchestrator.ts` (security-critical paths)
-6. **Re-enable TS strict mode** in isolated zones (`src/lib/**`, `src/utils/**`) per the original plan
-7. **Replace `(supabase as any)` casts** in `useFeatureFlags.ts` and similar — use the `query-helper.ts` pattern consistently
-8. **Split `App.tsx` initialization** — telemetry/Sentry/metrics setup is doing 5 things in one `useEffect`; extract to `src/bootstrap/`
+**Highest severity, confirmed:**
+- Deactivated staff still pass every hospital access check — the hardening migration exists in the code but is not live in the database.
+- Anyone can pass a self-generated code to the 2FA check function and be told it is valid; the check never identifies the caller or reads their stored secret.
+- Turning on 2FA never verifies the code at all — any six digits enables it.
+- Low-stock and appointment-reminder functions read every hospital's data, not just the caller's.
+- A doctor can mark their own prescription dispensed, skipping pharmacist approval and interaction checks entirely.
+- Discharge records can be set straight to "completed" from the client, skipping pharmacy and billing steps.
+- Penicillin-allergic patients get no warning when prescribed a cephalosporin.
+- Two different critical-lab checks disagree, and one silently treats unrecognised tests as normal.
+- Prescription approval has no concurrency guard, so two staff acting at once can clobber each other.
+- Real AI provider keys are read from browser-visible settings and would ship inside the app bundle.
 
----
+**Also confirmed:** four parallel permission systems that disagree (admin is unlimited in the enforced one), unlisted pages default to allowed in the route guard, broken rate limits on 2FA and backup-code endpoints, 28 test files that assert nothing, one test suite family that cannot even load, an audit trail with no source address, and per-record decryption round trips that will make patient and prescription lists slow.
 
-## Tier 3 — Observability & Operations
+## Technical notes
 
-9. **Add a real `/api/health` endpoint** that checks DB + Edge Function reachability (currently referenced but minimal)
-10. **Surface AI Gateway usage/cost metrics** in `ComprehensiveSystemDashboard` — Lovable AI calls have rate limits worth monitoring
-11. **Audit log viewer UI** for admins — `activity_logs` is being written but there's no in-app browsing surface
-12. **Realtime connection status indicator** — show users when Supabase Realtime drops (clinical workflows depend on it)
+- Findings are drawn from the seven completed investigations, each grounded in file/line reads: RBAC (14 findings), backend functions (17), clinical safety (24), database rules, testing/CI, security/performance (17), and workflow interconnections (7).
+- The report will explicitly separate live-database state from repository state, since the newest access-control migration is committed but unapplied.
+- No production code, migrations, or configuration change in this step. Remediation is proposed as a prioritised list; fixes come as a separate approved piece of work.
+- The 45 entries under the backend functions folder include shared code and config, so the effective function count is 41 deployable functions, not 43 — that discrepancy is itself reported.
 
----
+## Out of scope for this step
 
-## Tier 4 — Clinical Workflow Polish
-
-13. **Workflow state machines** — formalize discharge, lab-result-notify, and prescription-approval as DB-backed workflows (templates exist in the workflow-creator skill)
-14. **Optimistic locking on prescriptions** — prevent the concurrent-edit race already noted in the E2E plan
-15. **Critical lab value alerts** — `FEATURES.md` mentions them but no edge function exists; auto-page the ordering doctor
-16. **Consent gate for telemedicine** — required by HIPAA skill checklist, not yet enforced
-17. **Drug interaction check** in prescription flow — `FEATURES.md` lists it, no implementation found
-
----
-
-## Tier 5 — UX / Patient-Facing
-
-18. **PWA offline mode** for nurses doing rounds (vitals capture without connectivity)
-19. **Patient portal v2 rollout** — flag exists (`patient_portal_v2`) but components need finishing
-20. **Mobile app parity** — `mobile-app/` exists but is a thin shell; align with web feature flags
-21. **Accessibility audit** — ARIA labels, keyboard nav, screen-reader testing (per `project-knowledge` future enhancements)
-
----
-
-## Tier 6 — Strategic / Longer Horizon
-
-22. **FHIR interoperability** — `fhirInteroperability.ts` is a stub; build out for real exchange with external EHRs
-23. **AI clinical decision support** rollout — flag `ai_clinical_tools` exists; ship the diagnosis suggestion + treatment optimization UIs
-24. **Multi-hospital tenancy console** — for healthcare networks managing multiple `hospital_id`s
-25. **Insurance claim automation** — billing exists, claim submission/adjudication tracking does not
-
----
-
-## My Recommendation (sequenced)
-
-```text
-Sprint 1 (this week)  → Tier 1 (#1-4)  — unblock production
-Sprint 2              → Tier 2 (#5-8)  — pay down type-safety debt
-Sprint 3              → Tier 3 (#9-12) — observability before scale
-Sprint 4+             → Tier 4-6 based on clinical priority
-```
-
-Tell me which tier (or specific items) you want to tackle and I'll write a focused implementation plan for it.
+Fixing anything. The report ends with a recommended fix order so the critical items (deactivated-staff access, 2FA bypass, cross-hospital reads, dispense bypass, allergy cross-reactivity) can be scheduled first.
