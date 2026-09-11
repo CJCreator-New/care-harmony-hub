@@ -2,7 +2,7 @@
  * Role-Based Fixtures (Enhanced)
  * Pre-authenticated sessions and fixtures for each clinical role.
  * Per hims-browser-test-automation skill.
- * 
+ *
  * Usage:
  *   test('doctor creates prescription', async ({ doctorPage, pharmacistPage }) => {
  *     // doctorPage is pre-authenticated as doctor
@@ -30,7 +30,7 @@ const FIXTURE_TO_ROLE: Record<string, string> = {
   nursePage: 'nurse',
   pharmacistPage: 'pharmacist',
   receptionistPage: 'receptionist',
-  labTechPage: 'labtech',
+  labTechPage: 'lab_technician',
   patientPage: 'patient',
   adminPage: 'admin',
 };
@@ -41,6 +41,7 @@ const ROLE_AUTH_FILES: Record<string, string> = {
   nurse: '.auth/nurse.json',
   pharmacist: '.auth/pharmacist.json',
   receptionist: '.auth/receptionist.json',
+  lab_technician: '.auth/labtech.json',
   labtech: '.auth/labtech.json',
   patient: '.auth/patient.json',
   admin: '.auth/admin.json',
@@ -56,7 +57,12 @@ function generateMockAuthSession(role: string): any {
     doctor: { email: 'doctor@testgeneral.com', firstName: 'Doctor', lastName: 'User' },
     nurse: { email: 'nurse@testgeneral.com', firstName: 'Nurse', lastName: 'User' },
     pharmacist: { email: 'pharmacist@testgeneral.com', firstName: 'Pharmacy', lastName: 'User' },
-    receptionist: { email: 'receptionist@testgeneral.com', firstName: 'Reception', lastName: 'User' },
+    receptionist: {
+      email: 'receptionist@testgeneral.com',
+      firstName: 'Reception',
+      lastName: 'User',
+    },
+    lab_technician: { email: 'labtech@testgeneral.com', firstName: 'Lab', lastName: 'User' },
     labtech: { email: 'labtech@testgeneral.com', firstName: 'Lab', lastName: 'User' },
     patient: { email: 'patient@testgeneral.com', firstName: 'Patient', lastName: 'User' },
     admin: { email: 'admin@testgeneral.com', firstName: 'Admin', lastName: 'User' },
@@ -64,7 +70,7 @@ function generateMockAuthSession(role: string): any {
 
   const roleInfo = roleMap[role] || roleMap.user;
   const userId = `00000000-0000-0000-0000-00000000001${role.charCodeAt(0) % 10}`;
-  
+
   return {
     access_token: `mock_jwt_${role}_${Date.now()}`,
     refresh_token: `mock_refresh_${role}`,
@@ -110,13 +116,13 @@ async function getAuthenticatedPage(
   // Extract role name from fixture key
   const role = FIXTURE_TO_ROLE[fixtureKey] || fixtureKey.replace('Page', '').toLowerCase();
   const authFileRelPath = ROLE_AUTH_FILES[role];
-  
+
   if (!authFileRelPath) {
     console.warn(`No auth file mapping found for role: ${role} (fixture: ${fixtureKey})`);
   }
-  
+
   const authFilePath = path.resolve(process.cwd(), authFileRelPath);
-  
+
   let storageState: any = undefined;
   try {
     if (fs.existsSync(authFilePath)) {
@@ -138,37 +144,40 @@ async function getAuthenticatedPage(
   // If no stored auth, inject mock auth directly into localStorage
   if (!storageState) {
     const mockSession = generateMockAuthSession(role);
-    
+
     // Navigate to app base first
     await page.goto(baseURL + '/');
-    
+
     // Inject mock auth into localStorage (Supabase/AuthContext compatible)
-    await page.evaluate(({ session, role_name }: { session: any; role_name: string }) => {
-      // Enable E2E mock auth mode
-      window.localStorage.setItem('VITE_E2E_MOCK_AUTH', 'true');
-      
-      // Store the mock user for AuthContext detection
-      const e2eMockUser = {
-        id: session.user.id,
-        firstName: session.user.user_metadata.first_name,
-        lastName: session.user.user_metadata.last_name,
-        role: role_name,
-        hospitalId: session.user.user_metadata.hospital_id,
-      };
-      window.localStorage.setItem('e2e-mock-auth-user', JSON.stringify(e2eMockUser));
-      
-      // Store session in Supabase format
-      const sessionKey = `sb-${session.user.id}-auth-token`;
-      window.localStorage.setItem(sessionKey, JSON.stringify(session));
-      window.localStorage.setItem('sb-auth-session-key', sessionKey);
-      
-      // Mark test auth for identification
-      window.localStorage.setItem('__test_auth_role', role_name);
-      (window as any).__testAuthRole = role_name;
-    }, { session: mockSession, role_name: role });
-    
+    await page.evaluate(
+      ({ session, role_name }: { session: any; role_name: string }) => {
+        // Enable E2E mock auth mode
+        window.localStorage.setItem('VITE_E2E_MOCK_AUTH', 'true');
+
+        // Store the mock user for AuthContext detection
+        const e2eMockUser = {
+          id: session.user.id,
+          firstName: session.user.user_metadata.first_name,
+          lastName: session.user.user_metadata.last_name,
+          role: role_name,
+          hospitalId: session.user.user_metadata.hospital_id,
+        };
+        window.localStorage.setItem('e2e-mock-auth-user', JSON.stringify(e2eMockUser));
+
+        // Store session in Supabase format
+        const sessionKey = `sb-${session.user.id}-auth-token`;
+        window.localStorage.setItem(sessionKey, JSON.stringify(session));
+        window.localStorage.setItem('sb-auth-session-key', sessionKey);
+
+        // Mark test auth for identification
+        window.localStorage.setItem('__test_auth_role', role_name);
+        (window as any).__testAuthRole = role_name;
+      },
+      { session: mockSession, role_name: role }
+    );
+
     console.log(`✓ Injected mock auth session for ${role}`);
-    
+
     // Reload page so auth takes effect
     await page.reload();
     await page.waitForLoadState('networkidle');

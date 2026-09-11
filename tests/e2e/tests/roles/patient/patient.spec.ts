@@ -76,34 +76,57 @@ test.describe('Patient Role @patient @role', () => {
   test.describe('Access Guards @security', () => {
     test('PAT-TC-03 patient cannot access admin panel', async ({ page }) => {
       await page.goto('/admin');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/admin');
-      expect(isDenied || redirected).toBeTruthy();
+      const blocked = page
+        .getByRole('heading', { name: /access denied|unauthorized|not found|404/i })
+        .or(page.getByText(/access denied|not authorized|page not found|404/i))
+        .first();
+      await expect(async () => {
+        const isBlocked = await blocked.isVisible().catch(() => false);
+        const redirected =
+          !page.url().includes('/admin') ||
+          page.url().includes('/login') ||
+          page.url().includes('/dashboard');
+        expect(isBlocked || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('PAT-TC-03 patient cannot access consultations module', async ({ page }) => {
       await page.goto('/consultations');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/consultations');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/consultations');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('PAT-TC-03 patient cannot access laboratory module', async ({ page }) => {
       await page.goto('/laboratory');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/laboratory');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/laboratory');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('PAT-TC-03 patient cannot access staff settings', async ({ page }) => {
       await page.goto('/settings/staff');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/settings/staff');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/settings/staff');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
   });
 });

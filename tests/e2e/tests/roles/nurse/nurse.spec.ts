@@ -32,22 +32,16 @@ test.describe('Nurse Role @nurse @role', () => {
 
     test('should display Patient Queue section', async ({ page }) => {
       // Patient queue is displayed in the Overview tab (default), not as a separate tab
-      await expect(
-        page.getByRole('heading', { name: 'Patient Queue' })
-      ).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Patient Queue' })).toBeVisible();
     });
 
     test('should display Prep Station tab', async ({ page }) => {
-      await expect(
-        page.getByRole('tab', { name: /prep station/i })
-      ).toBeVisible();
+      await expect(page.getByRole('tab', { name: /prep station/i })).toBeVisible();
     });
 
     test('should NOT show Doctor Availability widget', async ({ page }) => {
       // Removed in NurseDashboard refactor — doctor availability is doctor-domain
-      await expect(
-        page.getByText(/doctor availability/i)
-      ).toHaveCount(0);
+      await expect(page.getByText(/doctor availability/i)).toHaveCount(0);
     });
   });
 
@@ -55,13 +49,9 @@ test.describe('Nurse Role @nurse @role', () => {
 
   test.describe('Record Vitals @critical', () => {
     test('NUR-TC-01 should open Record Vitals modal', async ({ page }) => {
-      await page
-        .getByRole('button', { name: /record vitals/i })
-        .click();
+      await page.getByRole('button', { name: /record vitals/i }).click();
 
-      await expect(
-        page.getByRole('dialog')
-      ).toBeVisible();
+      await expect(page.getByRole('dialog')).toBeVisible();
     });
 
     test('NUR-TC-01 vitals modal has required fields', async ({ page }) => {
@@ -71,9 +61,7 @@ test.describe('Nurse Role @nurse @role', () => {
       await expect(dialog).toBeVisible();
 
       // Key vital fields should be present
-      await expect(
-        dialog.getByRole('textbox').or(dialog.locator('input')).first()
-      ).toBeVisible();
+      await expect(dialog.getByRole('textbox').or(dialog.locator('input')).first()).toBeVisible();
     });
   });
 
@@ -93,9 +81,7 @@ test.describe('Nurse Role @nurse @role', () => {
 
   test.describe('Shift Handover', () => {
     test('NUR-TC-03 should open Create Handover modal', async ({ page }) => {
-      await page
-        .getByRole('button', { name: /create handover/i })
-        .click();
+      await page.getByRole('button', { name: /create handover/i }).click();
 
       await expect(page.getByRole('dialog')).toBeVisible();
     });
@@ -107,12 +93,15 @@ test.describe('Nurse Role @nurse @role', () => {
     test('NUR-TC-04 nurse cannot access pharmacy module directly', async ({ page }) => {
       await page.goto('/pharmacy');
 
-      // Should redirect away from /pharmacy or show access-denied UI
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const redirected = !page.url().includes('/pharmacy');
-      const isDenied = await denied.isVisible().catch(() => false);
-
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/pharmacy');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('NUR-TC-04 nurse can access consultation list (read-only)', async ({ page }) => {
@@ -124,11 +113,15 @@ test.describe('Nurse Role @nurse @role', () => {
     test('NUR-TC-04 nurse cannot access admin staff settings', async ({ page }) => {
       await page.goto('/settings/staff');
 
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/settings/staff');
-
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/settings/staff');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
   });
 });

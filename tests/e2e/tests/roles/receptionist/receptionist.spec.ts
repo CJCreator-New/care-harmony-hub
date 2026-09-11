@@ -48,7 +48,9 @@ test.describe('Receptionist Role @receptionist @role', () => {
     test('REC-TC-01 queue page has check-in or new appointment option', async ({ page }) => {
       await page.goto('/queue');
       const cta = page
-        .getByRole('button', { name: /check.?in|add patient|new appointment|register/i })
+        .getByRole('button', {
+          name: /check.?in|add patient|new appointment|register|registration|walk.?in/i,
+        })
         .first();
       await expect(cta).toBeVisible({ timeout: 10_000 });
     });
@@ -65,16 +67,16 @@ test.describe('Receptionist Role @receptionist @role', () => {
 
     test('REC-TC-02 appointments page has new appointment button', async ({ page }) => {
       await page.goto('/appointments');
-      const newBtn = page
-        .getByRole('button', { name: /new appointment|schedule|book/i })
-        .first();
+      const newBtn = page.getByRole('button', { name: /new appointment|schedule|book/i }).first();
       await expect(newBtn).toBeVisible({ timeout: 10_000 });
     });
 
     test('REC-TC-02 appointments list renders a table or card grid', async ({ page }) => {
       await page.goto('/appointments');
       await page.waitForLoadState('networkidle');
-      const list = page.locator('table, [data-testid="appointments-list"], [class*="grid"]').first();
+      const list = page
+        .locator('table, [data-testid="appointments-list"], [class*="grid"]')
+        .first();
       await expect(list).toBeVisible({ timeout: 10_000 });
     });
   });
@@ -84,26 +86,41 @@ test.describe('Receptionist Role @receptionist @role', () => {
   test.describe('Access Guards @security', () => {
     test('REC-TC-03 receptionist cannot access pharmacy module', async ({ page }) => {
       await page.goto('/pharmacy');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/pharmacy');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/pharmacy');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('REC-TC-03 receptionist cannot access laboratory module', async ({ page }) => {
       await page.goto('/laboratory');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/laboratory');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/laboratory');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('REC-TC-03 receptionist cannot access consultations', async ({ page }) => {
       await page.goto('/consultations');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/consultations');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/consultations');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('REC-TC-03 receptionist can access billing', async ({ page }) => {

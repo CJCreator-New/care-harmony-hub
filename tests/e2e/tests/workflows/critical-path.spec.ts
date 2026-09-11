@@ -37,37 +37,50 @@ test.describe('CRITICAL-PATH: Clinical Chain', () => {
 test.describe('CRITICAL-PATH: RBAC Violations (must be blocked)', () => {
   test('receptionist cannot access pharmacy queue', async ({ receptionistPage }) => {
     await receptionistPage.goto('/pharmacy/queue');
-    // Either redirects or shows access denied
-    await receptionistPage.waitForLoadState('networkidle');
-    const url = receptionistPage.url();
-    const blocked = url.includes('/unauthorized') || url.includes('/login') || !url.includes('/pharmacy/queue');
-    const hasError = await receptionistPage.locator('text=/access denied|not authorized|forbidden/i').count();
-    expect(blocked || hasError > 0).toBeTruthy();
+    const denied = receptionistPage
+      .getByRole('heading', { name: /access denied|unauthorized/i })
+      .or(receptionistPage.getByText(/access denied|not authorized|forbidden/i));
+    await expect(async () => {
+      const isDenied = await denied.isVisible();
+      const redirected = !receptionistPage.url().includes('/pharmacy/queue');
+      expect(isDenied || redirected).toBeTruthy();
+    }).toPass({ timeout: 10_000 });
   });
 
   test('nurse cannot access billing module', async ({ nursePage }) => {
     await nursePage.goto('/billing/invoices');
-    await nursePage.waitForLoadState('networkidle');
-    const url = nursePage.url();
-    const blocked = url.includes('/unauthorized') || !url.includes('/billing/invoices');
-    const hasError = await nursePage.locator('text=/access denied|not authorized|forbidden/i').count();
-    expect(blocked || hasError > 0).toBeTruthy();
+    const denied = nursePage
+      .getByRole('heading', { name: /access denied|unauthorized/i })
+      .or(nursePage.getByText(/access denied|not authorized|forbidden/i));
+    await expect(async () => {
+      const isDenied = await denied.isVisible();
+      const redirected = !nursePage.url().includes('/billing/invoices');
+      expect(isDenied || redirected).toBeTruthy();
+    }).toPass({ timeout: 10_000 });
   });
 
   test('lab tech cannot create prescriptions', async ({ labTechPage }) => {
     await labTechPage.goto('/doctor/prescriptions/new');
-    await labTechPage.waitForLoadState('networkidle');
-    const url = labTechPage.url();
-    const blocked = url.includes('/unauthorized') || !url.includes('/prescriptions/new');
-    expect(blocked).toBeTruthy();
+    const denied = labTechPage
+      .getByRole('heading', { name: /access denied|unauthorized/i })
+      .or(labTechPage.getByText(/access denied|not authorized|forbidden/i));
+    await expect(async () => {
+      const isDenied = await denied.isVisible();
+      const redirected = !labTechPage.url().includes('/prescriptions/new');
+      expect(isDenied || redirected).toBeTruthy();
+    }).toPass({ timeout: 10_000 });
   });
 
   test('patient cannot access admin dashboard', async ({ patientPage }) => {
     await patientPage.goto('/admin/users');
-    await patientPage.waitForLoadState('networkidle');
-    const url = patientPage.url();
-    const blocked = url.includes('/unauthorized') || !url.includes('/admin/users');
-    expect(blocked).toBeTruthy();
+    const denied = patientPage
+      .getByRole('heading', { name: /access denied|unauthorized/i })
+      .or(patientPage.getByText(/access denied|not authorized|forbidden/i));
+    await expect(async () => {
+      const isDenied = await denied.isVisible();
+      const redirected = !patientPage.url().includes('/admin/users');
+      expect(isDenied || redirected).toBeTruthy();
+    }).toPass({ timeout: 10_000 });
   });
 });
 

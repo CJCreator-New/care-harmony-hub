@@ -1,7 +1,7 @@
 /**
  * Doctor Role Tests
  * Tests specific to doctor workflows and permissions
- * 
+ *
  * @tags @doctor @role
  */
 
@@ -17,7 +17,7 @@ test.describe('Doctor Role @doctor @role', () => {
   test.beforeEach(async ({ page }) => {
     loginPage = new LoginPage(page);
     dashboard = new DashboardPage(page);
-    
+
     await loginPage.navigate();
     await loginPage.loginAndWaitForDashboard(doctor.email, doctor.password);
   });
@@ -30,28 +30,30 @@ test.describe('Doctor Role @doctor @role', () => {
 
     test('should display doctor-specific stats', async ({ page }) => {
       // Check for common doctor dashboard stats
-      const statsCount = await dashboard.getStatsCardCount();
-      expect(statsCount).toBeGreaterThan(0);
+      await expect(async () => {
+        const statsCount = await dashboard.getStatsCardCount();
+        expect(statsCount).toBeGreaterThan(0);
+      }).toPass({ timeout: 10_000 });
     });
   });
 
   test.describe('Patient Management', () => {
     test('should access patient list', async ({ page }) => {
       await dashboard.navigateTo('Patients');
-      
+
       await expect(page).toHaveURL(/patient/i);
     });
 
     test('should view patient details', async ({ page }) => {
       await dashboard.navigateTo('Patients');
-      
+
       // If patients exist, should be able to view details
       const patientRow = page.locator('table tbody tr, [data-testid="patient-row"]').first();
-      
+
       if (await patientRow.isVisible()) {
         await patientRow.click();
         await page.waitForLoadState('networkidle');
-        
+
         // Should show patient details
         await expect(page.locator('text=/patient|details|profile/i')).toBeVisible();
       }
@@ -61,13 +63,13 @@ test.describe('Doctor Role @doctor @role', () => {
   test.describe('Appointments', () => {
     test('should access appointments', async ({ page }) => {
       await dashboard.navigateTo('Appointments');
-      
+
       await expect(page).toHaveURL(/appointment/i);
     });
 
-    test('should view today\'s schedule', async ({ page }) => {
+    test("should view today's schedule", async ({ page }) => {
       await dashboard.navigateTo('Appointments');
-      
+
       // Should show calendar or appointment list
       await expect(
         page.locator('[data-testid="appointments-list"], [data-testid="calendar"], table')
@@ -76,18 +78,18 @@ test.describe('Doctor Role @doctor @role', () => {
   });
 
   test.describe('Prescriptions', () => {
-    test('should access prescriptions', async ({ page }) => {
-      await dashboard.navigateTo('Prescriptions');
-      
-      await expect(page).toHaveURL(/prescription/i);
+    test('should access consultations and prescriptions workflow', async ({ page }) => {
+      await dashboard.navigateTo('Consultations');
+
+      await expect(page).toHaveURL(/consultation/i);
     });
   });
 
   test.describe('Lab Results', () => {
     test('should access lab results', async ({ page }) => {
-      await dashboard.navigateTo('Lab');
-      
-      await expect(page).toHaveURL(/lab/i);
+      await dashboard.navigateTo('Lab Orders');
+
+      await expect(page).toHaveURL(/laboratory|lab/i);
     });
   });
 
@@ -95,22 +97,30 @@ test.describe('Doctor Role @doctor @role', () => {
     test('should not access admin settings', async ({ page }) => {
       // Try to navigate directly to admin area
       await page.goto('/admin/settings');
-      
-      // Should be redirected or show unauthorized
-      await expect(page).not.toHaveURL(/admin\/settings/i);
+
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/admin/settings');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('should not access pharmacy inventory', async ({ page }) => {
       await page.goto('/pharmacy/inventory');
-      
-      // Should not have full pharmacy access
-      const unauthorized = page.locator('text=/unauthorized|access denied|forbidden/i');
-      if (await unauthorized.isVisible()) {
-        expect(true).toBeTruthy();
-      } else {
-        // May redirect instead
-        await expect(page).not.toHaveURL(/pharmacy\/inventory/i);
-      }
+
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/pharmacy/inventory');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
   });
 });

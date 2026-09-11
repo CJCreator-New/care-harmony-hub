@@ -32,9 +32,7 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
 
     test('should display Prescription Queue section', async ({ page }) => {
       // Prescription queue is displayed as a card section, not a tab
-      await expect(
-        page.getByText(/prescription queue/i)
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/prescription queue/i)).toBeVisible({ timeout: 10_000 });
     });
 
     test('should display at least 4 metric cards', async ({ page }) => {
@@ -59,8 +57,7 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
       await expect(page.getByRole('main')).toBeVisible({ timeout: 10_000 });
       // Patient, Medication and Status columns or labels should be present
       const pageText = await page.textContent('body');
-      const hasExpectedContent =
-        /patient|medication|prescription|status/i.test(pageText ?? '');
+      const hasExpectedContent = /patient|medication|prescription|status/i.test(pageText ?? '');
       expect(hasExpectedContent).toBeTruthy();
     });
   });
@@ -69,9 +66,10 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
 
   test.describe('Inventory Management', () => {
     test('PHA-TC-02 Inventory & Stock tab renders without crash', async ({ page }) => {
-      await page
-        .getByRole('tab', { name: /inventory|stock/i })
-        .click();
+      await page.goto('/pharmacy');
+      await page.waitForLoadState('networkidle');
+
+      await page.getByRole('tab', { name: /inventory|stock/i }).click();
 
       await page.waitForLoadState('networkidle');
       await expect(page.getByRole('main')).toBeVisible();
@@ -79,10 +77,9 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
     });
 
     test('PHA-TC-02 inventory alert count is displayed', async ({ page }) => {
+      await page.goto('/pharmacy');
       // The "Inventory Alerts" metric card should always be rendered (count may be 0)
-      await expect(
-        page.getByText(/inventory alerts/i)
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/inventory alerts/i)).toBeVisible({ timeout: 10_000 });
     });
   });
 
@@ -91,18 +88,28 @@ test.describe('Pharmacist Role @pharmacist @role', () => {
   test.describe('Access Guards @security', () => {
     test('PHA-TC-03 pharmacist cannot create new patients', async ({ page }) => {
       await page.goto('/patients/new');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/patients/new');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/patients/new');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('PHA-TC-03 pharmacist cannot access consultations', async ({ page }) => {
       await page.goto('/consultations');
-      const denied = page.getByText(/access denied|unauthorized|not authorized/i);
-      const isDenied = await denied.isVisible().catch(() => false);
-      const redirected = !page.url().includes('/consultations');
-      expect(isDenied || redirected).toBeTruthy();
+      const denied = page
+        .getByRole('heading', { name: /access denied|unauthorized/i })
+        .or(page.getByText(/access denied|not authorized|forbidden/i))
+        .first();
+      await expect(async () => {
+        const isDenied = await denied.isVisible().catch(() => false);
+        const redirected = !page.url().includes('/consultations');
+        expect(isDenied || redirected).toBeTruthy();
+      }).toPass({ timeout: 10_000 });
     });
 
     test('PHA-TC-03 pharmacist can access inventory', async ({ page }) => {

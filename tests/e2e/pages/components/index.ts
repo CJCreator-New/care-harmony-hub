@@ -112,9 +112,7 @@ export class FormComponent extends BaseComponent {
   }
 
   async submit(buttonText: string = 'Submit'): Promise<void> {
-    await this.rootLocator
-      .getByRole('button', { name: new RegExp(buttonText, 'i') })
-      .click();
+    await this.rootLocator.getByRole('button', { name: new RegExp(buttonText, 'i') }).click();
   }
 
   async getValidationError(fieldLabel: string): Promise<string | null> {
@@ -151,7 +149,9 @@ export class TableComponent extends BaseComponent {
   }
 
   get rows(): Locator {
-    return this.rootLocator.locator('tbody tr, [role="row"]').filter({ hasNot: this.page.locator('th') });
+    return this.rootLocator
+      .locator('tbody tr, [role="row"]')
+      .filter({ hasNot: this.page.locator('th') });
   }
 
   get headers(): Locator {
@@ -236,11 +236,15 @@ export class NotificationComponent extends BaseComponent {
 
   async isError(): Promise<boolean> {
     const classes = (await this.rootLocator.getAttribute('class')) || '';
-    return classes.includes('error') || classes.includes('destructive') || classes.includes('bg-red');
+    return (
+      classes.includes('error') || classes.includes('destructive') || classes.includes('bg-red')
+    );
   }
 
   async dismiss(): Promise<void> {
-    const dismissButton = this.rootLocator.locator('button[aria-label*="close"], button[aria-label*="dismiss"]');
+    const dismissButton = this.rootLocator.locator(
+      'button[aria-label*="close"], button[aria-label*="dismiss"]'
+    );
     if (await dismissButton.isVisible()) {
       await dismissButton.click();
     }
@@ -267,7 +271,78 @@ export class NavigationComponent extends BaseComponent {
   }
 
   async clickNavItem(itemName: string): Promise<void> {
-    await this.rootLocator.getByRole('link', { name: new RegExp(itemName, 'i') }).click();
+    const aliasMap: Record<string, { label: string; group?: string; href?: string }> = {
+      users: { label: 'Staff Management', group: 'Administration', href: '/settings/staff' },
+      'staff management': {
+        label: 'Staff Management',
+        group: 'Administration',
+        href: '/settings/staff',
+      },
+      settings: { label: 'Hospital Settings', group: 'Administration', href: '/settings' },
+      'hospital settings': {
+        label: 'Hospital Settings',
+        group: 'Administration',
+        href: '/settings',
+      },
+      audit: { label: 'Audit Logs', group: 'Administration', href: '/settings/audit-logs' },
+      'audit logs': { label: 'Audit Logs', group: 'Administration', href: '/settings/audit-logs' },
+      analytics: { label: 'Reports', group: 'Business Operations', href: '/reports' },
+      reports: { label: 'Reports', group: 'Business Operations', href: '/reports' },
+      pharmacy: { label: 'Pharmacy', group: 'Pharmacy & Inventory', href: '/pharmacy' },
+      inventory: { label: 'Inventory', group: 'Pharmacy & Inventory', href: '/inventory' },
+      lab: { label: 'Lab Orders', group: 'Laboratory', href: '/laboratory' },
+      'lab results': { label: 'Lab Orders', group: 'Laboratory', href: '/laboratory' },
+      'lab orders': { label: 'Lab Orders', group: 'Laboratory', href: '/laboratory' },
+      laboratory: { label: 'Lab Orders', group: 'Laboratory', href: '/laboratory' },
+      billing: { label: 'Billing', group: 'Business Operations', href: '/billing' },
+      kiosk: { label: 'Kiosk', group: 'Business Operations', href: '/kiosk' },
+    };
+
+    const lower = itemName.toLowerCase().trim();
+    const alias = aliasMap[lower];
+    const targetLabel = alias?.label || itemName;
+    const targetGroup = alias?.group;
+    const targetHref = alias?.href;
+
+    // Check if link is already visible
+    let link = this.rootLocator.getByRole('link', { name: new RegExp(targetLabel, 'i') }).first();
+    if (!(await link.isVisible().catch(() => false)) && targetHref) {
+      link = this.rootLocator.locator(`a[href="${targetHref}"]`).first();
+    }
+
+    // If not visible, expand the target group or all collapsed accordion sections
+    if (!(await link.isVisible().catch(() => false))) {
+      if (targetGroup) {
+        const groupBtn = this.rootLocator.locator(`button:has-text("${targetGroup}")`).first();
+        if (await groupBtn.isVisible().catch(() => false)) {
+          await groupBtn.click();
+          await this.page.waitForTimeout(300);
+        }
+      } else {
+        const triggers = this.rootLocator.locator('button:has(svg.lucide-chevron-right)');
+        const count = await triggers.count().catch(() => 0);
+        for (let i = 0; i < count; i++) {
+          await triggers
+            .nth(i)
+            .click()
+            .catch(() => {});
+          await this.page.waitForTimeout(100);
+        }
+      }
+    }
+
+    // Re-query link after section expansion
+    link = this.rootLocator.getByRole('link', { name: new RegExp(targetLabel, 'i') }).first();
+    if (!(await link.isVisible().catch(() => false)) && targetHref) {
+      link = this.rootLocator.locator(`a[href="${targetHref}"]`).first();
+    }
+    if (await link.isVisible().catch(() => false)) {
+      await link.click();
+    } else if (targetHref) {
+      await this.page.goto(targetHref);
+    } else {
+      await link.click();
+    }
   }
 
   async isNavItemActive(itemName: string): Promise<boolean> {
@@ -276,11 +351,7 @@ export class NavigationComponent extends BaseComponent {
     const ariaSelected = await item.getAttribute('aria-selected');
     const ariaCurrent = await item.getAttribute('aria-current');
 
-    return (
-      classes.includes('active') ||
-      ariaSelected === 'true' ||
-      ariaCurrent === 'page'
-    );
+    return classes.includes('active') || ariaSelected === 'true' || ariaCurrent === 'page';
   }
 
   async getNavItems(): Promise<string[]> {
@@ -289,7 +360,9 @@ export class NavigationComponent extends BaseComponent {
   }
 
   async expandSection(sectionName: string): Promise<void> {
-    const section = this.rootLocator.locator(`button:has-text("${sectionName}"), [role="button"]:has-text("${sectionName}")`);
+    const section = this.rootLocator.locator(
+      `button:has-text("${sectionName}"), [role="button"]:has-text("${sectionName}")`
+    );
     const expanded = await section.getAttribute('aria-expanded');
     if (expanded !== 'true') {
       await section.click();

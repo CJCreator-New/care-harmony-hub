@@ -19,7 +19,9 @@ const AdminRoleSetupPage = lazy(() => import('../pages/hospital/AdminRoleSetupPa
 const AccountSetupPage = lazy(() => import('../pages/hospital/AccountSetupPage'));
 const QuickAccessPage = lazy(() => import('../pages/hospital/QuickAccessPage'));
 const RoleSelectionPage = lazy(() => import('../pages/hospital/RoleSelectionPage'));
-const MandatoryTwoFactorSetupPage = lazy(() => import('../pages/hospital/MandatoryTwoFactorSetupPage'));
+const MandatoryTwoFactorSetupPage = lazy(
+  () => import('../pages/hospital/MandatoryTwoFactorSetupPage')
+);
 const PatientRegisterPage = lazy(() => import('../pages/patient/PatientRegisterPage'));
 const PatientLoginPage = lazy(() => import('../pages/patient/PatientLoginPage'));
 const Dashboard = lazy(() => import('../pages/Dashboard'));
@@ -32,7 +34,9 @@ const ActivityLogsPage = lazy(() => import('../pages/settings/ActivityLogsPage')
 const UserProfilePage = lazy(() => import('../pages/settings/UserProfilePage'));
 const SystemMonitoringPage = lazy(() => import('../pages/settings/SystemMonitoringPage'));
 const ConsultationsPage = lazy(() => import('../pages/consultations/ConsultationsPage'));
-const ConsultationWorkflowPage = lazy(() => import('../pages/consultations/ConsultationWorkflowPage'));
+const ConsultationWorkflowPage = lazy(
+  () => import('../pages/consultations/ConsultationWorkflowPage')
+);
 const MobileConsultationPage = lazy(() => import('../pages/consultations/MobileConsultationPage'));
 const AppointmentsPage = lazy(() => import('../pages/appointments/AppointmentsPage'));
 const LaboratoryPage = lazy(() => import('../pages/laboratory/LaboratoryPage'));
@@ -73,7 +77,9 @@ const TreatmentRecommendationsPage = lazy(() => import('../pages/TreatmentRecomm
 const TreatmentPlanOptimizationPage = lazy(() => import('../pages/TreatmentPlanOptimizationPage'));
 const PredictiveAnalyticsPage = lazy(() => import('../pages/PredictiveAnalyticsPage'));
 const LengthOfStayForecastingPage = lazy(() => import('../pages/LengthOfStayForecastingPage'));
-const ResourceUtilizationOptimizationPage = lazy(() => import('../pages/ResourceUtilizationOptimizationPage'));
+const ResourceUtilizationOptimizationPage = lazy(
+  () => import('../pages/ResourceUtilizationOptimizationPage')
+);
 const VoiceClinicalNotesPage = lazy(() => import('../pages/VoiceClinicalNotesPage'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
@@ -83,7 +89,16 @@ export type RouteDefinition = {
 };
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isProfileReady, profile, hospital, roles, pendingRoleSelection, pendingTwoFactor } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    isProfileReady,
+    profile,
+    hospital,
+    roles,
+    pendingRoleSelection,
+    pendingTwoFactor,
+  } = useAuth();
   const persistedTestRole = getDevTestRole(roles);
   const effectiveRoleCount = persistedTestRole ? 1 : roles.length;
 
@@ -123,15 +138,25 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
           <div className="bg-destructive/10 text-destructive p-3 rounded-full mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-              <path d="M12 9v4"/>
-              <path d="M12 17h.01"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
             </svg>
           </div>
           <h2 className="text-2xl font-bold mb-2">No Active Roles</h2>
           <p className="text-muted-foreground mb-4 max-w-md">
-            You don't have any roles assigned yet, or your role is unknown. 
+            You don't have any roles assigned yet, or your role is unknown.
             <br />
             Please use the Test Mode indicator to switch roles, or contact your administrator.
           </p>
@@ -217,7 +242,7 @@ function withRoleAccess(
   page: React.ReactNode,
   allowedRoles: UserRole[],
   requiredPermission?: Permission,
-  featureFlag?: FeatureFlagName,
+  featureFlag?: FeatureFlagName
 ) {
   const content = (
     <RoleProtectedRoute allowedRoles={allowedRoles} requiredPermission={requiredPermission}>
@@ -225,7 +250,11 @@ function withRoleAccess(
     </RoleProtectedRoute>
   );
 
-  return featureFlag ? <FeatureFlagRoute flagName={featureFlag}>{content}</FeatureFlagRoute> : content;
+  return featureFlag ? (
+    <FeatureFlagRoute flagName={featureFlag}>{content}</FeatureFlagRoute>
+  ) : (
+    content
+  );
 }
 
 export const redirectRoutes: RouteDefinition[] = [
@@ -237,7 +266,10 @@ export const redirectRoutes: RouteDefinition[] = [
   { path: '/forgot-password', element: <Navigate to="/hospital/forgot-password" replace /> },
   { path: '/patient/login', element: <Navigate to="/patient-login" replace /> },
   { path: '/patient/register', element: <Navigate to="/patient-register" replace /> },
-  { path: '/patient/forgot-password', element: <Navigate to="/hospital/forgot-password" replace /> },
+  {
+    path: '/patient/forgot-password',
+    element: <Navigate to="/hospital/forgot-password" replace />,
+  },
   { path: '/admin/dashboard', element: <Navigate to="/dashboard" replace /> },
   { path: '/doctor/dashboard', element: <Navigate to="/dashboard" replace /> },
   { path: '/dashboard/nurse', element: <Navigate to="/dashboard" replace /> },
@@ -251,90 +283,415 @@ export const redirectRoutes: RouteDefinition[] = [
   { path: '/staff', element: <Navigate to="/settings/staff" replace /> },
   { path: '/settings/staff-management', element: <Navigate to="/settings/staff" replace /> },
   { path: '/admin/settings', element: <Navigate to="/settings" replace /> },
-  { path: '/treatment-plan-optimizer', element: <Navigate to="/treatment-plan-optimization" replace /> },
-  { path: '/length-of-stay-forecast', element: <Navigate to="/length-of-stay-forecasting" replace /> },
-  { path: '/resource-utilization', element: <Navigate to="/resource-utilization-optimization" replace /> },
+  {
+    path: '/treatment-plan-optimizer',
+    element: <Navigate to="/treatment-plan-optimization" replace />,
+  },
+  {
+    path: '/length-of-stay-forecast',
+    element: <Navigate to="/length-of-stay-forecasting" replace />,
+  },
+  {
+    path: '/resource-utilization',
+    element: <Navigate to="/resource-utilization-optimization" replace />,
+  },
   { path: '/analytics', element: <Navigate to="/reports" replace /> },
   { path: '/workflow', element: <Navigate to="/integration/workflow" replace /> },
   { path: '/administration', element: <Navigate to="/settings" replace /> },
+  { path: '/pharmacy/queue', element: <Navigate to="/hospital/pharmacy/queue" replace /> },
+  { path: '/billing/invoices', element: <Navigate to="/billing" replace /> },
+  { path: '/doctor/prescriptions/new', element: <Navigate to="/consultations" replace /> },
+  { path: '/admin/users', element: <Navigate to="/settings/staff" replace /> },
 ];
 
 export const publicRoutes: RouteDefinition[] = [
-  { path: '/hospital', element: <PublicRoute><LandingPage /></PublicRoute> },
-  { path: '/hospital/login', element: <PublicRoute><LoginPage /></PublicRoute> },
-  { path: '/hospital/signup', element: <PublicRoute><SignupPage /></PublicRoute> },
-  { path: '/hospital/forgot-password', element: <PublicRoute><ForgotPasswordPage /></PublicRoute> },
+  {
+    path: '/hospital',
+    element: (
+      <PublicRoute>
+        <LandingPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: '/hospital/login',
+    element: (
+      <PublicRoute>
+        <LoginPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: '/hospital/signup',
+    element: (
+      <PublicRoute>
+        <SignupPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: '/hospital/forgot-password',
+    element: (
+      <PublicRoute>
+        <ForgotPasswordPage />
+      </PublicRoute>
+    ),
+  },
   { path: '/hospital/reset-password', element: <ResetPasswordPage /> },
-  { path: '/hospital/select-role', element: <RoleSelectionRoute><RoleSelectionPage /></RoleSelectionRoute> },
-  { path: '/hospital/two-factor-setup', element: <TwoFactorSetupRoute><MandatoryTwoFactorSetupPage /></TwoFactorSetupRoute> },
-  { path: '/hospital/join/:token', element: <PublicRoute><JoinPage /></PublicRoute> },
+  {
+    path: '/hospital/select-role',
+    element: (
+      <RoleSelectionRoute>
+        <RoleSelectionPage />
+      </RoleSelectionRoute>
+    ),
+  },
+  {
+    path: '/hospital/two-factor-setup',
+    element: (
+      <TwoFactorSetupRoute>
+        <MandatoryTwoFactorSetupPage />
+      </TwoFactorSetupRoute>
+    ),
+  },
+  {
+    path: '/hospital/join/:token',
+    element: (
+      <PublicRoute>
+        <JoinPage />
+      </PublicRoute>
+    ),
+  },
   { path: '/quick-access', element: <QuickAccessPage /> },
-  { path: '/patient-register', element: <PublicRoute><PatientRegisterPage /></PublicRoute> },
-  { path: '/patient-login', element: <PublicRoute><PatientLoginPage /></PublicRoute> },
-  { path: '/hospital/profile-setup', element: <ProtectedRoute><ProfileSetupPage /></ProtectedRoute> },
-  { path: '/hospital/role-setup', element: <ProtectedRoute><AdminRoleSetupPage /></ProtectedRoute> },
+  {
+    path: '/patient-register',
+    element: (
+      <PublicRoute>
+        <PatientRegisterPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: '/patient-login',
+    element: (
+      <PublicRoute>
+        <PatientLoginPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: '/hospital/profile-setup',
+    element: (
+      <ProtectedRoute>
+        <ProfileSetupPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/hospital/role-setup',
+    element: (
+      <ProtectedRoute>
+        <AdminRoleSetupPage />
+      </ProtectedRoute>
+    ),
+  },
   { path: '/hospital/account-setup', element: <AccountSetupPage /> },
-  { path: '/dashboard', element: <ProtectedRoute><Dashboard /></ProtectedRoute> },
-  { path: '/profile', element: <ProtectedRoute><UserProfilePage /></ProtectedRoute> },
-  { path: '/notifications', element: <ProtectedRoute><NotificationsPage /></ProtectedRoute> },
+  {
+    path: '/dashboard',
+    element: (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/profile',
+    element: (
+      <ProtectedRoute>
+        <UserProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/notifications',
+    element: (
+      <ProtectedRoute>
+        <NotificationsPage />
+      </ProtectedRoute>
+    ),
+  },
 ];
 
 export const protectedRoutes: RouteDefinition[] = [
-  { path: '/patients', element: withRoleAccess(<PatientsPage />, ['admin', 'doctor', 'nurse', 'receptionist'], 'patients') },
-  { path: '/patients/:id', element: withRoleAccess(<PatientProfilePage />, ['admin', 'doctor', 'nurse', 'receptionist']) },
-  { path: '/appointments', element: withRoleAccess(<AppointmentsPage />, ['admin', 'doctor', 'nurse', 'receptionist'], 'appointments') },
-  { path: '/consultations', element: withRoleAccess(<ConsultationsPage />, ['admin', 'doctor', 'nurse'], 'consultations:read') },
-  { path: '/consultations/mobile', element: withRoleAccess(<MobileConsultationPage />, ['admin', 'doctor']) },
-  { path: '/consultations/:id', element: withRoleAccess(<ConsultationWorkflowPage />, ['admin', 'doctor', 'nurse']) },
-  { path: '/pharmacy', element: withRoleAccess(<PharmacyPage />, ['admin', 'pharmacist'], 'pharmacy') },
+  {
+    path: '/patients',
+    element: withRoleAccess(
+      <PatientsPage />,
+      ['admin', 'doctor', 'nurse', 'receptionist'],
+      'patients'
+    ),
+  },
+  {
+    path: '/patients/:id',
+    element: withRoleAccess(<PatientProfilePage />, ['admin', 'doctor', 'nurse', 'receptionist']),
+  },
+  {
+    path: '/appointments',
+    element: withRoleAccess(
+      <AppointmentsPage />,
+      ['admin', 'doctor', 'nurse', 'receptionist'],
+      'appointments'
+    ),
+  },
+  {
+    path: '/consultations',
+    element: withRoleAccess(
+      <ConsultationsPage />,
+      ['admin', 'doctor', 'nurse'],
+      'consultations:read'
+    ),
+  },
+  {
+    path: '/consultations/mobile',
+    element: withRoleAccess(<MobileConsultationPage />, ['admin', 'doctor']),
+  },
+  {
+    path: '/consultations/:id',
+    element: withRoleAccess(<ConsultationWorkflowPage />, ['admin', 'doctor', 'nurse']),
+  },
+  {
+    path: '/pharmacy',
+    element: withRoleAccess(<PharmacyPage />, ['admin', 'pharmacist'], 'pharmacy'),
+  },
   { path: '/hospital/doctor/dashboard', element: withRoleAccess(<DoctorDashboard />, ['doctor']) },
-  { path: '/hospital/pharmacy/queue', element: withRoleAccess(<PharmacyQueuePage />, ['pharmacist']) },
-  { path: '/hospital/nurse/medications', element: withRoleAccess(<NurseMedicationsPage />, ['nurse']) },
-  { path: '/pharmacy/clinical', element: withRoleAccess(<ClinicalPharmacyPage />, ['admin', 'pharmacist'], 'clinical-pharmacy') },
-  { path: '/queue', element: withRoleAccess(<QueueManagementPage />, ['admin', 'doctor', 'nurse', 'receptionist'], 'queue:read') },
-  { path: '/laboratory', element: withRoleAccess(<LaboratoryPage />, ['admin', 'doctor', 'nurse', 'lab_technician'], 'lab:read') },
-  { path: '/laboratory/automation', element: withRoleAccess(<LabAutomationPage />, ['admin', 'lab_technician']) },
-  { path: '/billing', element: withRoleAccess(<BillingPage />, ['admin', 'receptionist'], 'billing:read') },
-  { path: '/inventory', element: withRoleAccess(<InventoryPage />, ['admin', 'pharmacist'], 'inventory:read') },
+  {
+    path: '/hospital/pharmacy/queue',
+    element: withRoleAccess(<PharmacyQueuePage />, ['pharmacist']),
+  },
+  {
+    path: '/hospital/nurse/medications',
+    element: withRoleAccess(<NurseMedicationsPage />, ['nurse']),
+  },
+  {
+    path: '/pharmacy/clinical',
+    element: withRoleAccess(<ClinicalPharmacyPage />, ['admin', 'pharmacist'], 'clinical-pharmacy'),
+  },
+  {
+    path: '/queue',
+    element: withRoleAccess(
+      <QueueManagementPage />,
+      ['admin', 'doctor', 'nurse', 'receptionist'],
+      'queue:read'
+    ),
+  },
+  {
+    path: '/laboratory',
+    element: withRoleAccess(
+      <LaboratoryPage />,
+      ['admin', 'doctor', 'nurse', 'lab_technician'],
+      'lab:read'
+    ),
+  },
+  {
+    path: '/laboratory/automation',
+    element: withRoleAccess(<LabAutomationPage />, ['admin', 'lab_technician']),
+  },
+  {
+    path: '/billing',
+    element: withRoleAccess(<BillingPage />, ['admin', 'receptionist'], 'billing:read'),
+  },
+  {
+    path: '/inventory',
+    element: withRoleAccess(<InventoryPage />, ['admin', 'pharmacist'], 'inventory:read'),
+  },
   { path: '/reports', element: withRoleAccess(<ReportsPage />, ['admin'], 'reports') },
-  { path: '/patient/appointments', element: withRoleAccess(<PatientAppointmentsPage />, ['patient'], 'appointments:read') },
-  { path: '/patient/prescriptions', element: withRoleAccess(<PatientPrescriptionsPage />, ['patient'], 'prescriptions:read') },
-  { path: '/patient/lab-results', element: withRoleAccess(<PatientLabResultsPage />, ['patient'], 'lab:read') },
-  { path: '/patient/medical-history', element: withRoleAccess(<PatientMedicalHistoryPage />, ['patient']) },
-  { path: '/patient/portal', element: withRoleAccess(<EnhancedPortalPage />, ['patient'], 'portal') },
+  {
+    path: '/patient/appointments',
+    element: withRoleAccess(<PatientAppointmentsPage />, ['patient'], 'appointments:read'),
+  },
+  {
+    path: '/patient/prescriptions',
+    element: withRoleAccess(<PatientPrescriptionsPage />, ['patient'], 'prescriptions:read'),
+  },
+  {
+    path: '/patient/lab-results',
+    element: withRoleAccess(<PatientLabResultsPage />, ['patient'], 'lab:read'),
+  },
+  {
+    path: '/patient/medical-history',
+    element: withRoleAccess(<PatientMedicalHistoryPage />, ['patient']),
+  },
+  {
+    path: '/patient/portal',
+    element: withRoleAccess(<EnhancedPortalPage />, ['patient'], 'portal'),
+  },
   { path: '/patient/messages', element: withRoleAccess(<PatientMessagesPage />, ['patient']) },
-  { path: '/messages', element: withRoleAccess(<DoctorMessagesPage />, ['admin', 'doctor', 'nurse', 'pharmacist', 'lab_technician']) },
-  { path: '/telemedicine', element: withRoleAccess(<TelemedicinePage />, ['admin', 'doctor', 'nurse'], 'telemedicine:read') },
+  {
+    path: '/messages',
+    element: withRoleAccess(<DoctorMessagesPage />, [
+      'admin',
+      'doctor',
+      'nurse',
+      'pharmacist',
+      'lab_technician',
+    ]),
+  },
+  {
+    path: '/telemedicine',
+    element: withRoleAccess(
+      <TelemedicinePage />,
+      ['admin', 'doctor', 'nurse'],
+      'telemedicine:read'
+    ),
+  },
   { path: '/settings', element: withRoleAccess(<HospitalSettingsPage />, ['admin'], 'settings') },
-  { path: '/settings/staff', element: withRoleAccess(<StaffManagementPage />, ['admin'], 'staff-management') },
-  { path: '/settings/performance', element: withRoleAccess(<StaffPerformancePage />, ['admin'], 'staff-performance') },
-  { path: '/settings/activity', element: withRoleAccess(<ActivityLogsPage />, ['admin'], 'activity-logs') },
-  { path: '/settings/monitoring', element: withRoleAccess(<SystemMonitoringPage />, ['admin'], 'system-monitoring') },
-  { path: '/settings/health', element: withRoleAccess(<SystemHealthDashboard />, ['admin'], 'system-health') },
-  { path: '/settings/audit-logs', element: withRoleAccess(<AuditLogViewer />, ['admin'], 'audit-logs') },
-  { path: '/ai-demo', element: withRoleAccess(<AIDemoPage />, ['admin', 'doctor'], undefined, 'ai_demo') },
-  { path: '/differential-diagnosis', element: withRoleAccess(<DifferentialDiagnosisPage />, ['admin', 'doctor'], undefined, 'ai_clinical_tools') },
-  { path: '/treatment-recommendations', element: withRoleAccess(<TreatmentRecommendationsPage />, ['admin', 'doctor'], undefined, 'ai_clinical_tools') },
-  { path: '/treatment-plan-optimization', element: withRoleAccess(<TreatmentPlanOptimizationPage />, ['admin', 'doctor'], undefined, 'ai_clinical_tools') },
-  { path: '/predictive-analytics', element: withRoleAccess(<PredictiveAnalyticsPage />, ['admin', 'doctor'], undefined, 'ai_analytics') },
-  { path: '/length-of-stay-forecasting', element: withRoleAccess(<LengthOfStayForecastingPage />, ['admin', 'doctor'], undefined, 'ai_analytics') },
-  { path: '/resource-utilization-optimization', element: withRoleAccess(<ResourceUtilizationOptimizationPage />, ['admin', 'doctor'], undefined, 'ai_analytics') },
-  { path: '/voice-clinical-notes', element: withRoleAccess(<VoiceClinicalNotesPage />, ['admin', 'doctor', 'nurse']) },
+  {
+    path: '/settings/staff',
+    element: withRoleAccess(<StaffManagementPage />, ['admin'], 'staff-management'),
+  },
+  {
+    path: '/settings/performance',
+    element: withRoleAccess(<StaffPerformancePage />, ['admin'], 'staff-performance'),
+  },
+  {
+    path: '/settings/activity',
+    element: withRoleAccess(<ActivityLogsPage />, ['admin'], 'activity-logs'),
+  },
+  {
+    path: '/settings/monitoring',
+    element: withRoleAccess(<SystemMonitoringPage />, ['admin'], 'system-monitoring'),
+  },
+  {
+    path: '/settings/health',
+    element: withRoleAccess(<SystemHealthDashboard />, ['admin'], 'system-health'),
+  },
+  {
+    path: '/settings/audit-logs',
+    element: withRoleAccess(<AuditLogViewer />, ['admin'], 'audit-logs'),
+  },
+  {
+    path: '/ai-demo',
+    element: withRoleAccess(<AIDemoPage />, ['admin', 'doctor'], undefined, 'ai_demo'),
+  },
+  {
+    path: '/differential-diagnosis',
+    element: withRoleAccess(
+      <DifferentialDiagnosisPage />,
+      ['admin', 'doctor'],
+      undefined,
+      'ai_clinical_tools'
+    ),
+  },
+  {
+    path: '/treatment-recommendations',
+    element: withRoleAccess(
+      <TreatmentRecommendationsPage />,
+      ['admin', 'doctor'],
+      undefined,
+      'ai_clinical_tools'
+    ),
+  },
+  {
+    path: '/treatment-plan-optimization',
+    element: withRoleAccess(
+      <TreatmentPlanOptimizationPage />,
+      ['admin', 'doctor'],
+      undefined,
+      'ai_clinical_tools'
+    ),
+  },
+  {
+    path: '/predictive-analytics',
+    element: withRoleAccess(
+      <PredictiveAnalyticsPage />,
+      ['admin', 'doctor'],
+      undefined,
+      'ai_analytics'
+    ),
+  },
+  {
+    path: '/length-of-stay-forecasting',
+    element: withRoleAccess(
+      <LengthOfStayForecastingPage />,
+      ['admin', 'doctor'],
+      undefined,
+      'ai_analytics'
+    ),
+  },
+  {
+    path: '/resource-utilization-optimization',
+    element: withRoleAccess(
+      <ResourceUtilizationOptimizationPage />,
+      ['admin', 'doctor'],
+      undefined,
+      'ai_analytics'
+    ),
+  },
+  {
+    path: '/voice-clinical-notes',
+    element: withRoleAccess(<VoiceClinicalNotesPage />, ['admin', 'doctor', 'nurse']),
+  },
   { path: '/suppliers', element: withRoleAccess(<SuppliersPage />, ['admin', 'pharmacist']) },
-  { path: '/scheduling', element: withRoleAccess(<SchedulingPage />, ['admin', 'doctor', 'receptionist']) },
-  { path: '/documents', element: withRoleAccess(<DocumentsPage />, ['admin', 'doctor', 'nurse', 'receptionist']) },
-  { path: '/scheduler', element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']) },
-  { path: '/receptionist/smart-scheduler', element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']) },
+  {
+    path: '/scheduling',
+    element: withRoleAccess(<SchedulingPage />, ['admin', 'doctor', 'receptionist']),
+  },
+  {
+    path: '/documents',
+    element: withRoleAccess(<DocumentsPage />, ['admin', 'doctor', 'nurse', 'receptionist']),
+  },
+  {
+    path: '/scheduler',
+    element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']),
+  },
+  {
+    path: '/receptionist/smart-scheduler',
+    element: withRoleAccess(<SmartSchedulerPage />, ['admin', 'receptionist']),
+  },
   { path: '/kiosk', element: withRoleAccess(<KioskPage />, ['admin', 'receptionist'], 'patients') },
-  { path: '/nurse/protocols', element: withRoleAccess(<NurseCareProtocolsPage />, ['admin', 'nurse']) },
-  { path: '/integration/workflow', element: withRoleAccess(<WorkflowDashboard />, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'], 'workflow-dashboard') },
-  { path: '/workflow/optimization', element: withRoleAccess(<WorkflowOptimizationPage />, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']) },
-  { path: '/workflow/discharge', element: withRoleAccess(<DischargeWorkflowPage />, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist']) },
-  { path: '/testing', element: withRoleAccess(<TestingDashboardPage />, ['admin'], undefined, 'testing_dashboard') },
+  {
+    path: '/nurse/protocols',
+    element: withRoleAccess(<NurseCareProtocolsPage />, ['admin', 'nurse']),
+  },
+  {
+    path: '/integration/workflow',
+    element: withRoleAccess(
+      <WorkflowDashboard />,
+      ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'],
+      'workflow-dashboard'
+    ),
+  },
+  {
+    path: '/workflow/optimization',
+    element: withRoleAccess(<WorkflowOptimizationPage />, [
+      'admin',
+      'doctor',
+      'nurse',
+      'receptionist',
+      'pharmacist',
+      'lab_technician',
+    ]),
+  },
+  {
+    path: '/workflow/discharge',
+    element: withRoleAccess(<DischargeWorkflowPage />, [
+      'admin',
+      'doctor',
+      'nurse',
+      'receptionist',
+      'pharmacist',
+    ]),
+  },
+  {
+    path: '/testing',
+    element: withRoleAccess(<TestingDashboardPage />, ['admin'], undefined, 'testing_dashboard'),
+  },
 ];
 
 export const fallbackRoute = <Route path="*" element={<NotFound />} />;
 
 export function renderRoutes(definitions: RouteDefinition[]) {
-  return definitions.map((route) => <Route key={route.path} path={route.path} element={route.element} />);
+  return definitions.map((route) => (
+    <Route key={route.path} path={route.path} element={route.element} />
+  ));
 }

@@ -114,6 +114,13 @@ jobs:
       - name: Check security regressions
         run: npm run test:security
 
+      - name: Validate RLS Policies
+        run: npx tsx scripts/validate-rls.ts
+        env:
+          CI: 'true'
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Upload security results
         if: always()
         uses: actions/upload-artifact@v4

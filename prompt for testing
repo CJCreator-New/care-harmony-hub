@@ -1,0 +1,1431 @@
+# Comprehensive Website QA, Responsiveness & Automated Testing Plan — CareSync HIMS
+
+You are a **senior QA automation engineer, frontend performance engineer, accessibility specialist, and UX tester**.
+
+Your task is to thoroughly test and verify the current CareSync HIMS website build. Do not limit testing to whether pages load successfully. Evaluate the website as a real user would across different devices, screen sizes, browsers, network conditions, and interaction patterns.
+
+## Application Context (CareSync HIMS)
+
+CareSync is an **enterprise hospital information management system (HIMS)** orchestrating clinical workflows, multi-role care coordination, and healthcare administration on a **Supabase-native architecture**.
+
+- **Stack**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + React Router DOM + TanStack Query + Supabase (Postgres + Auth + RLS)
+- **Roles (7 canonical)**: `admin`, `doctor`, `nurse`, `receptionist`, `pharmacist`, `lab_technician`, `patient`
+- **Auth**: Supabase JWT + optional 2FA for privileged roles (admin/doctor) + role selection flow + RBAC-protected routes
+- **Data layer**: Supabase REST (`/rest/v1/*`) + Edge Functions (`/functions/v1/*`) + Row-Level Security (RLS)
+- **Dev/test**: `VITE_E2E_MOCK_AUTH=true` enables mock authentication in test mode
+- **Existing tooling**: Playwright (e2e), Vitest (unit/integration/security/accessibility/performance), k6 (load), axe-core (a11y)
+
+The primary goals are:
+
+1. Verify that the website works correctly.
+2. Verify that it is fully responsive across devices and screen sizes.
+3. Verify that all major user flows work end-to-end.
+4. Identify UI/UX inconsistencies and broken states.
+5. Verify fast loading and good Core Web Vitals/performance.
+6. Verify accessibility.
+7. Verify forms, navigation, buttons, links, menus, modals, and interactive components.
+8. Detect visual regressions and layout issues.
+9. Verify behavior under slow/unstable network conditions.
+10. Produce a clear, prioritized QA report with reproducible issues.
+
+---
+
+## 1. First: Understand the Website
+
+Before writing or running tests, you MUST inspect the existing codebase. The project already has an extensive test suite — **do not blindly regenerate hundreds of tests before understanding what exists**.
+
+### Known facts (verify during exploration)
+
+* **Routing** (`src/routes/routeDefinitions.tsx`): 4 route groups — `redirectRoutes` (legacy URL → canonical), `publicRoutes` (landing, login, signup, forgot/reset password, join, quick-access, patient-register, patient-login, select-role, two-factor-setup, account-setup, dashboard, profile, notifications), `protectedRoutes` (role-gated clinical/admin modules via `withRoleAccess`), `fallbackRoute` (404).
+* **Role-gated routes** use `RoleProtectedRoute` + optional `Permission` + optional `FeatureFlagName`.
+* **Lazy-loaded pages** — all route components use `React.lazy` + `Suspense`; loading states must be tested.
+* **Layout**: `DashboardLayout` wraps authenticated pages (sidebar + header + responsive behavior).
+* **State management**: TanStack Query (`QueryClient` with `staleTime: 5min`, `retry: 1`, `refetchOnWindowFocus: false`).
+* **Error handling**: `ErrorBoundary` keyed on `location.pathname` (route-aware); `RouteAwareErrorBoundary` in `App.tsx`.
+* **Telemetry/errors**: Sentry + Glitchtip + OpenTelemetry; bootstrap in `App.tsx` runs on mount.
+
+### Tasks before testing
+
+* Inspect the complete application structure (`src/`, `src/modules/`, `src/pages/`).
+* Identify all routes/pages from `routeDefinitions.tsx` — do not assume the visible homepage represents the entire application.
+* Identify public vs authenticated vs role-gated pages.
+* Identify the 7 canonical roles and their permitted routes/permissions.
+* Identify navigation paths (sidebar, header, breadcrumbs, quick-access, kiosk).
+* Identify forms and validation rules (React Hook Form + Zod + `@hookform/resolvers`).
+* Identify reusable components (shadcn/ui + custom in `src/components/`).
+* Identify interactive elements (modals, drawers, tooltips, tabs, accordions, carousels, sliders, pagination, command palette via `cmdk`).
+* Identify API/data dependencies: Supabase REST tables, Edge Functions, real-time subscriptions.
+* Identify authentication/session behavior (Supabase Auth, 2FA, role selection, profile readiness).
+* Identify external integrations (Sentry, OpenTelemetry, telemedicine, voice notes, AI demo).
+* Identify important business-critical user journeys (see §5).
+* Identify pages that require different responsive layouts (kiosk, mobile consultation, patient portal, dashboard variants).
+* Identify dynamically loaded content (lazy routes, virtualized lists via `@tanstack/react-virtual`).
+* Identify loading, empty, error, success, and disabled states.
+
+Create a **test inventory** containing:
+
+| Area           | Pages/Components | Criticality | Tests Required                 |
+| -------------- | ---------------- | ----------- | ------------------------------ |
+| Navigation     | ...              | High        | Functional + responsive        |
+| Authentication | ...              | Critical    | Functional + security-oriented |
+| Forms          | ...              | High        | Validation + UX                |
+| Main flows     | ...              | Critical    | E2E                            |
+| Responsive UI  | ...              | High        | Multi-device                   |
+| Performance    | ...              | High        | Lighthouse/Web Vitals          |
+| Accessibility  | ...              | High        | Automated + manual             |
+| Visual UI      | ...              | Medium/High | Screenshot regression          |
+
+Do not assume that the visible homepage represents the entire application.
+
+---
+
+# 2. Build a Device & Viewport Testing Matrix
+
+Test the website at representative viewport sizes rather than testing only desktop and mobile.
+
+At minimum test:
+
+### Mobile
+
+* 320 × 568
+* 360 × 800
+* 375 × 812
+* 390 × 844
+* 393 × 852
+* 414 × 896
+* 430 × 932
+
+### Tablet
+
+* 768 × 1024
+* 810 × 1080
+* 834 × 1112
+* 1024 × 1366
+
+### Desktop
+
+* 1280 × 720
+* 1366 × 768
+* 1440 × 900
+* 1536 × 864
+* 1920 × 1080
+* 2560 × 1440
+
+Also test intermediate widths such as:
+
+* 480
+* 600
+* 720
+* 900
+* 1100
+* 1200
+* 1440
+
+The purpose is to detect breakpoint-related issues that may not appear at standard device sizes.
+
+### CareSync-Specific Device Notes
+
+The project already defines Playwright device projects in `playwright.config.ts`:
+- `chromium` — Desktop Chrome
+- `firefox` — Desktop Firefox
+- `webkit` — Desktop Safari (iPhone 13 mobile Safari via `mobile-safari` project)
+- `mobile-chrome` — Pixel 7
+- `mobile-safari` — iPhone 13
+
+**Kiosk mode** (`/kiosk`) is a dedicated full-screen self-service layout — test at 1366×768 and 1920×1080 (kiosk terminals), and verify it does not show the standard sidebar/header chrome.
+
+**Mobile Consultation** (`/consultations/mobile`) is a dedicated mobile-first consultation layout — test at 375×812, 390×844, 414×896 in both portrait and landscape.
+
+**Patient Portal** (`/patient/portal`) must be tested at small viewports (320-414 wide) since patients may access it from phones.
+
+**Landscape orientation** is critical for the mobile consultation page and the kiosk page.
+
+---
+
+# 3. Responsive Design Testing
+
+For every major page, verify:
+
+### Layout
+
+* No horizontal scrolling unless intentionally designed.
+* No overlapping elements.
+* No clipped text.
+* No elements extending outside the viewport.
+* No broken grids.
+* Correct container widths.
+* Correct spacing and padding.
+* Correct typography scaling.
+* Correct image sizing.
+* Correct card dimensions.
+* Correct alignment.
+* Correct breakpoint behavior.
+
+### Navigation
+
+Test:
+
+* Desktop navigation.
+* Mobile navigation.
+* Hamburger menu.
+* Dropdown menus.
+* Nested menus.
+* Sticky navigation.
+* Header while scrolling.
+* Menu open/close behavior.
+* Outside-click behavior.
+* Escape-key behavior where applicable.
+
+### CareSync-Specific Responsive Concerns
+
+* **Sidebar (`DashboardLayout`)**: Must collapse to a bottom sheet / drawer / hamburger on mobile. Verify the sidebar does not overlay modal content and that the overlay backdrop closes the menu on touch.
+* **Header role-switcher**: When a user has multiple roles, the role switcher dropdown must remain usable at 320px width and not overflow.
+* **Stat cards / dashboards**: Dashboard stat cards must reflow from 4→2→1 columns without horizontal overflow at 360px, 375px, 390px, 414px.
+* **Tables**: Patient lists, appointment lists, and lab result tables must scroll horizontally (not truncate data) or transform into card stacks on mobile.
+* **Forms**: Registration, consultation, prescription, and billing forms must remain usable when the OS keyboard opens (bottom-sheet behavior, no field hidden behind keyboard).
+* **Date pickers** (`react-day-picker`) and **select dropdowns** (`@radix-ui/react-select`) must render correctly in mobile Safari and mobile Chrome (not clipped by the viewport).
+* **Virtualized lists** (`@tanstack/react-virtual`): Verify virtual scrolling works at small viewports and does not cause layout shift (CLS).
+* **Toasts** (`sonner`): Must not be clipped at the bottom on small screens; verify position stays `top-right`/`bottom` consistently.
+* **Command palette** (`cmdk`): Must be reachable from keyboard (`Cmd/Ctrl+K`) and usable on mobile.
+* **Theme switcher** (`next-themes`): Verify theme toggle persists and does not cause hydration mismatch warnings.
+* **Modals & dialogs** (`@radix-ui/react-dialog`): Must trap focus and close on `Escape` + backdrop click on both desktop and mobile.
+* **Drawers** (`vaul`): Used for mobile slide-ups — verify they slide from the correct edge and close on swipe-down/backdrop.
+* **Carousels** (`embla-carousel-react`): Used in landing/kiosk — verify autoplay/pagination works on touch.
+* **File upload** (`react-dropzone`): Verify drag-and-drop and tap-to-upload work on mobile.
+
+### Content
+
+Verify:
+
+* Long titles.
+* Long descriptions.
+* Large numbers.
+* Empty content.
+* Missing images.
+* Different text lengths.
+* Localization-like text expansion where practical.
+
+### Orientation
+
+Test:
+
+* Portrait.
+* Landscape.
+
+Especially on mobile/tablet layouts.
+
+**CareSync-specific**: `/consultations/mobile` and `/kiosk` must be tested in landscape on tablets (1024×768, 834×1112 rotated). The patient portal must be tested in portrait and landscape on phones.
+
+---
+
+# 4. Cross-Browser Testing
+
+Run the critical test suite against:
+
+* Chrome/Chromium
+* Firefox
+* Safari/WebKit
+* Edge where available
+
+Pay special attention to:
+
+* CSS rendering differences.
+* Flex/Grid behavior.
+* Sticky positioning.
+* Form controls.
+* Date/time inputs.
+* Select/dropdown behavior.
+* Font rendering.
+* Animations/transitions.
+* Viewport behavior.
+* Touch interactions.
+
+### CareSync-Specific Cross-Browser Concerns
+
+The project's `playwright.config.ts` defines 5 browser/device projects: `chromium`, `firefox`, `webkit`, `mobile-chrome` (Pixel 7), `mobile-safari` (iPhone 13). Use these as the canonical browser matrix.
+
+* **Supabase Auth flow**: OAuth redirects and email/password login behave differently across browsers (especially Firefox and WebKit). Test the full login → dashboard redirect in all three desktop browsers.
+* **`react-day-picker`**: Date picker rendering and keyboard navigation differ between Chromium, Firefox, and WebKit. Test date selection in all three.
+* **`@radix-ui/react-select` / `@radix-ui/react-popover`**: Popper positioning engine (`@floating-ui`) can render dropdowns clipped in Firefox if the portal root is not handled correctly. Verify dropdowns open upward/downward as needed.
+* **`react-dropzone`**: Drag-and-drop behavior varies; tap-to-click must work on mobile Safari (WebKit) where drag events are not supported.
+* **`framer-motion` animations**: Easing and transition timing differ subtly between browsers; verify no animation hangs or leaves elements in a broken state.
+* **`sonner` toasts**: Verify toast dismissal and stacking behavior in Firefox (which sometimes ignores `duration`).
+* **`next-themes`**: Verify no flash of unstyled content (FOUC) and no `hydration mismatch` console warnings in any browser.
+* **Print styles**: The discharge summary and lab result print paths must be tested via `print` emulation in Chromium and Firefox.
+* **Font rendering**: Inter / system-ui fonts render differently; verify no text overflow or clipping in tabular data (vitals, lab values, medication doses).
+
+---
+
+# 5. Real User Flow / End-to-End Testing
+
+Identify the most important user journeys and automate them.
+
+### CareSync HIMS Canonical User Journeys
+
+The following are the **business-critical flows** that MUST be tested end-to-end. They map to the 7 canonical roles and the workflows defined in `CONTEXT.md`.
+
+#### Flow 0 — Landing & Onboarding (Public)
+
+1. Open `/` → redirects to `/hospital`.
+2. Landing page loads (hero, features, CTA).
+3. Click primary CTA → navigate to `/hospital/login` or `/hospital/signup`.
+4. Hospital signup: fill hospital registration form → account setup → role selection.
+5. Patient registration: `/patient-register` → verify patient portal access.
+6. Patient login: `/patient-login` → verify portal loads.
+
+#### Flow A — Authentication (All Roles)
+
+1. Open `/hospital/login`.
+2. Valid login (email + password) → redirect to `/dashboard` or role selection.
+3. Invalid credentials → stay on login, error message visible, no redirect.
+4. Empty fields → inline validation errors.
+5. Malformed email → validation error.
+6. Password visibility toggle (show/hide).
+7. "Forgot password" → `/hospital/forgot-password` → reset flow.
+8. Logout → clear session, redirect to login.
+9. Refresh authenticated page → session persists.
+10. Direct URL to protected route while unauthenticated → redirect to login.
+11. Role selection: user with multiple roles → `/hospital/select-role` → switch role.
+12. 2FA enrollment: privileged role (admin/doctor) → `/hospital/two-factor-setup` → mandatory before PHI access.
+13. **Test Mode**: With `VITE_E2E_MOCK_AUTH=true`, verify mock auth bypass works and the Test Mode indicator is visible.
+
+#### Flow B — New Patient Check-In → Consultation (Receptionist → Doctor)
+
+1. Receptionist logs in → `/queue` (patient queue).
+2. Walk-in check-in: register new patient → add to queue with status `waiting`.
+3. Verify patient appears in the queue with correct priority.
+4. Nurse triage: record vital signs → update queue status to `in_consultation`.
+5. Doctor opens consultation → records clinical notes, differential diagnoses, orders lab/prescription.
+6. Verify the consultation state machine transitions correctly.
+
+#### Flow C — Lab Order → Result → Critical Value Escalation (Doctor → Lab Tech)
+
+1. Doctor orders a lab investigation from a consultation.
+2. Lab order progresses: `ordered` → `collected` → `in_progress` → `completed`.
+3. Lab technician records test results.
+4. **Critical value**: result breaches physiological limits → triggers Critical Lab Alert → escalation chain (primary doctor → on_call → ER staff).
+5. Verify escalation notifications and the Critical Lab Escalation Queue.
+
+#### Flow D — Prescription → Approval → Dispense (Doctor → Pharmacist)
+
+1. Doctor initiates a prescription from a consultation.
+2. Prescription state: `initiated` → `pending_approval`.
+3. **Fail-Closed CDS**: If drug interaction or allergy check fails/ambiguous, automated fulfillment MUST be blocked, requiring explicit physician override + logged rationale.
+4. Pharmacist reviews prescription → approve or reject.
+5. On approval → `approved` → `dispensed` → `completed`.
+6. Verify pharmacist cannot dispense without review (prescription approval workflow state machine).
+
+#### Flow E — Discharge Workflow (Doctor → Pharmacist → Billing → Nurse)
+
+1. Doctor initiates discharge → workflow state `doctor`.
+2. Pharmacist clears medication reconciliation → advances to `billing`.
+3. Billing (receptionist) finalizes invoices/copay → advances to `nurse`.
+4. Nurse executes physical release → workflow `completed`.
+5. **Rejection rollback**: Any step can reject with a reason → workflow rolls back to the previous step.
+6. Verify the 4-stage state machine and reverse-step rejection.
+
+#### Flow F — Front-Desk Billing (Receptionist)
+
+1. Receptionist generates an invoice for a patient.
+2. Process copayment collection.
+3. Verify the **Billing Boundary**: clinical roles (doctor, nurse) CANNOT access billing/invoice data (RLS + RBAC).
+
+#### Flow G — Patient Portal (Patient)
+
+1. Patient logs into `/patient/portal`.
+2. View finalized appointments.
+3. View dispensed prescriptions.
+4. View completed laboratory results.
+5. Verify tenant-isolated RLS — patient only sees their own PHI.
+
+#### Flow H — Admin Operations (Admin)
+
+1. Staff provisioning (create staff accounts, assign roles).
+2. System configuration.
+3. Compliance reporting / audit log inspection.
+4. Verify admin-only routes: `/settings`, `/settings/staff`, `/settings/activity`, `/settings/monitoring`, `/settings/health`, `/settings/audit-logs`, `/testing`.
+
+#### Flow I — Appointments & Scheduling (Receptionist / Doctor)
+
+1. Book a new appointment (`/appointments` or `/scheduler`).
+2. Reschedule an existing appointment.
+3. Cancel an appointment.
+4. Verify kiosk self-check-in (`/kiosk`) works for walk-in patients.
+
+#### Flow J — Notifications & Settings
+
+1. Trigger a notification (e.g., critical lab alert, appointment reminder).
+2. Verify notification appears (sonner toast + notifications page).
+3. Mark notification as read / clear.
+4. Update user profile / system settings.
+
+### Generic Flows (Apply to All Pages)
+
+#### Flow C — Forms
+
+For every important form test:
+
+* Valid submission.
+* Required field missing.
+* Invalid email.
+* Invalid phone.
+* Minimum/maximum length.
+* Special characters.
+* Leading/trailing spaces.
+* Copy/paste.
+* Keyboard-only interaction.
+* Submit using Enter.
+* Double-click/double-submit.
+* Server/API failure.
+* Loading state.
+* Success state.
+* Error state.
+* Reset behavior.
+
+#### Flow D — Navigation
+
+Verify:
+
+* Every primary navigation item.
+* Internal links.
+* External links.
+* Footer links.
+* Logo navigation.
+* Breadcrumbs.
+* Back button.
+* Browser forward/back.
+* Deep links.
+* Refresh on nested routes.
+* Redirect routes (legacy URLs in `redirectRoutes`).
+
+---
+
+# 6. Interactive Element Testing
+
+Automatically discover and test:
+
+* Buttons.
+* Links.
+* Inputs.
+* Selects.
+* Checkboxes.
+* Radio buttons.
+* Toggles.
+* Tabs.
+* Accordions.
+* Tooltips.
+* Modals.
+* Drawers.
+* Carousels.
+* Sliders.
+* Pagination.
+* Search.
+* Filters.
+* Sort controls.
+* Dropdowns.
+* Copy buttons.
+* Download buttons.
+* Share controls.
+
+For each interactive component verify:
+
+* It is clickable.
+* It performs the expected action.
+* It has a visible interaction state.
+* It does not cause unexpected navigation.
+* It works with keyboard input where applicable.
+* It works on touch/mobile.
+* It handles rapid repeated interaction safely.
+
+---
+
+# 7. Performance Testing
+
+Performance is a major priority.
+
+Measure:
+
+* Page load time.
+* First Contentful Paint (FCP).
+* Largest Contentful Paint (LCP).
+* Interaction to Next Paint (INP).
+* Cumulative Layout Shift (CLS).
+* Total Blocking Time (TBT).
+* Speed Index.
+* Time to First Byte (TTFB).
+* JavaScript execution time.
+* CSS size.
+* Image size.
+* Font loading.
+* Number of requests.
+* Third-party scripts.
+* Main-thread blocking.
+* Unused JavaScript/CSS where detectable.
+
+Run performance tests under:
+
+### Fast network
+
+* Desktop broadband.
+* Mobile-like connection.
+
+### Slow network
+
+* Fast 3G.
+* Slow 3G where available.
+
+### CPU
+
+* Normal CPU.
+* Throttled/mobile-like CPU.
+
+Test:
+
+* Cold page load.
+* Warm page load.
+* Hard refresh.
+* Cached load.
+
+Identify the largest performance bottlenecks and provide actionable recommendations.
+
+### CareSync-Specific Performance Concerns
+
+The project already has performance test infrastructure:
+- `vitest.performance.config.ts` with sub-suites: `backend-performance`, `frontend-performance`, `infrastructure-performance`
+- `tests/performance/load-test.js` for k6 load testing
+- `tests/e2e/performance.spec.ts` for Playwright-based performance assertions
+- `web-vitals` library integrated for real-user metrics
+
+**Critical paths to measure** (in priority order):
+1. **Login flow** (`/hospital/login` → dashboard): TTFB, LCP, INP on cold load. Auth redirect chains add latency.
+2. **Dashboard** (`/dashboard`): Stat cards, charts (`recharts`), recent activity. `recharts` can be heavy — measure its JS parse/execute time.
+3. **Patient list** (`/patients`) and **appointment list** (`/appointments`): Virtualized lists must render without jank; measure scroll performance at 390px width.
+4. **Consultation workflow** (`/consultations/:id`): Rich-text clinical notes, voice notes, differential diagnosis AI — measure input latency (INP) while typing.
+5. **Lab results** (`/laboratory`): Large tables of results; measure scroll and filter responsiveness.
+6. **Discharge workflow** (`/workflow/discharge`): Multi-step state machine; measure step transitions.
+7. **Patient portal** (`/patient/portal`): Must be fast on low-end phones (3G).
+
+**Specific targets for CareSync**:
+- LCP ≤ 2.5s on 3G for `/dashboard` and `/patient/portal`
+- INP ≤ 200ms for form inputs (consultation notes, prescription dosage)
+- CLS ≤ 0.1 on all pages (especially where `recharts` charts and toast notifications render)
+- TTFB ≤ 400ms for Supabase REST calls (`/rest/v1/*`) under load
+- Cold start of the Vite dev server (`npx vite --port 8080`) should be < 60s (used by Playwright webServer)
+
+**Watch for**:
+- Sentry (`@sentry/react`) and OpenTelemetry (`@opentelemetry/*`) SDKs adding 50-150KB of blocking JS on every page. Verify they are tree-shaken and lazy-loaded where possible.
+- `react-day-picker` and `@radix-ui` components pulling in date-fns locales.
+- `lucide-react` icon tree size (verify only used icons are bundled).
+- `cmdk` command palette bundle size.
+- Large `recharts` renders on low-end devices (4x CPU throttling).
+- Font loading: verify `Inter` / system-ui does not cause FOUT/FOUC that shifts layout (CLS).
+- Image optimization: verify images are resized and modern formats (AVIF/WebP) with fallbacks.
+- Third-party scripts: audit for any non-essential scripts (chat widgets, analytics) that block the main thread.
+
+**Network profile specifics**:
+- Supabase REST: measure concurrent request queuing under TanStack Query.
+- Edge Functions (`/functions/v1/*`): measure cold-start latency for discharge-workflow and critical-lab-alert functions.
+- Realtime subscriptions: verify they do not leak connections on page unmount (memory leak check).
+
+---
+
+# 8. Loading-State Testing
+
+Verify every asynchronous operation has appropriate states:
+
+* Initial loading.
+* Skeleton/loading indicator.
+* Button loading state.
+* API request pending.
+* Successful response.
+* Empty response.
+* Error response.
+* Timeout.
+* Retry.
+
+Make sure users cannot accidentally submit the same operation multiple times while a request is pending.
+
+### CareSync-Specific Loading States
+
+The application uses **React.lazy + Suspense** for all routes, with a fallback of `<div className="flex items-center justify-center min-h-screen">Loading...</div>` in `AppContent`. Verify:
+
+* **Route-level lazy loading**: Navigating between `/dashboard`, `/patients`, `/consultations`, etc. must show a loading indicator (not a blank screen or a broken route). The `RouteAwareErrorBoundary` must catch lazy-load failures and render a route-specific error, not a white page.
+* **TanStack Query states**: Every query must handle `isPending`, `isError`, and `isEmpty`. Verify the skeleton screens are shown for:
+  - Dashboard stat cards
+  - Patient list (virtualized)
+  - Appointment list
+  - Lab results table
+  - Consultation history
+  - Prescription queue
+* **Mutation loading states**: Buttons that trigger mutations (check-in, submit consultation, approve prescription, discharge step) must show a disabled/loading state and prevent duplicate submission. This is critical for:
+  - Walk-in check-in button
+  - "Approve Medication Reconciliation" button
+  - "Reject" button (with reason)
+  - Lab result "Record" button
+  - Prescription "Dispense" button
+* **Optimistic updates**: TanStack Query may update UI optimistically before the server responds. Verify the UI reverts on error and does not show stale data.
+* **Realtime subscriptions**: When Supabase realtime is active (patient queue, notifications), verify the loading state transitions correctly when the subscription delivers data.
+* **2FA setup**: The `/hospital/two-factor-setup` page has its own loading and QR-code generation states.
+* **Profile readiness**: The `ProtectedRoute` component shows a spinner when `!isProfileReady`. Verify this spinner does not flash on every navigation for logged-in users with cached profiles.
+
+### Double-Submission Prevention
+
+For every form/mutation button, verify:
+- Clicking twice rapidly does not trigger two API calls.
+- The button is visually disabled (or shows a spinner) while the mutation is pending.
+- After a network error, the button is re-enabled so the user can retry.
+
+---
+
+# 9. Error & Edge-Case Testing
+
+Intentionally test abnormal conditions.
+
+Examples:
+
+* API unavailable.
+* API returns 400.
+* API returns 401.
+* API returns 403.
+* API returns 404.
+* API returns 500.
+* Slow API response.
+* Network disconnect.
+* Network reconnect.
+* Empty API response.
+* Missing image.
+* Extremely long content.
+* Invalid URL parameters.
+* Expired session.
+* Refresh during loading.
+* Browser back during an operation.
+* Multiple rapid clicks.
+* Multiple tabs/windows.
+
+The application should fail gracefully rather than leaving users in a broken or ambiguous state.
+
+### CareSync-Specific Edge Cases
+
+The application has **Fail-Closed Clinical Decision Support (CDS)** and strict state machines. These MUST be tested:
+
+1. **Fail-Closed CDS**: When the drug interaction or allergy check service fails, times out, or returns ambiguous results, automated order fulfillment MUST be blocked. Verify:
+   - Prescription cannot be approved by the pharmacist without a valid CDS result.
+   - A physician override is required with a logged clinical rationale.
+   - The UI shows a clear error, not a silent pass.
+
+2. **RLS violations**: Supabase Row-Level Security should block unauthorized data access. Verify:
+   - A patient cannot see other patients' PHI.
+   - A receptionist cannot see clinical notes (only billing).
+   - A nurse cannot access billing/invoice tables.
+   - A lab technician cannot see prescription data.
+   - Test by directly hitting Supabase REST endpoints with a leaked token (via `page.route` mocking) and verify 403 responses.
+
+3. **State machine violations**: Clinical workflows have strict ordering:
+   - Discharge: doctor → pharmacist → billing → nurse → completed. Verify a pharmacist cannot perform the billing step.
+   - Lab order: ordered → collected → in_progress → completed. Verify results cannot be recorded before collection.
+   - Prescription: initiated → pending_approval → approved → dispensed → completed. Verify a nurse cannot dispense.
+
+4. **Critical Lab Escalation**: When a critical value is not acknowledged within 5 minutes, the escalation chain must advance to on_call; within 10 minutes to ER staff. Verify this works even when the ordering doctor is offline.
+
+5. **Expired session**: Simulate JWT expiry mid-flow (e.g., during a consultation save). Verify the app redirects to login without data loss and the TanStack Query cache is cleared.
+
+6. **Supabase connection loss**: Offline mode — verify the app shows an offline banner, queues mutations, and replays them on reconnect (where implemented).
+
+7. **Invalid route parameters**: Visit `/patients/invalid-uuid`, `/consultations/not-a-number`, `/hospital/join/expired-token`. Verify graceful handling (loading state → error state, not a crash).
+
+8. **Long PHI content**: Clinical notes with 10,000+ characters, medication names with special characters (µg, ½, etc.), extremely long patient names (100+ chars).
+
+9. **Multiple rapid role switches**: Switch roles rapidly in the role switcher dropdown — verify no race conditions, no stale data, and the sidebar/navigation updates correctly.
+
+10. **Concurrent tabs**: Open the same patient profile in two tabs, edit in one, verify the other reflects the change (via realtime) or shows a conflict warning.
+
+11. **Print paths**: Trigger print for discharge summary and lab results — verify print styles render correctly, no blank pages, no truncated content.
+
+12. **Keyboard-only flows**: Complete the check-in → consultation → discharge flow using only Tab/Enter/Space (no mouse). Verify focus indicators are visible and focus order is logical.
+
+---
+
+# 10. Accessibility Testing
+
+Run automated accessibility checks and inspect important issues manually.
+
+Verify:
+
+* Semantic HTML.
+* Correct heading hierarchy.
+* Image alt text.
+* Form labels.
+* Accessible names.
+* Keyboard navigation.
+* Visible focus indicators.
+* Focus order.
+* Focus trapping inside modals.
+* Escape behavior.
+* Color contrast.
+* Button/link distinction.
+* ARIA usage.
+* Screen-reader-friendly controls.
+* Error message accessibility.
+* Form validation announcements.
+* Skip navigation where appropriate.
+
+Test without using a mouse for important flows.
+
+### CareSync-Specific Accessibility Concerns
+
+The project has dedicated accessibility test infrastructure:
+- `tests/e2e/accessibility.spec.ts` and `tests/e2e/accessibility-wcag-audit.spec.ts` (Playwright + axe-core)
+- `tests/accessibility/` (Vitest + jest-axe)
+- `@axe-core/playwright` and `axe-playwright` are installed
+
+**Healthcare-specific accessibility requirements** (HIPAA-adjacent, WCAG 2.1 AA minimum):
+
+1. **PHI visibility**: Verify that toast notifications (`sonner`) announcing lab results, prescriptions, or discharge updates do not expose PHI in a way that is readable by screen readers in an open-plan office. Use ARIA live regions appropriately.
+2. **Form labels**: Every clinical form (vitals intake, consultation notes, prescription dosage, lab result entry) must have a properly associated `<label>` or `aria-label`. React Hook Form fields must register the label correctly.
+3. **Critical alert accessibility**: The Critical Lab Alert must be announced to screen readers via an aria-live region with `aria-atomic="true"`. Verify it is not missed by screen reader users.
+4. **Color contrast**: Medical dashboards use color heavily (red for critical, yellow for warning, green for normal). Verify WCAG AA contrast ratios (4.5:1 for normal text, 3:1 for large text/UI components) for:
+   - Vital sign trend lines (`recharts`)
+   - Status badges (waiting/in_consultation/completed)
+   - Priority indicators in the patient queue
+5. **Keyboard access to clinical data tables**: The patient list, lab results, and appointment tables must be fully keyboard-navigable (arrow keys to move between rows, Enter to select). Virtualized lists must maintain roving tabindex.
+6. **Modal focus trapping**: Clinical modals (prescription approval, discharge confirmation, critical alert) must trap focus and return focus to the triggering element on close.
+7. **Date pickers** (`react-day-picker`): Must be operable via keyboard (arrow keys to navigate months, Enter to select). Verify aria-labels on navigation buttons.
+8. **Drag-and-drop** (`react-dropzone`): Must have a keyboard-accessible alternative (click to upload) since drag events are not available on keyboard.
+9. **Voice clinical notes**: The voice input UI must have accessible labels and announce recording state to screen readers.
+10. **Telemedicine**: Video call controls (mute, camera, end call) must be keyboard-accessible and have visible focus indicators.
+11. **Skip navigation**: Verify a skip-to-main-content link exists and is focusable via Tab.
+12. **Heading hierarchy**: Verify pages use a logical h1 → h2 → h3 structure. Dashboards with many cards must not use h3s without h2 parents.
+13. **Reduced motion**: Verify `prefers-reduced-motion` is respected — `framer-motion` animations should be disabled for users who prefer reduced motion.
+14. **High contrast mode**: Verify the theme toggle (light/dark/system) works correctly with screen readers and high-contrast OS settings.
+
+---
+
+# 11. Visual Regression Testing
+
+Create baseline screenshots for critical pages/components.
+
+Compare screenshots across:
+
+* Desktop.
+* Tablet.
+* Mobile.
+* Different viewport widths.
+* Important UI states.
+
+Capture states such as:
+
+* Default.
+* Hover.
+* Focus.
+* Active.
+* Disabled.
+* Loading.
+* Error.
+* Success.
+* Empty.
+* Modal open.
+* Mobile menu open.
+
+Detect:
+
+* Layout shifts.
+* Unexpected spacing.
+* Font changes.
+* Missing elements.
+* Incorrect colors.
+* Incorrect sizing.
+* Overflow.
+* Alignment issues.
+* Broken responsive behavior.
+
+Avoid treating tiny anti-aliasing/rendering differences as defects.
+
+### CareSync-Specific Visual Regression Targets
+
+The project uses Playwright screenshots (`screenshot: 'only-on-failure'` in config) and has `playwright-report/` directories for historical results. Establish baselines for:
+
+**Critical pages** (screenshot at 3 viewports each: 390×844, 768×1024, 1440×900):
+1. `/hospital` (landing)
+2. `/hospital/login`
+3. `/dashboard` (after login — note: role-specific content)
+4. `/patients` (patient list)
+5. `/patients/:id` (patient profile)
+6. `/appointments`
+7. `/queue` (patient queue)
+8. `/consultations`
+9. `/laboratory`
+10. `/pharmacy`
+11. `/billing`
+12. `/workflow/discharge`
+13. `/patient/portal`
+
+**Critical UI states** (screenshot at desktop viewport):
+- Landing page hero
+- Login form (empty, error, success)
+- Dashboard with stat cards and charts
+- Patient list with selection
+- Modal open (prescription approval, discharge confirm)
+- Toast notifications visible
+- Mobile sidebar/hamburger open
+- Empty state (no patients, no appointments)
+- Error state (API failure)
+- Loading skeleton
+- Role switcher dropdown open
+- Command palette open (Cmd+K)
+- 2FA setup with QR code
+- Kiosk full-screen mode
+- Print preview (discharge summary)
+
+**Specific visual checks**:
+- **Sidebar collapse breakpoint**: Verify the sidebar transitions to a bottom sheet at the correct width (likely 768px or 1024px) and the transition is smooth (no layout jump).
+- **Toast position consistency**: Sonner toasts must not overflow the viewport or be clipped.
+- **Chart rendering**: `recharts` charts must render correctly with no missing axes, labels, or tooltips.
+- **Table horizontal scroll**: Tables must show a visible scroll shadow/indicator, not silently clip data.
+- **Form validation errors**: Error messages must appear below the correct field, not hidden behind the keyboard on mobile.
+- **Theme consistency**: Verify no elements render with the wrong theme (e.g., dark text on dark background) after theme switching.
+- **Z-index stacking**: Modals, drawers, toasts, and tooltips must stack correctly (toast above modal, modal above drawer, etc.).
+- **Focus indicators**: Verify visible focus rings on all interactive elements in both light and dark themes.
+
+---
+
+# 12. URL & Routing Testing
+
+Verify:
+
+* All routes load correctly.
+* Direct URL navigation works.
+* Refresh works on nested routes.
+* Invalid routes show an appropriate 404.
+* Query parameters work.
+* Hash navigation works where applicable.
+* Redirects work.
+* Protected routes are protected.
+* No unexpected redirect loops occur.
+
+Also check for:
+
+* Broken internal links.
+* Broken external links.
+* Incorrect hrefs.
+* Links opening incorrectly.
+* Unexpected new tabs/windows.
+
+### CareSync-Specific Routing Concerns
+
+The routing architecture is defined in `src/routes/routeDefinitions.tsx` with 4 groups:
+
+1. **`redirectRoutes`** — Legacy URL redirects (e.g., `/login` → `/hospital/login`, `/patient/dashboard` → `/patient/portal`, `/pharmacy/prescriptions` → `/pharmacy`). Verify ALL of these 25+ redirects work without loops.
+
+2. **`publicRoutes`** — Accessible without authentication. Includes `/hospital`, `/hospital/login`, `/hospital/signup`, `/hospital/forgot-password`, `/hospital/reset-password`, `/hospital/select-role`, `/hospital/two-factor-setup`, `/hospital/join/:token`, `/quick-access`, `/patient-register`, `/patient-login`, `/hospital/profile-setup`, `/hospital/role-setup`, `/hospital/account-setup`, `/dashboard`, `/profile`, `/notifications`.
+
+3. **`protectedRoutes`** — Role-gated via `withRoleAccess(page, allowedRoles, requiredPermission?, featureFlag?)`. Each route may have:
+   - An allowed-roles list (e.g., `['admin', 'pharmacist']`)
+   - A required permission (e.g., `'pharmacy'`, `'billing:read'`)
+   - A feature flag (e.g., `'ai_demo'`, `'testing_dashboard'`)
+   Verify the interplay of all three: a user must have the role AND the permission AND the feature flag must be enabled.
+
+4. **`fallbackRoute`** — `path="*"` → `NotFound` page.
+
+**Specific routing tests**:
+
+- **Legacy redirects**: Visit every URL in `redirectRoutes` and verify it redirects to the correct canonical URL (301/302 in browser = `Navigate replace`).
+- **Protected route denial**: As a `receptionist`, try to visit `/pharmacy`, `/laboratory`, `/consultations`, `/reports`, `/settings`, `/testing` — verify redirect or access-denied page.
+- **Permission granularity**: As a `doctor`, verify you can access `/consultations` but NOT `/billing` (billing boundary). As a `nurse`, verify you can access `/patients` and `/consultations` but NOT `/pharmacy`.
+- **Feature flags**: If a route has a feature flag (e.g., `/ai-demo` requires `'ai_demo'`), verify that when the flag is disabled, the user is redirected to `/dashboard`.
+- **Role selection flow**: A user with multiple roles must be redirected to `/hospital/select-role` on first login. After selecting a role, verify they land on the correct dashboard.
+- **2FA gate**: A privileged role (admin/doctor) that has NOT enrolled in 2FA must be redirected to `/hospital/two-factor-setup` before accessing any PHI route.
+- **Profile/hospital setup**: A new user without a profile or hospital must be redirected to `/hospital/account-setup` or `/hospital/profile-setup`.
+- **No active roles**: A user with `effectiveRoleCount === 0` must see the "No Active Roles" state (not a crash).
+- **Deep links**: Visit `/patients/123e4567-e89b-12d3-a456-426614174000` directly, refresh, verify the page loads and the patient profile is displayed.
+- **Query parameters**: Visit `/appointments?status=completed&date=2026-09-10` and verify filters apply.
+- **404 page**: Visit `/nonexistent-route` and verify the `NotFound` page renders with a link back to dashboard.
+- **Redirect loops**: Verify no infinite redirect loops occur when:
+  - A logged-in user visits `/hospital/login` (should redirect to `/dashboard`).
+  - An unauthenticated user visits `/dashboard` (should redirect to `/hospital/login`).
+  - A user with no roles visits a protected route.
+- **Browser back/forward**: After a redirect chain, verify the browser back button returns to the expected previous page, not a redirect loop.
+- **Hash navigation**: Verify `#/patients` or `#/dashboard` hash links work where applicable.
+- **Patient portal vs hospital portal**: Verify `/patient-login` and `/patient-register` are separate from `/hospital/login` and `/hospital/signup`. The patient portal has its own auth flow.
+- **Kiosk mode**: `/kiosk` should render a full-screen kiosk layout without the standard sidebar/header.
+
+---
+
+# 13. Browser Console & Runtime Errors
+
+During every major test flow monitor:
+
+* JavaScript errors.
+* Unhandled promise rejections.
+* Failed network requests.
+* CORS errors.
+* Missing assets.
+* 404 resources.
+* Deprecation warnings where relevant.
+* Hydration errors if applicable.
+* React/Vue/Angular runtime errors if applicable.
+
+A test should not be considered completely successful merely because the expected UI appeared if serious console/runtime errors occurred.
+
+---
+
+# 14. Network Testing
+
+Test application behavior with:
+
+* Normal network.
+* Slow network.
+* Offline mode.
+* Intermittent connectivity.
+* API latency.
+* Failed API calls.
+
+Verify appropriate:
+
+* Loading indicators.
+* Retry mechanisms.
+* Error messages.
+* Recovery behavior.
+* Data persistence where expected.
+
+---
+
+# 15. Touch & Mobile Interaction Testing
+
+On mobile-sized viewports verify:
+
+* Touch targets are sufficiently large.
+* No hover-only functionality is required.
+* Menus work via touch.
+* Swipe interactions work where applicable.
+* Scrolling works naturally.
+* Sticky elements don't block content.
+* Fixed bottom/top elements don't overlap important controls.
+* Inputs don't create unexpected layout problems.
+* Virtual keyboard behavior is reasonable.
+* Forms remain usable when the keyboard is open.
+
+---
+
+# 16. SEO / Basic Technical Checks
+
+Where applicable verify:
+
+* Page titles.
+* Meta descriptions.
+* Canonical URLs.
+* Heading structure.
+* Robots behavior.
+* Sitemap availability.
+* Open Graph metadata.
+* Favicon.
+* Correct HTTP status codes.
+* Image optimization.
+* Semantic markup.
+
+Do not modify SEO configuration unless explicitly requested; report issues separately.
+
+---
+
+# 17. Security-Oriented Functional Checks
+
+Without attempting unauthorized exploitation, verify basic application safety:
+
+* Sensitive information is not exposed in the UI.
+* Password fields behave appropriately.
+* Authentication redirects work.
+* Protected pages cannot be accessed without the expected session.
+* Logout invalidates the expected client state.
+* User input is appropriately handled.
+* No obvious secrets/API keys are exposed in frontend source or console output.
+
+Report suspicious findings rather than attempting destructive exploitation.
+
+---
+
+# 18. Automated Test Architecture
+
+Use the most appropriate browser automation framework available in the project.
+
+Prefer:
+
+* Playwright
+* Cypress
+* Selenium
+
+Prefer Playwright if there is no existing framework and it fits the project.
+
+Organize tests logically:
+
+```text
+tests/
+├── smoke/
+├── e2e/
+├── responsive/
+├── accessibility/
+├── performance/
+├── visual/
+├── forms/
+├── navigation/
+└── fixtures/
+```
+
+Use reusable:
+
+* Page objects/components.
+* Test fixtures.
+* Authentication state.
+* Test data.
+* Helpers.
+* API mocks where appropriate.
+
+Avoid duplicating selectors and test logic.
+
+Prefer stable selectors such as:
+
+* Accessible roles.
+* Labels.
+* Test IDs.
+* Semantic attributes.
+
+Avoid fragile selectors based purely on:
+
+* CSS nesting.
+* Generated class names.
+* DOM position.
+
+---
+
+# 19. Test Execution Strategy
+
+Do not immediately run the entire test suite repeatedly.
+
+The project ALREADY has an extensive test suite. **Do not blindly regenerate hundreds of tests before understanding what exists.** Before running anything, inventory the existing tests in `tests/` and `tests/e2e/` and reuse them.
+
+Use this sequence:
+
+### Phase 1 — Smoke Test
+
+Verify:
+
+* Application starts (`npm run dev` / `npx vite --port 8080` boots without errors).
+* Homepage loads (`/` → `/hospital`).
+* Major routes load (login, dashboard, patients, appointments).
+* No critical console errors (JS errors, unhandled rejections, failed network requests).
+* Primary CTA works (login CTA, "Register Patient", "New Appointment").
+* Authentication works (login → dashboard for all 7 roles).
+
+**Existing smoke tests**: `tests/e2e/tests/smoke/smoke.spec.ts` (tagged `@smoke`). Run with `npm run test:e2e:smoke`.
+
+### Phase 2 — Responsive Test
+
+Run critical pages across the device/viewport matrix.
+
+**Existing responsive tests**: Check `tests/e2e/` for any responsive specs. If none exist, create them under `tests/e2e/responsive/`.
+
+### Phase 3 — Functional Test
+
+Run all important user journeys (see §5 for the canonical CareSync flows).
+
+**Existing functional tests**: The project has role-based tests under `tests/e2e/tests/roles/{admin,doctor,nurse,receptionist,pharmacist,lab_technician,patient}/` and workflow tests under `tests/e2e/tests/workflows/`. Run with:
+- `npm run test:e2e:all-roles`
+- `npm run test:e2e:roles:comprehensive`
+- `npm run test:e2e:overall`
+
+### Phase 4 — Edge Cases
+
+Test validation, errors, API failures, loading states, and unusual inputs.
+
+**Existing edge-case tests**: `tests/e2e/stress-and-edge-cases.spec.ts`, `tests/e2e/tests/workflows/action-failure-retry.spec.ts`.
+
+### Phase 5 — Accessibility
+
+Run automated accessibility checks plus keyboard testing.
+
+**Existing accessibility tests**: `tests/e2e/accessibility.spec.ts`, `tests/e2e/accessibility-wcag-audit.spec.ts`, `tests/accessibility/` (Vitest). Run with `npm run test:accessibility` and `npm run test:e2e` (accessibility specs).
+
+### Phase 6 — Performance
+
+Run performance tests on representative pages and network profiles.
+
+**Existing performance tests**: `tests/e2e/performance.spec.ts`, `tests/performance/frontend-performance.test.ts`, `tests/performance/backend-performance.test.ts`, `tests/performance/infrastructure-performance.test.ts`, `tests/performance/load-test.js` (k6). Run with:
+- `npm run test:performance`
+- `npm run test:performance:frontend`
+- `npm run test:load`
+
+### Phase 7 — Visual Regression
+
+Capture and compare screenshots.
+
+**Existing visual tests**: Check `tests/e2e/` for any visual regression specs. Playwright's `screenshot: 'only-on-failure'` is already configured. Use `npm run test:e2e:update-snapshots` to create baselines.
+
+### Phase 8 — Cross-Browser
+
+Run the critical suite across Chromium, Firefox, and WebKit.
+
+**Existing cross-browser setup**: `playwright.config.ts` defines 5 projects: `chromium`, `firefox`, `webkit`, `mobile-chrome`, `mobile-safari`. Run with:
+- `npm run test:e2e:cross-browser`
+- `npm run test:e2e:mobile`
+
+### Phase 9 — Full Regression
+
+Run the complete automated suite after identified issues are fixed.
+
+**Existing full suite**: `npm run test:release:gates` runs lint + type-check + unit + integration + API + security + accessibility + e2e:smoke + e2e:roles + e2e:full.
+
+### Existing Test Inventory (Before Adding New Tests)
+
+Before writing new tests, inventory what already exists:
+
+| Area | Existing Tests | Command |
+| ---- | -------------- | ------- |
+| Smoke | `tests/e2e/tests/smoke/smoke.spec.ts` | `npm run test:e2e:smoke` |
+| Auth | `tests/e2e/tests/auth/`, `tests/e2e/auth.spec.ts` | `npm run test:e2e:auth` |
+| Roles (7) | `tests/e2e/tests/roles/{admin,doctor,nurse,receptionist,pharmacist,lab_technician,patient}/` | `npm run test:e2e:all-roles` |
+| Workflows | `tests/e2e/tests/workflows/` | `npm run test:e2e:roles:comprehensive` |
+| Accessibility | `tests/e2e/accessibility.spec.ts`, `tests/accessibility/` | `npm run test:accessibility` |
+| Performance | `tests/performance/`, `tests/e2e/performance.spec.ts` | `npm run test:performance` |
+| Security | `tests/security/` | `npm run test:security` |
+| Integration | `tests/integration/` | `npm run test:integration` |
+| API | `tests/api/` | `npm run test:api` |
+| Unit | `src/test/` | `npm run test:unit` |
+| Load | `tests/performance/load-test.js` | `npm run test:load` |
+| Visual | Check `tests/e2e/` for `*.spec.ts` with screenshots | `npm run test:e2e:update-snapshots` |
+
+**Page objects** already exist at `tests/e2e/pages/`: `BasePage`, `LoginPage`, `DashboardPage`, `DoctorPage`, `PatientPortalPage`, plus `components/` (`BaseComponent`, `ModalComponent`, `FormComponent`, `TableComponent`, `NotificationComponent`, `NavigationComponent`). **Reuse these. Do not create duplicate page objects.**
+
+**Test config** is at `tests/e2e/config/` (`test-users.ts`, `environments.ts`). **Reuse these fixtures. Do not create duplicate configs.**
+
+---
+
+# 20. Prioritize Findings
+
+Classify every issue:
+
+### P0 — Critical
+
+Application unusable or major business flow completely broken.
+
+Examples:
+
+* Site does not load.
+* Login completely broken.
+* Checkout/submission completely broken.
+* Data loss.
+* Major security issue.
+
+### P1 — High
+
+Major functionality broken or severe responsive/performance problem.
+
+### P2 — Medium
+
+Important but has a workaround.
+
+### P3 — Low
+
+Cosmetic or minor usability issue.
+
+For every issue include:
+
+```text
+Issue ID:
+Severity:
+Page:
+Viewport:
+Browser:
+Environment:
+
+Title:
+
+Description:
+
+Steps to Reproduce:
+1.
+2.
+3.
+
+Expected Result:
+
+Actual Result:
+
+Evidence:
+- Screenshot
+- Console error
+- Network error
+- Video/trace if available
+
+Likely Root Cause:
+
+Recommended Fix:
+
+Regression Test Required:
+Yes/No
+```
+
+---
+
+# 21. Performance Acceptance Criteria
+
+Establish practical targets rather than simply saying "fast".
+
+For critical pages, aim for:
+
+* LCP: ≤ 2.5s
+* INP: ≤ 200ms
+* CLS: ≤ 0.1
+* Minimal blocking JavaScript.
+* No obvious render-blocking bottlenecks.
+* Optimized images.
+* Efficient font loading.
+* Reasonable JavaScript bundle size.
+* No unnecessary network requests.
+
+If the application cannot meet a target, report:
+
+1. Current measurement.
+2. Target.
+3. Difference.
+4. Likely cause.
+5. Recommended optimization.
+
+---
+
+# 22. Test Results Dashboard
+
+At the end, produce a summary similar to:
+
+```text
+WEBSITE QA SUMMARY
+
+Overall Status: PASS / PASS WITH ISSUES / FAIL
+
+Pages Tested: X
+Test Cases: X
+Passed: X
+Failed: X
+Skipped: X
+
+Critical Issues: X
+High Issues: X
+Medium Issues: X
+Low Issues: X
+
+Responsive Status: PASS / FAIL
+Accessibility Status: PASS / FAIL
+Performance Status: PASS / FAIL
+Cross-Browser Status: PASS / FAIL
+User Flow Status: PASS / FAIL
+Visual Regression Status: PASS / FAIL
+
+Performance:
+LCP:
+INP:
+CLS:
+FCP:
+TTFB:
+
+Browsers:
+Chromium:
+Firefox:
+WebKit:
+
+Devices/Viewports:
+Mobile:
+Tablet:
+Desktop:
+
+Top Issues:
+1.
+2.
+3.
+4.
+5.
+```
+
+---
+
+# 23. Important Testing Rules
+
+Follow these rules throughout the process:
+
+1. **Do not assume that a page working at 1440px means the page is responsive.**
+2. **Do not test only the happy path.**
+3. **Do not ignore console errors.**
+4. **Do not ignore loading and error states.**
+5. **Do not consider visual correctness separately from functionality.**
+6. **Test actual user journeys, not isolated buttons only.**
+7. **Test intermediate viewport widths to expose breakpoint bugs.**
+8. **Test mobile interactions, not just mobile dimensions.**
+9. **Do not hide flaky tests; identify and report their cause.**
+10. **Do not modify application code simply to make tests pass.**
+11. If a test fails because the application behavior is incorrect, report it as an application defect.
+12. If a test fails because the test itself is unreliable, fix the test and document why.
+13. Keep tests deterministic and reproducible.
+14. Capture screenshots/traces/videos for important failures when supported.
+15. Re-run failed tests after fixes to verify the fix and detect regressions.
+
+### CareSync-Specific Testing Rules
+
+16. **Reuse existing tests, page objects, and fixtures.** The project has 80+ existing Playwright specs, 6 page objects, and config fixtures. Inventory them first. Do not create duplicate page objects or configs.
+17. **Do not modify application code simply to make tests pass.** If a test fails because the application behavior is incorrect, report it as an application defect.
+18. **Test the Fail-Closed CDS invariant.** Any failure, timeout, or ambiguity in drug interaction or allergy checking MUST block automated order fulfillment. This is a clinical safety invariant, not a nice-to-have.
+19. **Test the Billing Boundary.** Clinical roles (doctor, nurse) MUST NOT be able to access billing/invoice data. This is enforced by both RBAC and RLS — test both layers.
+20. **Test state machine violations.** Clinical workflows have strict ordering (discharge, lab orders, prescriptions). Verify out-of-order transitions are blocked.
+21. **Test RLS at the API layer.** Don't just test the UI — use `page.route` to mock Supabase REST endpoints and verify 403 responses for unauthorized role/table access.
+22. **Test with mock auth first, live auth second.** The project supports `VITE_E2E_MOCK_AUTH=true`. Use mock auth for deterministic tests; only use live Supabase auth for integration tests.
+23. **Verify PHI is never exposed in logs/toasts/console.** Healthcare data must not leak into toast messages, console output, or error boundaries.
+24. **Test the 2FA gate.** Privileged roles (admin/doctor) must complete 2FA enrollment before accessing any PHI route.
+25. **Test the role selection flow.** Users with multiple roles must be redirected to `/hospital/select-role` on first login.
+26. **Test profile/hospital setup redirects.** New users without a profile or hospital must be redirected to the appropriate setup page, not shown a broken dashboard.
+27. **Test the "No Active Roles" state.** A user with `effectiveRoleCount === 0` must see a clear error state, not a crash or infinite spinner.
+28. **Test lazy route loading failures.** If a route's chunk fails to load (e.g., network error), the `RouteAwareErrorBoundary` must catch it and render a route-specific error, not a white page.
+29. **Test TanStack Query error states.** Every query must handle `isError` and show a retry option, not a broken UI.
+30. **Test realtime subscription cleanup.** Verify Supabase realtime subscriptions are unsubscribed on page unmount (no memory leaks, no connection exhaustion).
+31. **Test print styles.** Discharge summaries and lab results must print correctly (no blank pages, no truncated content, no UI chrome).
+32. **Test reduced motion.** Verify `prefers-reduced-motion` is respected — `framer-motion` animations should be disabled.
+33. **Test theme switching.** Verify no FOUC, no hydration mismatch warnings, and correct rendering in both light and dark themes.
+34. **Verify no secrets in console.** Audit the browser console for leaked API keys, Supabase service role keys, or Sentry DSNs.
+35. **Test concurrent tab edits.** Open the same patient profile in two tabs, edit in one, verify the other reflects the change (via realtime) or shows a conflict warning.
+
+---
+
+# 24. Final Deliverables
+
+At the end of the testing process, provide:
+
+### A. Automated Test Suite
+
+Working automated tests covering:
+
+* Smoke tests.
+* E2E flows.
+* Responsive tests.
+* Forms.
+* Navigation.
+* Accessibility.
+* Performance where practical.
+* Visual regression where practical.
+
+### B. Test Matrix
+
+A complete matrix showing:
+
+* Page.
+* Device/viewport.
+* Browser.
+* Test type.
+* Result.
+
+### C. Defect Report
+
+A prioritized list of all discovered issues with reproduction steps and evidence.
+
+### D. Performance Report
+
+Include:
+
+* Core Web Vitals.
+* Load metrics.
+* Network bottlenecks.
+* Bundle/resource observations.
+* Optimization recommendations.
+
+### E. Final QA Verdict
+
+Clearly state one of:
+
+**PASS** — Ready for release.
+
+**PASS WITH MINOR ISSUES** — Release possible, but minor issues remain.
+
+**PASS WITH MAJOR ISSUES** — Significant issues remain and should be fixed before release.
+
+**FAIL** — Critical functionality, responsiveness, accessibility, or performance problems prevent release.
+
+---
+
+## Execution Instruction
+
+Start by inspecting the existing application and determining its technology stack, routes, components, and major user flows.
+
+**Do not blindly generate hundreds of tests before understanding the application.**
+
+First create the test inventory and prioritized testing strategy (see §1 and §19).
+
+Then implement the highest-value smoke and E2E tests.
+
+Then expand into responsive, cross-browser, accessibility, performance, visual, and edge-case testing.
+
+Run the tests, analyze failures, remove false positives, and produce the final QA report.
+
+The goal is not merely to achieve a high "pass" percentage.
+
+The goal is to determine whether this website provides a **reliable, responsive, fast, accessible, and production-ready experience across real-world devices and user scenarios.**
+
+## Quick Start Commands
+
+```bash
+# 1. Inventory existing tests
+ls tests/e2e/ tests/e2e/tests/ tests/e2e/pages/ tests/e2e/config/
+
+# 2. Run smoke tests (Phase 1)
+npm run test:e2e:smoke
+
+# 3. Run all role tests (Phase 3)
+npm run test:e2e:all-roles
+
+# 4. Run accessibility (Phase 5)
+npm run test:accessibility
+
+# 5. Run performance (Phase 6)
+npm run test:performance:frontend
+
+# 6. Run cross-browser (Phase 8)
+npm run test:e2e:cross-browser
+
+# 7. Run full release gates (Phase 9)
+npm run test:release:gates
+```
+
+## Project Structure Reference
+
+```
+care-harmony-hub/
+├── src/
+│   ├── App.tsx                          # Root: providers, bootstrap, error boundary
+│   ├── main.tsx                         # Entry point
+│   ├── routes/
+│   │   └── routeDefinitions.tsx         # ALL routes: redirect, public, protected, fallback
+│   ├── pages/                           # 60+ lazy-loaded pages by role/module
+│   ├── components/                      # Reusable UI (shadcn/ui + custom)
+│   ├── contexts/                        # Auth, Theme, Testing providers
+│   ├── hooks/                           # usePerformanceMonitoring, useFeatureFlags, etc.
+│   ├── lib/                             # Permissions, Supabase client, etc.
+│   └── modules/                         # Deep modules (see src/modules/README.md)
+├── tests/
+│   ├── e2e/                             # Playwright E2E tests (80+ specs)
+│   │   ├── pages/                       # Page objects: Login, Dashboard, Doctor, etc.
+│   │   ├── config/                       # Test users, environments
+│   │   ├── tests/
+│   │   │   ├── smoke/                   # @smoke smoke tests
+│   │   │   ├── auth/                    # Authentication tests
+│   │   │   ├── roles/                   # Per-role tests (7 roles)
+│   │   │   ├── workflows/               # Clinical workflow tests
+│   │   │   ├── security/                # HIPAA security tests
+│   │   │   └── permissions/             # Permission matrix tests
+│   │   ├── accessibility.spec.ts         # WCAG audit
+│   │   ├── performance.spec.ts           # Performance assertions
+│   │   └── *.spec.ts                    # Many feature-specific specs
+│   ├── accessibility/                   # Vitest + jest-axe
+│   ├── security/                        # Security tests
+│   ├── integration/                     # Integration tests
+│   ├── api/                             # API tests
+│   ├── performance/                     # k6 load tests + Vitest perf
+│   └── unit/                            # Unit tests (src/test/)
+├── playwright.config.ts                 # 5 browser projects
+├── vitest.config.ts                     # Unit/integration config
+├── vitest.integration.config.ts
+├── vitest.performance.config.ts
+├── supabase/                            # Migrations, RLS policies, Edge Functions
+└── services/                            # Node.js microservices (patient, clinical, etc.)
+```
