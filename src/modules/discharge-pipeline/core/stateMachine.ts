@@ -18,6 +18,7 @@
 import {
   DischargeActor,
   DischargeQueueStep,
+  DischargeRejectionType,
   DischargeWorkflow,
   DischargeWorkflowAction,
   DischargeWorkflowStep,
@@ -54,7 +55,7 @@ export function getRoleStep(role: string | null | undefined): DischargeQueueStep
 }
 
 export function isActorAuthorizedForStep(actorRole: string, step: DischargeWorkflowStep): boolean {
-  if (step === 'completed' || step === 'cancelled') return false;
+  if (step === 'completed' || step === 'completed_ama' || step === 'cancelled') return false;
   const allowed = STEP_ROLE_MAP[step as DischargeQueueStep];
   return allowed ? allowed.includes(actorRole.toLowerCase().trim()) : false;
 }
@@ -73,6 +74,7 @@ export function validateStepTransition(
   options?: {
     expectedCurrentStep?: DischargeWorkflowStep;
     reason?: string;
+    rejectionType?: DischargeRejectionType;
   }
 ): TransitionValidationResult {
   // 1. Hospital Tenant Isolation
@@ -84,7 +86,11 @@ export function validateStepTransition(
   }
 
   // 2. Terminal State Guard
-  if (workflow.status === 'completed' || workflow.status === 'cancelled') {
+  if (
+    workflow.status === 'completed' ||
+    workflow.status === 'completed_ama' ||
+    workflow.status === 'cancelled'
+  ) {
     return {
       valid: false,
       error: `Cannot transition discharge workflow in terminal state: ${workflow.status}`,
@@ -166,11 +172,43 @@ export function validateStepTransition(
         };
       }
 
-      const prevStep = PREVIOUS_STEP[currentStep];
+      // Two-Tier Rollback (Q1):
+      // Clinical rejection (e.g. vital instability, acute deterioration) aborts directly back to Step 1 (doctor).
+      // Administrative rejection (default) rolls back to the immediately preceding discipline (N - 1).
+      const prevStep =
+        options?.rejectionType === 'clinical' ? 'doctor' : PREVIOUS_STEP[currentStep];
+
       return {
         valid: true,
         nextStep: prevStep,
         nextStatus: 'in_progress',
+      };
+    }
+
+    case 'discharge_ama': {
+      // Dedicated AMA Fast-Track (Q4):
+      // Allows physician or admin to execute Against Medical Advice discharge directly.
+      if (actor.role !== 'doctor' && actor.role !== 'admin') {
+        return {
+          valid: false,
+          error:
+            'Only an attending physician or hospital administrator can execute an Against Medical Advice (AMA) discharge.',
+        };
+      }
+
+      const reason = options?.reason?.trim();
+      if (!reason || reason.length < 5) {
+        return {
+          valid: false,
+          error:
+            'A substantive clinical rationale of at least 5 characters is required for Against Medical Advice (AMA) discharge.',
+        };
+      }
+
+      return {
+        valid: true,
+        nextStep: 'completed_ama',
+        nextStatus: 'completed_ama',
       };
     }
 

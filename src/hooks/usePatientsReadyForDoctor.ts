@@ -43,7 +43,8 @@ export function usePatientsReadyForDoctor() {
       // Get checklists where ready_for_doctor is true (join queue entries to avoid N+1)
       const { data: checklists, error } = await supabase
         .from('patient_prep_checklists')
-        .select(`
+        .select(
+          `
           id,
           patient_id,
           queue_entry_id,
@@ -67,14 +68,22 @@ export function usePatientsReadyForDoctor() {
             department,
             status
           )
-        `)
+        `
+        )
         .eq('hospital_id', hospital.id)
         .eq('ready_for_doctor', true)
         .gte('created_at', `${today}T00:00:00`)
         .order('completed_at', { ascending: true });
 
       if (error) throw error;
-      return (checklists || []) as unknown as PatientReadyForDoctor[];
+      const activeReadyPatients = (checklists || []).filter((item: any) => {
+        const queueStatus = item.queue_entry?.status;
+        if (queueStatus && ['completed', 'in_service', 'cancelled'].includes(queueStatus)) {
+          return false;
+        }
+        return true;
+      });
+      return activeReadyPatients as unknown as PatientReadyForDoctor[];
     },
     enabled: !!hospital?.id,
     refetchInterval: 15000, // Refresh every 15 seconds

@@ -1,19 +1,23 @@
 // @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   ArrowLeft,
   ArrowRight,
@@ -26,40 +30,50 @@ import {
   Loader2,
   Keyboard,
   Layers,
-} from "lucide-react";
+  AlertTriangle,
+  Activity,
+  ShieldCheck,
+  PenTool,
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { evaluateVitalSigns, type VitalSignsEvaluation } from '@/modules/vital-signs';
+import { checkPrescriptionSafety } from '@/hooks/usePrescriptionSafety';
 import {
   useConsultation,
   useUpdateConsultation,
   useAdvanceConsultationStep,
   CONSULTATION_STEPS,
-} from "@/hooks/useConsultations";
-import { useCreatePrescription } from "@/lib/hooks/pharmacy";
+} from '@/hooks/useConsultations';
+import { useCreatePrescription } from '@/lib/hooks/pharmacy';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useCreateInvoice } from '@/hooks/useBilling';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { mapToCanonicalLabPriority, mapToWorkflowPriority } from '@/utils/labPriority';
-import { ChiefComplaintStep } from "@/components/consultations/steps/ChiefComplaintStep";
-import { PhysicalExamStep } from "@/components/consultations/steps/PhysicalExamStep";
-import { DiagnosisStepEnhanced } from "@/components/consultations/steps/DiagnosisStepEnhanced";
-import { TreatmentPlanStep } from "@/components/consultations/steps/TreatmentPlanStep";
-import { SummaryStep } from "@/components/consultations/steps/SummaryStep";
-import { PatientSidebar } from "@/components/consultations/PatientSidebar";
-import { AIConsultationAssistant } from "@/components/consultations/AIConsultationAssistant";
-import { ConsultationTemplateSelector, ConsultationTemplate } from "@/components/consultations/ConsultationTemplateSelector";
-import { EnhancedTaskManagement } from "@/components/workflow/EnhancedTaskManagement";
+import { ChiefComplaintStep } from '@/components/consultations/steps/ChiefComplaintStep';
+import { PhysicalExamStep } from '@/components/consultations/steps/PhysicalExamStep';
+import { DiagnosisStepEnhanced } from '@/components/consultations/steps/DiagnosisStepEnhanced';
+import { TreatmentPlanStep } from '@/components/consultations/steps/TreatmentPlanStep';
+import { SummaryStep } from '@/components/consultations/steps/SummaryStep';
+import { PatientSidebar } from '@/components/consultations/PatientSidebar';
+import { AIConsultationAssistant } from '@/components/consultations/AIConsultationAssistant';
+import {
+  ConsultationTemplateSelector,
+  ConsultationTemplate,
+} from '@/components/consultations/ConsultationTemplateSelector';
+import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
 import { usePermissions } from '@/lib/hooks';
-import { toast } from "sonner";
+import { toast } from 'sonner';
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
     const message = (error as { message?: unknown }).message;
-    if (typeof message === "string") return message;
+    if (typeof message === 'string') return message;
   }
-  return "Unknown error";
+  return 'Unknown error';
 };
 
 const buildGeneratedConsultationSummaryDescription = (summary: string) => {
@@ -72,7 +86,7 @@ const normalizeDiagnosisDescriptions = (value: any): string[] => {
 
   return value
     .map((entry) => {
-      if (typeof entry === "string") return entry;
+      if (typeof entry === 'string') return entry;
       if (entry?.description) return entry.description;
       if (entry?.short_description) return entry.short_description;
       if (entry?.icd_code) return entry.icd_code;
@@ -86,7 +100,7 @@ const normalizePrescriptionDrafts = (value: any): any[] => {
 
   return value.map((item) => ({
     ...item,
-    medication_name: item?.medication_name || item?.medication || "",
+    medication_name: item?.medication_name || item?.medication || '',
   }));
 };
 
@@ -102,6 +116,7 @@ export default function ConsultationWorkflowPage() {
   const createInvoice = useCreateInvoice();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const permissions = usePermissions();
+  const { profile } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isCompleting, setIsCompleting] = useState(false);
@@ -109,7 +124,21 @@ export default function ConsultationWorkflowPage() {
   const [showStep1Errors, setShowStep1Errors] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [addendumOpen, setAddendumOpen] = useState(false);
+  const [addendumText, setAddendumText] = useState('');
+  const [addendumReason, setAddendumReason] = useState('');
+  const [isSavingAddendum, setIsSavingAddendum] = useState(false);
   const canEditConsultation = permissions.can('consultations:write');
+  const isReadOnly = consultation?.status === 'completed' || !canEditConsultation;
+
+  const vitalEval: VitalSignsEvaluation | null = useMemo(() => {
+    const v = formData.vitals || consultation?.vitals;
+    if (!v || Object.keys(v).length === 0) return null;
+    return evaluateVitalSigns(v);
+  }, [formData.vitals, consultation?.vitals]);
 
   const triggerWorkflowSafely = async (
     event: Parameters<typeof triggerWorkflow>[0],
@@ -118,12 +147,16 @@ export default function ConsultationWorkflowPage() {
     try {
       await triggerWorkflow(event);
     } catch (error) {
-      console.error(`Workflow side effect failed during ${context}:`, getErrorMessage(error), error);
+      console.error(
+        `Workflow side effect failed during ${context}:`,
+        getErrorMessage(error),
+        error
+      );
     }
   };
 
   const handleApplyTemplate = (template: ConsultationTemplate) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       chief_complaint: template.chiefComplaint,
       history_of_present_illness: template.hpi,
@@ -143,10 +176,9 @@ export default function ConsultationWorkflowPage() {
   useEffect(() => {
     if (consultation) {
       setActiveStep(consultation.current_step);
-      setIsCompleted(consultation.status === 'completed');
       setFormData({
-        chief_complaint: consultation.chief_complaint || "",
-        history_of_present_illness: consultation.history_of_present_illness || "",
+        chief_complaint: consultation.chief_complaint || '',
+        history_of_present_illness: consultation.history_of_present_illness || '',
         vitals: consultation.vitals || {},
         physical_examination: consultation.physical_examination || {},
         symptoms: consultation.symptoms || [],
@@ -155,14 +187,14 @@ export default function ConsultationWorkflowPage() {
         final_diagnosis: consultation.final_diagnosis?.length
           ? consultation.final_diagnosis
           : normalizeDiagnosisDescriptions((consultation as any).diagnoses),
-        treatment_plan: consultation.treatment_plan || "",
+        treatment_plan: consultation.treatment_plan || '',
         prescriptions: normalizePrescriptionDrafts(consultation.prescriptions || []),
         lab_orders: consultation.lab_orders || [],
         referrals: consultation.referrals || [],
-        clinical_notes: consultation.clinical_notes || "",
-        follow_up_date: consultation.follow_up_date || "",
-        follow_up_notes: consultation.follow_up_notes || "",
-        handoff_notes: consultation.handoff_notes || "",
+        clinical_notes: consultation.clinical_notes || '',
+        follow_up_date: consultation.follow_up_date || '',
+        follow_up_notes: consultation.follow_up_notes || '',
+        handoff_notes: consultation.handoff_notes || '',
         pharmacy_notified: consultation.pharmacy_notified || false,
         lab_notified: consultation.lab_notified || false,
         billing_notified: consultation.billing_notified || false,
@@ -196,9 +228,11 @@ export default function ConsultationWorkflowPage() {
   }, [canEditConsultation, formData, id]);
 
   const handleUpdateField = (field: string, value: any) => {
-    if (!canEditConsultation) return;
+    if (isReadOnly) return;
+    setIsDirty(true);
+    setSaveStatus('unsaved');
     setFormData((prev) => {
-      if (field === "diagnoses") {
+      if (field === 'diagnoses') {
         return {
           ...prev,
           diagnoses: value,
@@ -206,14 +240,14 @@ export default function ConsultationWorkflowPage() {
         };
       }
 
-      if (field === "final_diagnosis") {
+      if (field === 'final_diagnosis') {
         return {
           ...prev,
           final_diagnosis: normalizeDiagnosisDescriptions(value),
         };
       }
 
-      if (field === "prescriptions") {
+      if (field === 'prescriptions') {
         return {
           ...prev,
           prescriptions: normalizePrescriptionDrafts(value),
@@ -240,7 +274,7 @@ export default function ConsultationWorkflowPage() {
   const handleSaveStep = async () => {
     if (!id) return;
     if (!canEditConsultation) {
-      toast.error("You have read-only access to this consultation");
+      toast.error('You have read-only access to this consultation');
       return;
     }
 
@@ -248,14 +282,17 @@ export default function ConsultationWorkflowPage() {
       // Clean up date fields - convert empty strings to null
       const cleanedData = {
         ...formData,
-        follow_up_date: (typeof formData.follow_up_date === 'string' ? formData.follow_up_date.trim() : formData.follow_up_date) || null,
+        follow_up_date:
+          (typeof formData.follow_up_date === 'string'
+            ? formData.follow_up_date.trim()
+            : formData.follow_up_date) || null,
       };
 
       await updateConsultation.mutateAsync({
         id,
         ...cleanedData,
       });
-      
+
       // Log the activity
       await logActivity({
         actionType: 'consultation_update',
@@ -263,17 +300,115 @@ export default function ConsultationWorkflowPage() {
         entityId: id,
         details: { step: CONSULTATION_STEPS[activeStep - 1] },
       });
-      
-      toast.success("Progress saved");
+
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
+      setIsDirty(false);
+      toast.success('Progress saved');
     } catch (error) {
       // Error is handled by the hook
+    }
+  };
+
+  // 1.5-second debounced background autosave (A4)
+  useEffect(() => {
+    if (!isDirty || !id || isReadOnly || isCompleting) return;
+
+    setSaveStatus('unsaved');
+    const timer = setTimeout(async () => {
+      try {
+        setSaveStatus('saving');
+        const cleanedData = {
+          ...formData,
+          follow_up_date:
+            (typeof formData.follow_up_date === 'string'
+              ? formData.follow_up_date.trim()
+              : formData.follow_up_date) || null,
+        };
+
+        await updateConsultation.mutateAsync({
+          id,
+          ...cleanedData,
+        });
+
+        setSaveStatus('saved');
+        setLastSavedAt(new Date());
+        setIsDirty(false);
+      } catch (err) {
+        setSaveStatus('unsaved');
+        console.error('Autosave failed:', err);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [formData, isDirty, id, isReadOnly, isCompleting]);
+
+  // Page exit guard
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && !isCompleted) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, isCompleted]);
+
+  // Signed addendum handler for completed consultations (A5)
+  const handleSaveAddendum = async () => {
+    if (!addendumText.trim()) {
+      toast.error('Please enter addendum content.');
+      return;
+    }
+    if (!id || !consultation) return;
+
+    setIsSavingAddendum(true);
+    try {
+      const doctorName = profile
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+        : consultation.doctor
+          ? `${consultation.doctor.first_name || ''} ${consultation.doctor.last_name || ''}`.trim()
+          : 'Attending Physician';
+      const timestamp = new Date().toISOString();
+      const formattedTimestamp = new Date().toLocaleString();
+      const addendumBlock = `\n\n--- SIGNED CLINICAL ADDENDUM (${formattedTimestamp}) ---\nSigned by: Dr. ${doctorName}\nRationale: ${addendumReason || 'Post-finalization clinical update'}\nAddendum:\n${addendumText.trim()}\n--- END ADDENDUM ---`;
+
+      const updatedNotes =
+        (formData.clinical_notes || consultation.clinical_notes || '') + addendumBlock;
+
+      await updateConsultation.mutateAsync({
+        id,
+        clinical_notes: updatedNotes,
+      });
+
+      await logActivity({
+        actionType: 'consultation_addendum',
+        entityType: 'consultation',
+        entityId: id,
+        details: {
+          timestamp,
+          doctor_name: doctorName,
+          rationale: addendumReason,
+        },
+      });
+
+      setFormData((prev) => ({ ...prev, clinical_notes: updatedNotes }));
+      toast.success('Signed addendum appended to clinical record.');
+      setAddendumOpen(false);
+      setAddendumText('');
+      setAddendumReason('');
+    } catch (err) {
+      toast.error(`Failed to save addendum: ${getErrorMessage(err)}`);
+    } finally {
+      setIsSavingAddendum(false);
     }
   };
 
   const handleNextStep = async () => {
     if (!id || !consultation) return;
     if (!canEditConsultation) {
-      toast.error("You do not have permission to modify this consultation");
+      toast.error('You do not have permission to modify this consultation');
       return;
     }
 
@@ -282,31 +417,78 @@ export default function ConsultationWorkflowPage() {
       toast.error('Chief Complaint is required.');
       return;
     }
-    
+
     // Validate Physical Examination step (step 2)
     if (activeStep === 2) {
       const physExam = formData.physical_examination;
-      const hasPhysicalData = physExam && Object.values(physExam).some(v => v);
+      const hasPhysicalData = physExam && Object.values(physExam).some((v) => v);
       if (!hasPhysicalData) {
         toast.error('At least one physical examination finding must be documented.');
         return;
       }
     }
-    
-    if (activeStep === 3 && (!formData.final_diagnosis || (typeof formData.final_diagnosis === 'string' && formData.final_diagnosis.trim() === '') || (Array.isArray(formData.final_diagnosis) && formData.final_diagnosis.length === 0))) {
-      toast.error('Diagnosis is required to proceed.');
-      return;
+
+    if (activeStep === 3) {
+      const diagnoses = formData.diagnoses || [];
+      if (
+        diagnoses.length === 0 &&
+        (!formData.final_diagnosis ||
+          (Array.isArray(formData.final_diagnosis) && formData.final_diagnosis.length === 0) ||
+          (typeof formData.final_diagnosis === 'string' && formData.final_diagnosis.trim() === ''))
+      ) {
+        toast.error('Diagnosis with ICD-10 code is required to proceed.');
+        return;
+      }
     }
-    if (activeStep === 4 && (!formData.treatment_plan || typeof formData.treatment_plan !== 'string' || formData.treatment_plan.trim() === '')) {
-      toast.error('Treatment Plan is required.');
-      return;
+
+    if (activeStep === 4) {
+      if (
+        !formData.treatment_plan ||
+        typeof formData.treatment_plan !== 'string' ||
+        formData.treatment_plan.trim() === ''
+      ) {
+        toast.error('Treatment Plan is required.');
+        return;
+      }
+
+      // Pre-submission clinical safety verification (A1)
+      const currentMeds = ((consultation.patient as any)?.current_medications || []).concat(
+        (formData.prescriptions || []).map((p: any) => p.medication_name)
+      );
+      const allergies = consultation.patient?.allergies || [];
+      let hasContraindicated = false;
+
+      for (const rx of formData.prescriptions || []) {
+        const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
+        const safety = checkPrescriptionSafety(rx.medication_name, allergies, otherMeds);
+        if (
+          safety.drugInteractions.some((d: any) => d.severity === 'contraindicated') ||
+          safety.allergyAlerts.some((a: any) => a.severity === 'critical')
+        ) {
+          hasContraindicated = true;
+          break;
+        }
+      }
+
+      if (
+        hasContraindicated &&
+        (!formData.clinical_override_reason || formData.clinical_override_reason.trim() === '')
+      ) {
+        toast.error(
+          'Cannot proceed: Contraindicated prescription requires a documented Clinical Override Reason.'
+        );
+        return;
+      }
     }
 
     try {
       // Clean up date fields - convert empty strings to null
       const cleanedData = {
         ...formData,
-        follow_up_date: (typeof formData.follow_up_date === 'string' ? formData.follow_up_date.trim() : formData.follow_up_date) || null,
+        follow_up_date:
+          (typeof formData.follow_up_date === 'string'
+            ? formData.follow_up_date.trim()
+            : formData.follow_up_date) || null,
       };
 
       await updateConsultation.mutateAsync({
@@ -319,34 +501,80 @@ export default function ConsultationWorkflowPage() {
           consultationId: id,
           currentStep: activeStep,
         });
-        
+
         // Log the step advancement
         await logActivity({
           actionType: 'consultation_advance',
           entityType: 'consultation',
           entityId: id,
-          details: { 
+          details: {
             from_step: CONSULTATION_STEPS[activeStep - 1],
             to_step: CONSULTATION_STEPS[activeStep],
           },
         });
-        
+
         setActiveStep((prev) => prev + 1);
       } else {
         // Complete consultation
         setIsCompleting(true);
-        
+
+        // Pre-submission clinical safety check (A1)
+        const currentMeds = ((consultation.patient as any)?.current_medications || []).concat(
+          (formData.prescriptions || []).map((p: any) => p.medication_name)
+        );
+        const allergies = consultation.patient?.allergies || [];
+        let hasContraindicated = false;
+
+        for (const rx of formData.prescriptions || []) {
+          const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
+          const safety = checkPrescriptionSafety(rx.medication_name, allergies, otherMeds);
+          if (
+            safety.drugInteractions.some((d: any) => d.severity === 'contraindicated') ||
+            safety.allergyAlerts.some((a: any) => a.severity === 'critical')
+          ) {
+            hasContraindicated = true;
+            break;
+          }
+        }
+
+        if (
+          hasContraindicated &&
+          (!formData.clinical_override_reason || formData.clinical_override_reason.trim() === '')
+        ) {
+          toast.error(
+            'Cannot complete consultation: Contraindicated prescription requires a documented Clinical Override Reason.'
+          );
+          setIsCompleting(false);
+          return;
+        }
+
+        // Extract structured diagnoses for clinical record and billing (A3)
+        const structuredDx =
+          Array.isArray(formData.diagnoses) && formData.diagnoses.length > 0
+            ? formData.diagnoses
+            : (formData.final_diagnosis || []).map((desc: string) => ({
+                id: crypto.randomUUID(),
+                icd_code: 'UNSPECIFIED',
+                description: desc,
+                type: 'primary',
+              }));
+
+        const primaryDx = structuredDx.find((d: any) => d.type === 'primary') || structuredDx[0];
+        const diagnosisCodingSummary = structuredDx
+          .map((d: any) => `[${d.icd_code}] ${d.description} (${d.type})`)
+          .join('; ');
+
         // Log consultation completion
         await logActivity({
           actionType: 'consultation_complete',
           entityType: 'consultation',
           entityId: id,
-          details: { 
+          details: {
             patient_id: consultation?.patient_id,
             doctor_id: consultation?.doctor_id,
           },
         });
-        
+
         // Generate clean summary without duplication
         const patientSummary = `CONSULTATION SUMMARY
 
@@ -359,7 +587,7 @@ CHIEF COMPLAINT:
 ${formData.chief_complaint || 'Not documented'}
 
 DIAGNOSIS:
-${getDiagnosisSummary()}
+${diagnosisCodingSummary || getDiagnosisSummary()}
 
 TREATMENT PLAN:
 ${formData.treatment_plan || 'Not documented'}
@@ -390,19 +618,34 @@ ${formData.soap_assessment || 'Not documented'}
 PLAN:
 ${formData.soap_plan || 'Not documented'}`;
 
-        // Store summary separately, don't append to clinical notes
+        // Store summary and structured diagnoses (A3)
         await updateConsultation.mutateAsync({
           id,
-          status: "completed",
+          status: 'completed',
           completed_at: new Date().toISOString(),
           started_at: consultation.started_at || new Date().toISOString(),
+          diagnoses: structuredDx,
+          final_diagnosis: structuredDx.map(
+            (d: any) => `${d.icd_code ? `[${d.icd_code}] ` : ''}${d.description}`
+          ),
           pharmacy_notified: formData.prescriptions?.length > 0 ? true : formData.pharmacy_notified,
           lab_notified: formData.lab_orders?.length > 0 ? true : formData.lab_notified,
         });
 
         // Update patient queue
         if (consultation?.patient_id) {
-          await supabase.from('patient_queue').update({ status: 'completed', service_end_time: new Date().toISOString() }).eq('patient_id', consultation.patient_id).in('status', ['in_service', 'called', 'waiting']);
+          await supabase
+            .from('patient_queue')
+            .update({ status: 'completed', service_end_time: new Date().toISOString() })
+            .eq('patient_id', consultation.patient_id)
+            .in('status', ['in_service', 'called', 'waiting']);
+
+          // INT-001: Mark linked appointment as completed
+          await supabase
+            .from('appointments')
+            .update({ status: 'completed' })
+            .eq('patient_id', consultation.patient_id)
+            .in('status', ['confirmed', 'checked_in', 'in_progress']);
         }
 
         // Best-effort generated document record. Older schemas require file metadata and do not support inline content.
@@ -423,7 +666,11 @@ ${formData.soap_plan || 'Not documented'}`;
         });
 
         if (documentError) {
-          console.error('Failed to create generated consultation document:', getErrorMessage(documentError), documentError);
+          console.error(
+            'Failed to create generated consultation document:',
+            getErrorMessage(documentError),
+            documentError
+          );
         }
 
         const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
@@ -431,6 +678,15 @@ ${formData.soap_plan || 'Not documented'}`;
         // Create prescriptions in the database and automatically notify pharmacy
         if (formData.prescriptions?.length > 0) {
           try {
+            const rxHandoffNotes = [
+              formData.handoff_notes,
+              formData.clinical_override_reason
+                ? `[CLINICAL SAFETY OVERRIDE]: ${formData.clinical_override_reason}`
+                : undefined,
+            ]
+              .filter(Boolean)
+              .join('\n');
+
             const prescriptionResult = await createPrescription.mutateAsync({
               patientId: consultation.patient_id,
               consultationId: id,
@@ -441,19 +697,39 @@ ${formData.soap_plan || 'Not documented'}`;
                 duration: rx.duration,
                 instructions: rx.instructions,
               })),
-              notes: formData.handoff_notes,
+              notes: rxHandoffNotes,
             });
+
+            if (formData.clinical_override_reason) {
+              await logActivity({
+                actionType: 'prescription_breakglass_override',
+                entityType: 'prescription',
+                entityId: prescriptionResult.id,
+                details: {
+                  override_reason: formData.clinical_override_reason,
+                  doctor_id: consultation.doctor_id,
+                  patient_id: consultation.patient_id,
+                },
+              });
+            }
+
             // Always notify pharmacists via workflow orchestrator when prescriptions are created
-            await triggerWorkflowSafely({
-              type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
-              patientId: consultation.patient_id,
-              data: {
-                patientName,
-                prescriptionId: prescriptionResult.id,
-                medicationCount: formData.prescriptions.length
-              }
-            }, 'prescription creation');
-            toast.success(`${formData.prescriptions.length} prescription(s) created and sent to pharmacy`);
+            await triggerWorkflowSafely(
+              {
+                type: WORKFLOW_EVENT_TYPES.PRESCRIPTION_CREATED,
+                patientId: consultation.patient_id,
+                data: {
+                  patientName,
+                  prescriptionId: prescriptionResult.id,
+                  medicationCount: formData.prescriptions.length,
+                  hasClinicalOverride: !!formData.clinical_override_reason,
+                },
+              },
+              'prescription creation'
+            );
+            toast.success(
+              `${formData.prescriptions.length} prescription(s) created and sent to pharmacy`
+            );
           } catch (err) {
             const message = getErrorMessage(err);
             console.error('Error creating prescription:', message, err);
@@ -478,17 +754,20 @@ ${formData.soap_plan || 'Not documented'}`;
               });
 
               // Notify lab technicians via workflow orchestrator
-              await triggerWorkflowSafely({
-                type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
-                patientId: consultation.patient_id,
-                data: {
-                  patientName,
-                  testName: order.test,
-                  labOrderId: labOrder.id,
-                  priority: mapToCanonicalLabPriority(order.priority)
+              await triggerWorkflowSafely(
+                {
+                  type: WORKFLOW_EVENT_TYPES.LAB_ORDER_CREATED,
+                  patientId: consultation.patient_id,
+                  data: {
+                    patientName,
+                    testName: order.test,
+                    labOrderId: labOrder.id,
+                    priority: mapToCanonicalLabPriority(order.priority),
+                  },
+                  priority: mapToWorkflowPriority(order.priority),
                 },
-                priority: mapToWorkflowPriority(order.priority)
-              }, 'lab order creation');
+                'lab order creation'
+              );
             }
             toast.success(`${formData.lab_orders.length} lab order(s) sent to laboratory`);
           } catch (err) {
@@ -502,36 +781,44 @@ ${formData.soap_plan || 'Not documented'}`;
         // Create invoice and notify receptionist/billing via workflow orchestrator
         if (formData.billing_notified) {
           try {
-            const invoiceItems = formData.invoice_items && Array.isArray(formData.invoice_items)
-              ? formData.invoice_items
-              : [
-                  {
-                    description: 'Consultation',
-                    quantity: 1,
-                    unit_price: formData.consultation_fee || 0,
-                    item_type: 'service'
-                  }
-                ];
+            const primaryIcdLabel =
+              primaryDx?.icd_code && primaryDx.icd_code !== 'UNSPECIFIED'
+                ? ` (ICD-10: ${primaryDx.icd_code})`
+                : '';
+            const invoiceItems =
+              formData.invoice_items && Array.isArray(formData.invoice_items)
+                ? formData.invoice_items
+                : [
+                    {
+                      description: `Consultation${primaryIcdLabel}`,
+                      quantity: 1,
+                      unit_price: formData.consultation_fee || 0,
+                      item_type: 'service',
+                    },
+                  ];
 
             const invoice = await createInvoice.mutateAsync({
               patientId: consultation.patient_id,
               consultationId: id,
               items: invoiceItems,
-              notes: 'Auto-generated invoice from consultation completion',
+              notes: `Auto-generated invoice from consultation completion. Diagnoses: ${diagnosisCodingSummary || 'None documented'}`,
               dueDate: null,
             });
 
-            await triggerWorkflowSafely({
-              type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
-              patientId: consultation.patient_id,
-              data: {
-                patientName,
-                consultationId: id,
-                invoiceId: invoice.id,
-                invoiceNumber: invoice.invoice_number,
-                amount: invoice.total
-              }
-            }, 'invoice creation');
+            await triggerWorkflowSafely(
+              {
+                type: WORKFLOW_EVENT_TYPES.INVOICE_CREATED,
+                patientId: consultation.patient_id,
+                data: {
+                  patientName,
+                  consultationId: id,
+                  invoiceId: invoice.id,
+                  invoiceNumber: invoice.invoice_number,
+                  amount: invoice.total,
+                },
+              },
+              'invoice creation'
+            );
           } catch (err) {
             const message = getErrorMessage(err);
             console.error('Error creating invoice:', message, err);
@@ -555,13 +842,15 @@ ${formData.soap_plan || 'Not documented'}`;
               priority: 'medium',
               status: 'pending',
               due_date: formData.follow_up_date,
-              task_type: 'follow_up'
+              task_type: 'follow_up',
             });
           }
 
           // Lab review task if lab orders were created
           if (formData.lab_orders?.length > 0) {
-            const urgentLabs = formData.lab_orders.filter((order: any) => order.priority === 'urgent');
+            const urgentLabs = formData.lab_orders.filter(
+              (order: any) => order.priority === 'urgent'
+            );
             const priority = urgentLabs.length > 0 ? 'urgent' : 'high';
 
             tasksToCreate.push({
@@ -574,7 +863,7 @@ ${formData.soap_plan || 'Not documented'}`;
               priority,
               status: 'pending',
               due_date: null, // Will be set when results are available
-              task_type: 'lab_review'
+              task_type: 'lab_review',
             });
           }
 
@@ -590,7 +879,7 @@ ${formData.soap_plan || 'Not documented'}`;
               priority: 'medium',
               status: 'pending',
               due_date: null,
-              task_type: 'referral_followup'
+              task_type: 'referral_followup',
             });
           }
 
@@ -612,27 +901,30 @@ ${formData.soap_plan || 'Not documented'}`;
         }
 
         setIsCompleted(true);
-        toast.success("Consultation completed successfully!");
+        toast.success('Consultation completed successfully!');
 
         // Notify all receptionists so they can begin billing/checkout.
         // This fires unconditionally — whether or not an invoice was already
         // created inside the billing block above.
         const completionPatientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
-        await triggerWorkflowSafely({
-          type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
-          patientId: consultation.patient_id,
-          data: {
-            patientName: completionPatientName,
-            consultationId: id ?? '',
-            prescriptionCount: formData.prescriptions?.length || 0,
-            labOrderCount: formData.lab_orders?.length || 0,
-            billingNotified: !!formData.billing_notified,
+        await triggerWorkflowSafely(
+          {
+            type: WORKFLOW_EVENT_TYPES.CONSULTATION_COMPLETED,
+            patientId: consultation.patient_id,
+            data: {
+              patientName: completionPatientName,
+              consultationId: id ?? '',
+              prescriptionCount: formData.prescriptions?.length || 0,
+              labOrderCount: formData.lab_orders?.length || 0,
+              billingNotified: !!formData.billing_notified,
+            },
           },
-        }, 'consultation completion');
-        
+          'consultation completion'
+        );
+
         // Redirect after a short delay to show completion state
         setTimeout(() => {
-          navigate("/consultations");
+          navigate('/consultations');
         }, 1500);
       }
     } catch (error) {
@@ -682,20 +974,18 @@ ${formData.soap_plan || 'Not documented'}`;
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-96 gap-4">
           <p className="text-muted-foreground">Consultation not found</p>
-          <Button onClick={() => navigate("/consultations")}>
-            Back to Consultations
-          </Button>
+          <Button onClick={() => navigate('/consultations')}>Back to Consultations</Button>
         </div>
       </DashboardLayout>
     );
   }
 
   const stepTitles = [
-    "Chief Complaint",
-    "Physical Exam",
-    "Diagnosis",
-    "Treatment Plan",
-    "Summary & Handoff",
+    'Chief Complaint',
+    'Physical Exam',
+    'Diagnosis',
+    'Treatment Plan',
+    'Summary & Handoff',
   ];
 
   return (
@@ -704,29 +994,107 @@ ${formData.soap_plan || 'Not documented'}`;
         {/* Main Content */}
         <div className="flex-1 space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/consultations")}
-              >
+              <Button variant="ghost" size="icon" onClick={() => navigate('/consultations')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-foreground">
-                  Consultation Workflow
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {consultation.patient?.first_name} {consultation.patient?.last_name} •{" "}
-                  {consultation.patient?.mrn}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl font-bold text-foreground">Consultation Workflow</h1>
+                  {consultation?.status === 'completed' && (
+                    <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Finalized Record
+                    </Badge>
+                  )}
+                  {vitalEval && (
+                    <Badge
+                      variant={
+                        vitalEval.news2.riskLevel === 'high'
+                          ? 'destructive'
+                          : vitalEval.news2.riskLevel === 'medium'
+                            ? 'secondary'
+                            : 'outline'
+                      }
+                      className={
+                        vitalEval.news2.riskLevel === 'high'
+                          ? 'bg-red-600 text-white font-bold animate-pulse'
+                          : vitalEval.news2.riskLevel === 'medium'
+                            ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
+                      }
+                    >
+                      <Activity className="h-3 w-3 mr-1" />
+                      NEWS2: {vitalEval.news2.totalScore} ({vitalEval.news2.riskLevel.toUpperCase()}
+                      )
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                  <span>
+                    {consultation.patient?.first_name} {consultation.patient?.last_name} • MRN:{' '}
+                    {consultation.patient?.mrn}
+                  </span>
+                  {!isReadOnly && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      {saveStatus === 'saving' && (
+                        <span className="flex items-center gap-1 text-primary">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Autosaving draft...
+                        </span>
+                      )}
+                      {saveStatus === 'saved' && lastSavedAt && (
+                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <Check className="h-3 w-3" />
+                          Draft saved
+                        </span>
+                      )}
+                      {saveStatus === 'unsaved' && (
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">
+                          Unsaved changes
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">
-              Step {activeStep} of 5
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-sm">
+                Step {activeStep} of 5
+              </Badge>
+            </div>
           </div>
+
+          {/* Clinical Deterioration Alert Banner (A2) */}
+          {vitalEval && vitalEval.news2.totalScore >= 5 && (
+            <div className="rounded-lg border border-red-300 bg-red-50/90 p-4 dark:border-red-900/60 dark:bg-red-950/40">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-red-900 dark:text-red-200">
+                      CLINICAL DETERIORATION ALERT — NEWS2 Score: {vitalEval.news2.totalScore} (
+                      {vitalEval.news2.riskLevel.toUpperCase()} RISK)
+                    </span>
+                    <Badge variant="destructive" className="animate-pulse">
+                      URGENT ACTION
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-red-800 dark:text-red-300">
+                    <strong>Recommended Clinical Protocol:</strong>{' '}
+                    {vitalEval.news2.clinicalResponse}
+                  </p>
+                  <p className="text-xs text-red-700 dark:text-red-400">
+                    Immediate actions: Perform urgent sepsis screening protocol, continuous
+                    SpO₂/cardiac monitoring, order STAT ECG/labs if indicated, and alert senior
+                    attending physician / Rapid Response Team.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Step Progress */}
           <Card>
@@ -739,28 +1107,25 @@ ${formData.soap_plan || 'Not documented'}`;
                   const stepNumber = index + 1;
 
                   return (
-                    <div
-                      key={step.step}
-                      className="flex flex-col items-center flex-1"
-                    >
+                    <div key={step.step} className="flex flex-col items-center flex-1">
                       <div className="flex items-center w-full">
                         {index > 0 && (
                           <div
-                            className={`flex-1 h-0.5 ${
-                              isCompleted ? "bg-primary" : "bg-muted"
-                            }`}
+                            className={`flex-1 h-0.5 ${isCompleted ? 'bg-primary' : 'bg-muted'}`}
                           />
                         )}
                         <button
-                          onClick={() => stepNumber <= consultation.current_step && setActiveStep(stepNumber)}
+                          onClick={() =>
+                            stepNumber <= consultation.current_step && setActiveStep(stepNumber)
+                          }
                           disabled={stepNumber > consultation.current_step}
                           className={`relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
                             isActive
-                              ? "border-primary bg-primary text-primary-foreground"
+                              ? 'border-primary bg-primary text-primary-foreground'
                               : isCompleted
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-muted bg-background text-muted-foreground"
-                          } ${stepNumber <= consultation.current_step ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed"}`}
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-muted bg-background text-muted-foreground'
+                          } ${stepNumber <= consultation.current_step ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed'}`}
                         >
                           {isCompleted ? (
                             <Check className="h-5 w-5" />
@@ -770,15 +1135,13 @@ ${formData.soap_plan || 'Not documented'}`;
                         </button>
                         {index < 4 && (
                           <div
-                            className={`flex-1 h-0.5 ${
-                              isCompleted ? "bg-primary" : "bg-muted"
-                            }`}
+                            className={`flex-1 h-0.5 ${isCompleted ? 'bg-primary' : 'bg-muted'}`}
                           />
                         )}
                       </div>
                       <span
                         className={`mt-2 text-xs font-medium text-center hidden sm:block ${
-                          isActive ? "text-primary" : "text-muted-foreground"
+                          isActive ? 'text-primary' : 'text-muted-foreground'
                         }`}
                       >
                         {stepTitles[index]}
@@ -795,7 +1158,8 @@ ${formData.soap_plan || 'Not documented'}`;
             <CardContent className="pt-6">
               {!canEditConsultation && (
                 <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Read-only mode: you can review this consultation, but only users with consultation write access can change steps or complete the workflow.
+                  Read-only mode: you can review this consultation, but only users with consultation
+                  write access can change steps or complete the workflow.
                 </div>
               )}
               <Tabs value={String(activeStep)} className="w-full">
@@ -842,11 +1206,7 @@ ${formData.soap_plan || 'Not documented'}`;
 
           {/* Navigation Buttons */}
           <div className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={handlePrevStep}
-              disabled={activeStep === 1}
-            >
+            <Button variant="outline" onClick={handlePrevStep} disabled={activeStep === 1}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Previous
             </Button>
@@ -869,42 +1229,137 @@ ${formData.soap_plan || 'Not documented'}`;
               >
                 <Keyboard className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleSaveStep}
-                disabled={!canEditConsultation || updateConsultation.isPending || consultation?.status === 'completed'}
-              >
-                {updateConsultation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Save Progress
-              </Button>
-              <Button
-                onClick={handleNextStep}
-                disabled={!canEditConsultation || updateConsultation.isPending || advanceStep.isPending || isCompleting || isCompleted || consultation?.status === 'completed'}
-              >
-                {(updateConsultation.isPending || advanceStep.isPending || isCompleting) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {activeStep === 5 ? (isCompleting ? "Completing..." : "Complete Consultation") : "Next"}
-                {activeStep < 5 && <ArrowRight className="ml-2 h-4 w-4" />}
-              </Button>
+              {consultation?.status === 'completed' ? (
+                <Button
+                  variant="default"
+                  onClick={() => setAddendumOpen(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium shadow-sm"
+                >
+                  <PenTool className="mr-2 h-4 w-4" />
+                  Add Signed Addendum
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleSaveStep}
+                    disabled={!canEditConsultation || updateConsultation.isPending}
+                  >
+                    {updateConsultation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Save Progress
+                  </Button>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={
+                      !canEditConsultation ||
+                      updateConsultation.isPending ||
+                      advanceStep.isPending ||
+                      isCompleting ||
+                      isCompleted
+                    }
+                  >
+                    {(updateConsultation.isPending || advanceStep.isPending || isCompleting) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {activeStep === 5
+                      ? isCompleting
+                        ? 'Completing...'
+                        : 'Complete Consultation'
+                      : 'Next'}
+                    {activeStep < 5 && <ArrowRight className="ml-2 h-4 w-4" />}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         {/* Sidebars */}
         <div className="w-full xl:w-80 xl:min-w-[20rem] space-y-6">
-          <PatientSidebar patient={consultation?.patient} />
+          <PatientSidebar
+            patient={consultation?.patient}
+            vitals={formData.vitals || consultation?.vitals}
+          />
           <EnhancedTaskManagement patientId={consultation?.patient_id} />
           <div className="hidden xl:block">
-            <AIConsultationAssistant 
-              formData={formData} 
-              onApplyRecommendation={handleApplyAIRecommendation} 
+            <AIConsultationAssistant
+              formData={formData}
+              onApplyRecommendation={handleApplyAIRecommendation}
             />
           </div>
         </div>
       </div>
+
+      {/* Signed Addendum Modal (A5) */}
+      <Dialog open={addendumOpen} onOpenChange={setAddendumOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+              <PenTool className="h-5 w-5" />
+              Add Signed Clinical Addendum
+            </DialogTitle>
+            <DialogDescription>
+              This consultation is finalized. All amendments are appended as an immutable,
+              audit-stamped addendum signed with your clinical credentials.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md border border-purple-200 bg-purple-50/50 p-3 text-xs dark:border-purple-900/50 dark:bg-purple-950/30">
+              <div className="flex justify-between font-mono text-purple-800 dark:text-purple-300">
+                <span>
+                  Signer: Dr.{' '}
+                  {profile
+                    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+                    : 'Attending Physician'}
+                </span>
+                <span>Encounter: #{id?.slice(0, 8)}</span>
+              </div>
+              <p className="mt-1 text-muted-foreground">
+                Timestamp: {new Date().toLocaleString()} (Auto-recorded on submission)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addendum-reason">Clinical Rationale for Amendment</Label>
+              <Input
+                id="addendum-reason"
+                placeholder="e.g., Post-consultation lab findings review, amended dosage instructions..."
+                value={addendumReason}
+                onChange={(e) => setAddendumReason(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addendum-text">Addendum Notes *</Label>
+              <Textarea
+                id="addendum-text"
+                rows={5}
+                placeholder="Enter detailed clinical addendum note here..."
+                value={addendumText}
+                onChange={(e) => setAddendumText(e.target.value)}
+                className="font-sans"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setAddendumOpen(false)}
+              disabled={isSavingAddendum}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAddendum}
+              disabled={isSavingAddendum || !addendumText.trim()}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {isSavingAddendum && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign & Append Addendum
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Keyboard Shortcuts Help Modal */}
       <Dialog open={showKeyboardHelp} onOpenChange={setShowKeyboardHelp}>
@@ -915,7 +1370,8 @@ ${formData.soap_plan || 'Not documented'}`;
               Keyboard Shortcuts
             </DialogTitle>
             <DialogDescription>
-              Quick keyboard actions for saving progress and moving through the consultation workflow.
+              Quick keyboard actions for saving progress and moving through the consultation
+              workflow.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -939,7 +1395,8 @@ ${formData.soap_plan || 'Not documented'}`;
             </div>
             <div className="pt-2 border-t">
               <p className="text-xs text-muted-foreground">
-                Use keyboard shortcuts to navigate and save your work efficiently during consultations.
+                Use keyboard shortcuts to navigate and save your work efficiently during
+                consultations.
               </p>
             </div>
           </div>
@@ -953,5 +1410,3 @@ ${formData.soap_plan || 'Not documented'}`;
     </DashboardLayout>
   );
 }
-
-

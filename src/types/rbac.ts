@@ -2,13 +2,7 @@
 // Implements 9 roles with granular permissions and clear hierarchies
 
 export type UserRole =
-  | 'admin'
-  | 'doctor'
-  | 'nurse'
-  | 'receptionist'
-  | 'pharmacist'
-  | 'lab_technician'
-  | 'patient';
+  'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient';
 
 // Permission Categories
 export enum PermissionCategory {
@@ -195,6 +189,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PermissionCategory.QUEUE_WRITE,
     PermissionCategory.QUEUE_MANAGE,
     PermissionCategory.BILLING_READ,
+    PermissionCategory.BILLING_WRITE,
     PermissionCategory.BILLING_PROCESS,
     PermissionCategory.BILLING_INVOICE,
     PermissionCategory.SETTINGS_READ,
@@ -251,12 +246,15 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
 };
 
 // Role Display Information
-export const ROLE_INFO: Record<UserRole, {
-  label: string;
-  description: string;
-  color: string;
-  icon: string;
-}> = {
+export const ROLE_INFO: Record<
+  UserRole,
+  {
+    label: string;
+    description: string;
+    color: string;
+    icon: string;
+  }
+> = {
   admin: {
     label: 'Administrator',
     description: 'Hospital administration and staff management',
@@ -308,7 +306,7 @@ export function getRoleLabel(role?: string | null): string {
   }
   return role
     .split('_')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
@@ -331,12 +329,12 @@ export function hasPermission(role: UserRole | undefined, permission: Permission
 
 export function hasAnyPermission(role: UserRole | undefined, permissions: Permission[]): boolean {
   if (!role) return false;
-  return permissions.some(permission => hasPermission(role, permission));
+  return permissions.some((permission) => hasPermission(role, permission));
 }
 
 export function hasAllPermissions(role: UserRole | undefined, permissions: Permission[]): boolean {
   if (!role) return false;
-  return permissions.every(permission => hasPermission(role, permission));
+  return permissions.every((permission) => hasPermission(role, permission));
 }
 
 export function canAccessRole(userRole: UserRole, targetRole: UserRole): boolean {

@@ -64,6 +64,14 @@ module.exports = {
       to: { path: `^${R}/[^/]+/tests/` },
     },
     {
+      name: 'billing-boundary-clinical-isolation',
+      comment:
+        'ADR-0002: Clinical roles and doctor/nurse components must never directly import billing or invoice services.',
+      severity: 'error',
+      from: { path: '^src/components/(doctor|nurse)/' },
+      to: { path: '(billing|invoices)' },
+    },
+    {
       name: 'no-circular',
       comment:
         'No dependency cycles. Scope to `^${R}/` if you want to allow cycles outside packages.',

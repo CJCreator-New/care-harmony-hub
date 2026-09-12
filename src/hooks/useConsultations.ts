@@ -24,30 +24,20 @@ export type ConsultationStatus =
   | 'cancelled';
 
 /** Lifecycle-only status — maps to DB consultation_status column. */
-export type ConsultationLifecycleStatus =
-  | 'scheduled'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled';
+export type ConsultationLifecycleStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
 /** Workflow step names — maps to DB workflow_stage column. */
 export type WorkflowStageName =
-  | 'patient_overview'
-  | 'clinical_assessment'
-  | 'treatment_planning'
-  | 'final_review'
-  | 'handoff';
+  'patient_overview' | 'clinical_assessment' | 'treatment_planning' | 'final_review' | 'handoff';
 
 /** Normalise legacy / alternate status strings to ConsultationLifecycleStatus. */
 export const LEGACY_CONSULTATION_STATUS_MAP: Record<string, ConsultationLifecycleStatus> = {
-  'active': 'in_progress',
+  active: 'in_progress',
   'in-progress': 'in_progress',
-  'in_service': 'in_progress',
+  in_service: 'in_progress',
 };
 
-export function mapToLifecycleStatus(
-  raw: string | null | undefined
-): ConsultationLifecycleStatus {
+export function mapToLifecycleStatus(raw: string | null | undefined): ConsultationLifecycleStatus {
   if (!raw) return 'scheduled';
   if (['scheduled', 'in_progress', 'completed', 'cancelled'].includes(raw)) {
     return raw as ConsultationLifecycleStatus;
@@ -63,7 +53,10 @@ export interface Consultation {
   doctor_id: string;
   nurse_id: string | null;
   consultation_status?: 'active' | 'completed' | 'cancelled';
-  workflow_stage?: Exclude<ConsultationStatus, 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>;
+  workflow_stage?: Exclude<
+    ConsultationStatus,
+    'scheduled' | 'in-progress' | 'completed' | 'cancelled'
+  >;
   status: ConsultationStatus;
   current_step: number;
   // Step 1: Patient Overview
@@ -123,18 +116,45 @@ export interface ConsultationInsert {
 }
 
 export const CONSULTATION_STEPS = [
-  { step: 1, status: 'patient_overview' as ConsultationStatus, label: 'Patient Overview', description: 'Demographics, vitals, history' },
-  { step: 2, status: 'clinical_assessment' as ConsultationStatus, label: 'Clinical Assessment', description: 'Symptoms, physical exam' },
-  { step: 3, status: 'treatment_planning' as ConsultationStatus, label: 'Treatment Planning', description: 'Diagnosis, prescriptions, labs' },
-  { step: 4, status: 'final_review' as ConsultationStatus, label: 'Final Review', description: 'Summary, billing' },
-  { step: 5, status: 'handoff' as ConsultationStatus, label: 'Handoff', description: 'Notify pharmacy/lab' },
+  {
+    step: 1,
+    status: 'patient_overview' as ConsultationStatus,
+    label: 'Patient Overview',
+    description: 'Demographics, vitals, history',
+  },
+  {
+    step: 2,
+    status: 'clinical_assessment' as ConsultationStatus,
+    label: 'Clinical Assessment',
+    description: 'Symptoms, physical exam',
+  },
+  {
+    step: 3,
+    status: 'treatment_planning' as ConsultationStatus,
+    label: 'Treatment Planning',
+    description: 'Diagnosis, prescriptions, labs',
+  },
+  {
+    step: 4,
+    status: 'final_review' as ConsultationStatus,
+    label: 'Final Review',
+    description: 'Summary, billing',
+  },
+  {
+    step: 5,
+    status: 'handoff' as ConsultationStatus,
+    label: 'Handoff',
+    description: 'Notify pharmacy/lab',
+  },
 ];
 
-const withConsultationRateLimit = async <T,>(fn: () => Promise<T>) =>
+const withConsultationRateLimit = async <T>(fn: () => Promise<T>) =>
   executeWithRateLimitBackoff(fn, {
     key: 'consultations',
     onRetry: (attempt, delayMs) => {
-      toast.info(`Rate limited. Retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt}/4).`);
+      toast.info(
+        `Rate limited. Retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt}/4).`
+      );
     },
   });
 
@@ -165,10 +185,14 @@ const getMissingConsultationColumns = (error: PostgrestError | null): string[] =
 };
 
 const isMissingHpiColumnError = (error: PostgrestError | null) =>
-  getMissingConsultationColumns(error).some((columnName) => ['hpi_data', 'hpi_notes'].includes(columnName));
+  getMissingConsultationColumns(error).some((columnName) =>
+    ['hpi_data', 'hpi_notes'].includes(columnName)
+  );
 
-const withConsultationHpiFallback = async <T,>(
-  runQuery: (includeHpiColumns: boolean) => PromiseLike<{ data: T | null; error: PostgrestError | null }>
+const withConsultationHpiFallback = async <T>(
+  runQuery: (
+    includeHpiColumns: boolean
+  ) => PromiseLike<{ data: T | null; error: PostgrestError | null }>
 ) => {
   const primaryResult = await runQuery(true);
   if (!isMissingHpiColumnError(primaryResult.error)) {
@@ -196,12 +220,21 @@ const stripUnsupportedConsultationFields = <T extends Record<string, any>>(
 
 /** F2.3 — Decrypt consultation clinical PHI fields if encryption_metadata is present. */
 async function decryptConsultationFields(consultation: any): Promise<any> {
-  if (!consultation?.encryption_metadata || Object.keys(consultation.encryption_metadata).length === 0) {
+  if (
+    !consultation?.encryption_metadata ||
+    Object.keys(consultation.encryption_metadata).length === 0
+  ) {
     return consultation;
   }
   const decrypted = { ...consultation };
-  for (const [field, encData] of Object.entries(consultation.encryption_metadata as Record<string, any>)) {
-    if (decrypted[field] && typeof decrypted[field] === 'string' && decrypted[field].startsWith('__ENCRYPTED__')) {
+  for (const [field, encData] of Object.entries(
+    consultation.encryption_metadata as Record<string, any>
+  )) {
+    if (
+      decrypted[field] &&
+      typeof decrypted[field] === 'string' &&
+      decrypted[field].startsWith('__ENCRYPTED__')
+    ) {
       try {
         decrypted[field] = await fieldEncryption.decryptField(encData);
       } catch {
@@ -261,7 +294,7 @@ export function useConsultation(consultationId: string | undefined) {
             .maybeSingle()
         );
 
-        return await decryptConsultationFields(data) as unknown as Consultation | null;
+        return (await decryptConsultationFields(data)) as unknown as Consultation | null;
       });
     },
     enabled: !!consultationId,
@@ -345,7 +378,11 @@ export function useCreateConsultation() {
         action_type: 'telemetry:consult_start_failure',
         entity_type: 'consultation',
         entity_id: null,
-        details: { event: 'consult_start_failure', error_code: error.message, emitted_at: new Date().toISOString() },
+        details: {
+          event: 'consult_start_failure',
+          error_code: error.message,
+          emitted_at: new Date().toISOString(),
+        },
       });
     },
   });
@@ -379,15 +416,29 @@ export function useGetOrCreateConsultation() {
           // Update queue entry to in_service if not already
           await supabase
             .from('patient_queue')
-            .update({ 
-              status: 'in_service', 
-              service_start_time: new Date().toISOString() 
+            .update({
+              status: 'in_service',
+              service_start_time: new Date().toISOString(),
             })
             .eq('patient_id', patientId)
             .in('status', ['waiting', 'called']);
 
           return existingConsultation as unknown as Consultation;
         }
+
+        // Retrieve latest nurse prep checklist notes from today to seed chief complaint
+        const today = new Date().toISOString().split('T')[0];
+        const { data: latestChecklist } = await supabase
+          .from('patient_prep_checklists')
+          .select('notes')
+          .eq('hospital_id', hospital.id)
+          .eq('patient_id', patientId)
+          .gte('created_at', `${today}T00:00:00`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const initialChiefComplaint = latestChecklist?.notes || null;
 
         // Create new consultation if none exists
         const consultation = await withConsultationHpiFallback((includeHpiColumns) =>
@@ -400,6 +451,7 @@ export function useGetOrCreateConsultation() {
               status: 'patient_overview',
               current_step: 1,
               started_at: new Date().toISOString(),
+              ...(initialChiefComplaint ? { chief_complaint: initialChiefComplaint } : {}),
             })
             .select(consultationJoinSelect(includeHpiColumns))
             .single()
@@ -408,9 +460,9 @@ export function useGetOrCreateConsultation() {
         // Update queue entry to in_service
         await supabase
           .from('patient_queue')
-          .update({ 
-            status: 'in_service', 
-            service_start_time: new Date().toISOString() 
+          .update({
+            status: 'in_service',
+            service_start_time: new Date().toISOString(),
           })
           .eq('patient_id', patientId)
           .in('status', ['waiting', 'called']);
@@ -421,6 +473,8 @@ export function useGetOrCreateConsultation() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['queue'] });
+      queryClient.invalidateQueries({ queryKey: ['patients-ready-for-doctor'] });
+      queryClient.invalidateQueries({ queryKey: ['nurse-queue'] });
       toast.success('Consultation started');
       // F3.1 — HIPAA §164.312(b): audit log
       void logActivity({
@@ -458,8 +512,12 @@ export function useUpdateConsultation() {
       return withConsultationRateLimit(async () => {
         // F2.3 — HIPAA §164.312(a)(2)(iv): encrypt clinical narrative PHI fields before storage
         const clinicalPHIFields = [
-          'chief_complaint', 'history_of_present_illness', 'treatment_plan',
-          'clinical_notes', 'follow_up_notes', 'handoff_notes',
+          'chief_complaint',
+          'history_of_present_illness',
+          'treatment_plan',
+          'clinical_notes',
+          'follow_up_notes',
+          'handoff_notes',
         ] as const;
         const encMeta: Record<string, any> = (updates as any).encryption_metadata ?? {};
         for (const field of clinicalPHIFields) {
@@ -524,7 +582,13 @@ export function useAdvanceConsultationStep() {
   const { logActivity } = useAudit();
 
   return useMutation({
-    mutationFn: async ({ consultationId, currentStep }: { consultationId: string; currentStep: number }) => {
+    mutationFn: async ({
+      consultationId,
+      currentStep,
+    }: {
+      consultationId: string;
+      currentStep: number;
+    }) => {
       if (!hasPermission(primaryRole ?? undefined, 'consultations:write')) {
         throw new Error('You do not have permission to advance consultations');
       }
@@ -560,6 +624,36 @@ export function useAdvanceConsultationStep() {
           data: { consultationId: data.id, doctorId: data.doctor_id },
           priority: 'normal',
         });
+        // INT-001: Mark linked appointment as completed
+        void supabase
+          .from('appointments')
+          .update({ status: 'completed' })
+          .eq('patient_id', data.patient_id)
+          .in('status', ['confirmed', 'checked_in', 'in_progress'])
+          .then(({ error }) => {
+            if (error)
+              console.warn(
+                '[useAdvanceConsultationStep] Failed to update appointment status:',
+                error
+              );
+          });
+        // Complete patient_queue entry so it leaves the ready-for-doctor and nurse queues
+        void supabase
+          .from('patient_queue')
+          .update({
+            status: 'completed',
+            service_end_time: new Date().toISOString(),
+          })
+          .eq('patient_id', data.patient_id)
+          .in('status', ['waiting', 'called', 'in_prep', 'in_service'])
+          .then(({ error }) => {
+            if (error)
+              console.warn('[useAdvanceConsultationStep] Failed to update queue status:', error);
+          });
+
+        queryClient.invalidateQueries({ queryKey: ['queue'] });
+        queryClient.invalidateQueries({ queryKey: ['patients-ready-for-doctor'] });
+        queryClient.invalidateQueries({ queryKey: ['nurse-queue'] });
       }
       toast.success('Moved to next step');
     },
@@ -572,24 +666,27 @@ export function useAutoSaveConsultation(consultationId: string | undefined) {
   const currentConsultationId = useRef(consultationId);
   currentConsultationId.current = consultationId;
 
-  const autoSave = useCallback((data: Record<string, any>) => {
-    const id = currentConsultationId.current;
-    if (!id) return;
+  const autoSave = useCallback(
+    (data: Record<string, any>) => {
+      const id = currentConsultationId.current;
+      if (!id) return;
 
-    // Debounce auto-save to every 30 seconds
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+      // Debounce auto-save to every 30 seconds
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-    timeoutRef.current = setTimeout(() => {
-      if (!currentConsultationId.current) return;
-      updateConsultation.mutate({
-        id: currentConsultationId.current,
-        auto_save_data: data,
-        last_auto_save: new Date().toISOString(),
-      });
-    }, 30000);
-  }, [updateConsultation]);
+      timeoutRef.current = setTimeout(() => {
+        if (!currentConsultationId.current) return;
+        updateConsultation.mutate({
+          id: currentConsultationId.current,
+          auto_save_data: data,
+          last_auto_save: new Date().toISOString(),
+        });
+      }, 30000);
+    },
+    [updateConsultation]
+  );
 
   useEffect(() => {
     return () => {
@@ -642,11 +739,13 @@ export function usePatientsReadyForConsultation() {
       return withConsultationRateLimit(async () => {
         const { data, error } = await supabase
           .from('patient_prep_checklists')
-          .select(`
+          .select(
+            `
             *,
             patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
             queue_entry:patient_queue!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
-          `)
+          `
+          )
           .eq('hospital_id', hospital.id)
           .eq('ready_for_doctor', true)
           .in('queue_entry.status', ['waiting', 'called']);

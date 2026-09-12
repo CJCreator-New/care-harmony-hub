@@ -18,7 +18,8 @@ import { z } from 'zod';
  * Ensures change_reason is clinically appropriate and not generic
  */
 export const BreakGlassReasonSchema = z.object({
-  reason: z.string()
+  reason: z
+    .string()
     .min(20, 'Override reason must be detailed (min 20 characters)')
     .max(500, 'Override reason must be concise (max 500 characters)')
     .refine(
@@ -26,18 +27,29 @@ export const BreakGlassReasonSchema = z.object({
       'Override reason must not be placeholder or test text'
     ),
   emergency_level: z.enum(['critical', 'urgent', 'time_sensitive'], {
-    description: 'Urgency level of override'
+    description: 'Urgency level of override',
   }),
-  approved_by_role: z.enum(['emergency_physician', 'icu_nurse', 'head_pharmacist', 'admin'], {
-    description: 'Only these roles can approve break-glass'
-  }),
+  approved_by_role: z.enum(
+    [
+      'emergency_physician',
+      'icu_nurse',
+      'head_pharmacist',
+      'admin',
+      'doctor',
+      'nurse',
+      'pharmacist',
+    ],
+    {
+      description: 'Only these roles can approve break-glass',
+    }
+  ),
   related_patient_id: z.string().uuid(),
   override_type: z.enum([
     'emergency_medication_dispense',
     'critical_discharge',
     'lab_override_critical_value',
     'system_unavailable_workaround',
-    'clinical_judgment_override'
+    'clinical_judgment_override',
   ]),
 });
 
@@ -47,7 +59,9 @@ export type BreakGlassOverride = z.infer<typeof BreakGlassReasonSchema>;
  * Validates break-glass override request
  * @throws Error if override reason is invalid or insufficient
  */
-export function validateBreakGlassOverride(override: Partial<BreakGlassOverride>): BreakGlassOverride {
+export function validateBreakGlassOverride(
+  override: Partial<BreakGlassOverride>
+): BreakGlassOverride {
   const result = BreakGlassReasonSchema.safeParse(override);
   if (!result.success) {
     const errors = result.error.flatten().fieldErrors;
@@ -80,7 +94,10 @@ export function sanitizeBreakGlassReason(reason: string): string {
   });
 
   // Remove names after "Dr." or "Patient:" patterns if looks suspicious
-  sanitized = sanitized.replace(/(?:Dr\.|Patient:|Attending:)\s+[A-Z][a-z]+\s+[A-Z][a-z]+/g, '[STAFF_NAME]');
+  sanitized = sanitized.replace(
+    /(?:Dr\.|Patient:|Attending:)\s+[A-Z][a-z]+\s+[A-Z][a-z]+/g,
+    '[STAFF_NAME]'
+  );
 
   return sanitized;
 }
@@ -123,24 +140,34 @@ export function canApproveBreakGlass(
       'critical_discharge',
       'lab_override_critical_value',
       'system_unavailable_workaround',
-      'clinical_judgment_override'
+      'clinical_judgment_override',
+    ],
+    doctor: [
+      'emergency_medication_dispense',
+      'critical_discharge',
+      'lab_override_critical_value',
+      'system_unavailable_workaround',
+      'clinical_judgment_override',
     ],
     icu_nurse: [
       'emergency_medication_dispense',
       'lab_override_critical_value',
-      'system_unavailable_workaround'
+      'system_unavailable_workaround',
     ],
-    head_pharmacist: [
+    nurse: [
       'emergency_medication_dispense',
-      'system_unavailable_workaround'
+      'lab_override_critical_value',
+      'system_unavailable_workaround',
     ],
+    head_pharmacist: ['emergency_medication_dispense', 'system_unavailable_workaround'],
+    pharmacist: ['emergency_medication_dispense', 'system_unavailable_workaround'],
     admin: [
       'emergency_medication_dispense',
       'critical_discharge',
       'lab_override_critical_value',
       'system_unavailable_workaround',
-      'clinical_judgment_override'
-    ]
+      'clinical_judgment_override',
+    ],
   };
 
   const allowedTypes = rolePermissions[userRole] || [];
@@ -148,7 +175,7 @@ export function canApproveBreakGlass(
   if (!allowedTypes.includes(overrideType)) {
     return {
       allowed: false,
-      reason: `Role '${userRole}' cannot approve '${overrideType}' override. Allowed types: ${allowedTypes.join(', ')}`
+      reason: `Role '${userRole}' cannot approve '${overrideType}' override. Allowed types: ${allowedTypes.join(', ')}`,
     };
   }
 
@@ -171,8 +198,8 @@ export function shouldEscalateToAdmin(createdAt: string, completedAt?: string): 
   const ONE_MINUTE_MS = 60 * 1000;
   const createTime = new Date(createdAt).getTime();
   const nowTime = completedAt ? new Date(completedAt).getTime() : Date.now();
-  
-  return (nowTime - createTime) > ONE_MINUTE_MS;
+
+  return nowTime - createTime > ONE_MINUTE_MS;
 }
 
 /**
@@ -184,7 +211,7 @@ export async function hashBreakGlassReason(reason: string): Promise<string> {
   const data = encoder.encode(reason);
   const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

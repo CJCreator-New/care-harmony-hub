@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "lint:boundaries": "depcruise src/modules --config .dependency-cruiser.cjs",
+    "lint:boundaries": "depcruise src/modules src/components/doctor src/components/nurse --config .dependency-cruiser.cjs",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",

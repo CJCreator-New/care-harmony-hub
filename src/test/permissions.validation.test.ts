@@ -2,7 +2,7 @@
  * Permission System Validation Tests
  * Verifies that the hasPermission() function correctly handles wildcard
  * and sub-permission inheritance for all roles.
- * 
+ *
  * @group permissions
  * @group unit
  */
@@ -11,9 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { hasPermission, ROLE_PERMISSIONS } from '@/lib/permissions';
 
 describe('Permission System Validation', () => {
-  
   describe('hasPermission() - Basic Functionality', () => {
-    
     it('should return false for undefined role', () => {
       expect(hasPermission(undefined, 'patients')).toBe(false);
       expect(hasPermission(undefined, 'patients:read')).toBe(false);
@@ -31,7 +29,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('hasPermission() - Base Permission Inheritance', () => {
-    
     it('receptionist should have appointments base permission (includes :read and :write)', () => {
       expect(hasPermission('receptionist', 'appointments')).toBe(true);
       expect(hasPermission('receptionist', 'appointments:read')).toBe(true);
@@ -59,16 +56,15 @@ describe('Permission System Validation', () => {
       expect(hasPermission('receptionist', 'queue:write')).toBe(true);
     });
 
-    it('receptionist should have billing:read (limited)', () => {
+    it('receptionist should have billing:read and billing:write per ADR-0002', () => {
       expect(hasPermission('receptionist', 'billing:read')).toBe(true);
-      expect(hasPermission('receptionist', 'billing:write')).toBe(false);
+      expect(hasPermission('receptionist', 'billing:write')).toBe(true);
       // Base permission 'billing' should be accessible because role has 'billing:read'
       expect(hasPermission('receptionist', 'billing')).toBe(true);
     });
   });
 
   describe('hasPermission() - Doctor Permissions', () => {
-    
     it('doctor should have patients permissions', () => {
       expect(hasPermission('doctor', 'patients')).toBe(true);
       expect(hasPermission('doctor', 'patients:read')).toBe(true);
@@ -106,7 +102,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('hasPermission() - Nurse Permissions', () => {
-    
     it('nurse should have patients readonly', () => {
       expect(hasPermission('nurse', 'patients:read')).toBe(true);
       expect(hasPermission('nurse', 'patients:write')).toBe(false);
@@ -140,7 +135,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('hasPermission() - Pharmacist Permissions', () => {
-    
     it('pharmacist should have pharmacy full access', () => {
       expect(hasPermission('pharmacist', 'pharmacy')).toBe(true);
       expect(hasPermission('pharmacist', 'pharmacy:write')).toBe(true);
@@ -167,7 +161,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('hasPermission() - Lab Tech Permissions', () => {
-    
     it('lab tech should have laboratory full access', () => {
       expect(hasPermission('lab_technician', 'laboratory')).toBe(true);
       expect(hasPermission('lab_technician', 'lab:write')).toBe(true);
@@ -192,7 +185,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('hasPermission() - Patient Permissions', () => {
-    
     it('patient should have portal access', () => {
       expect(hasPermission('patient', 'portal')).toBe(true);
     });
@@ -225,7 +217,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('Permission Matrix Completeness', () => {
-    
     it('all defined roles should have permissions', () => {
       const rolesWithPerms = Object.keys(ROLE_PERMISSIONS);
       expect(rolesWithPerms).toContain('admin');
@@ -251,7 +242,6 @@ describe('Permission System Validation', () => {
   });
 
   describe('Sub-Permission Wildcard Testing', () => {
-    
     it('base permission grants access to all sub-permission queries', () => {
       // Doctor has 'lab' (base), should grant access to lab:* variants
       expect(hasPermission('doctor', 'lab')).toBe(true);

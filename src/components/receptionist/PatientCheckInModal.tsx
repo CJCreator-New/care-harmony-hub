@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -63,6 +75,8 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
   const [priority, setPriority] = useState<PriorityLevel>('normal');
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [completedQueueNumber, setCompletedQueueNumber] = useState<number | null>(null);
+  const [isolationRequired, setIsolationRequired] = useState(false);
+  const [isolationReason, setIsolationReason] = useState('');
 
   const { data: searchResults = [], isLoading: isSearching } = useSearchPatients(searchTerm);
   const { data: todayAppointments = [] } = useTodayAppointments();
@@ -84,8 +98,10 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       const queueNumber = await checkIn({
         patient,
         appointmentId: appointment?.id,
-        priority,
+        priority: isolationRequired ? 'urgent' : priority,
         isWalkIn: !appointment,
+        isolationRequired,
+        notes: isolationReason ? `Infection screening: ${isolationReason}` : undefined,
       });
       setCompletedQueueNumber(queueNumber);
       setStep('complete');
@@ -110,6 +126,8 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       setCompletedQueueNumber(null);
       setSendSmsConfirmation(true);
       setSendEmailConfirmation(false);
+      setIsolationRequired(false);
+      setIsolationReason('');
     }
   }, [open]);
 
@@ -163,17 +181,25 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
     if (!selectedPatient) return;
 
     try {
+      const checkInPayload = {
+        patient: selectedPatient,
+        priority:
+          isolationRequired && (priority === 'normal' || priority === 'high')
+            ? ('urgent' as PriorityLevel)
+            : priority,
+        isolationRequired,
+        notes: isolationReason ? `Infection screening: ${isolationReason}` : undefined,
+      };
+
       if (selectedAppointment) {
         const queueNumber = await checkIn({
-          patient: selectedPatient,
+          ...checkInPayload,
           appointmentId: selectedAppointment.id,
-          priority,
         });
         setCompletedQueueNumber(queueNumber);
       } else if (isWalkIn) {
         const queueNumber = await checkIn({
-          patient: selectedPatient,
-          priority,
+          ...checkInPayload,
           isWalkIn: true,
         });
         setCompletedQueueNumber(queueNumber);
@@ -181,8 +207,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         // Safety fallback: if no appointment is available, continue as walk-in.
         setIsWalkIn(true);
         const queueNumber = await checkIn({
-          patient: selectedPatient,
-          priority,
+          ...checkInPayload,
           isWalkIn: true,
         });
         setCompletedQueueNumber(queueNumber);
@@ -241,7 +266,8 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                         {patient.first_name} {patient.last_name}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        MRN: {patient.mrn} • DOB: {format(new Date(patient.date_of_birth), 'MMM d, yyyy')}
+                        MRN: {patient.mrn} • DOB:{' '}
+                        {format(new Date(patient.date_of_birth), 'MMM d, yyyy')}
                       </p>
                       {eligibleForExpress && (
                         <Badge variant="success" className="mt-1 text-xs">
@@ -256,7 +282,8 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const appointment = patientAppointments.length === 1 ? patientAppointments[0] : undefined;
+                            const appointment =
+                              patientAppointments.length === 1 ? patientAppointments[0] : undefined;
                             handleExpressCheckIn(patient as SelectedPatient, appointment);
                           }}
                           className="text-xs"
@@ -302,7 +329,9 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
               </h3>
               <p className="text-sm text-muted-foreground">MRN: {selectedPatient?.mrn}</p>
               <p className="text-sm text-muted-foreground">
-                DOB: {selectedPatient?.date_of_birth && format(new Date(selectedPatient.date_of_birth), 'MMMM d, yyyy')}
+                DOB:{' '}
+                {selectedPatient?.date_of_birth &&
+                  format(new Date(selectedPatient.date_of_birth), 'MMMM d, yyyy')}
               </p>
               {selectedPatient?.phone && (
                 <p className="text-sm text-muted-foreground">Phone: {selectedPatient.phone}</p>
@@ -410,6 +439,56 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           </Label>
         </div>
       </div>
+
+      <Separator />
+
+      {/* Infection Screening & Isolation Protocol */}
+      <div className="space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20">
+        <h4 className="font-medium flex items-center gap-2 text-amber-800 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          Infection Screening & Isolation Protocol
+        </h4>
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="isolationRequired"
+            checked={isolationRequired}
+            onCheckedChange={(checked) => {
+              const val = checked === true;
+              setIsolationRequired(val);
+              if (val && (priority === 'normal' || priority === 'high')) {
+                setPriority('urgent');
+              }
+            }}
+          />
+          <div className="space-y-1">
+            <Label
+              htmlFor="isolationRequired"
+              className="text-sm font-medium leading-none cursor-pointer"
+            >
+              Suspected acute respiratory infection / Airborne or droplet isolation required
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Flags patient with [ISOLATION REQUIRED] badge and automatically elevates triage
+              priority to Urgent.
+            </p>
+          </div>
+        </div>
+
+        {isolationRequired && (
+          <div className="mt-2 space-y-1 pl-6">
+            <Label htmlFor="isolationReason" className="text-xs text-muted-foreground">
+              Isolation Reason / Symptoms (e.g. Fever, cough, rash, travel history)
+            </Label>
+            <Input
+              id="isolationReason"
+              placeholder="e.g. High fever, persistent cough, suspected influenza/COVID"
+              value={isolationReason}
+              onChange={(e) => setIsolationReason(e.target.value)}
+              className="text-xs h-8"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -421,7 +500,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <CreditCard className="h-4 w-4" />
             Insurance Information
           </h4>
-          
+
           <div className="grid gap-4">
             <div>
               <Label className="text-muted-foreground text-sm">Provider</Label>
@@ -462,7 +541,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             <CreditCard className="h-4 w-4" />
             Co-Pay Collection
           </h4>
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="copayAmount">Co-Pay Amount ({CURRENCY_SYMBOL})</Label>
@@ -482,7 +561,9 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                 onCheckedChange={(checked) => setCopayCollected(checked as boolean)}
               />
               <Label htmlFor="copayCollected" className="text-sm">
-                {copayAmount ? `Co-pay of ${CURRENCY_SYMBOL}${copayAmount} collected` : 'No co-pay required / Skip'}
+                {copayAmount
+                  ? `Co-pay of ${CURRENCY_SYMBOL}${copayAmount} collected`
+                  : 'No co-pay required / Skip'}
               </Label>
             </div>
           </div>
@@ -492,10 +573,23 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       <div className="p-4 bg-muted/50 rounded-lg">
         <h4 className="font-medium mb-2">Check-In Summary</h4>
         <ul className="text-sm text-muted-foreground space-y-1">
-          <li>• Patient: {selectedPatient?.first_name} {selectedPatient?.last_name}</li>
-          <li>• {selectedAppointment ? `Appointment: ${selectedAppointment.scheduled_time}` : 'Walk-In Registration'}</li>
+          <li>
+            • Patient: {selectedPatient?.first_name} {selectedPatient?.last_name}
+          </li>
+          <li>
+            •{' '}
+            {selectedAppointment
+              ? `Appointment: ${selectedAppointment.scheduled_time}`
+              : 'Walk-In Registration'}
+          </li>
           <li>• Insurance: {insuranceVerified ? 'Verified' : 'Not Verified'}</li>
           <li>• Co-Pay: {copayCollected ? `${CURRENCY_SYMBOL}${copayAmount}` : 'None'}</li>
+          {isolationRequired && (
+            <li className="text-destructive font-medium">
+              • Infection Control: Isolation Required{' '}
+              {isolationReason ? `(${isolationReason})` : ''}
+            </li>
+          )}
         </ul>
       </div>
     </div>
@@ -518,11 +612,15 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           <div className="text-left space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Patient:</span>
-              <span className="text-sm font-medium">{selectedPatient?.first_name} {selectedPatient?.last_name}</span>
+              <span className="text-sm font-medium">
+                {selectedPatient?.first_name} {selectedPatient?.last_name}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Insurance:</span>
-              <span className="text-sm font-medium">{selectedPatient?.insurance_provider || 'N/A'}</span>
+              <span className="text-sm font-medium">
+                {selectedPatient?.insurance_provider || 'N/A'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Appointment:</span>
@@ -540,7 +638,9 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           checked={sendSmsConfirmation}
           onCheckedChange={(checked) => setSendSmsConfirmation(checked as boolean)}
         />
-        <Label htmlFor="sendSmsExpress" className="text-sm">Send SMS confirmation</Label>
+        <Label htmlFor="sendSmsExpress" className="text-sm">
+          Send SMS confirmation
+        </Label>
       </div>
     </div>
   );
@@ -588,9 +688,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
             </Label>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Estimated wait time: ~15-20 minutes
-        </p>
+        <p className="text-xs text-muted-foreground">Estimated wait time: ~15-20 minutes</p>
       </div>
     </div>
   );
@@ -653,7 +751,12 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
           )}
           {step !== 'search' && step !== 'complete' && (
             <div className="flex w-full justify-between items-center">
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                className="text-muted-foreground"
+              >
                 Cancel
               </Button>
               <div className="flex gap-2">
@@ -676,25 +779,15 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                     Continue
                   </Button>
                 )}
-                {step === 'insurance' && (
-                  <Button onClick={handleVerifyInsurance}>
-                    Continue
-                  </Button>
-                )}
+                {step === 'insurance' && <Button onClick={handleVerifyInsurance}>Continue</Button>}
                 {step === 'copay' && (
-                  <Button
-                    onClick={handleCompleteCheckIn}
-                    disabled={isPending}
-                  >
+                  <Button onClick={handleCompleteCheckIn} disabled={isPending}>
                     {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Complete Check-In
                   </Button>
                 )}
                 {step === 'express' && (
-                  <Button
-                    onClick={handleCompleteCheckIn}
-                    disabled={isPending}
-                  >
+                  <Button onClick={handleCompleteCheckIn} disabled={isPending}>
                     {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Confirm Express Check-In
                   </Button>

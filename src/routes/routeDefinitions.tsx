@@ -40,6 +40,7 @@ const ConsultationWorkflowPage = lazy(
 const MobileConsultationPage = lazy(() => import('../pages/consultations/MobileConsultationPage'));
 const AppointmentsPage = lazy(() => import('../pages/appointments/AppointmentsPage'));
 const LaboratoryPage = lazy(() => import('../pages/laboratory/LaboratoryPage'));
+const RadiologyPage = lazy(() => import('../pages/radiology/RadiologyPage'));
 const PharmacyPage = lazy(() => import('../pages/pharmacy/PharmacyPage'));
 const PharmacyQueuePage = lazy(() => import('../pages/pharmacy/PharmacyQueuePage'));
 const DoctorDashboard = lazy(() => import('../pages/doctor/DoctorDashboard'));
@@ -495,6 +496,14 @@ export const protectedRoutes: RouteDefinition[] = [
   {
     path: '/laboratory/automation',
     element: withRoleAccess(<LabAutomationPage />, ['admin', 'lab_technician']),
+  },
+  {
+    path: '/radiology',
+    element: withRoleAccess(
+      <RadiologyPage />,
+      ['admin', 'doctor', 'nurse', 'lab_technician'],
+      'lab:read'
+    ),
   },
   {
     path: '/billing',

@@ -14,22 +14,24 @@ export const WORKFLOW_EVENT_TYPES = {
   PATIENT_READY_FOR_DOCTOR: 'patient.ready_for_doctor',
   CONSULTATION_STARTED: 'consultation.started',
   CONSULTATION_COMPLETED: 'consultation.completed',
-  
+
   // Lab Events
   LAB_ORDER_CREATED: 'lab.order_created',
   LAB_SAMPLE_COLLECTED: 'lab.sample_collected',
+  LAB_SAMPLE_REJECTED: 'lab.sample_rejected',
   LAB_RESULTS_READY: 'lab.results_ready',
   LAB_CRITICAL_ALERT: 'lab.critical_alert',
-  
+
   // Pharmacy Events
   PRESCRIPTION_CREATED: 'prescription.created',
   PRESCRIPTION_VERIFIED: 'prescription.verified',
   MEDICATION_DISPENSED: 'medication.dispensed',
-  
+  PRESCRIPTION_CLARIFICATION_REQUESTED: 'prescription.clarification_requested',
+
   // Billing Events
   INVOICE_CREATED: 'invoice.created',
   PAYMENT_RECEIVED: 'payment.received',
-  
+
   // Administrative Events
   STAFF_INVITED: 'staff.invited',
   ROLE_ASSIGNED: 'role.assigned',
@@ -63,10 +65,11 @@ const getErrorMessage = (error: unknown) => {
 
 const isMissingRelationError = (error: unknown, relationName: string) => {
   const message = getErrorMessage(error).toLowerCase();
-  return message.includes(relationName.toLowerCase()) && (
-    message.includes('does not exist') ||
-    message.includes('could not find') ||
-    message.includes('not find the table')
+  return (
+    message.includes(relationName.toLowerCase()) &&
+    (message.includes('does not exist') ||
+      message.includes('could not find') ||
+      message.includes('not find the table'))
   );
 };
 
@@ -97,14 +100,16 @@ export function useWorkflowOrchestrator() {
           source_user: profile?.user_id,
           source_role: event.sourceRole || (primaryRole as any),
           payload: event.data,
-          priority: event.priority || 'normal'
+          priority: event.priority || 'normal',
         })
         .select()
         .single();
 
       if (eventError) {
         if (isMissingRelationError(eventError, 'workflow_events')) {
-          devLog('workflow_events table is unavailable; skipping workflow orchestration persistence.');
+          devLog(
+            'workflow_events table is unavailable; skipping workflow orchestration persistence.'
+          );
           return;
         }
         throw eventError;
@@ -128,7 +133,8 @@ export function useWorkflowOrchestrator() {
 
       // 3. Execute actions for each rule
       for (const rule of rules as any[]) {
-        const cooldownMinutes = typeof rule.cooldown_minutes === 'number' ? rule.cooldown_minutes : 0;
+        const cooldownMinutes =
+          typeof rule.cooldown_minutes === 'number' ? rule.cooldown_minutes : 0;
         if (cooldownMinutes > 0 && rule.last_triggered) {
           const cooldownStartedAt = new Date(Date.now() - cooldownMinutes * 60 * 1000);
           if (new Date(rule.last_triggered) >= cooldownStartedAt) {
@@ -139,7 +145,7 @@ export function useWorkflowOrchestrator() {
 
         devLog(`Executing rule: ${rule.name}`);
         const actions = rule.actions as WorkflowAction[];
-        
+
         if (actions && Array.isArray(actions)) {
           await executeWorkflowActions(actions, event);
         }
@@ -160,12 +166,13 @@ export function useWorkflowOrchestrator() {
       // 5. Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['workflow-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['workflow-events'] });
-
     } catch (error: any) {
       const message = getErrorMessage(error);
       console.error('Workflow orchestration failed:', sanitizeLogMessage(message), error);
       if (isMissingRelationError(error, 'workflow_events')) {
-        devLog('Workflow orchestration skipped because workflow_events is not available in this environment.');
+        devLog(
+          'Workflow orchestration skipped because workflow_events is not available in this environment.'
+        );
         return;
       }
       if (eventRecordId) {
@@ -228,7 +235,7 @@ export function useWorkflowOrchestrator() {
       error_message: getErrorMessage(lastError),
       retry_attempts: maxRetries,
       patient_id: event.patientId,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     });
 
     // Send notification to admin about failed action
@@ -255,7 +262,8 @@ export function useWorkflowOrchestrator() {
           follow_up: 168,
           routine: 336,
         };
-        const taskType = (action.metadata as Record<string, unknown>)?.task_type as string | undefined;
+        const taskType = (action.metadata as Record<string, unknown>)?.task_type as
+          string | undefined;
         const priorityKey = taskType ?? event.priority ?? 'normal';
         const dueDateHours = TASK_DUE_HOURS[priorityKey] ?? (event.priority === 'urgent' ? 1 : 24);
         const dueDate = new Date(Date.now() + dueDateHours * 60 * 60 * 1_000).toISOString();
@@ -303,7 +311,7 @@ export function useWorkflowOrchestrator() {
       case 'trigger_function':
         if (action.metadata?.function_name) {
           await supabase.functions.invoke(action.metadata.function_name, {
-            body: { ...event.data, patient_id: event.patientId }
+            body: { ...event.data, patient_id: event.patientId },
           });
         }
         break;
@@ -314,7 +322,7 @@ export function useWorkflowOrchestrator() {
           related_event_id: event.type,
           patient_id: event.patientId,
           reason: action.message,
-          severity: 'high'
+          severity: 'high',
         });
         break;
     }
@@ -335,7 +343,7 @@ export function useWorkflowOrchestrator() {
       step_name: stepName,
       completed_by: completedBy,
       completed_by_role: completedByRole,
-      completed_at: new Date().toISOString()
+      completed_at: new Date().toISOString(),
     });
   };
 

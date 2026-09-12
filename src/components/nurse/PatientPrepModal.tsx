@@ -7,22 +7,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Heart, 
-  Thermometer, 
-  Activity, 
-  Weight, 
-  Ruler, 
+import {
+  Heart,
+  Thermometer,
+  Activity,
+  Weight,
+  Ruler,
   Droplets,
   CheckCircle,
   AlertTriangle,
   Send,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { evaluateVitalSigns } from '@/modules/vital-signs';
 
 interface VitalsData {
   temperature: number | '';
@@ -44,7 +45,13 @@ interface PatientPrepModalProps {
   onComplete: () => void;
 }
 
-export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplete }: PatientPrepModalProps) {
+export function PatientPrepModal({
+  patient,
+  queueEntry,
+  open,
+  onClose,
+  onComplete,
+}: PatientPrepModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [vitals, setVitals] = useState<VitalsData>({
@@ -56,9 +63,9 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
     oxygen_saturation: '',
     weight: '',
     height: '',
-    pain_scale: ''
+    pain_scale: '',
   });
-  
+
   const [chiefComplaint, setChiefComplaint] = useState('');
   const [allergies, setAllergies] = useState('');
   const [currentMedications, setCurrentMedications] = useState('');
@@ -67,34 +74,29 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
   const [errors, setErrors] = useState<Record<string, string>>({});
   const hasValue = (value: number | '') => value !== '' && Number.isFinite(Number(value));
 
-  // Validation rules
+  // Validation rules using vital-signs deep module
   const validateVitals = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (vitals.temperature && (Number(vitals.temperature) < 35 || Number(vitals.temperature) > 43)) {
-      newErrors.temperature = 'Temperature should be between 35–43 °C';
-    }
-    if (vitals.blood_pressure_systolic && (Number(vitals.blood_pressure_systolic) < 70 || Number(vitals.blood_pressure_systolic) > 250)) {
-      newErrors.blood_pressure_systolic = 'Systolic BP should be between 70-250 mmHg';
-    }
-    if (vitals.blood_pressure_diastolic && (Number(vitals.blood_pressure_diastolic) < 40 || Number(vitals.blood_pressure_diastolic) > 150)) {
-      newErrors.blood_pressure_diastolic = 'Diastolic BP should be between 40-150 mmHg';
-    }
-    if (vitals.heart_rate && (Number(vitals.heart_rate) < 30 || Number(vitals.heart_rate) > 200)) {
-      newErrors.heart_rate = 'Heart rate should be between 30-200 bpm';
-    }
-    if (vitals.oxygen_saturation && (Number(vitals.oxygen_saturation) < 70 || Number(vitals.oxygen_saturation) > 100)) {
-      newErrors.oxygen_saturation = 'O2 saturation should be between 70-100%';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const evaluation = evaluateVitalSigns({
+      temperature: vitals.temperature,
+      temperatureUnit: 'celsius',
+      heartRate: vitals.heart_rate,
+      bloodPressureSystolic: vitals.blood_pressure_systolic,
+      bloodPressureDiastolic: vitals.blood_pressure_diastolic,
+      respiratoryRate: vitals.respiratory_rate,
+      oxygenSaturation: vitals.oxygen_saturation,
+      painScale: vitals.pain_scale,
+      weightKg: vitals.weight,
+      heightCm: vitals.height,
+    });
+
+    setErrors(evaluation.validationErrors);
+    return evaluation.isValid;
   };
 
   const handleVitalChange = (field: keyof VitalsData, value: string) => {
-    setVitals(prev => ({ ...prev, [field]: value === '' ? '' : Number(value) }));
+    setVitals((prev) => ({ ...prev, [field]: value === '' ? '' : Number(value) }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: '' }));
     }
   };
 
@@ -108,7 +110,21 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
   };
 
   const handleSubmit = async () => {
-    if (!validateVitals()) {
+    const evaluation = evaluateVitalSigns({
+      temperature: vitals.temperature,
+      temperatureUnit: 'celsius',
+      heartRate: vitals.heart_rate,
+      bloodPressureSystolic: vitals.blood_pressure_systolic,
+      bloodPressureDiastolic: vitals.blood_pressure_diastolic,
+      respiratoryRate: vitals.respiratory_rate,
+      oxygenSaturation: vitals.oxygen_saturation,
+      painScale: vitals.pain_scale,
+      weightKg: vitals.weight,
+      heightCm: vitals.height,
+    });
+
+    if (!evaluation.isValid) {
+      setErrors(evaluation.validationErrors);
       toast.error('Please correct the highlighted errors');
       return;
     }
@@ -122,7 +138,11 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
     try {
       const payload = {
         ...vitals,
-        bmi: calculateBMI() ? Number(calculateBMI()) : null,
+        temperature_celsius: evaluation.normalized.temperatureCelsius,
+        temperature_fahrenheit: evaluation.normalized.temperatureFahrenheit,
+        news2_score: evaluation.news2.totalScore,
+        news2_risk: evaluation.news2.riskLevel,
+        bmi: evaluation.normalized.bmi ?? (calculateBMI() ? Number(calculateBMI()) : null),
         recorded_at: new Date().toISOString(),
         recorded_by: user?.id,
       };
@@ -172,41 +192,44 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
         if (queueError) throw queueError;
       }
 
-      // Check for critical vital signs and alert if necessary
-      const criticalValues: string[] = [];
-      if (hasValue(vitals.temperature) && Number(vitals.temperature) > 102) criticalValues.push('High fever');
-      if (hasValue(vitals.blood_pressure_systolic) && Number(vitals.blood_pressure_systolic) > 180) criticalValues.push('Severe hypertension');
-      if (hasValue(vitals.heart_rate) && Number(vitals.heart_rate) > 120) criticalValues.push('Tachycardia');
-      if (hasValue(vitals.oxygen_saturation) && Number(vitals.oxygen_saturation) < 90) criticalValues.push('Low oxygen saturation');
-      
-      if (criticalValues.length > 0) {
+      // Check for critical vital signs using standardized NEWS2 evaluation engine
+      if (evaluation.criticalAlert.isCritical) {
         await supabase.from('notifications').insert({
           hospital_id: patient.hospital_id,
           recipient_id: queueEntry.assigned_to ?? queueEntry.assigned_doctor_id,
           type: 'critical_vitals',
-          title: 'CRITICAL: Abnormal Vital Signs',
-          message: `${patient.first_name} ${patient.last_name} has critical vital signs: ${criticalValues.join(', ')}`,
+          title: `CRITICAL: Abnormal Vital Signs (NEWS2: ${evaluation.news2.totalScore})`,
+          message: `${patient.first_name} ${patient.last_name}: ${evaluation.criticalAlert.summary}`,
           priority: 'critical',
           data: {
             patient_id: patient.id,
             queue_entry_id: queueEntry.id,
-            critical_values: criticalValues,
-            vitals,
+            critical_values: evaluation.criticalAlert.criticalFlags,
+            news2: evaluation.news2,
+            vitals: evaluation.normalized,
           },
         });
-        
-        toast.warning('Critical vital signs detected - Doctor has been alerted immediately!');
+
+        toast.warning(
+          `Critical vital signs detected (${evaluation.news2.riskLevel.toUpperCase()} risk) — Doctor alerted immediately!`
+        );
       }
 
       toast.success('Patient prep completed successfully!');
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       queryClient.invalidateQueries({ queryKey: ['patient-prep-checklists'] });
       queryClient.invalidateQueries({ queryKey: ['pending-handovers'] });
+      queryClient.invalidateQueries({ queryKey: ['patients-ready-for-doctor'] });
+      queryClient.invalidateQueries({ queryKey: ['nurse-queue'] });
       onComplete();
       onClose();
     } catch (error: any) {
       console.error('Error completing patient prep:', error);
-      toast.error(error?.message ? `Failed to complete patient prep: ${error.message}` : 'Failed to complete patient prep');
+      toast.error(
+        error?.message
+          ? `Failed to complete patient prep: ${error.message}`
+          : 'Failed to complete patient prep'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -225,7 +248,9 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
                 {patient.first_name} {patient.last_name} • MRN: {patient.mrn}
               </p>
             </div>
-            <Button variant="ghost" onClick={onClose}>×</Button>
+            <Button variant="ghost" onClick={onClose}>
+              ×
+            </Button>
           </div>
         </div>
 
@@ -268,9 +293,7 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
                     onChange={(e) => handleVitalChange('heart_rate', e.target.value)}
                     className={errors.heart_rate ? 'border-red-500' : ''}
                   />
-                  {errors.heart_rate && (
-                    <p className="text-xs text-red-500">{errors.heart_rate}</p>
-                  )}
+                  {errors.heart_rate && <p className="text-xs text-red-500">{errors.heart_rate}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -288,7 +311,9 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
                       type="number"
                       placeholder="Diastolic"
                       value={vitals.blood_pressure_diastolic}
-                      onChange={(e) => handleVitalChange('blood_pressure_diastolic', e.target.value)}
+                      onChange={(e) =>
+                        handleVitalChange('blood_pressure_diastolic', e.target.value)
+                      }
                       className={errors.blood_pressure_diastolic ? 'border-red-500' : ''}
                     />
                   </div>
@@ -420,9 +445,10 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
           </Card>
 
           {/* Critical Values Alert */}
-          {((hasValue(vitals.temperature) && Number(vitals.temperature) > 102) || 
-            (hasValue(vitals.blood_pressure_systolic) && Number(vitals.blood_pressure_systolic) > 180) || 
-            (hasValue(vitals.heart_rate) && Number(vitals.heart_rate) > 120) || 
+          {((hasValue(vitals.temperature) && Number(vitals.temperature) > 102) ||
+            (hasValue(vitals.blood_pressure_systolic) &&
+              Number(vitals.blood_pressure_systolic) > 180) ||
+            (hasValue(vitals.heart_rate) && Number(vitals.heart_rate) > 120) ||
             (hasValue(vitals.oxygen_saturation) && Number(vitals.oxygen_saturation) < 95)) && (
             <Alert className="border-red-500 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -439,8 +465,8 @@ export function PatientPrepModal({ patient, queueEntry, open, onClose, onComplet
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmit} 
+            <Button
+              onClick={handleSubmit}
               disabled={isSubmitting}
               className="bg-success hover:bg-success/90"
             >

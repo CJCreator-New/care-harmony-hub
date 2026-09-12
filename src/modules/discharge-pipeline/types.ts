@@ -6,16 +6,32 @@
  */
 
 export type DischargeWorkflowStep =
-  'doctor' | 'pharmacist' | 'billing' | 'nurse' | 'completed' | 'cancelled';
+  'doctor' | 'pharmacist' | 'billing' | 'nurse' | 'completed' | 'completed_ama' | 'cancelled';
 
-export type DischargeWorkflowStatus = 'draft' | 'in_progress' | 'completed' | 'cancelled';
+export type DischargeWorkflowStatus =
+  'draft' | 'in_progress' | 'completed' | 'completed_ama' | 'cancelled';
 
 export type DischargeWorkflowQueueStep = Extract<
   DischargeWorkflowStep,
   'doctor' | 'pharmacist' | 'billing' | 'nurse'
 >;
+export type DischargeQueueStep = DischargeWorkflowQueueStep;
 
-export type DischargeWorkflowAction = 'initiate' | 'approve' | 'reject' | 'cancel';
+export type DischargeWorkflowAction =
+  'initiate' | 'approve' | 'reject' | 'cancel' | 'discharge_ama';
+
+export type DischargeRejectionType = 'administrative' | 'clinical';
+
+export type InFlightOrderAction = 'cancel' | 'await' | 'outpatient_followup';
+
+export interface InFlightOrderReconciliation {
+  readonly orderId: string;
+  readonly orderType: 'lab' | 'medication';
+  readonly action: InFlightOrderAction;
+  readonly notes?: string;
+}
+
+export type DischargeMedicationFulfillmentType = 'in_house' | 'external';
 
 export interface DischargeActor {
   readonly id: string;
@@ -65,6 +81,7 @@ export interface TransitionStepParams {
   workflowId: string;
   expectedCurrentStep?: DischargeWorkflowStep;
   reason?: string;
+  rejectionType?: DischargeRejectionType;
   metadata?: Record<string, unknown>;
 }
 

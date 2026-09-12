@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { 
-  Users, 
-  Clock, 
-  Search, 
+import {
+  Users,
+  Clock,
+  Search,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -21,22 +21,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PatientPrepModal } from './PatientPrepModal';
 import { format, differenceInMinutes } from 'date-fns';
 
-export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patient: any) => void } = {}) {
+export function NursePatientQueue({
+  onRecordVitals,
+}: { onRecordVitals?: (patient: any) => void } = {}) {
   const { hospital } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   // Fetch patients in queue assigned to nurses
-  const { data: queuePatients = [], isLoading, refetch } = useQuery<any[]>({
+  const {
+    data: queuePatients = [],
+    isLoading,
+    refetch,
+  } = useQuery<any[]>({
     queryKey: ['nurse-queue', hospital?.id],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from('patient_queue') as any)
-        .select(`
+        .select(
+          `
           *,
           patient:patients(*),
           appointment:appointments(*)
-        `)
+        `
+        )
         .eq('hospital_id', hospital?.id)
         .in('status', ['waiting', 'called', 'in_prep'])
         .order('queue_number', { ascending: true });
@@ -45,7 +53,7 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
       return data;
     },
     enabled: !!hospital?.id,
-    refetchInterval: 10000 // Refresh every 10 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
   // Fetch prep status for patients
@@ -62,21 +70,24 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
       return data;
     },
     enabled: !!hospital?.id,
-    refetchInterval: 10000
+    refetchInterval: 10000,
   });
 
   const uniqueQueuePatients = Array.from(
     new Map(queuePatients.map((item: any) => [item.patient_id, item])).values()
   );
 
-  const filteredPatients = uniqueQueuePatients.filter((entry: any) =>
-    entry.patient?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.patient?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.patient?.mrn?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPatients = uniqueQueuePatients.filter(
+    (entry: any) =>
+      entry.patient?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.patient?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.patient?.mrn?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getDisplayQueueNumber = (entry: any, index: number) => {
-    const duplicates = queuePatients.filter((item: any) => item.queue_number === entry.queue_number).length;
+    const duplicates = queuePatients.filter(
+      (item: any) => item.queue_number === entry.queue_number
+    ).length;
     return duplicates > 1 ? index + 1 : entry.queue_number;
   };
 
@@ -94,13 +105,19 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
     const priorityWeights = { emergency: 100, urgent: 50, high: 25, normal: 0 };
     score += priorityWeights[entry.priority] || 0;
 
+    // Infection control isolation boost
+    if (entry.notes?.includes('[ISOLATION REQUIRED]')) {
+      score += 40;
+    }
+
     // Wait time factor (longer wait = higher priority)
     const waitTimeMinutes = getSafeWaitMinutes(entry);
     score += Math.min(waitTimeMinutes * 0.5, 30); // Cap at 30 points
 
     // Age factor (elderly patients get slight boost)
-    const age = entry.patient?.date_of_birth ?
-      new Date().getFullYear() - new Date(entry.patient.date_of_birth).getFullYear() : 0;
+    const age = entry.patient?.date_of_birth
+      ? new Date().getFullYear() - new Date(entry.patient.date_of_birth).getFullYear()
+      : 0;
     if (age > 65) score += 10;
     else if (age > 50) score += 5;
 
@@ -110,18 +127,34 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
       urgent_care: 30,
       follow_up: 10,
       check_up: 5,
-      consultation: 5
+      consultation: 5,
     };
     score += appointmentPriority[entry.appointment?.appointment_type] || 0;
 
     return score;
   };
 
-  // Sort patients by predictive priority
+  // Sort patients by predictive priority with deterministic tie-breakers
   const prioritizedPatients = [...filteredPatients].sort((a: any, b: any) => {
     const scoreA = calculatePriorityScore(a);
     const scoreB = calculatePriorityScore(b);
-    return scoreB - scoreA; // Higher score = higher priority
+    if (scoreB !== scoreA) {
+      return scoreB - scoreA; // Higher score = higher priority
+    }
+    // Tie-breaker 1: Earlier check-in time (FIFO for equal priority)
+    const timeA = a.check_in_time ? new Date(a.check_in_time).getTime() : 0;
+    const timeB = b.check_in_time ? new Date(b.check_in_time).getTime() : 0;
+    if (timeA !== timeB) {
+      return timeA - timeB;
+    }
+    // Tie-breaker 2: Lower queue number
+    const qNumA = Number(a.queue_number) || 0;
+    const qNumB = Number(b.queue_number) || 0;
+    if (qNumA !== qNumB) {
+      return qNumA - qNumB;
+    }
+    // Final tie-breaker: ID
+    return String(a.id).localeCompare(String(b.id));
   });
 
   const isPrepCompleted = (queueId: string) => {
@@ -192,13 +225,28 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
                     <div className="flex items-start justify-between">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-lg">#{getDisplayQueueNumber(entry, index)}</span>
+                          <span className="font-bold text-lg">
+                            #{getDisplayQueueNumber(entry, index)}
+                          </span>
                           <span className="font-medium">
-                            {entry.patient?.first_name || 'Unknown'} {entry.patient?.last_name || 'Patient'}
+                            {entry.patient?.first_name || 'Unknown'}{' '}
+                            {entry.patient?.last_name || 'Patient'}
                           </span>
                           {getStatusBadge(entry)}
                           {getPriorityBadge(entry.priority)}
-                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                          {entry.notes?.includes('[ISOLATION REQUIRED]') && (
+                            <Badge
+                              variant="destructive"
+                              className="bg-red-600 hover:bg-red-700 text-white animate-pulse flex items-center gap-1 font-semibold"
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              ISOLATION REQUIRED
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-purple-50 text-purple-700 border-purple-200"
+                          >
                             <Activity className="h-3 w-3 mr-1" />
                             AI Prioritized
                           </Badge>
@@ -208,11 +256,19 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
                           <span>MRN: {entry.patient?.mrn}</span>
                           <span>
                             {entry.patient?.date_of_birth
-                              ? new Date().getFullYear() - new Date(entry.patient.date_of_birth).getFullYear()
-                              : 'N/A'} yrs
+                              ? new Date().getFullYear() -
+                                new Date(entry.patient.date_of_birth).getFullYear()
+                              : 'N/A'}{' '}
+                            yrs
                           </span>
                           <span className="capitalize">{entry.patient?.gender}</span>
                         </div>
+
+                        {entry.notes && (
+                          <div className="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-xs font-medium text-amber-800 dark:text-amber-300">
+                            {entry.notes}
+                          </div>
+                        )}
 
                         {entry.appointment?.reason_for_visit && (
                           <p className="text-sm text-muted-foreground">
@@ -255,10 +311,7 @@ export function NursePatientQueue({ onRecordVitals }: { onRecordVitals?: (patien
                             Completed
                           </Button>
                         ) : (
-                          <Button
-                            onClick={() => setSelectedPatient(entry)}
-                            className="bg-primary"
-                          >
+                          <Button onClick={() => setSelectedPatient(entry)} className="bg-primary">
                             <Activity className="mr-2 h-4 w-4" />
                             Start Prep
                           </Button>

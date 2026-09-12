@@ -10,6 +10,8 @@ import { Breadcrumb } from '@/components/navigation/Breadcrumb';
 import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
 import { SkipNavigation } from '@/components/accessibility/SkipNavigation';
 import { ConnectionStatusBanner } from '@/components/admin/ConnectionStatusBanner';
+import { CriticalLabAlertBanner } from '@/components/labs/CriticalLabAlertBanner';
+import { useCriticalLabAlerts } from '@/hooks/useCriticalLabAlerts';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +74,11 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+    try {
+      return localStorage.getItem('sidebar-collapsed') === 'true';
+    } catch {
+      return false;
+    }
   });
   const [searchOpen, setSearchOpen] = useState(false);
   const { profile, hospital, primaryRole, roles, user, logout } = useAuth();
@@ -82,6 +88,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   usePageTitle();
   const navigate = useNavigate();
   const location = useLocation();
+  const {
+    alerts: criticalLabAlerts,
+    isLoading: criticalLabsLoading,
+    acknowledgeAlert,
+    resolveAlert,
+  } = useCriticalLabAlerts();
 
   const persistedTestRole = getDevTestRole(roles);
 
@@ -130,8 +142,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           p_user_id: user.id,
           p_event_type: 'role_switch',
           p_user_agent: navigator.userAgent,
-          p_details: { from: activeRole, to: role, dev_override: true, source: 'dev_role_switcher' },
-          p_severity: 'info'
+          p_details: {
+            from: activeRole,
+            to: role,
+            dev_override: true,
+            source: 'dev_role_switcher',
+          },
+          p_severity: 'info',
         });
       }
       window.location.reload();
@@ -153,8 +170,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           p_user_id: user.id,
           p_event_type: 'role_switch',
           p_user_agent: navigator.userAgent,
-          p_details: { from: fromRole, to: toRole, dev_override: true, action: 'reset', source: 'dev_role_switcher' },
-          p_severity: 'info'
+          p_details: {
+            from: fromRole,
+            to: toRole,
+            dev_override: true,
+            action: 'reset',
+            source: 'dev_role_switcher',
+          },
+          p_severity: 'info',
         });
       } catch (error) {
         console.error('Error logging dev role reset:', error);
@@ -185,15 +208,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out lg:translate-x-0 overflow-hidden",
-          sidebarCollapsed ? "w-16" : "w-64",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          'fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out lg:translate-x-0 overflow-hidden',
+          sidebarCollapsed ? 'w-16' : 'w-64',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         aria-label="Main navigation"
-        aria-hidden={!sidebarOpen && typeof window !== 'undefined' && window.innerWidth < 1024 ? 'true' : undefined}
+        aria-hidden={
+          !sidebarOpen && typeof window !== 'undefined' && window.innerWidth < 1024
+            ? 'true'
+            : undefined
+        }
       >
         {/* Ambient vertical accent line — right edge glow */}
-        <div className="absolute top-0 right-0 w-px h-full bg-gradient-to-b from-transparent via-primary/30 to-transparent pointer-events-none" aria-hidden="true" />
+        <div
+          className="absolute top-0 right-0 w-px h-full bg-gradient-to-b from-transparent via-primary/30 to-transparent pointer-events-none"
+          aria-hidden="true"
+        />
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-2 px-3 h-16 border-b border-sidebar-border">
@@ -214,14 +244,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={(e) => {
                 const next = !sidebarCollapsed;
                 setSidebarCollapsed(next);
-                try { localStorage.setItem('sidebar-collapsed', String(next)); } catch { /* ignore localStorage error */ }
+                try {
+                  localStorage.setItem('sidebar-collapsed', String(next));
+                } catch {
+                  /* ignore localStorage error */
+                }
                 // BUG-24: Blur the button after collapse so focus doesn't accidentally
                 // remain on it — preventing scroll/keyboard events from re-triggering shortcuts.
                 (e.currentTarget as HTMLButtonElement).blur();
               }}
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <ChevronLeft className={cn("w-4 h-4 transition-transform duration-300", sidebarCollapsed && "rotate-180")} />
+              <ChevronLeft
+                className={cn(
+                  'w-4 h-4 transition-transform duration-300',
+                  sidebarCollapsed && 'rotate-180'
+                )}
+              />
             </button>
             {/* Mobile close */}
             <button
@@ -234,12 +273,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className={cn("flex-1 overflow-y-auto py-4", sidebarCollapsed ? "px-2" : "px-3")}>
-              <GroupedSidebar
-                userRole={activeRole}
-                testRole={persistedTestRole}
-                collapsed={sidebarCollapsed}
-              />
+          <nav className={cn('flex-1 overflow-y-auto py-4', sidebarCollapsed ? 'px-2' : 'px-3')}>
+            <GroupedSidebar
+              userRole={activeRole}
+              testRole={persistedTestRole}
+              collapsed={sidebarCollapsed}
+            />
           </nav>
 
           {/* User card */}
@@ -265,9 +304,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <p className="text-sm font-semibold text-sidebar-accent-foreground truncate">
                     {profile?.first_name} {profile?.last_name}
                   </p>
-                  <p className="text-xs text-sidebar-foreground/60 truncate">
-                    {hospital?.name}
-                  </p>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">{hospital?.name}</p>
                   {activeRole && (
                     <span className="inline-flex items-center rounded-full px-2 py-0.5 mt-1 text-[10px] font-semibold bg-sidebar-primary/20 text-sidebar-primary-foreground">
                       {getRoleLabel(activeRole)}
@@ -281,27 +318,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Realtime Connection Status Banner */}
-      <ConnectionStatusBanner 
-        logToDatabase={true}
-        showOnlyWhenDisconnected={true}
-        position="top"
-      />
+      <ConnectionStatusBanner logToDatabase={true} showOnlyWhenDisconnected={true} position="top" />
 
       {/* Main content */}
       {/* BUG-37: Use transition-[padding-left] instead of transition-all to avoid creating a GPU
            compositing layer that can trap position:fixed overlay children (dialog backdrops). */}
-      <div className={cn("transition-[padding-left] duration-300 min-h-screen", sidebarCollapsed ? "lg:pl-16" : "lg:pl-64")}>
+      <div
+        className={cn(
+          'transition-[padding-left] duration-300 min-h-screen',
+          sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
+        )}
+      >
         {/* Header */}
         <header className="sticky top-0 z-30 h-16 bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">
             <div className="flex items-center gap-4">
-            <button
-              className="lg:hidden p-2 rounded-lg hover:bg-accent"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open navigation menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+              <button
+                className="lg:hidden p-2 rounded-lg hover:bg-accent"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open navigation menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
 
               {/* Mobile search icon — visible only on small screens */}
               <button
@@ -311,7 +349,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <Search className="w-5 h-5 text-muted-foreground" />
               </button>
-              
+
               {/* Search — full bar visible on md+ */}
               <button
                 onClick={() => setSearchOpen(true)}
@@ -341,8 +379,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <NotificationsSystem />
 
               {/* Logout Button */}
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={handleLogout}
                 className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-destructive min-h-[48px]"
@@ -373,7 +411,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{profile?.first_name} {profile?.last_name}</p>
+                      <p className="text-sm font-medium">
+                        {profile?.first_name} {profile?.last_name}
+                      </p>
                       <p className="text-xs text-muted-foreground">{profile?.email}</p>
                       {activeRole && (
                         <Badge variant={roleColors[activeRole] as any} className="w-fit mt-1">
@@ -390,7 +430,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-destructive focus:text-destructive"
+                  >
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -400,8 +443,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
+        {/* CLIN-002: Critical Lab Alert Banner for clinical roles */}
+        {!criticalLabsLoading && criticalLabAlerts.length > 0 && (
+          <div className="px-4 lg:px-6 pt-2 space-y-2">
+            {criticalLabAlerts.map((alert) => (
+              <CriticalLabAlertBanner
+                key={alert.id}
+                alert={alert}
+                onAcknowledge={(notes) => acknowledgeAlert(alert.id, notes)}
+                onResolve={(notes) => resolveAlert(alert.id, notes)}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Page content */}
-        <main id="main-content" className={cn("p-4 lg:p-6", import.meta.env.DEV && "pb-24")} role="main">
+        <main
+          id="main-content"
+          className={cn('p-4 lg:p-6', import.meta.env.DEV && 'pb-24')}
+          role="main"
+        >
           <div className="mb-4">
             <Breadcrumb />
           </div>

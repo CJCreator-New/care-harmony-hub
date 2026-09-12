@@ -47,11 +47,13 @@ export function useQueue(status?: QueueStatus[]) {
 
       let query = supabase
         .from('patient_queue')
-        .select(`
+        .select(
+          `
           *,
           patient:patients(id, first_name, last_name, mrn),
           assigned_staff:profiles!patient_queue_assigned_to_fkey(id, first_name, last_name)
-        `)
+        `
+        )
         .eq('hospital_id', hospital.id)
         .order('priority', { ascending: false })
         .order('queue_number', { ascending: true });
@@ -86,11 +88,18 @@ export function useAddToQueue() {
   const { hospital, user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ patientId, appointmentId, priority = 'normal', department }: {
+    mutationFn: async ({
+      patientId,
+      appointmentId,
+      priority = 'normal',
+      department,
+      notes,
+    }: {
       patientId: string;
       appointmentId?: string;
       priority?: PriorityLevel;
       department?: string;
+      notes?: string;
     }) => {
       if (!hospital?.id) throw new Error('No hospital context');
 
@@ -112,8 +121,9 @@ export function useAddToQueue() {
       }
 
       // Get next queue number
-      const { data: queueNumber, error: queueError } = await supabase
-        .rpc('get_next_queue_number', { p_hospital_id: hospital.id });
+      const { data: queueNumber, error: queueError } = await supabase.rpc('get_next_queue_number', {
+        p_hospital_id: hospital.id,
+      });
 
       if (queueError) throw queueError;
 
@@ -126,6 +136,7 @@ export function useAddToQueue() {
           queue_number: queueNumber,
           priority: priority,
           department: department,
+          notes: notes ?? null,
           status: 'waiting',
         })
         .select()
@@ -234,7 +245,7 @@ export function useCompleteService() {
         .select('appointment_id')
         .eq('id', queueEntryId)
         .single();
-        
+
       if (queueEntry?.appointment_id) {
         await supabase
           .from('appointments')

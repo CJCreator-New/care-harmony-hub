@@ -9,6 +9,7 @@ import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkfl
 import { useAudit } from '@/hooks/useAudit';
 import { fieldEncryption } from '@/utils/dataProtection';
 import { hasPermission } from '@/lib/permissions';
+import { createPrescriptionDispensingEngine } from '@/modules/prescription-dispensing';
 
 export interface Prescription {
   id: string;
@@ -58,7 +59,9 @@ const isMissingPrescriptionQueueSchemaError = (error: { message?: string } | nul
     /relation ["']?public\.prescription_queue["']? does not exist/i.test(error.message) ||
     /relation ["']?prescription_queue["']? does not exist/i.test(error.message) ||
     /column .* of relation ["']?prescription_queue["']? does not exist/i.test(error.message) ||
-    /could not find the '([a-zA-Z0-9_]+)' column of 'prescription_queue' in the schema cache/i.test(error.message)
+    /could not find the '([a-zA-Z0-9_]+)' column of 'prescription_queue' in the schema cache/i.test(
+      error.message
+    )
   );
 };
 
@@ -67,12 +70,18 @@ async function decryptPrescriptionItems(prescription: any): Promise<any> {
   if (!prescription.items?.length) return prescription;
   const decryptedItems = await Promise.all(
     prescription.items.map(async (item: any) => {
-      if (!item.encryption_metadata || Object.keys(item.encryption_metadata).length === 0) return item;
+      if (!item.encryption_metadata || Object.keys(item.encryption_metadata).length === 0)
+        return item;
       const decrypted = { ...item };
-      for (const [field, encData] of Object.entries(item.encryption_metadata as Record<string, any>)) {
+      for (const [field, encData] of Object.entries(
+        item.encryption_metadata as Record<string, any>
+      )) {
         if (typeof decrypted[field] === 'string' && decrypted[field].startsWith('__ENCRYPTED__')) {
-          try { decrypted[field] = await fieldEncryption.decryptField(encData); }
-          catch { decrypted[field] = '[Encrypted]'; }
+          try {
+            decrypted[field] = await fieldEncryption.decryptField(encData);
+          } catch {
+            decrypted[field] = '[Encrypted]';
+          }
         }
       }
       return decrypted;
@@ -91,12 +100,14 @@ export function usePrescriptions(status?: string) {
 
       let query = supabase
         .from('prescriptions')
-        .select(`
+        .select(
+          `
           *,
           patient:patients(id, first_name, last_name, mrn, user_id),
           prescriber:profiles!prescriptions_prescribed_by_fkey(id, first_name, last_name),
           items:prescription_items(*)
-        `)
+        `
+        )
         .eq('hospital_id', hospital.id)
         .order('created_at', { ascending: false })
         .limit(100); // Prevent unbounded queries
@@ -194,103 +205,124 @@ export function useCreatePrescription() {
           }
           if (!hospital?.id || !profile?.id) throw new Error('No hospital/profile context');
 
-      // Create prescription
-      const { data: prescription, error: rxError } = await supabase
-        .from('prescriptions')
-        .insert({
-          hospital_id: hospital.id,
-          patient_id: patientId,
-          consultation_id: consultationId,
-          prescribed_by: profile.id,
-          notes,
-          status: 'pending',
-        })
-        .select()
-        .single();
+          // Create prescription
+          const { data: prescription, error: rxError } = await supabase
+            .from('prescriptions')
+            .insert({
+              hospital_id: hospital.id,
+              patient_id: patientId,
+              consultation_id: consultationId,
+              prescribed_by: profile.id,
+              notes,
+              status: 'pending',
+            })
+            .select()
+            .single();
 
           if (rxError) throw rxError;
 
           // F2.4 — HIPAA §164.312(e)(2)(ii): encrypt PHI fields in prescription items
           const encryptedItems = await Promise.all(
-        items.map(async (item) => {
-          const itemEncMeta: Record<string, any> = {};
-          const encItem: any = { ...item };
-          for (const field of ['medication_name', 'dosage', 'instructions'] as const) {
-            if (encItem[field]) {
-              const enc = await fieldEncryption.encryptField(String(encItem[field]));
-              itemEncMeta[field] = enc;
-              encItem[field] = '__ENCRYPTED__' + enc.keyVersion;
-            }
-          }
-          if (Object.keys(itemEncMeta).length > 0) encItem.encryption_metadata = itemEncMeta;
-          return encItem;
-        })
-      );
+            items.map(async (item) => {
+              const itemEncMeta: Record<string, any> = {};
+              const encItem: any = { ...item };
+              for (const field of ['medication_name', 'dosage', 'instructions'] as const) {
+                if (encItem[field]) {
+                  const enc = await fieldEncryption.encryptField(String(encItem[field]));
+                  itemEncMeta[field] = enc;
+                  encItem[field] = '__ENCRYPTED__' + enc.keyVersion;
+                }
+              }
+              if (Object.keys(itemEncMeta).length > 0) encItem.encryption_metadata = itemEncMeta;
+              return encItem;
+            })
+          );
 
-      // Add prescription items
-      const { error: itemsError } = await supabase
-        .from('prescription_items')
-        .insert(
-          encryptedItems.map((item) => ({
-            prescription_id: prescription.id,
-            medication_name: item.medication_name,
-            dosage: item.dosage,
-            frequency: item.frequency,
-            duration: item.duration,
-            quantity: item.quantity,
-            instructions: item.instructions,
-            ...(item.encryption_metadata ? { encryption_metadata: item.encryption_metadata } : {}),
-          }))
-        );
-
-      if (itemsError) throw itemsError;
-
-      // Add a durable queue entry for pharmacy fulfillment
-      const { error: queueError } = await supabase
-        .from('prescription_queue')
-        .insert({
-          hospital_id: hospital.id,
-          prescription_id: prescription.id,
-          patient_id: patientId,
-          status: 'queued',
-          metadata: { item_count: items.length }
-        });
-
-      if (queueError) {
-        if (!isMissingPrescriptionQueueSchemaError(queueError)) {
-          throw queueError;
-        }
-
-        const { error: fallbackTaskError } = await supabase
-          .from('workflow_tasks')
-          .insert({
-            hospital_id: hospital.id,
-            patient_id: patientId,
-            title: 'Manual pharmacy queue follow-up required',
-            description: 'prescription_queue was unavailable when this prescription was created. Review and route manually.',
-            assigned_to: profile.id,
-            priority: 'high',
-            status: 'pending',
-            workflow_type: 'medication',
-            metadata: {
-              degraded_queue: 'prescription_queue',
+          // Add prescription items
+          const { error: itemsError } = await supabase.from('prescription_items').insert(
+            encryptedItems.map((item) => ({
               prescription_id: prescription.id,
-              item_count: items.length,
-              original_error: queueError.message,
-            },
+              medication_name: item.medication_name,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              quantity: item.quantity,
+              instructions: item.instructions,
+              ...(item.encryption_metadata
+                ? { encryption_metadata: item.encryption_metadata }
+                : {}),
+            }))
+          );
+
+          if (itemsError) throw itemsError;
+
+          // Add a durable queue entry for pharmacy fulfillment
+          const { error: queueError } = await supabase.from('prescription_queue').insert({
+            hospital_id: hospital.id,
+            prescription_id: prescription.id,
+            patient_id: patientId,
+            status: 'queued',
+            metadata: { item_count: items.length },
           });
 
-        if (fallbackTaskError) {
-          throw fallbackTaskError;
-        }
+          if (queueError) {
+            if (!isMissingPrescriptionQueueSchemaError(queueError)) {
+              throw queueError;
+            }
 
-        console.warn('prescription_queue unavailable; prescription created without durable queue entry', {
-          prescriptionId: prescription.id,
-          error: queueError.message,
-        });
-      }
+            const { error: fallbackTaskError } = await supabase.from('workflow_tasks').insert({
+              hospital_id: hospital.id,
+              patient_id: patientId,
+              title: 'Manual pharmacy queue follow-up required',
+              description:
+                'prescription_queue was unavailable when this prescription was created. Review and route manually.',
+              assigned_to: profile.id,
+              priority: 'high',
+              status: 'pending',
+              workflow_type: 'medication',
+              metadata: {
+                degraded_queue: 'prescription_queue',
+                prescription_id: prescription.id,
+                item_count: items.length,
+                original_error: queueError.message,
+              },
+            });
 
-      return prescription;
+            if (fallbackTaskError) {
+              throw fallbackTaskError;
+            }
+
+            console.warn(
+              'prescription_queue unavailable; prescription created without durable queue entry',
+              {
+                prescriptionId: prescription.id,
+                error: queueError.message,
+              }
+            );
+          }
+
+          // CLIN-001: Initiate ADR-0004 approval workflow so the prescription
+          // enters the pharmacist review pipeline instead of being directly dispensable.
+          try {
+            const engine = createPrescriptionDispensingEngine();
+            await engine.initiate(
+              { id: profile.id, hospitalId: hospital.id, role: primaryRole || 'doctor' },
+              {
+                prescriptionId: prescription.id,
+                patientId: patientId,
+                metadata: { consultationId: consultationId ?? null },
+              }
+            );
+          } catch (workflowErr) {
+            // Graceful degradation: prescription is still usable even if
+            // approval workflow creation fails.  Log and continue.
+            console.warn(
+              '[useCreatePrescription] Failed to initiate approval workflow:',
+              workflowErr
+            );
+          }
+
+          return prescription;
         }
       );
     },
@@ -350,6 +382,63 @@ export function usePrescriptionsRealtime() {
   }, [hospital?.id, queryClient]);
 }
 
+export function useApprovePrescription() {
+  const queryClient = useQueryClient();
+  const { profile, hospital, primaryRole } = useAuth();
+  const { logActivity } = useAudit();
+
+  return useMutation({
+    mutationFn: async ({ prescriptionId, notes }: { prescriptionId: string; notes?: string }) => {
+      if (!hasPermission(primaryRole, 'prescriptions:write')) {
+        throw new Error('You do not have permission to approve prescriptions');
+      }
+      if (!profile?.id || !hospital?.id) throw new Error('No profile/hospital context');
+
+      // Advance approval workflow if one exists
+      try {
+        const engine = createPrescriptionDispensingEngine();
+        const workflow = await engine.getWorkflowByPrescriptionId(prescriptionId);
+        if (workflow) {
+          await engine.approve(
+            { id: profile.id, hospitalId: hospital.id, role: primaryRole || 'pharmacist' },
+            { workflowId: workflow.id, notes }
+          );
+        }
+      } catch (err) {
+        console.warn('[useApprovePrescription] Workflow advance failed:', err);
+      }
+
+      // Update prescription status to 'verified'
+      const { error } = await supabase
+        .from('prescriptions')
+        .update({
+          status: 'verified',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', prescriptionId);
+
+      if (error) throw error;
+
+      return { id: prescriptionId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['prescription-stats'] });
+      toast.success('Prescription verified and approved for dispensing');
+      void logActivity({
+        actionType: 'PRESCRIPTION_APPROVED',
+        entityType: 'prescriptions',
+        entityId: data.id,
+        details: { approved_by: profile?.id },
+        severity: 'info',
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to approve prescription: ${error.message}`);
+    },
+  });
+}
+
 export function useDispensePrescription() {
   const queryClient = useQueryClient();
   const { profile, hospital, primaryRole } = useAuth();
@@ -392,6 +481,20 @@ export function useDispensePrescription() {
         .eq('prescription_id', prescriptionId);
 
       if (queueError) throw queueError;
+
+      // CLIN-001 / ADR-0004: Keep approval workflow synchronized with dispense lifecycle
+      try {
+        const engine = createPrescriptionDispensingEngine();
+        const workflow = await engine.getWorkflowByPrescriptionId(prescriptionId);
+        if (workflow) {
+          await engine.dispense(
+            { id: profile.id, hospitalId: hospital.id, role: primaryRole || 'pharmacist' },
+            { workflowId: workflow.id }
+          );
+        }
+      } catch (err) {
+        console.warn('[useDispensePrescription] Workflow advance bypassed:', err);
+      }
 
       return { id: prescriptionId };
     },

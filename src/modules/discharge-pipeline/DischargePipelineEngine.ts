@@ -185,6 +185,7 @@ export class DischargePipelineEngine {
     const validation = validateStepTransition(workflow, actor, 'reject', {
       expectedCurrentStep: params.expectedCurrentStep,
       reason: params.reason,
+      rejectionType: params.rejectionType,
     });
 
     if (!validation.valid || !validation.nextStep || !validation.nextStatus) {
@@ -200,7 +201,11 @@ export class DischargePipelineEngine {
       last_action_by: actor.id,
       last_action_at: now,
       rejection_reason: params.reason.trim(),
-      metadata: { ...workflow.metadata, ...(params.metadata ?? {}) },
+      metadata: {
+        ...workflow.metadata,
+        ...(params.metadata ?? {}),
+        ...(params.rejectionType ? { rejectionType: params.rejectionType } : {}),
+      },
       updated_at: now,
     };
 
@@ -216,7 +221,87 @@ export class DischargePipelineEngine {
       from_step: previousStep,
       to_step: validation.nextStep,
       reason: params.reason.trim(),
-      metadata: params.metadata ?? {},
+      metadata: {
+        ...(params.metadata ?? {}),
+        ...(params.rejectionType ? { rejectionType: params.rejectionType } : {}),
+      },
+    });
+
+    if (this.deps.notifier) {
+      await this.deps.notifier.notifyTransition(
+        saved.hospital_id,
+        saved,
+        previousStep,
+        validation.nextStep
+      );
+    }
+
+    return {
+      success: true,
+      workflow: saved,
+      previousStep,
+      nextStep: validation.nextStep,
+    };
+  }
+
+  /**
+   * Fast-tracks a discharge Against Medical Advice (AMA).
+   * Authorized for attending physicians and administrators.
+   * Requires clinical rationale (>= 5 chars) and signed waiver metadata.
+   */
+  async dischargeAMA(
+    actor: DischargeActor,
+    params: Required<Pick<TransitionStepParams, 'reason'>> & TransitionStepParams
+  ): Promise<DischargeTransitionResult> {
+    const workflow = await this.deps.repo.getById(params.workflowId);
+    if (!workflow) {
+      return { success: false, error: `Discharge workflow not found: ${params.workflowId}` };
+    }
+
+    const validation = validateStepTransition(workflow, actor, 'discharge_ama', {
+      expectedCurrentStep: params.expectedCurrentStep,
+      reason: params.reason,
+    });
+
+    if (!validation.valid || !validation.nextStep || !validation.nextStatus) {
+      return { success: false, error: validation.error ?? 'AMA discharge validation failed' };
+    }
+
+    const now = new Date().toISOString();
+    const previousStep = workflow.current_step;
+    const amaWorkflow: DischargeWorkflow = {
+      ...workflow,
+      current_step: validation.nextStep,
+      status: validation.nextStatus,
+      last_action_by: actor.id,
+      last_action_at: now,
+      rejection_reason: params.reason.trim(),
+      metadata: {
+        ...workflow.metadata,
+        ...(params.metadata ?? {}),
+        discharge_type: 'ama',
+        ama_rationale: params.reason.trim(),
+        ama_timestamp: now,
+      },
+      updated_at: now,
+    };
+
+    const saved = await this.deps.repo.save(amaWorkflow);
+
+    await this.deps.auditLogger.logTransition({
+      workflow_id: saved.id,
+      hospital_id: saved.hospital_id,
+      patient_id: saved.patient_id,
+      actor_id: actor.id,
+      actor_role: actor.role,
+      transition_action: 'discharge_ama',
+      from_step: previousStep,
+      to_step: validation.nextStep,
+      reason: params.reason.trim(),
+      metadata: {
+        ...(params.metadata ?? {}),
+        discharge_type: 'ama',
+      },
     });
 
     if (this.deps.notifier) {

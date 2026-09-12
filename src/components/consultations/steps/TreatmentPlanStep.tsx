@@ -1,18 +1,31 @@
-import { useState, useMemo } from "react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plus, X, Pill, FlaskConical, UserPlus, Send, CheckCircle2, AlertTriangle, Brain, ThumbsUp, ThumbsDown, Zap } from "lucide-react";
-import { useCreateLabOrder } from "@/hooks/useLabOrders";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { checkPrescriptionSafety } from "@/hooks/usePrescriptionSafety";
-import { PrescriptionSafetyAlerts } from "@/components/prescriptions/PrescriptionSafetyAlerts";
-import { useAIClinicalSuggestions } from "@/hooks/useAIClinicalSuggestions";
-import { useAIClinicalSupport } from "@/hooks/useAIClinicalSupport";
+import { useState, useMemo } from 'react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Plus,
+  X,
+  Pill,
+  FlaskConical,
+  UserPlus,
+  Send,
+  CheckCircle2,
+  AlertTriangle,
+  Brain,
+  ThumbsUp,
+  ThumbsDown,
+  Zap,
+} from 'lucide-react';
+import { useCreateLabOrder } from '@/hooks/useLabOrders';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { checkPrescriptionSafety } from '@/hooks/usePrescriptionSafety';
+import { PrescriptionSafetyAlerts } from '@/components/prescriptions/PrescriptionSafetyAlerts';
+import { useAIClinicalSuggestions } from '@/hooks/useAIClinicalSuggestions';
+import { useAIClinicalSupport } from '@/hooks/useAIClinicalSupport';
 
 interface TreatmentPlanStepProps {
   data: Record<string, any>;
@@ -45,10 +58,10 @@ interface Referral {
   urgency: string;
 }
 
-export function TreatmentPlanStep({ 
-  data, 
-  onUpdate, 
-  patientId, 
+export function TreatmentPlanStep({
+  data,
+  onUpdate,
+  patientId,
   consultationId,
   patientAllergies = [],
   patientMedications = [],
@@ -62,21 +75,21 @@ export function TreatmentPlanStep({
   const [isGeneratingInteractions, setIsGeneratingInteractions] = useState(false);
 
   const [newPrescription, setNewPrescription] = useState<Prescription>({
-    medication_name: "",
-    dosage: "",
-    frequency: "",
-    duration: "",
-    instructions: "",
+    medication_name: '',
+    dosage: '',
+    frequency: '',
+    duration: '',
+    instructions: '',
   });
   const [newLabOrder, setNewLabOrder] = useState<Omit<LabOrder, 'isSubmitted' | 'labOrderId'>>({
-    test: "",
-    priority: "routine",
-    notes: "",
+    test: '',
+    priority: 'routine',
+    notes: '',
   });
   const [newReferral, setNewReferral] = useState<Referral>({
-    specialty: "",
-    reason: "",
-    urgency: "routine",
+    specialty: '',
+    reason: '',
+    urgency: 'routine',
   });
 
   const prescriptions = data.prescriptions || [];
@@ -87,8 +100,10 @@ export function TreatmentPlanStep({
   const safetyAlerts = useMemo(() => {
     const allAllergyAlerts: any[] = [];
     const allDrugInteractions: any[] = [];
-    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication_name));
-    
+    const currentMeds = patientMedications.concat(
+      prescriptions.map((p: Prescription) => p.medication_name)
+    );
+
     for (const rx of prescriptions) {
       const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
       const safety = checkPrescriptionSafety(rx.medication_name, patientAllergies, otherMeds);
@@ -96,55 +111,62 @@ export function TreatmentPlanStep({
       allDrugInteractions.push(...safety.drugInteractions);
     }
 
+    const hasContraindicated =
+      allDrugInteractions.some((d) => d.severity === 'contraindicated') ||
+      allAllergyAlerts.some((a) => a.severity === 'critical');
+
     return {
       allergyAlerts: allAllergyAlerts,
       drugInteractions: allDrugInteractions,
       hasWarnings: allAllergyAlerts.length > 0 || allDrugInteractions.length > 0,
+      hasContraindicated,
     };
   }, [prescriptions, patientAllergies, patientMedications]);
 
   // Check new prescription before adding
   const newPrescriptionSafety = useMemo(() => {
     if (!newPrescription.medication_name.trim()) return null;
-    const currentMeds = patientMedications.concat(prescriptions.map((p: Prescription) => p.medication_name));
+    const currentMeds = patientMedications.concat(
+      prescriptions.map((p: Prescription) => p.medication_name)
+    );
     return checkPrescriptionSafety(newPrescription.medication_name, patientAllergies, currentMeds);
   }, [newPrescription.medication_name, prescriptions, patientAllergies, patientMedications]);
 
   const addPrescription = () => {
     if (newPrescription.medication_name.trim()) {
-      onUpdate("prescriptions", [...prescriptions, { ...newPrescription }]);
+      onUpdate('prescriptions', [...prescriptions, { ...newPrescription }]);
       setNewPrescription({
-        medication_name: "",
-        dosage: "",
-        frequency: "",
-        duration: "",
-        instructions: "",
+        medication_name: '',
+        dosage: '',
+        frequency: '',
+        duration: '',
+        instructions: '',
       });
     }
   };
 
   const removePrescription = (index: number) => {
     onUpdate(
-      "prescriptions",
+      'prescriptions',
       prescriptions.filter((_: Prescription, i: number) => i !== index)
     );
   };
 
   const addLabOrder = () => {
     if (newLabOrder.test.trim()) {
-      onUpdate("lab_orders", [...labOrders, { ...newLabOrder, isSubmitted: false }]);
-      setNewLabOrder({ test: "", priority: "routine", notes: "" });
+      onUpdate('lab_orders', [...labOrders, { ...newLabOrder, isSubmitted: false }]);
+      setNewLabOrder({ test: '', priority: 'routine', notes: '' });
     }
   };
 
   const removeLabOrder = (index: number) => {
     const order = labOrders[index];
     if (order.isSubmitted) {
-      toast.error("Cannot remove a submitted lab order");
+      toast.error('Cannot remove a submitted lab order');
       return;
     }
     onUpdate(
-      "lab_orders",
+      'lab_orders',
       labOrders.filter((_: LabOrder, i: number) => i !== index)
     );
   };
@@ -152,7 +174,7 @@ export function TreatmentPlanStep({
   const submitLabOrder = async (index: number) => {
     const order = labOrders[index];
     if (!patientId || !profile?.id) {
-      toast.error("Missing patient or profile information");
+      toast.error('Missing patient or profile information');
       return;
     }
 
@@ -163,15 +185,20 @@ export function TreatmentPlanStep({
         consultation_id: consultationId,
         test_name: order.test,
         ordered_by: profile.id,
-        priority: order.priority === 'stat' ? 'emergency' : order.priority === 'urgent' ? 'urgent' : 'normal',
+        priority:
+          order.priority === 'stat'
+            ? 'emergency'
+            : order.priority === 'urgent'
+              ? 'urgent'
+              : 'normal',
         status: 'pending',
       });
 
       // Update the local state to mark as submitted
       const updatedOrders = [...labOrders];
       updatedOrders[index] = { ...order, isSubmitted: true, labOrderId: result.id };
-      onUpdate("lab_orders", updatedOrders);
-      
+      onUpdate('lab_orders', updatedOrders);
+
       toast.success(`Lab order for "${order.test}" submitted to laboratory`);
     } catch (error) {
       // Error is handled by the mutation
@@ -179,9 +206,9 @@ export function TreatmentPlanStep({
   };
 
   const submitAllLabOrders = async () => {
-    const unsubmittedOrders = labOrders.filter(o => !o.isSubmitted);
+    const unsubmittedOrders = labOrders.filter((o) => !o.isSubmitted);
     if (unsubmittedOrders.length === 0) {
-      toast.info("All lab orders have already been submitted");
+      toast.info('All lab orders have already been submitted');
       return;
     }
 
@@ -194,14 +221,14 @@ export function TreatmentPlanStep({
 
   const addReferral = () => {
     if (newReferral.specialty.trim()) {
-      onUpdate("referrals", [...referrals, { ...newReferral }]);
-      setNewReferral({ specialty: "", reason: "", urgency: "routine" });
+      onUpdate('referrals', [...referrals, { ...newReferral }]);
+      setNewReferral({ specialty: '', reason: '', urgency: 'routine' });
     }
   };
 
   const removeReferral = (index: number) => {
     onUpdate(
-      "referrals",
+      'referrals',
       referrals.filter((_: Referral, i: number) => i !== index)
     );
   };
@@ -209,7 +236,7 @@ export function TreatmentPlanStep({
   // AI-powered drug interaction predictions
   const handleGenerateDrugInteractions = async () => {
     if (!patientId) {
-      toast.error("Patient information required for drug interaction analysis");
+      toast.error('Patient information required for drug interaction analysis');
       return;
     }
 
@@ -219,37 +246,72 @@ export function TreatmentPlanStep({
       const allMedications = [
         ...patientMedications,
         ...prescriptions.map((p: Prescription) => p.medication_name),
-        ...(newPrescription.medication_name ? [newPrescription.medication_name] : [])
+        ...(newPrescription.medication_name ? [newPrescription.medication_name] : []),
       ].filter(Boolean);
 
       if (allMedications.length < 2) {
-        toast.info("At least 2 medications needed for interaction analysis");
+        toast.info('At least 2 medications needed for interaction analysis');
         setIsGeneratingInteractions(false);
         return;
       }
 
       // Use AI support for drug interaction analysis
       const result = await aiSupport.checkDrugInteractions(allMedications);
-      
+
       // Generate comprehensive predictions based on medication combinations
       const predictions = [];
-      
+
       // Check for common dangerous combinations
       const dangerousCombos = [
-        { drugs: ['warfarin', 'aspirin'], severity: 'critical', message: 'Warfarin + Aspirin: Significantly increased bleeding risk', recommendation: 'Monitor INR closely, consider alternative pain management' },
-        { drugs: ['warfarin', 'heparin'], severity: 'critical', message: 'Warfarin + Heparin: Excessive anticoagulation risk', recommendation: 'Monitor coagulation studies frequently' },
-        { drugs: ['ace_inhibitor', 'potassium'], severity: 'high', message: 'ACE Inhibitor + Potassium: Hyperkalemia risk', recommendation: 'Monitor potassium levels, consider dose adjustment' },
-        { drugs: ['digoxin', 'amiodarone'], severity: 'high', message: 'Digoxin + Amiodarone: Increased digoxin toxicity', recommendation: 'Reduce digoxin dose by 50%, monitor levels' },
-        { drugs: ['lithium', 'nsaid'], severity: 'high', message: 'Lithium + NSAID: Lithium toxicity risk', recommendation: 'Monitor lithium levels, consider alternative analgesics' },
-        { drugs: ['statin', 'fibrate'], severity: 'medium', message: 'Statin + Fibrate: Increased myopathy risk', recommendation: 'Monitor CK levels, consider dose reduction' },
-        { drugs: ['beta_blocker', 'calcium_channel_blocker'], severity: 'medium', message: 'Beta Blocker + CCB: Additive bradycardia risk', recommendation: 'Monitor heart rate, consider dose adjustment' }
+        {
+          drugs: ['warfarin', 'aspirin'],
+          severity: 'critical',
+          message: 'Warfarin + Aspirin: Significantly increased bleeding risk',
+          recommendation: 'Monitor INR closely, consider alternative pain management',
+        },
+        {
+          drugs: ['warfarin', 'heparin'],
+          severity: 'critical',
+          message: 'Warfarin + Heparin: Excessive anticoagulation risk',
+          recommendation: 'Monitor coagulation studies frequently',
+        },
+        {
+          drugs: ['ace_inhibitor', 'potassium'],
+          severity: 'high',
+          message: 'ACE Inhibitor + Potassium: Hyperkalemia risk',
+          recommendation: 'Monitor potassium levels, consider dose adjustment',
+        },
+        {
+          drugs: ['digoxin', 'amiodarone'],
+          severity: 'high',
+          message: 'Digoxin + Amiodarone: Increased digoxin toxicity',
+          recommendation: 'Reduce digoxin dose by 50%, monitor levels',
+        },
+        {
+          drugs: ['lithium', 'nsaid'],
+          severity: 'high',
+          message: 'Lithium + NSAID: Lithium toxicity risk',
+          recommendation: 'Monitor lithium levels, consider alternative analgesics',
+        },
+        {
+          drugs: ['statin', 'fibrate'],
+          severity: 'medium',
+          message: 'Statin + Fibrate: Increased myopathy risk',
+          recommendation: 'Monitor CK levels, consider dose reduction',
+        },
+        {
+          drugs: ['beta_blocker', 'calcium_channel_blocker'],
+          severity: 'medium',
+          message: 'Beta Blocker + CCB: Additive bradycardia risk',
+          recommendation: 'Monitor heart rate, consider dose adjustment',
+        },
       ];
 
       for (const combo of dangerousCombos) {
-        const hasBothDrugs = combo.drugs.every(drug => 
-          allMedications.some(med => med.toLowerCase().includes(drug.toLowerCase()))
+        const hasBothDrugs = combo.drugs.every((drug) =>
+          allMedications.some((med) => med.toLowerCase().includes(drug.toLowerCase()))
         );
-        
+
         if (hasBothDrugs) {
           predictions.push({
             id: `${combo.drugs.join('_')}_${Date.now()}`,
@@ -258,33 +320,37 @@ export function TreatmentPlanStep({
             recommendation: combo.recommendation,
             confidence: 0.92,
             medications: combo.drugs,
-            type: 'drug_interaction'
+            type: 'drug_interaction',
           });
         }
       }
 
       // Add AI insights from the clinical suggestions hook
-      const drugInsights = aiInsights.filter(insight => insight.type === 'drug_interaction');
-      predictions.push(...drugInsights.map(insight => ({
-        id: `ai_${Date.now()}_${Math.random()}`,
-        severity: insight.severity,
-        message: insight.message,
-        recommendation: insight.recommendation,
-        confidence: insight.confidence || 0.8,
-        medications: [], // Will be populated based on context
-        type: 'ai_prediction'
-      })));
+      const drugInsights = aiInsights.filter((insight) => insight.type === 'drug_interaction');
+      predictions.push(
+        ...drugInsights.map((insight) => ({
+          id: `ai_${Date.now()}_${Math.random()}`,
+          severity: insight.severity,
+          message: insight.message,
+          recommendation: insight.recommendation,
+          confidence: insight.confidence || 0.8,
+          medications: [], // Will be populated based on context
+          type: 'ai_prediction',
+        }))
+      );
 
       setDrugInteractionPredictions(predictions);
-      
+
       if (predictions.length === 0) {
-        toast.success("No significant drug interactions detected");
+        toast.success('No significant drug interactions detected');
       } else {
-        toast.success(`Found ${predictions.length} potential drug interaction${predictions.length > 1 ? 's' : ''}`);
+        toast.success(
+          `Found ${predictions.length} potential drug interaction${predictions.length > 1 ? 's' : ''}`
+        );
       }
     } catch (error) {
-      toast.error("Failed to analyze drug interactions");
-      console.error("Drug interaction analysis error:", error);
+      toast.error('Failed to analyze drug interactions');
+      console.error('Drug interaction analysis error:', error);
     } finally {
       setIsGeneratingInteractions(false);
     }
@@ -292,18 +358,18 @@ export function TreatmentPlanStep({
 
   const handleInteractionFeedback = (predictionId: string, helpful: boolean) => {
     // Update local state to reflect feedback
-    setDrugInteractionPredictions(prev => 
-      prev.map(pred => 
-        pred.id === predictionId 
+    setDrugInteractionPredictions((prev) =>
+      prev.map((pred) =>
+        pred.id === predictionId
           ? { ...pred, userFeedback: helpful ? 'helpful' : 'not_helpful' }
           : pred
       )
     );
-    
+
     toast.success(`Feedback recorded: ${helpful ? 'Helpful' : 'Not helpful'}`);
   };
 
-  const unsubmittedCount = labOrders.filter(o => !o.isSubmitted).length;
+  const unsubmittedCount = labOrders.filter((o) => !o.isSubmitted).length;
 
   return (
     <div className="space-y-6">
@@ -323,8 +389,8 @@ export function TreatmentPlanStep({
           id="treatment_plan"
           placeholder="Describe the overall treatment plan..."
           className="min-h-24"
-          value={data.treatment_plan || ""}
-          onChange={(e) => onUpdate("treatment_plan", e.target.value)}
+          value={data.treatment_plan || ''}
+          onChange={(e) => onUpdate('treatment_plan', e.target.value)}
         />
       </div>
 
@@ -351,6 +417,37 @@ export function TreatmentPlanStep({
             />
           )}
 
+          {/* Mandatory Clinical Safety Override / Break-Glass */}
+          {safetyAlerts.hasContraindicated && (
+            <div className="p-4 border-2 border-red-500 rounded-lg bg-red-50/90 dark:bg-red-950/40 space-y-3">
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
+                <AlertTriangle className="h-5 w-5 text-red-600 animate-pulse shrink-0" />
+                <span>MANDATORY CLINICAL SAFETY OVERRIDE REQUIRED</span>
+              </div>
+              <p className="text-xs text-red-800 dark:text-red-300">
+                One or more medications have a CONTRAINDICATED drug-drug interaction (Level 1) or
+                critical allergy conflict. CareSync safety protocol blocks consultation completion
+                without a documented attending physician clinical override rationale.
+              </p>
+              <div className="space-y-1">
+                <Label
+                  htmlFor="clinical_override_reason"
+                  className="text-xs font-semibold text-red-900 dark:text-red-200"
+                >
+                  Clinical Override Rationale & Risk Mitigation Plan{' '}
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="clinical_override_reason"
+                  placeholder="e.g., Risk vs benefit evaluated; patient monitored with continuous vitals and rescue medications available; alternative antimicrobial contraindicated..."
+                  value={data.clinical_override_reason || ''}
+                  onChange={(e) => onUpdate('clinical_override_reason', e.target.value)}
+                  className="text-xs bg-white dark:bg-background border-red-300 focus-visible:ring-red-500"
+                />
+              </div>
+            </div>
+          )}
+
           {/* New Prescription Safety Preview */}
           {newPrescriptionSafety && !newPrescriptionSafety.isSafe && (
             <PrescriptionSafetyAlerts
@@ -367,14 +464,14 @@ export function TreatmentPlanStep({
               onChange={(e) =>
                 setNewPrescription({ ...newPrescription, medication_name: e.target.value })
               }
-              className={newPrescriptionSafety && !newPrescriptionSafety.isSafe ? 'border-warning' : ''}
+              className={
+                newPrescriptionSafety && !newPrescriptionSafety.isSafe ? 'border-warning' : ''
+              }
             />
             <Input
               placeholder="Dosage"
               value={newPrescription.dosage}
-              onChange={(e) =>
-                setNewPrescription({ ...newPrescription, dosage: e.target.value })
-              }
+              onChange={(e) => setNewPrescription({ ...newPrescription, dosage: e.target.value })}
             />
             <Input
               placeholder="Frequency"
@@ -386,17 +483,19 @@ export function TreatmentPlanStep({
             <Input
               placeholder="Duration"
               value={newPrescription.duration}
-              onChange={(e) =>
-                setNewPrescription({ ...newPrescription, duration: e.target.value })
-              }
+              onChange={(e) => setNewPrescription({ ...newPrescription, duration: e.target.value })}
             />
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               onClick={addPrescription}
               disabled={!newPrescription.medication_name.trim()}
               variant={newPrescriptionSafety?.requiresVerification ? 'destructive' : 'default'}
               aria-label="Add prescription"
-              title={!newPrescription.medication_name.trim() ? 'Enter a medication name first' : 'Add prescription'}
+              title={
+                !newPrescription.medication_name.trim()
+                  ? 'Enter a medication name first'
+                  : 'Add prescription'
+              }
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -472,7 +571,8 @@ export function TreatmentPlanStep({
             <div className="text-center py-8 text-muted-foreground">
               <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-sm">
-                Click "Analyze Interactions" to check for potential drug interactions between current and prescribed medications
+                Click "Analyze Interactions" to check for potential drug interactions between
+                current and prescribed medications
               </p>
             </div>
           ) : (
@@ -481,10 +581,13 @@ export function TreatmentPlanStep({
                 <div
                   key={prediction.id}
                   className={`p-4 rounded-lg border ${
-                    prediction.severity === 'critical' ? 'border-red-200 bg-red-50' :
-                    prediction.severity === 'high' ? 'border-orange-200 bg-orange-50' :
-                    prediction.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                    'border-blue-200 bg-blue-50'
+                    prediction.severity === 'critical'
+                      ? 'border-red-200 bg-red-50'
+                      : prediction.severity === 'high'
+                        ? 'border-orange-200 bg-orange-50'
+                        : prediction.severity === 'medium'
+                          ? 'border-yellow-200 bg-yellow-50'
+                          : 'border-blue-200 bg-blue-50'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -492,10 +595,13 @@ export function TreatmentPlanStep({
                       <div className="flex items-center gap-2 mb-2">
                         <Badge
                           variant={
-                            prediction.severity === 'critical' ? 'destructive' :
-                            prediction.severity === 'high' ? 'destructive' :
-                            prediction.severity === 'medium' ? 'secondary' :
-                            'outline'
+                            prediction.severity === 'critical'
+                              ? 'destructive'
+                              : prediction.severity === 'high'
+                                ? 'destructive'
+                                : prediction.severity === 'medium'
+                                  ? 'secondary'
+                                  : 'outline'
                           }
                           className="text-xs"
                         >
@@ -512,7 +618,9 @@ export function TreatmentPlanStep({
                         )}
                       </div>
                       <p className="font-medium text-sm mb-1">{prediction.message}</p>
-                      <p className="text-sm text-muted-foreground mb-3">{prediction.recommendation}</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {prediction.recommendation}
+                      </p>
                       {prediction.medications && prediction.medications.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-3">
                           {prediction.medications.map((med: string) => (
@@ -544,7 +652,7 @@ export function TreatmentPlanStep({
                       </div>
                     )}
                     {prediction.userFeedback && (
-                      <Badge 
+                      <Badge
                         variant={prediction.userFeedback === 'helpful' ? 'default' : 'secondary'}
                         className="ml-4"
                       >
@@ -586,16 +694,12 @@ export function TreatmentPlanStep({
               placeholder="Test name"
               className="flex-1"
               value={newLabOrder.test}
-              onChange={(e) =>
-                setNewLabOrder({ ...newLabOrder, test: e.target.value })
-              }
+              onChange={(e) => setNewLabOrder({ ...newLabOrder, test: e.target.value })}
             />
             <select
               className="border rounded-md px-3 py-2 text-sm bg-background"
               value={newLabOrder.priority}
-              onChange={(e) =>
-                setNewLabOrder({ ...newLabOrder, priority: e.target.value })
-              }
+              onChange={(e) => setNewLabOrder({ ...newLabOrder, priority: e.target.value })}
             >
               <option value="routine">Routine</option>
               <option value="urgent">Urgent</option>
@@ -615,14 +719,14 @@ export function TreatmentPlanStep({
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    {order.isSubmitted && (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    )}
+                    {order.isSubmitted && <CheckCircle2 className="h-4 w-4 text-success" />}
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{order.test}</p>
                         {order.isSubmitted && (
-                          <Badge variant="success" className="text-xs">Submitted</Badge>
+                          <Badge variant="success" className="text-xs">
+                            Submitted
+                          </Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground capitalize">
@@ -675,17 +779,13 @@ export function TreatmentPlanStep({
               placeholder="Specialty"
               className="flex-1"
               value={newReferral.specialty}
-              onChange={(e) =>
-                setNewReferral({ ...newReferral, specialty: e.target.value })
-              }
+              onChange={(e) => setNewReferral({ ...newReferral, specialty: e.target.value })}
             />
             <Input
               placeholder="Reason"
               className="flex-1"
               value={newReferral.reason}
-              onChange={(e) =>
-                setNewReferral({ ...newReferral, reason: e.target.value })
-              }
+              onChange={(e) => setNewReferral({ ...newReferral, reason: e.target.value })}
             />
             <Button type="button" onClick={addReferral} aria-label="Add referral">
               <Plus className="h-4 w-4" />

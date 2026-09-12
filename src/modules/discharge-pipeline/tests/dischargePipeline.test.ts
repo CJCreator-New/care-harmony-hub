@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { cast } from '@total-typescript/shoehorn';
+import { fromPartial } from '@total-typescript/shoehorn';
 import {
   createDischargePipelineEngine,
   InMemoryDischargeAdapter,
@@ -19,6 +19,8 @@ import {
   getRoleStep,
   type DischargeActor,
   type DischargeWorkflow,
+  type InFlightOrderReconciliation,
+  type DischargeMedicationFulfillmentType,
 } from '../index';
 
 describe('DischargePipelineEngine (ADR-0003 Sequential Multi-Role Pipeline)', () => {
@@ -30,6 +32,13 @@ describe('DischargePipelineEngine (ADR-0003 Sequential Multi-Role Pipeline)', ()
     role: 'doctor',
     hospitalId: 'hosp-metro',
     name: 'Dr. Gregory House',
+  };
+
+  const adminActor: DischargeActor = {
+    id: 'admin-001',
+    role: 'admin',
+    hospitalId: 'hosp-metro',
+    name: 'Admin Lisa Cuddy',
   };
 
   const pharmacistActor: DischargeActor = {
@@ -268,6 +277,163 @@ describe('DischargePipelineEngine (ADR-0003 Sequential Multi-Role Pipeline)', ()
       expect(PREVIOUS_STEP.pharmacist).toBe('doctor');
       expect(PREVIOUS_STEP.billing).toBe('pharmacist');
       expect(PREVIOUS_STEP.nurse).toBe('billing');
+    });
+  });
+
+  describe('Two-Tier Rejection Rollback Invariants (ADR-0003 & Q1)', () => {
+    it('rolls back administrative rejection by Nurse to Billing (N - 1)', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-12345' });
+      const workflowId = initResult.workflow!.id;
+      await engine.approve(pharmacistActor, { workflowId });
+      await engine.approve(billingActor, { workflowId });
+
+      // Current step is 'nurse'. Administrative rejection (e.g. incorrect insurance billing item):
+      const adminReject = await engine.reject(nurseActor, {
+        workflowId,
+        reason: 'Itemized discharge bill missing room surcharge adjustment',
+        rejectionType: 'administrative',
+      });
+
+      expect(adminReject.success).toBe(true);
+      expect(adminReject.workflow?.current_step).toBe('billing');
+      expect(adminReject.workflow?.rejection_reason).toBe(
+        'Itemized discharge bill missing room surcharge adjustment'
+      );
+    });
+
+    it('aborts directly back to Doctor step upon clinical rejection (e.g. vital instability)', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-12345' });
+      const workflowId = initResult.workflow!.id;
+      await engine.approve(pharmacistActor, { workflowId });
+      await engine.approve(billingActor, { workflowId });
+
+      // Current step is 'nurse'. Patient suddenly spikes fever and exhibits tachycardia:
+      const clinicalReject = await engine.reject(nurseActor, {
+        workflowId,
+        reason:
+          'Acute clinical deterioration: Patient febrile (39.2C) and tachycardic (HR 130). Clinical hold required.',
+        rejectionType: 'clinical',
+      });
+
+      expect(clinicalReject.success).toBe(true);
+      // Bypasses Billing and Pharmacist, directly aborting to Doctor (Step 1):
+      expect(clinicalReject.workflow?.current_step).toBe('doctor');
+      expect(clinicalReject.workflow?.status).toBe('in_progress');
+      expect(clinicalReject.workflow?.rejection_reason).toMatch(/Acute clinical deterioration/);
+    });
+  });
+
+  describe('Against Medical Advice (AMA) Fast-Track Pipeline (Q4)', () => {
+    it('allows an attending physician to fast-track AMA discharge with signed waiver', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-12345' });
+      const workflowId = initResult.workflow!.id;
+
+      // Patient insists on immediate self-discharge against clinical advice:
+      const amaResult = await engine.dischargeAMA(doctorActor, {
+        workflowId,
+        reason:
+          'Patient refuses continued IV antibiotic therapy despite explicit counseling regarding sepsis risk.',
+        metadata: {
+          waiverSigned: true,
+          witnessNurseId: 'nurse-001',
+          waiverDocumentRef: 'doc-waiver-7749',
+        },
+      });
+
+      expect(amaResult.success).toBe(true);
+      expect(amaResult.workflow?.current_step).toBe('completed_ama');
+      expect(amaResult.workflow?.status).toBe('completed_ama');
+      expect(amaResult.workflow?.metadata.discharge_type).toBe('ama');
+
+      // Audit trail captures AMA discharge
+      const audit = await engine.getAuditTrail(workflowId);
+      expect(audit[0].transition_action).toBe('discharge_ama');
+      expect(audit[0].to_step).toBe('completed_ama');
+
+      // Further transitions are strictly blocked in terminal completed_ama state
+      const postAmaApprove = await engine.approve(nurseActor, { workflowId });
+      expect(postAmaApprove.success).toBe(false);
+      expect(postAmaApprove.error).toMatch(
+        /Cannot transition discharge workflow in terminal state/
+      );
+    });
+
+    it('allows a hospital administrator to execute AMA discharge', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-12345' });
+      const workflowId = initResult.workflow!.id;
+
+      const amaResult = await engine.dischargeAMA(adminActor, {
+        workflowId,
+        reason:
+          'Administrative override: Patient signed legal AMA release in patient relations office.',
+      });
+
+      expect(amaResult.success).toBe(true);
+      expect(amaResult.workflow?.status).toBe('completed_ama');
+    });
+
+    it('prevents non-physician/non-admin roles from executing AMA discharge', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-12345' });
+      const workflowId = initResult.workflow!.id;
+
+      const nurseAma = await engine.dischargeAMA(nurseActor, {
+        workflowId,
+        reason: 'Patient leaving now',
+      });
+
+      expect(nurseAma.success).toBe(false);
+      expect(nurseAma.error).toMatch(/Only an attending physician or hospital administrator/);
+    });
+
+    it('rejects AMA discharge if rationale is less than 5 characters', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-12345' });
+      const workflowId = initResult.workflow!.id;
+
+      const shortAma = await engine.dischargeAMA(doctorActor, {
+        workflowId,
+        reason: 'bye',
+      });
+
+      expect(shortAma.success).toBe(false);
+      expect(shortAma.error).toMatch(/substantive clinical rationale of at least 5 characters/);
+    });
+  });
+
+  describe('In-Flight Order Reconciliation & Medication Fulfillment Support (Q2 & Q5)', () => {
+    it('supports in-flight order reconciliation manifest and fulfillment tagging', async () => {
+      const reconciliations: InFlightOrderReconciliation[] = [
+        {
+          orderId: 'ord-lab-101',
+          orderType: 'lab',
+          action: 'cancel',
+          notes: 'Routine CBC cancelled due to acute discharge',
+        },
+        {
+          orderId: 'ord-med-202',
+          orderType: 'medication',
+          action: 'outpatient_followup',
+          notes: 'Refer to outpatient cardiologist for titration',
+        },
+      ];
+
+      const fulfillmentType: DischargeMedicationFulfillmentType = 'in_house';
+
+      const initResult = await engine.initiate(doctorActor, {
+        patientId: 'pat-12345',
+        metadata: {
+          inFlightOrders: reconciliations,
+          medicationFulfillment: fulfillmentType,
+        },
+      });
+
+      expect(initResult.success).toBe(true);
+      const orders = fromPartial<InFlightOrderReconciliation[]>(
+        initResult.workflow?.metadata.inFlightOrders
+      );
+      expect(orders.length).toBe(2);
+      expect(orders[0].action).toBe('cancel');
+      expect(orders[1].action).toBe('outpatient_followup');
+      expect(initResult.workflow?.metadata.medicationFulfillment).toBe('in_house');
     });
   });
 });

@@ -33,6 +33,8 @@ const PERMISSION_ALIASES: Record<string, Permission> = {
   'portal:access': 'portal',
   'audit:logs': 'activity-logs',
   'compliance:reports': 'compliance-reports',
+  'billing:process': 'billing:write',
+  'billing:invoice': 'billing:write',
 };
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -95,6 +97,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'queue:read',
     'queue:write',
     'billing:read',
+    'billing:write',
     'workflow-dashboard',
   ],
   pharmacist: [
@@ -141,7 +144,7 @@ export function getRolePermissions(role: UserRole | string | undefined): Permiss
 
 function hasNormalizedPermission(
   permissions: Permission[],
-  requestedPermission: Permission,
+  requestedPermission: Permission
 ): boolean {
   if (permissions.includes('*')) return true;
 
@@ -160,28 +163,31 @@ function hasNormalizedPermission(
   return false;
 }
 
-export function hasPermission(role: UserRole | string | undefined, permission: Permission): boolean {
+export function hasPermission(
+  role: UserRole | string | undefined,
+  permission: Permission
+): boolean {
   if (!role) return false;
   return hasNormalizedPermission(getRolePermissions(role), permission);
 }
 
 export function hasAnyPermission(
   role: UserRole | string | undefined,
-  permissions: Permission[],
+  permissions: Permission[]
 ): boolean {
   return permissions.some((permission) => hasPermission(role, permission));
 }
 
 export function hasAllPermissions(
   role: UserRole | string | undefined,
-  permissions: Permission[],
+  permissions: Permission[]
 ): boolean {
   return permissions.every((permission) => hasPermission(role, permission));
 }
 
 export function hasAnyAllowedRole(
   userRoles: Array<UserRole | string>,
-  requiredRoles: Array<UserRole | string>,
+  requiredRoles: Array<UserRole | string>
 ): boolean {
   if (requiredRoles.length === 0) return true;
   return requiredRoles.some((requiredRole) => userRoles.includes(requiredRole));
@@ -189,7 +195,7 @@ export function hasAnyAllowedRole(
 
 export function hasPermissionForAnyRole(
   roles: Array<UserRole | string>,
-  permission: Permission,
+  permission: Permission
 ): boolean {
   return roles.some((role) => hasPermission(role, permission));
 }
@@ -235,10 +241,12 @@ export function getAccessibleRoutes(role: UserRole | string | undefined): string
   if (hasPermission(role, 'ai-demo')) routes.push('/ai-demo');
   if (hasPermission(role, 'differential-diagnosis')) routes.push('/differential-diagnosis');
   if (hasPermission(role, 'treatment-recommendations')) routes.push('/treatment-recommendations');
-  if (hasPermission(role, 'treatment-plan-optimization')) routes.push('/treatment-plan-optimization');
+  if (hasPermission(role, 'treatment-plan-optimization'))
+    routes.push('/treatment-plan-optimization');
   if (hasPermission(role, 'predictive-analytics')) routes.push('/predictive-analytics');
   if (hasPermission(role, 'length-of-stay-forecasting')) routes.push('/length-of-stay-forecasting');
-  if (hasPermission(role, 'resource-utilization-optimization')) routes.push('/resource-utilization-optimization');
+  if (hasPermission(role, 'resource-utilization-optimization'))
+    routes.push('/resource-utilization-optimization');
   if (hasPermission(role, 'voice-clinical-notes')) routes.push('/voice-clinical-notes');
 
   return routes;

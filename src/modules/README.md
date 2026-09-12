@@ -32,7 +32,10 @@ Do not create giant barrel `index.ts` files that re-export an entire internal di
 
 1. **`src/modules/order-safety/`**: Clinical order safety engine, DDI detection, allergy cross-matching, pediatric weight-based dosing bounds, and fail-closed CDS invariants.
 2. **`src/modules/discharge-pipeline/`**: Sequential multi-role patient discharge orchestration (Doctor ➔ Pharmacist ➔ Billing ➔ Nurse ➔ Completed), role gating, rollback handling, and audit history per ADR-0003.
-3. **`src/modules/example/`**: Minimal reference module illustrating deep module structure and boundary enforcement.
+3. **`src/modules/prescription-dispensing/`**: Strict pharmacist-gated prescription dispensing engine, multi-stage approval workflow (initiated ➔ pending_approval ➔ approved ➔ dispensed ➔ completed), structural dispensing lock, role gating, and audit history per ADR-0004.
+4. **`src/modules/critical-lab-escalation/`**: Durable background lab escalation engine managing the ADR-0005 multi-tier ladder (Primary 0m ➔ On-Call 5m ➔ Emergency Department 10m), auto-cancellation triggers, and physician acknowledgment workflows.
+5. **`src/modules/vital-signs/`**: Clinical vital signs normalization, plausibility bounds, Royal College of Physicians NEWS2 physiological deterioration scoring, and panic alert detection.
+6. **`src/modules/example/`**: Minimal reference module illustrating deep module structure and boundary enforcement.
 
 ## Running Boundary Validation
 

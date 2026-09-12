@@ -65,11 +65,13 @@ export interface Payment {
   };
 }
 
-const withBillingRateLimit = async <T,>(fn: () => Promise<T>) =>
+const withBillingRateLimit = async <T>(fn: () => Promise<T>) =>
   executeWithRateLimitBackoff(fn, {
     key: 'billing',
     onRetry: (attempt, delayMs) => {
-      toast.info(`Rate limited. Retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt}/4).`);
+      toast.info(
+        `Rate limited. Retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt}/4).`
+      );
     },
   });
 
@@ -88,7 +90,7 @@ export function useInvoices(status?: InvoiceStatus) {
             `
             *,
             patient:patients(id, first_name, last_name, mrn)
-          `,
+          `
           )
           .eq('hospital_id', hospital.id)
           .order('created_at', { ascending: false })
@@ -124,7 +126,7 @@ export function useInvoice(invoiceId: string | undefined) {
             patient:patients(id, first_name, last_name, mrn),
             items:invoice_items(*),
             payments:payments(*)
-          `,
+          `
           )
           .eq('id', invoiceId)
           .maybeSingle();
@@ -173,7 +175,7 @@ export function useInvoicePayments(invoiceId: string | undefined) {
             `
             *,
             receiver:profiles!payments_received_by_fkey(first_name, last_name)
-          `,
+          `
           )
           .eq('invoice_id', invoiceId)
           .order('payment_date', { ascending: false });
@@ -252,15 +254,18 @@ export function useCreateInvoice() {
       notes?: string;
       dueDate?: string;
     }) => {
-      if (!hasPermission(primaryRole ?? undefined, 'billing:read')) {
+      if (!hasPermission(primaryRole ?? undefined, 'billing:write')) {
         throw new Error('You do not have permission to create invoices');
       }
       if (!hospital?.id) throw new Error('No hospital context');
 
       return withBillingRateLimit(async () => {
-        const { data: invoiceNumber, error: numError } = await supabase.rpc('generate_invoice_number', {
-          p_hospital_id: hospital.id,
-        });
+        const { data: invoiceNumber, error: numError } = await supabase.rpc(
+          'generate_invoice_number',
+          {
+            p_hospital_id: hospital.id,
+          }
+        );
 
         if (numError) throw numError;
 
@@ -345,7 +350,7 @@ export function useRecordPayment() {
       referenceNumber?: string | null;
       notes?: string;
     }) => {
-      if (!hasPermission(primaryRole ?? undefined, 'billing:read')) {
+      if (!hasPermission(primaryRole ?? undefined, 'billing:write')) {
         throw new Error('You do not have permission to record payments');
       }
       if (!hospital?.id) throw new Error('No hospital context');
@@ -412,19 +417,29 @@ export function useBillingRealtime() {
       .channel('billing-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'invoices', filter: `hospital_id=eq.${hospital.id}` },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'invoices',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
         () => {
           queryClient.invalidateQueries({ queryKey: ['invoices'] });
           queryClient.invalidateQueries({ queryKey: ['invoice-stats'] });
-        },
+        }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments', filter: `hospital_id=eq.${hospital.id}` },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payments',
+          filter: `hospital_id=eq.${hospital.id}`,
+        },
         () => {
           queryClient.invalidateQueries({ queryKey: ['invoice-payments'] });
           queryClient.invalidateQueries({ queryKey: ['invoice-stats'] });
-        },
+        }
       )
       .subscribe();
 

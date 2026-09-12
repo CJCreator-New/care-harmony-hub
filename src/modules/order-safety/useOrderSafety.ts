@@ -22,6 +22,7 @@ import {
 } from './types';
 import { createOrderSafetyEngine } from './OrderSafetyEngine';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface UseOrderSafetyOptions {
   readonly patient: PatientClinicalContext;

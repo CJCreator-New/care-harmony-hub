@@ -14,19 +14,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasAnyAllowedRole } from '@/lib/permissions';
 import {
   DischargeQueueStep,
+  DischargeRejectionType,
   DischargeWorkflow,
   DischargeWorkflowAuditEntry,
   DischargeWorkflowStep,
 } from './types';
 import { getRoleStep, STEP_ROLE_MAP } from './core/stateMachine';
 
-export type WorkflowAction = 'initiate' | 'approve' | 'reject' | 'cancel';
+export type WorkflowAction = 'initiate' | 'approve' | 'reject' | 'cancel' | 'discharge_ama';
 
 export type WorkflowActionPayload = {
   workflowId?: string;
   patientId?: string;
   consultationId?: string;
   reason?: string;
+  rejectionType?: DischargeRejectionType;
   metadata?: Record<string, unknown>;
 };
 
@@ -106,6 +108,14 @@ export function useDischargePipeline(workflowId?: string, queueStepOverride?: Di
         throw new Error('You do not have permission to act on discharge workflows');
       }
 
+      const requestMetadata =
+        payload.metadata || payload.rejectionType
+          ? {
+              ...(payload.metadata ?? {}),
+              ...(payload.rejectionType ? { rejectionType: payload.rejectionType } : {}),
+            }
+          : undefined;
+
       const { data, error } = await supabase.functions.invoke('discharge-workflow', {
         body: {
           action,
@@ -113,7 +123,7 @@ export function useDischargePipeline(workflowId?: string, queueStepOverride?: Di
           patientId: payload.patientId,
           consultationId: payload.consultationId,
           reason: payload.reason,
-          metadata: payload.metadata,
+          metadata: requestMetadata,
         },
       });
 
@@ -186,6 +196,10 @@ export function useDischargePipeline(workflowId?: string, queueStepOverride?: Di
       payload: Required<Pick<WorkflowActionPayload, 'workflowId' | 'reason'>> &
         WorkflowActionPayload
     ) => actionMutation.mutateAsync({ action: 'reject', payload }),
+    dischargeAMA: (
+      payload: Required<Pick<WorkflowActionPayload, 'workflowId' | 'reason'>> &
+        WorkflowActionPayload
+    ) => actionMutation.mutateAsync({ action: 'discharge_ama', payload }),
     cancelWorkflow: (payload: Required<Pick<WorkflowActionPayload, 'workflowId'>>) =>
       actionMutation.mutateAsync({ action: 'cancel', payload }),
     isMutating: actionMutation.isPending,

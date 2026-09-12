@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolvePatientIdByAuthUserId } from '@/services/identityResolver';
-import { 
+import { fieldEncryption } from '@/utils/dataProtection';
+import {
   AfterVisitSummary,
   AVSTemplate,
   PatientEducationMaterial,
@@ -13,13 +14,15 @@ import {
   MessageThread,
   ConsentForm,
   PatientConsent,
-  SymptomCheckerSession
+  SymptomCheckerSession,
 } from '@/types/patient-portal';
 
 const resolveEffectivePatientId = async (explicitPatientId?: string): Promise<string | null> => {
   if (explicitPatientId) return explicitPatientId;
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.user) return null;
 
   return resolvePatientIdByAuthUserId(session.user.id);
@@ -96,15 +99,17 @@ export const usePatientAppointments = (patientId?: string) => {
       setError('Failed to find patient record');
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
+        .select(
+          `
           *,
           doctor:profiles!appointments_doctor_id_fkey(id, first_name, last_name)
-        `)
+        `
+        )
         .eq('patient_id', patientRecordId)
         .order('scheduled_date', { ascending: false })
         .order('scheduled_time', { ascending: false });
@@ -125,6 +130,31 @@ export const usePatientAppointments = (patientId?: string) => {
   return { appointments, loading, error, refetch: fetchAppointments };
 };
 
+// Decrypt PHI fields on prescription items for patient display
+async function decryptPrescriptionItems(prescription: any): Promise<any> {
+  if (!prescription.items?.length) return prescription;
+  const decryptedItems = await Promise.all(
+    prescription.items.map(async (item: any) => {
+      if (!item.encryption_metadata || Object.keys(item.encryption_metadata).length === 0)
+        return item;
+      const decrypted = { ...item };
+      for (const [field, encData] of Object.entries(
+        item.encryption_metadata as Record<string, any>
+      )) {
+        if (typeof decrypted[field] === 'string' && decrypted[field].startsWith('__ENCRYPTED__')) {
+          try {
+            decrypted[field] = await fieldEncryption.decryptField(encData);
+          } catch {
+            decrypted[field] = '[Encrypted]';
+          }
+        }
+      }
+      return decrypted;
+    })
+  );
+  return { ...prescription, items: decryptedItems };
+}
+
 // Hook for patient prescriptions
 export const usePatientPrescriptions = (patientId?: string) => {
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
@@ -138,21 +168,25 @@ export const usePatientPrescriptions = (patientId?: string) => {
       setError('Failed to find patient record');
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('prescriptions')
-        .select(`
+        .select(
+          `
           *,
           prescriber:profiles!prescriptions_prescribed_by_fkey(id, first_name, last_name),
           items:prescription_items(*)
-        `)
+        `
+        )
         .eq('patient_id', patientRecordId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPrescriptions(data || []);
+      const rows = (data || []) as any[];
+      const decrypted = await Promise.all(rows.map(decryptPrescriptionItems));
+      setPrescriptions(decrypted);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch prescriptions');
     } finally {
@@ -179,7 +213,7 @@ export const usePatientVitals = (patientId?: string) => {
       setError('Failed to find patient record');
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -217,15 +251,17 @@ export const usePatientLabResults = (patientId?: string) => {
       setError('Failed to find patient record');
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('lab_orders')
-        .select(`
+        .select(
+          `
           *,
           ordered_by_profile:profiles!lab_orders_ordered_by_fkey(id, first_name, last_name)
-        `)
+        `
+        )
         .eq('patient_id', patientRecordId)
         .order('ordered_at', { ascending: false });
 
@@ -289,21 +325,23 @@ export const useAfterVisitSummary = () => {
     }
   };
 
-  const generateSummary = async (summaryData: Omit<AfterVisitSummary, 'id' | 'created_at' | 'generated_at'>) => {
+  const generateSummary = async (
+    summaryData: Omit<AfterVisitSummary, 'id' | 'created_at' | 'generated_at'>
+  ) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('after_visit_summaries')
         .insert({
           ...summaryData,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString(),
         })
         .select()
         .single();
 
       if (error) throw error;
-      
-      setSummaries(prev => [data, ...prev]);
+
+      setSummaries((prev) => [data, ...prev]);
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate summary');
@@ -320,18 +358,16 @@ export const useAfterVisitSummary = () => {
         .from('after_visit_summaries')
         .update({
           delivered_at: new Date().toISOString(),
-          delivery_method: deliveryMethod
+          delivery_method: deliveryMethod,
         })
         .eq('id', summaryId)
         .select()
         .single();
 
       if (error) throw error;
-      
-      setSummaries(prev => prev.map(summary => 
-        summary.id === summaryId ? data : summary
-      ));
-      
+
+      setSummaries((prev) => prev.map((summary) => (summary.id === summaryId ? data : summary)));
+
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to deliver summary');
@@ -349,7 +385,7 @@ export const useAfterVisitSummary = () => {
     fetchSummaries,
     fetchTemplates,
     generateSummary,
-    deliverSummary
+    deliverSummary,
   };
 };
 
@@ -369,13 +405,13 @@ export const useDigitalCheckin = () => {
           patient_id: patientId,
           appointment_id: appointmentId,
           session_token: sessionToken,
-          checkin_status: 'started'
+          checkin_status: 'started',
         })
         .select()
         .single();
 
       if (error) throw error;
-      
+
       setSession(data);
       return data;
     } catch (err) {
@@ -396,7 +432,7 @@ export const useDigitalCheckin = () => {
         .single();
 
       if (error) throw error;
-      
+
       setSession(data);
       return data;
     } catch (err) {
@@ -414,14 +450,14 @@ export const useDigitalCheckin = () => {
         .from('digital_checkin_sessions')
         .update({
           checkin_data: stepData,
-          checkin_status: 'in_progress'
+          checkin_status: 'in_progress',
         })
         .eq('id', sessionId)
         .select()
         .single();
 
       if (error) throw error;
-      
+
       setSession(data);
       return data;
     } catch (err) {
@@ -439,14 +475,14 @@ export const useDigitalCheckin = () => {
         .from('digital_checkin_sessions')
         .update({
           checkin_status: 'completed',
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
         })
         .eq('id', sessionId)
         .select()
         .single();
 
       if (error) throw error;
-      
+
       setSession(data);
       return data;
     } catch (err) {
@@ -460,7 +496,7 @@ export const useDigitalCheckin = () => {
   const generateSessionToken = (): string => {
     const array = new Uint8Array(24);
     crypto.getRandomValues(array);
-    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
   };
 
   return {
@@ -470,7 +506,7 @@ export const useDigitalCheckin = () => {
     startCheckinSession,
     getCheckinSession,
     updateCheckinStep,
-    completeCheckin
+    completeCheckin,
   };
 };
 
@@ -483,7 +519,7 @@ export const useSecureMessaging = (patientId?: string) => {
 
   const fetchMessages = async () => {
     if (!patientId) return;
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -494,12 +530,12 @@ export const useSecureMessaging = (patientId?: string) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       setMessages(data || []);
-      
+
       // Group messages into threads
       const threadMap = new Map<string, MessageThread>();
-      data?.forEach(message => {
+      data?.forEach((message) => {
         const threadId = message.thread_id || message.id;
         if (!threadMap.has(threadId)) {
           threadMap.set(threadId, {
@@ -510,22 +546,22 @@ export const useSecureMessaging = (patientId?: string) => {
             last_message_at: message.created_at,
             unread_count: 0,
             priority: message.priority,
-            status: 'active'
+            status: 'active',
           });
         }
-        
+
         const thread = threadMap.get(threadId)!;
         thread.messages.push(message);
-        
+
         if (!message.is_read && message.sender_id !== patientId) {
           thread.unread_count++;
         }
-        
+
         if (new Date(message.created_at) > new Date(thread.last_message_at)) {
           thread.last_message_at = message.created_at;
         }
       });
-      
+
       setThreads(Array.from(threadMap.values()));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch messages');
@@ -541,14 +577,14 @@ export const useSecureMessaging = (patientId?: string) => {
         .from('secure_messages')
         .insert({
           ...messageData,
-          is_read: false
+          is_read: false,
         })
         .select()
         .single();
 
       if (error) throw error;
-      
-      setMessages(prev => [data, ...prev]);
+
+      setMessages((prev) => [data, ...prev]);
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
@@ -564,15 +600,15 @@ export const useSecureMessaging = (patientId?: string) => {
         .from('secure_messages')
         .update({
           is_read: true,
-          read_at: new Date().toISOString()
+          read_at: new Date().toISOString(),
         })
         .eq('id', messageId);
 
       if (error) throw error;
-      
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId ? { ...msg, is_read: true } : msg
-      ));
+
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? { ...msg, is_read: true } : msg))
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to mark as read');
     }
@@ -580,15 +616,16 @@ export const useSecureMessaging = (patientId?: string) => {
 
   useEffect(() => {
     fetchMessages();
-    
+
     // Set up real-time subscription
     const subscription = supabase
       .channel('secure_messages')
-      .on('postgres_changes', 
+      .on(
+        'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'secure_messages' },
         (payload) => {
           if (payload.new.patient_id === patientId) {
-            setMessages(prev => [payload.new as SecureMessage, ...prev]);
+            setMessages((prev) => [payload.new as SecureMessage, ...prev]);
           }
         }
       )
@@ -606,7 +643,7 @@ export const useSecureMessaging = (patientId?: string) => {
     error,
     sendMessage,
     markAsRead,
-    refetch: fetchMessages
+    refetch: fetchMessages,
   };
 };
 
@@ -620,10 +657,7 @@ export const usePreVisitQuestionnaires = () => {
   const fetchQuestionnaires = async (specialty?: string) => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('pre_visit_questionnaires')
-        .select('*')
-        .eq('is_active', true);
+      let query = supabase.from('pre_visit_questionnaires').select('*').eq('is_active', true);
 
       if (specialty) {
         query = query.eq('specialty', specialty);
@@ -631,7 +665,7 @@ export const usePreVisitQuestionnaires = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      
+
       setQuestionnaires(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch questionnaires');
@@ -650,8 +684,8 @@ export const usePreVisitQuestionnaires = () => {
         .single();
 
       if (error) throw error;
-      
-      setResponses(prev => [data, ...prev]);
+
+      setResponses((prev) => [data, ...prev]);
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit response');
@@ -667,7 +701,7 @@ export const usePreVisitQuestionnaires = () => {
     loading,
     error,
     fetchQuestionnaires,
-    submitResponse
+    submitResponse,
   };
 };
 
@@ -680,10 +714,7 @@ export const usePatientEducation = () => {
   const fetchMaterials = async (category?: string, tags?: string[]) => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('patient_education_materials')
-        .select('*')
-        .eq('is_active', true);
+      let query = supabase.from('patient_education_materials').select('*').eq('is_active', true);
 
       if (category) {
         query = query.eq('category', category);
@@ -695,7 +726,7 @@ export const usePatientEducation = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      
+
       setMaterials(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch materials');
@@ -714,7 +745,7 @@ export const usePatientEducation = () => {
         .or(`title.ilike.%${searchTerm}%,content_text.ilike.%${searchTerm}%`);
 
       if (error) throw error;
-      
+
       setMaterials(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search materials');
@@ -728,7 +759,7 @@ export const usePatientEducation = () => {
     loading,
     error,
     fetchMaterials,
-    searchMaterials
+    searchMaterials,
   };
 };
 
@@ -767,8 +798,8 @@ export const useDigitalConsent = () => {
         .single();
 
       if (error) throw error;
-      
-      setPatientConsents(prev => [data, ...prev]);
+
+      setPatientConsents((prev) => [data, ...prev]);
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit consent');
@@ -784,7 +815,7 @@ export const useDigitalConsent = () => {
     loading,
     error,
     fetchConsentForms,
-    submitConsent
+    submitConsent,
   };
 };
 
@@ -817,10 +848,12 @@ export const usePatientPortal = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('payments')
-          .select(`
+          .select(
+            `
             *,
             invoice:invoices!payments_invoice_id_fkey(id, patient_id)
-          `)
+          `
+          )
           .eq('hospital_id', patient.hospital_id)
           .order('payment_date', { ascending: false }),
         supabase
@@ -836,11 +869,16 @@ export const usePatientPortal = () => {
 
       const invoices = invoicesRes.data || [];
       const patientInvoiceIds = new Set(invoices.map((i: any) => i.id));
-      const paymentHistory = (paymentsRes.data || []).filter((p: any) => patientInvoiceIds.has(p.invoice_id));
+      const paymentHistory = (paymentsRes.data || []).filter((p: any) =>
+        patientInvoiceIds.has(p.invoice_id)
+      );
       const insuranceClaims = claimsRes.data || [];
 
       const totalBilled = invoices.reduce((sum: number, i: any) => sum + Number(i.total || 0), 0);
-      const totalPaid = invoices.reduce((sum: number, i: any) => sum + Number(i.paid_amount || 0), 0);
+      const totalPaid = invoices.reduce(
+        (sum: number, i: any) => sum + Number(i.paid_amount || 0),
+        0
+      );
       const outstandingBalance = Math.max(0, totalBilled - totalPaid);
 
       setBillingData({
