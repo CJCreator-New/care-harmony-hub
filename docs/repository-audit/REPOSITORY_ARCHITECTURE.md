@@ -14,8 +14,8 @@ CareSync HIMS (also branded "AROCORD-HIMS" in `index.html` and the PWA manifest)
 | TypeScript/TSX under `src/` | 253,427 lines |
 | Pages / components / hooks / utils / services | 79 / 409 / 193 / 87 / 25 files |
 | Routes declared in `src/routes/routeDefinitions.tsx` | 101 `path:` entries (69 lazily imported page components) |
-| Distinct Supabase tables referenced from `src/` (`.from('…')`) | 196 |
-| Distinct RPCs / edge functions invoked from `src/` | 32 / 41 |
+| Distinct Supabase tables referenced from `src/` | 196 by a literal `.from('…')` scan. The database audit's broader scan (multi-line and dynamic calls) finds 212, of which 66 are undefined. |
+| Distinct RPCs / edge functions invoked from `src/` | RPCs: 32 by a literal scan, 45 by the database audit's scan (16 undefined). Edge functions: 44 names invoked from non-test code, of which 26 exist, 1 is dynamic and 18 do not exist (SECURITY_AUDIT §5, "Frontend ↔ edge-function invocation map"). |
 | Edge functions (`supabase/functions/*`, top-level) | 39, plus 3 nested under `phase5/` and 8 `_shared` helpers (~12.8k lines) |
 | SQL migrations | 69 top-level `.sql` files (62 timestamp-named) + 98 in `legacy/` + 5 in `phase5/` (~39k SQL lines in `supabase/`) |
 | Test files (`*.test.*`, `*.spec.*`) | 331, of which 96 are Playwright specs |
@@ -194,7 +194,7 @@ sequenceDiagram
 ### 6.3 Data persistence paths
 
 - **Direct table access:** most CRUD goes from hooks straight to PostgREST, so RLS is the only server-side guard.
-- **RPCs:** 32 distinct `supabase.rpc()` calls (some target functions that are not defined in the migrations; see [DATABASE_AUDIT.md](./DATABASE_AUDIT.md)).
+- **RPCs:** 45 distinct `supabase.rpc()` targets, 16 of which are not defined in any applied migration (see [DATABASE_AUDIT.md](./DATABASE_AUDIT.md), DB-14).
 - **Edge functions:** used for 2FA, invitations, PHI crypto, clinical decision support, notifications and AI.
 - **Realtime:** 45 channel subscriptions (queues, alerts, notifications).
 - **Client-side persistence:** sessionStorage holds the auth session. IndexedDB (`idb`) and the Workbox runtime cache can hold API responses.
