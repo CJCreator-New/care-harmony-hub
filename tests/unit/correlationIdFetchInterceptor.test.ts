@@ -5,7 +5,10 @@
  * `supabase.functions.invoke('phi-crypto', ...)` fails with FunctionsFetchError.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { injectCorrelationIdIntoFetch, registerFetchInterceptor } from '@/utils/correlationId';
+import { injectCorrelationIdIntoFetch } from '@/utils/correlationId';
+import * as correlationModule from '@/utils/correlationId';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 const ok = () => Promise.resolve(new Response('{}'));
 
@@ -65,27 +68,28 @@ describe('injectCorrelationIdIntoFetch', () => {
   });
 });
 
-describe('registerFetchInterceptor', () => {
-  let saved: typeof window.fetch;
-  beforeEach(() => {
-    saved = window.fetch;
-  });
-  afterEach(() => {
-    window.fetch = saved;
+describe('S0-02: no global fetch patch', () => {
+  it('no longer exports registerFetchInterceptor', () => {
+    expect('registerFetchInterceptor' in correlationModule).toBe(false);
   });
 
-  it('wraps window.fetch only once, however often bootstrap runs', async () => {
-    const base = vi.fn(ok);
-    window.fetch = base as unknown as typeof fetch;
+  it('bootstrap leaves window.fetch untouched', async () => {
+    const before = window.fetch;
+    const { setupRequestInterceptors } = await import('@/bootstrap/correlation-id');
+    setupRequestInterceptors();
+    expect(window.fetch).toBe(before);
+  });
 
-    registerFetchInterceptor();
-    const first = window.fetch;
-    registerFetchInterceptor();
-    registerFetchInterceptor();
-
-    expect(window.fetch).toBe(first);
-    expect(window.fetch).not.toBe(base);
-    await window.fetch('/same-origin');
-    expect(base).toHaveBeenCalledTimes(1);
+  it('no source file reassigns the global fetch', () => {
+    const walk = (dir: string): string[] =>
+      readdirSync(dir).flatMap((n) => {
+        const p = join(dir, n);
+        if (statSync(p).isDirectory()) return /__tests__|test/.test(n) ? [] : walk(p);
+        return /\.(t|j)sx?$/.test(n) ? [p] : [];
+      });
+    const offenders = walk(join(process.cwd(), 'src')).filter((f) =>
+      /(window|globalThis|self)\.fetch\s*=(?!=)/.test(readFileSync(f, 'utf8'))
+    );
+    expect(offenders).toEqual([]);
   });
 });

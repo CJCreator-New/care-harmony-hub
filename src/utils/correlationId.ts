@@ -180,7 +180,7 @@ function isSameOriginRequest(url: string | URL | Request): boolean {
 
 /**
  * Add correlation ID to Fetch API before sending requests
- * Install as Fetch interceptor via registerFetchInterceptor()
+ * Wrap a fetch explicitly (no global install; S0-02)
  *
  * Only same-origin requests are tagged; cross-origin requests (Supabase REST,
  * Auth, Edge Functions, RxNorm, ...) pass through untouched.
@@ -216,23 +216,10 @@ export function injectCorrelationIdIntoFetch(
   return wrapped as typeof fetch;
 }
 
-/**
- * Register automatic correlation ID injection into global fetch
- * Call this once at app initialization. Calling it again (HMR, a second
- * bootstrap) does not wrap fetch twice.
- *
- * @example
- * if (typeof window !== 'undefined') {
- *   registerFetchInterceptor();
- * }
- */
-export function registerFetchInterceptor(): void {
-  if (typeof window === 'undefined') return;
-
-  const originalFetch = window.fetch;
-  if ((originalFetch as any)?.__correlationIdInterceptor) return;
-  window.fetch = injectCorrelationIdIntoFetch(originalFetch);
-}
+// S0-02 / PERF-01: there is deliberately no global `window.fetch` patch.
+// Replacing fetch app-wide added non-safelisted headers to cross-origin
+// Supabase calls and broke Edge Function preflights. Use `correlatedFetch` or
+// `injectCorrelationIdIntoFetch(fetch)` explicitly for first-party requests.
 
 /**
  * Extract trace context from HTTP headers (W3C Trace Context format)
@@ -362,7 +349,6 @@ export default {
   extractCorrelationIdFromHeaders,
   correlatedFetch,
   injectCorrelationIdIntoFetch,
-  registerFetchInterceptor,
   parseTraceParent,
   generateTraceparent,
   createClinicalContext,

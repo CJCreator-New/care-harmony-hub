@@ -111,6 +111,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-02: Confirm and remove the CORS-breaking global fetch patch
 
+- **Status (2026-11-05): code complete on branch `ccr-2602d823-jeymkf`.** Reproduced the preflight failure in headless Chromium against a stub; `registerFetchInterceptor` deleted, bootstrap installs nothing, `_shared/cors.ts` also allows the correlation headers. A test fails if any source file reassigns the global fetch. Remaining: live check that Edge Functions return 200 from the deployed site.
 - **Priority:** P0. Covers 1 issue(s), of which 0 are P0 and 1 are P1.
 - **Related issues:** PERF-01
 - **Dependencies:** none
