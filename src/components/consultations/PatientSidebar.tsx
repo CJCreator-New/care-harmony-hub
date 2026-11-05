@@ -19,7 +19,7 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { useDataMasking } from '@/hooks/useDataProtection';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { evaluateVitalSigns, type VitalSignsEvaluation } from '@/modules/vital-signs';
+import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, type VitalSignsEvaluationResult } from '@/modules/vital-signs';
 
 interface PatientSidebarProps {
   patient?: {
@@ -43,9 +43,10 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
   const { logActivity } = useActivityLog();
   const { maskData } = useDataMasking();
 
-  const vitalEval: VitalSignsEvaluation | null = useMemo(() => {
-    if (!vitals || Object.keys(vitals).length === 0) return null;
-    return evaluateVitalSigns(vitals);
+  const vitalEval: VitalSignsEvaluationResult | null = useMemo(() => {
+    const input = fromVitalsRecord(vitals);
+    if (!hasNews2Parameters(input)) return null;
+    return evaluateVitalSigns(input);
   }, [vitals]);
 
   useEffect(() => {
@@ -144,14 +145,14 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
                   variant={
                     vitalEval.news2.riskLevel === 'high'
                       ? 'destructive'
-                      : vitalEval.news2.riskLevel === 'medium'
+                      : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
                         ? 'secondary'
                         : 'outline'
                   }
                   className={
                     vitalEval.news2.riskLevel === 'high'
                       ? 'bg-red-600 text-white font-bold animate-pulse'
-                      : vitalEval.news2.riskLevel === 'medium'
+                      : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
                         ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
                   }

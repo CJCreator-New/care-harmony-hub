@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { writeIntakeToPatientRecord } from '@/modules/order-safety';
 import { HandoffPanel } from './HandoffPanel';
 
 interface VitalsData {
@@ -197,6 +198,10 @@ export function UnifiedPatientPrepPanel({ patient, queueEntry, onComplete }: Uni
         });
         toast.warning('Critical values detected - Doctor alerted!');
       }
+
+      // CLIN-14: make intake allergies/medications visible to prescribing safety checks.
+      const intakeWrite = await writeIntakeToPatientRecord(patient.id, { allergies, currentMedications });
+      if (!intakeWrite.ok) toast.warning('Allergies/medications could not be saved to the patient record. Update the record before prescribing.');
 
       toast.success('Patient prep completed in ' + getPrepDuration());
       setPrepCompleted(true);

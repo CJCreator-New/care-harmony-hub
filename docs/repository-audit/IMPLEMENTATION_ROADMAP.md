@@ -161,6 +161,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-07: Put fail-closed clinical decision support on the live prescribing path
 
+- **Status (2026-11-05): code complete on branch `ccr-2602d823-jeymkf`, not merged to `main`.** Prescriber (consultation, quick consultation) and pharmacist screens use `@/modules/order-safety`; load/decrypt failures force a documented override; overrides persisted in `prescriptions.allergy_alerts`/`drug_interactions`; NEWS2 adapter and intake write-through landed; `usePrescriptionSafety` deleted. No migration. Remaining: the Playwright staging smoke test, and the follow-ups in `.scratch/repository-audit/issues/02-fail-closed-cds.md`.
 - **Priority:** P0. Covers 5 issue(s), of which 1 are P0 and 3 are P1.
 - **Related issues:** CLIN-01, CLIN-02, CLIN-14, ARCH-04, CLIN-08
 - **Dependencies:** none

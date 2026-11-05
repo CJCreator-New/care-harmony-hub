@@ -4,7 +4,34 @@ import {
   InMemoryPrescriptionAdapter,
   PrescriptionActor,
 } from '@/modules/prescription-dispensing';
-import { checkPrescriptionSafety } from '@/hooks/usePrescriptionSafety';
+import {
+  HeadlessOrderSafetyEngine,
+  InMemoryLocalDdiAdapter,
+  MockRxNormAdapter,
+  SpyAuditLoggerAdapter,
+  toOrderItems,
+} from '@/modules/order-safety';
+
+// DUR screening now runs through the order-safety module (S0-07); the legacy
+// usePrescriptionSafety hook was removed.
+async function screen(drug: string, allergies: string[], activeMeds: string[]) {
+  const engine = new HeadlessOrderSafetyEngine({
+    localDdiRepo: new InMemoryLocalDdiAdapter(),
+    rxNormPort: new MockRxNormAdapter(),
+    auditLogger: new SpyAuditLoggerAdapter(),
+  });
+  return engine.evaluate({
+    actor: { userId: 'pharm-1', hospitalId: 'hospital-main', role: 'pharmacist' },
+    patient: {
+      patientId: 'pt-1',
+      hospitalId: 'hospital-main',
+      ageYears: 45,
+      allergies,
+      activeMedications: activeMeds.map((drugName) => ({ drugName })),
+    },
+    items: toOrderItems([{ medication_name: drug, dosage: '20 mg', frequency: 'OD' }]),
+  });
+}
 
 describe('Workflow 3 - Pharmacy Dispensing, Stock Allocation & Safety Gates', () => {
   let engine: PrescriptionDispensingEngine;
@@ -73,30 +100,30 @@ describe('Workflow 3 - Pharmacy Dispensing, Stock Allocation & Safety Gates', ()
   });
 
   describe('Inline DUR Screening & Contraindication Gate (A2)', () => {
-    it('flags contraindicated drug interaction when SSRI and MAOI are prescribed together', () => {
-      const safetyCheck = checkPrescriptionSafety('Fluoxetine', [], ['Phenelzine']);
+    it('hard-stops SSRI + MAOI (cannot be overridden)', async () => {
+      const result = await screen('Fluoxetine', [], ['Phenelzine']);
 
-      expect(safetyCheck.drugInteractions.length).toBeGreaterThan(0);
-      const contraindicated = safetyCheck.drugInteractions.find(
-        (i) => i.severity === 'contraindicated'
-      );
-      expect(contraindicated).toBeDefined();
-      expect(safetyCheck.requiresVerification).toBe(true);
+      const stop = result.findings.find((f) => f.kind === 'DRUG_DRUG_INTERACTION' && f.isHardStop);
+      expect(stop).toBeDefined();
+      expect(result.canProceed).toBe(false);
     });
 
-    it('flags major interaction for Warfarin and Aspirin', () => {
-      const safetyCheck = checkPrescriptionSafety('Warfarin', [], ['Aspirin']);
+    it('requires an override for Warfarin with Aspirin', async () => {
+      const result = await screen('Warfarin', [], ['Aspirin']);
 
-      expect(safetyCheck.drugInteractions.length).toBeGreaterThan(0);
-      const major = safetyCheck.drugInteractions.find((i) => i.severity === 'major');
-      expect(major).toBeDefined();
+      const ddi = result.findings.find((f) => f.kind === 'DRUG_DRUG_INTERACTION');
+      expect(ddi).toBeDefined();
+      expect(ddi?.requiresPhysicianOverride || ddi?.isHardStop).toBe(true);
+      expect(result.canProceed).toBe(false);
     });
 
-    it('identifies severe allergy cross-reactivity for penicillin allergy and amoxicillin', () => {
-      const safetyCheck = checkPrescriptionSafety('Amoxicillin', ['penicillin'], []);
+    it('identifies allergy cross-reactivity for penicillin allergy and amoxicillin', async () => {
+      const result = await screen('Amoxicillin', ['penicillin'], []);
 
-      expect(safetyCheck.allergyAlerts.length).toBeGreaterThan(0);
-      expect(safetyCheck.allergyAlerts[0].allergen).toBe('penicillin');
+      const allergy = result.findings.find((f) => f.kind === 'ALLERGY_CROSS_REACTIVITY');
+      expect(allergy).toBeDefined();
+      expect(allergy?.interactingSubject?.toLowerCase()).toContain('penicillin');
+      expect(result.canProceed).toBe(false);
     });
 
     it('enforces mandatory override notes (>= 15 chars) before allowing pharmacist approval for contraindications', () => {

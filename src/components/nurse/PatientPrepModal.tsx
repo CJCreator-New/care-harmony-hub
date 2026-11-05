@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { writeIntakeToPatientRecord } from '@/modules/order-safety';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { evaluateVitalSigns } from '@/modules/vital-signs';
@@ -214,6 +215,10 @@ export function PatientPrepModal({
           `Critical vital signs detected (${evaluation.news2.riskLevel.toUpperCase()} risk) — Doctor alerted immediately!`
         );
       }
+
+      // CLIN-14: make intake allergies/medications visible to prescribing safety checks.
+      const intakeWrite = await writeIntakeToPatientRecord(patient.id, { allergies, currentMedications });
+      if (!intakeWrite.ok) toast.warning('Allergies/medications could not be saved to the patient record. Update the record before prescribing.');
 
       toast.success('Patient prep completed successfully!');
       queryClient.invalidateQueries({ queryKey: ['queue'] });

@@ -36,7 +36,7 @@ import {
   PenTool,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { evaluateVitalSigns, type VitalSignsEvaluation } from '@/modules/vital-signs';
+import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, type VitalSignsEvaluationResult } from '@/modules/vital-signs';
 import {
   buildPrescriptionSafetyColumns,
   overrideSummary,
@@ -169,10 +169,10 @@ export default function ConsultationWorkflowPage() {
     return 'Medication safety checks are still running. Try again in a moment.';
   };
 
-  const vitalEval: VitalSignsEvaluation | null = useMemo(() => {
-    const v = formData.vitals || consultation?.vitals;
-    if (!v || Object.keys(v).length === 0) return null;
-    return evaluateVitalSigns(v);
+  const vitalEval: VitalSignsEvaluationResult | null = useMemo(() => {
+    const input = fromVitalsRecord(formData.vitals || consultation?.vitals);
+    if (!hasNews2Parameters(input)) return null;
+    return evaluateVitalSigns(input);
   }, [formData.vitals, consultation?.vitals]);
 
   const triggerWorkflowSafely = async (
@@ -1018,14 +1018,14 @@ ${formData.soap_plan || 'Not documented'}`;
                       variant={
                         vitalEval.news2.riskLevel === 'high'
                           ? 'destructive'
-                          : vitalEval.news2.riskLevel === 'medium'
+                          : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
                             ? 'secondary'
                             : 'outline'
                       }
                       className={
                         vitalEval.news2.riskLevel === 'high'
                           ? 'bg-red-600 text-white font-bold animate-pulse'
-                          : vitalEval.news2.riskLevel === 'medium'
+                          : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
                             ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200'
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
                       }
@@ -1073,7 +1073,7 @@ ${formData.soap_plan || 'Not documented'}`;
           </div>
 
           {/* Clinical Deterioration Alert Banner (A2) */}
-          {vitalEval && vitalEval.news2.totalScore >= 5 && (
+          {vitalEval && (vitalEval.news2.totalScore >= 5 || vitalEval.news2.hasRedFlag) && (
             <div className="rounded-lg border border-red-300 bg-red-50/90 p-4 dark:border-red-900/60 dark:bg-red-950/40">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />

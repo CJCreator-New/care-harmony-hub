@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { fieldEncryption } from '@/utils/dataProtection';
+import { mergeIntakeIntoPatientRecord, type IntakeClinicalText } from '../core/intakeRecord';
 import {
   ageFromDateOfBirth,
   mapGender,
@@ -331,4 +332,36 @@ export async function loadPatientClinicalRecord(
     activePrescriptionMedications,
     gaps,
   };
+}
+
+/**
+ * Writes allergies / home medications captured at intake into the patient's
+ * structured record (CLIN-14). Additive merge, see `mergeIntakeIntoPatientRecord`.
+ * Never throws; callers should warn the user when `ok` is false, because the
+ * prescriber's safety screen will not see the intake allergies.
+ */
+export async function writeIntakeToPatientRecord(
+  patientId: string,
+  intake: IntakeClinicalText
+): Promise<{ ok: boolean; changed: boolean; error?: string }> {
+  try {
+    if (!patientId) return { ok: false, changed: false, error: 'patient id missing' };
+    if (!intake.allergies?.trim() && !intake.currentMedications?.trim()) return { ok: true, changed: false };
+    const { data, error } = await supabase
+      .from('patients')
+      .select('allergies, current_medications')
+      .eq('id', patientId)
+      .maybeSingle();
+    if (error || !data) return { ok: false, changed: false, error: error?.message ?? 'patient not found' };
+    const patch = mergeIntakeIntoPatientRecord(data as any, intake);
+    if (!patch) return { ok: true, changed: false };
+    const { error: updateError } = await supabase
+      .from('patients')
+      .update(patch as any)
+      .eq('id', patientId);
+    if (updateError) return { ok: false, changed: false, error: updateError.message };
+    return { ok: true, changed: true };
+  } catch (err) {
+    return { ok: false, changed: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }

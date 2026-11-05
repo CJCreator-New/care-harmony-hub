@@ -47,6 +47,7 @@ export {
   SupabaseActivityLogAuditAdapter,
   SupabaseAuditLoggerAdapter,
   loadPatientClinicalRecord,
+  writeIntakeToPatientRecord,
   type LoadedPatientRecord,
 } from './adapters/SupabaseAdapters';
 
@@ -72,6 +73,11 @@ export {
   type PersistedSafetyFinding,
   type PrescriptionSafetyColumns,
 } from './core/safetyRecord';
+export {
+  mergeIntakeIntoPatientRecord,
+  type IntakeClinicalText,
+  type PatientRecordPatch,
+} from './core/intakeRecord';
 
 // Core Rules & Taxonomies
 export { ALLERGEN_CLASS_MAP, normalizeAllergyTerm } from './core/allergyEngine';

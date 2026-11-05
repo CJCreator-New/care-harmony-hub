@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { writeIntakeToPatientRecord } from '@/modules/order-safety';
 import { Activity, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface TriageChecklistItem {
@@ -95,6 +96,10 @@ export function EnhancedTriagePanel({ patientId, queueId }: { patientId: string;
         current_medications: medications,
         triage_notes: `ESI Level: ${calculateESI().level}`,
       });
+
+      // CLIN-14: make intake allergies/medications visible to prescribing safety checks.
+      const intakeWrite = await writeIntakeToPatientRecord(patientId, { allergies, currentMedications: medications });
+      if (!intakeWrite.ok) toast.warning('Allergies/medications could not be saved to the patient record. Update the record before prescribing.');
 
       await triggerWorkflow({
         type: WORKFLOW_EVENT_TYPES.PATIENT_READY_FOR_DOCTOR,

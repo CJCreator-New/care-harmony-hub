@@ -25,5 +25,12 @@ export {
   roundToOneDecimal,
 } from './core/conversions';
 
+export {
+  fromVitalsRecord,
+  parseBloodPressure,
+  inferTemperatureUnit,
+  hasNews2Parameters,
+} from './core/adapters';
+
 // Domain Types
 export * from './types';
