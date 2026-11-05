@@ -183,6 +183,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-09: Remove secrets and PHI persistence from the browser
 
+- **Status (2026-11-05): code complete on branch `ccr-2602d823-jeymkf`, not merged to `main`.** Provider keys removed from the browser and a CI source + canary-bundle scan added (SECF-03); Supabase responses no longer cached by the service worker, old caches deleted on start (SECF-04); one `purgeClientState()` on logout, idle logoff and SIGNED_OUT with a local sign-out fallback (SECF-05); nurse offline data moved to an AES-GCM-encrypted IndexedDB store wiped on logout, plaintext export/import removed (SECF-06); invoice adjustment UI and PIN removed until S1-01 (FUNC-33). Remaining: rotate any provider keys ever set in the Lovable build env; live checks listed in `.scratch/repository-audit/issues/04-browser-secrets-and-phi.md`.
 - **Priority:** P0. Covers 5 issue(s), of which 0 are P0 and 3 are P1.
 - **Related issues:** SECF-03, SECF-04, SECF-05, SECF-06, FUNC-33
 - **Dependencies:** none

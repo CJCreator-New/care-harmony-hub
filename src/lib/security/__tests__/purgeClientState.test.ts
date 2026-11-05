@@ -87,7 +87,8 @@ describe('purgeClientState', () => {
     expect(remaining.sort()).toEqual([...PRESERVED_LOCAL_STORAGE_KEYS].sort());
     expect(window.localStorage.getItem('caresync-theme')).toBe('dark');
     expect(summary.localStorageKeysRemoved).toContain('sb-stub-auth-token');
-    expect(summary.localStorageKeysRemoved).toContain('care-harmony-offline-cache');
+    // Removed either by the offline-store wipe (legacy keys) or by the storage purge.
+    expect(window.localStorage.getItem('care-harmony-offline-cache')).toBeNull();
     expect(summary.errors).toEqual([]);
   });
 
@@ -262,5 +263,19 @@ describe('deleteLegacySupabaseCaches', () => {
   it('resolves to [] when Cache Storage is unavailable', async () => {
     vi.stubGlobal('caches', undefined);
     await expect(deleteLegacySupabaseCaches()).resolves.toEqual([]);
+  });
+});
+
+describe('purgeClientState: nurse offline store (SECF-06 integration)', () => {
+  it('wipes the offline store on every purge, and a failing wipe never blocks logout', async () => {
+    const { purgeClientState } = await import('../purgeClientState');
+    const wipe = vi.fn().mockResolvedValue(undefined);
+    await purgeClientState({ queryClient: null, wipeOfflineStore: wipe });
+    expect(wipe).toHaveBeenCalledTimes(1);
+
+    const failing = vi.fn().mockRejectedValue(new Error('blocked'));
+    const summary = await purgeClientState({ queryClient: null, wipeOfflineStore: failing });
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(summary.errors.some((e) => e.startsWith('offlineStore:'))).toBe(true);
   });
 });

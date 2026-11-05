@@ -16,6 +16,7 @@
  * rather than raised, so a purge problem can never block logout.
  */
 import { queryClient as appQueryClient } from '@/lib/queryClient';
+import { wipeOfflineStore } from '@/modules/offline-store';
 
 /**
  * localStorage keys that survive a purge.
@@ -70,6 +71,8 @@ export interface PurgeSummary {
 export interface PurgeOptions {
   /** Defaults to the application QueryClient from `@/lib/queryClient`. */
   queryClient?: { clear: () => void } | null;
+  /** Defaults to `wipeOfflineStore` from `@/modules/offline-store` (tests inject a stub). */
+  wipeOfflineStore?: () => Promise<void>;
 }
 
 const errorMessage = (error: unknown): string =>
@@ -213,6 +216,13 @@ const runPurge = async (options: PurgeOptions): Promise<PurgeSummary> => {
     summary.errors.push(`queryClient: ${errorMessage(error)}`);
   }
 
+  // 1b. Nurse offline store (SECF-06): clears its in-memory state first, so a
+  // still-mounted useOfflineSync cannot write PHI back after the purge, then
+  // deletes the encrypted `caresync-offline` database and its session key.
+  const offlineStep = (options.wipeOfflineStore ?? wipeOfflineStore)().catch((error: unknown) => {
+    summary.errors.push(`offlineStore: ${errorMessage(error)}`);
+  });
+
   // 2 + 3. Web Storage (synchronous, so do it before any await).
   try {
     summary.localStorageKeysRemoved = purgeStorage(getStorage('localStorage'), PRESERVED_LOCAL_STORAGE_KEYS);
@@ -246,7 +256,7 @@ const runPurge = async (options: PurgeOptions): Promise<PurgeSummary> => {
       summary.errors.push(`caches: ${errorMessage(error)}`);
     });
 
-  await Promise.all([idbStep, cacheStep]);
+  await Promise.all([idbStep, cacheStep, withTimeout(offlineStep, CACHE_STEP_TIMEOUT_MS, undefined)]);
   return summary;
 };
 
