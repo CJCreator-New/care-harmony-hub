@@ -28,6 +28,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { exitIfProductionTarget } from './lib/supabase-target-guard.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -71,6 +72,9 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY in .env');
   process.exit(1);
 }
+
+// S0-11 / OPS-17: synthetic data must never be written to the production project.
+exitIfProductionTarget(supabaseUrl, 'VITE_SUPABASE_URL (.env)', 'scripts/seed-test-data.mjs');
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 

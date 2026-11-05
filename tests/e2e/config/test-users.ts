@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from '../support/test-credentials';
 /**
  * Test User Configuration
  * Role-based test credentials for all CareSync user types
@@ -20,7 +21,7 @@ export interface TestUser {
 export const TEST_USERS: Record<UserRole, TestUser> = {
   admin: {
     email: 'admin@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'admin',
     displayName: 'Admin User',
     hospitalId: 'test-hospital-001',
@@ -28,7 +29,7 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
   },
   doctor: {
     email: 'doctor@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'doctor',
     displayName: 'Dr. Jane Smith',
     hospitalId: 'test-hospital-001',
@@ -36,7 +37,7 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
   },
   nurse: {
     email: 'nurse@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'nurse',
     displayName: 'Nancy Nurse',
     hospitalId: 'test-hospital-001',
@@ -44,7 +45,7 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
   },
   receptionist: {
     email: 'reception@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'receptionist',
     displayName: 'Rachel Receptionist',
     hospitalId: 'test-hospital-001',
@@ -52,7 +53,7 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
   },
   pharmacist: {
     email: 'pharmacy@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'pharmacist',
     displayName: 'Phil Pharmacist',
     hospitalId: 'test-hospital-001',
@@ -60,7 +61,7 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
   },
   lab_technician: {
     email: 'lab@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'lab_technician',
     displayName: 'Larry LabTech',
     hospitalId: 'test-hospital-001',
@@ -68,7 +69,7 @@ export const TEST_USERS: Record<UserRole, TestUser> = {
   },
   patient: {
     email: 'patient@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'patient',
     displayName: 'John Patient',
     hospitalId: 'test-hospital-001',

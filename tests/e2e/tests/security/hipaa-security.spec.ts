@@ -10,6 +10,7 @@
  * @group security
  */
 
+import { E2E_TEST_PASSWORD } from '../../support/test-credentials';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
@@ -18,11 +19,11 @@ import type { Page } from '@playwright/test';
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:8080';
 
 const CREDS = {
-  admin:          { email: 'admin@testgeneral.com',       password: 'TestPass123!' },
-  doctor:         { email: 'doctor@testgeneral.com',      password: 'TestPass123!' },
-  nurse:          { email: 'nurse@testgeneral.com',       password: 'TestPass123!' },
-  receptionist:   { email: 'reception@testgeneral.com',   password: 'TestPass123!' },
-  patient:        { email: 'patient@testgeneral.com',     password: 'TestPass123!' },
+  admin:          { email: 'admin@testgeneral.com',       password: E2E_TEST_PASSWORD },
+  doctor:         { email: 'doctor@testgeneral.com',      password: E2E_TEST_PASSWORD },
+  nurse:          { email: 'nurse@testgeneral.com',       password: E2E_TEST_PASSWORD },
+  receptionist:   { email: 'reception@testgeneral.com',   password: E2E_TEST_PASSWORD },
+  patient:        { email: 'patient@testgeneral.com',     password: E2E_TEST_PASSWORD },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

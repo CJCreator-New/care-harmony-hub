@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from '../support/test-credentials';
 // E2E Test Configuration
 export const E2E_CONFIG = {
   // Test environment settings
@@ -9,17 +10,17 @@ export const E2E_CONFIG = {
   testUsers: {
     admin: {
       email: 'admin@testgeneral.com',
-      password: 'TestPass123!',
+      password: E2E_TEST_PASSWORD,
       role: 'admin'
     },
     doctor: {
       email: 'doctor@testgeneral.com', 
-      password: 'TestPass123!',
+      password: E2E_TEST_PASSWORD,
       role: 'doctor'
     },
     nurse: {
       email: 'nurse@testgeneral.com',
-      password: 'TestPass123!', 
+      password: E2E_TEST_PASSWORD, 
       role: 'nurse'
     }
   },

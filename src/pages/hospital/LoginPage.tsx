@@ -309,7 +309,7 @@ export default function LoginPage() {
           {import.meta.env.VITE_E2E_MOCK_AUTH === 'true' && (
             <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 space-y-3">
               <p className="text-xs font-semibold text-warning uppercase tracking-wide">Mock Auth Mode — Test Credentials</p>
-              <p className="text-xs text-muted-foreground">All accounts share password: <code className="font-mono font-bold">TestPass123!</code></p>
+              <p className="text-xs text-muted-foreground">All mock accounts use the <code className="font-mono font-bold">VITE_E2E_MOCK_PASSWORD</code> value from <code className="font-mono">.env.test</code>.</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                 {[
                   { role: 'Admin', email: 'admin@testgeneral.com' },
@@ -326,7 +326,7 @@ export default function LoginPage() {
                     className="text-left hover:text-primary transition-colors py-0.5"
                     onClick={() => {
                       form.setValue('email', email);
-                      form.setValue('password', 'TestPass123!');
+                      form.setValue('password', import.meta.env.DEV ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '') : '');
                     }}
                   >
                     <span className="font-medium">{role}:</span>{' '}

@@ -33,7 +33,7 @@ Throws element not fillable exception on all diagnostic tests.
 - Call log:
   `- waiting for getByLabel(/password/i).first()`
   `- locator resolved to <button type="button" aria-label="Show password"...>`
-  `- fill("TestPass123!")`
+  `- fill("<shared test password, removed in S0-11>")`
 
 ## Likely Root Cause
 `tests/e2e/hims-diagnostic-complete.spec.ts` re-implemented login logic inline instead of reusing `LoginPage.loginAndWaitForDashboard` from `tests/e2e/pages/login.page.ts`.

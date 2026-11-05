@@ -9,6 +9,7 @@
  * @group auth
  */
 
+import { E2E_TEST_PASSWORD } from '../../support/test-credentials';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
@@ -29,7 +30,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'admin',
     email: 'admin@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /administrator/i,
     landingPath: /\/dashboard/,
     sidebarItem: /settings|staff|users/i,
@@ -37,7 +38,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'doctor',
     email: 'doctor@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /doctor/i,
     landingPath: /\/dashboard/,
     sidebarItem: /consultations|lab/i,
@@ -45,7 +46,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'nurse',
     email: 'nurse@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /nurse/i,
     landingPath: /\/dashboard/,
     sidebarItem: /queue|vitals/i,
@@ -53,7 +54,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'receptionist',
     email: 'reception@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /receptionist/i,
     landingPath: /\/dashboard/,
     sidebarItem: /appointments|queue/i,
@@ -61,7 +62,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'pharmacist',
     email: 'pharmacy@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /pharmacist/i,
     landingPath: /\/dashboard/,
     sidebarItem: /pharmacy|inventory/i,
@@ -69,7 +70,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'lab_technician',
     email: 'lab@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /lab technician|lab tech/i,
     landingPath: /\/dashboard/,
     sidebarItem: /laboratory|lab/i,
@@ -77,7 +78,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   {
     role: 'patient',
     email: 'patient@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     badge: /patient/i,
     landingPath: /\/dashboard|\/patient\/portal|\/portal/,
     sidebarItem: /appointments|prescriptions|results/i,
@@ -175,7 +176,7 @@ test.describe('1B — Negative Auth Tests', () => {
 
   test('non-existent email shows error toast and stays on login', async ({ page }) => {
     await goToLogin(page);
-    await fillAndSubmitLogin(page, 'noone@nowhere.example.com', 'TestPass123!');
+    await fillAndSubmitLogin(page, 'noone@nowhere.example.com', E2E_TEST_PASSWORD);
 
     await page.waitForTimeout(3_000);
     await expect(page).toHaveURL(/login/, { timeout: 5_000 });
@@ -245,7 +246,7 @@ test.describe('1B — Negative Auth Tests', () => {
 test.describe('1C — Session Management', () => {
   test('session persists after page reload', async ({ page }) => {
     await goToLogin(page);
-    await fillAndSubmitLogin(page, 'admin@testgeneral.com', 'TestPass123!');
+    await fillAndSubmitLogin(page, 'admin@testgeneral.com', E2E_TEST_PASSWORD);
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
 
@@ -259,7 +260,7 @@ test.describe('1C — Session Management', () => {
 
   test('logout clears session and redirects to login', async ({ page }) => {
     await goToLogin(page);
-    await fillAndSubmitLogin(page, 'doctor@testgeneral.com', 'TestPass123!');
+    await fillAndSubmitLogin(page, 'doctor@testgeneral.com', E2E_TEST_PASSWORD);
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
 
@@ -279,7 +280,7 @@ test.describe('1C — Session Management', () => {
 
   test('accessing protected route after logout redirects to login', async ({ page }) => {
     await goToLogin(page);
-    await fillAndSubmitLogin(page, 'nurse@testgeneral.com', 'TestPass123!');
+    await fillAndSubmitLogin(page, 'nurse@testgeneral.com', E2E_TEST_PASSWORD);
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
 
@@ -296,7 +297,7 @@ test.describe('1C — Session Management', () => {
 
   test('session timeout warning modal appears before auto-logout', async ({ page }) => {
     await goToLogin(page);
-    await fillAndSubmitLogin(page, 'admin@testgeneral.com', 'TestPass123!');
+    await fillAndSubmitLogin(page, 'admin@testgeneral.com', E2E_TEST_PASSWORD);
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
 

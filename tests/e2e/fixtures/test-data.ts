@@ -1,27 +1,28 @@
+import { E2E_TEST_PASSWORD } from '../support/test-credentials';
 import { faker } from '@faker-js/faker';
 
 export const testUsers = {
   patient: {
     email: 'patient.test@caresync.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     name: 'John Doe',
     phone: '555-0100',
   },
   doctor: {
     email: 'doctor.test@caresync.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     name: 'Dr. Jane Smith',
   },
   admin: {
     email: 'admin.test@caresync.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     name: 'Admin User',
   },
 };
 
 export const generatePatient = () => ({
   email: faker.internet.email(),
-  password: 'TestPass123!',
+  password: E2E_TEST_PASSWORD,
   firstName: faker.person.firstName(),
   lastName: faker.person.lastName(),
   phone: faker.phone.number(),

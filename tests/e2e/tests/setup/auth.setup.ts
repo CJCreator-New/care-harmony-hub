@@ -8,6 +8,7 @@
  * Storage state files are written to test-results/.auth-full/<role>.json
  */
 
+import { E2E_TEST_PASSWORD } from '../../support/test-credentials';
 import { test as setup } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
@@ -16,13 +17,13 @@ const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:8080';
 const AUTH_DIR = path.join('test-results', '.auth-full');
 
 const ROLES = [
-  { role: 'admin',          email: 'admin@testgeneral.com',       password: 'TestPass123!' },
-  { role: 'doctor',         email: 'doctor@testgeneral.com',      password: 'TestPass123!' },
-  { role: 'nurse',          email: 'nurse@testgeneral.com',       password: 'TestPass123!' },
-  { role: 'receptionist',   email: 'reception@testgeneral.com',   password: 'TestPass123!' },
-  { role: 'pharmacist',     email: 'pharmacy@testgeneral.com',    password: 'TestPass123!' },
-  { role: 'lab_technician', email: 'lab@testgeneral.com',         password: 'TestPass123!' },
-  { role: 'patient',        email: 'patient@testgeneral.com',     password: 'TestPass123!' },
+  { role: 'admin',          email: 'admin@testgeneral.com',       password: E2E_TEST_PASSWORD },
+  { role: 'doctor',         email: 'doctor@testgeneral.com',      password: E2E_TEST_PASSWORD },
+  { role: 'nurse',          email: 'nurse@testgeneral.com',       password: E2E_TEST_PASSWORD },
+  { role: 'receptionist',   email: 'reception@testgeneral.com',   password: E2E_TEST_PASSWORD },
+  { role: 'pharmacist',     email: 'pharmacy@testgeneral.com',    password: E2E_TEST_PASSWORD },
+  { role: 'lab_technician', email: 'lab@testgeneral.com',         password: E2E_TEST_PASSWORD },
+  { role: 'patient',        email: 'patient@testgeneral.com',     password: E2E_TEST_PASSWORD },
 ] as const;
 
 // Ensure directory exists
