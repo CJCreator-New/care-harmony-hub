@@ -52,7 +52,7 @@ export type OfflineEvent =
  */
 export interface StoredRecord {
   id: string;
-  iv: Uint8Array;
+  iv: Uint8Array<ArrayBuffer>;
   ciphertext: ArrayBuffer;
 }
 
