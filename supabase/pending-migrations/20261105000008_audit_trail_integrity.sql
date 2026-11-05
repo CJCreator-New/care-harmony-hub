@@ -143,6 +143,7 @@ $$;
 DO $s105b$
 DECLARE
   p record;
+  t text;
 BEGIN
   -- activity_logs: WITH CHECK (true) in the live policy set lets any signed-in
   -- user write a row for any user and hospital.
@@ -211,6 +212,32 @@ BEGIN
       RAISE NOTICE '20261105000008: audit_log lacks actor_user_id or hospital_id; no client insert policy';
     END IF;
   END IF;
+
+  -- Clinical audit tables (20260313000001): the insert policy checks only the
+  -- hospital, so a staff member could name any actor. The triggers that write
+  -- these rows (20260313000002 and 20260313000003) are not SECURITY INVOKER,
+  -- so they do not depend on the client policy.
+  FOREACH t IN ARRAY ARRAY['prescription_audit', 'invoice_adjustment_audit', 'lab_result_audit'] LOOP
+    IF to_regclass('public.' || t) IS NULL THEN
+      CONTINUE;
+    END IF;
+    FOR p IN SELECT policyname FROM pg_policies
+              WHERE schemaname = 'public' AND tablename = t
+                AND cmd IN ('INSERT', 'ALL') LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', p.policyname, t);
+    END LOOP;
+    IF public.s105_table_has_columns(t, ARRAY['actor_user_id', 'hospital_id']) THEN
+      EXECUTE format(
+        'CREATE POLICY %I ON public.%I FOR INSERT TO authenticated WITH CHECK ('
+        '  EXISTS (SELECT 1 FROM public.profiles pr'
+        '           WHERE pr.user_id = auth.uid()'
+        '             AND pr.id = %I.actor_user_id'
+        '             AND pr.hospital_id = %I.hospital_id))',
+        t || '_insert_as_actor', t, t, t);
+    ELSE
+      RAISE NOTICE '20261105000008: % lacks actor_user_id or hospital_id; no client insert policy', t;
+    END IF;
+  END LOOP;
 END
 $s105b$;
 
