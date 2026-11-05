@@ -43,4 +43,3 @@ and per-role guides for doctor, nurse, pharmacist, receptionist, lab technician,
 ## Agent and repository conventions
 - [agents/](./agents) — issue tracker, triage labels and domain docs used by agent workflows
 - [../CONTEXT.md](../CONTEXT.md) — domain glossary
-- [../archive/README.md](../archive/README.md) — non-runtime infrastructure archived per ADR-0001
