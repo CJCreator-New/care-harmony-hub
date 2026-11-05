@@ -424,12 +424,10 @@ export const publicRoutes: RouteDefinition[] = [
     ),
   },
   {
+    // Creates staff invitations with any role, so admin only (SECF-09, S0-03).
+    // The database enforces the same rule (staff_invitations_admin_manage).
     path: '/hospital/role-setup',
-    element: (
-      <ProtectedRoute>
-        <AdminRoleSetupPage />
-      </ProtectedRoute>
-    ),
+    element: withRoleAccess(<AdminRoleSetupPage />, ['admin']),
   },
   { path: '/hospital/account-setup', element: <AccountSetupPage /> },
   {

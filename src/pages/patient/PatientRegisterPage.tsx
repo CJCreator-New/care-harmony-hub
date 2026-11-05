@@ -4,54 +4,65 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Activity, 
-  ArrowLeft, 
-  ArrowRight, 
-  CheckCircle2, 
-  User, 
-  Lock, 
-  Heart,
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  IdCard,
+  Lock,
   Loader2,
   Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Patient portal self-registration (roadmap S0-03: DB-01, SECF-10, FUNC-01).
+ *
+ * A patient registers by claiming the record their hospital already created:
+ * hospital code, MRN, date of birth, last name and the email address on file.
+ * Everything runs in the `register-patient` edge function: it verifies the
+ * details (throttled), creates the account, links the record and assigns the
+ * patient role in one server-side step. The hospital is taken from the matched
+ * record; this page never sends or chooses a hospital id, and it no longer
+ * collects a security question (SECF-11).
+ */
+
 const steps = [
-  { id: 1, title: 'Basic Info', icon: User },
+  { id: 1, title: 'Your Record', icon: IdCard },
   { id: 2, title: 'Account', icon: Lock },
-  { id: 3, title: 'Medical Info', icon: Heart },
-  { id: 4, title: 'Confirm', icon: CheckCircle2 },
+  { id: 3, title: 'Confirm', icon: CheckCircle2 },
 ];
 
 interface FormData {
-  firstName: string;
+  hospitalCode: string;
+  mrn: string;
   lastName: string;
-  email: string;
-  phone: string;
   dateOfBirth: string;
-  gender: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
+  email: string;
   password: string;
   confirmPassword: string;
-  securityQuestion: string;
-  securityAnswer: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
-  emergencyContactRelationship: string;
-  bloodType: string;
-  allergies: string;
-  chronicConditions: string;
   agreeToTerms: boolean;
   agreeToHipaa: boolean;
-  hospitalCode: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Reads the `{ error }` body of a non-2xx edge-function response. */
+async function functionErrorMessage(error: unknown): Promise<string | null> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
+  if (context?.json) {
+    try {
+      const body = (await context.json()) as { error?: unknown };
+      if (typeof body?.error === 'string') return body.error;
+    } catch {
+      // not JSON
+    }
+  }
+  return null;
 }
 
 export default function PatientRegisterPage() {
@@ -60,29 +71,15 @@ export default function PatientRegisterPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    firstName: '',
+    hospitalCode: '',
+    mrn: '',
     lastName: '',
-    email: '',
-    phone: '',
     dateOfBirth: '',
-    gender: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
+    email: '',
     password: '',
     confirmPassword: '',
-    securityQuestion: '',
-    securityAnswer: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    emergencyContactRelationship: '',
-    bloodType: '',
-    allergies: '',
-    chronicConditions: '',
     agreeToTerms: false,
     agreeToHipaa: false,
-    hospitalCode: '',
   });
 
   const updateFormData = (field: keyof FormData, value: string | boolean) => {
@@ -92,17 +89,16 @@ export default function PatientRegisterPage() {
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
-        if (!formData.firstName || !formData.lastName || !formData.email || !formData.dateOfBirth || !formData.gender) {
+        if (!formData.hospitalCode.trim() || !formData.mrn.trim() || !formData.lastName.trim() || !formData.dateOfBirth) {
           toast({ title: 'Missing Fields', description: 'Please fill in all required fields.', variant: 'destructive' });
-          return false;
-        }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
-          toast({ title: 'Invalid Email', description: 'Please enter a valid email address.', variant: 'destructive' });
           return false;
         }
         return true;
       case 2:
+        if (!EMAIL_RE.test(formData.email.trim())) {
+          toast({ title: 'Invalid Email', description: 'Please enter a valid email address.', variant: 'destructive' });
+          return false;
+        }
         if (!formData.password || !formData.confirmPassword) {
           toast({ title: 'Missing Fields', description: 'Please fill in password fields.', variant: 'destructive' });
           return false;
@@ -117,8 +113,6 @@ export default function PatientRegisterPage() {
         }
         return true;
       case 3:
-        return true; // Medical info is optional
-      case 4:
         if (!formData.agreeToTerms || !formData.agreeToHipaa) {
           toast({ title: 'Agreement Required', description: 'Please agree to the terms and HIPAA notice.', variant: 'destructive' });
           return false;
@@ -131,7 +125,7 @@ export default function PatientRegisterPage() {
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 4));
+      setCurrentStep(prev => Math.min(prev + 1, steps.length));
     }
   };
 
@@ -140,101 +134,40 @@ export default function PatientRegisterPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(4)) return;
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
 
     setIsLoading(true);
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-          },
+      const { data, error } = await supabase.functions.invoke('register-patient', {
+        body: {
+          hospitalCode: formData.hospitalCode.trim(),
+          mrn: formData.mrn.trim(),
+          lastName: formData.lastName.trim(),
+          dateOfBirth: formData.dateOfBirth,
+          email: formData.email.trim(),
+          password: formData.password,
         },
       });
 
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Optionally resolve hospital by license number
-        let resolvedHospitalId: string | null = null;
-        if (formData.hospitalCode.trim()) {
-          const { data: hospitalRow } = await supabase
-            .from('hospitals')
-            .select('id')
-            .eq('license_number', formData.hospitalCode.trim())
-            .maybeSingle();
-          if (hospitalRow) {
-            resolvedHospitalId = hospitalRow.id;
-          } else {
-            toast({
-              title: 'Invalid Hospital Code',
-              description: 'No hospital found with that code. Registration will continue without hospital linking.',
-              variant: 'destructive',
-            });
-          }
-        }
-
-        // Update profile with security info + optional hospital link
-        const profileUpdate: Record<string, unknown> = {
-          security_question: formData.securityQuestion,
-          security_answer: formData.securityAnswer,
-          is_staff: false,
-        };
-        if (resolvedHospitalId) profileUpdate.hospital_id = resolvedHospitalId;
-
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update(profileUpdate)
-          .eq('user_id', authData.user.id);
-
-        if (profileError) console.error('Profile update error:', profileError);
-
-        // Atomically assign patient role + create patients record in one transaction.
-        // Idempotent: safe to retry on duplicate-registration attempts (T-46).
-        const { error: registerError } = await supabase.rpc('register_patient', {
-          p_user_id: authData.user.id,
-          p_first_name: formData.firstName,
-          p_last_name: formData.lastName,
-          p_email: formData.email || null,
-          p_phone: formData.phone || null,
-          p_date_of_birth: formData.dateOfBirth,
-          p_gender: formData.gender,
-          p_address: formData.address || null,
-          p_city: formData.city || null,
-          p_state: formData.state || null,
-          p_zip: formData.zip || null,
-          p_blood_type: formData.bloodType || null,
-          p_allergies: formData.allergies
-            ? formData.allergies.split(',').map((a) => a.trim()).filter(Boolean)
-            : null,
-          p_chronic_conditions: formData.chronicConditions
-            ? formData.chronicConditions.split(',').map((c) => c.trim()).filter(Boolean)
-            : null,
-          p_emergency_contact_name: formData.emergencyContactName || null,
-          p_emergency_contact_phone: formData.emergencyContactPhone || null,
-          p_emergency_contact_relationship: formData.emergencyContactRelationship || null,
-        });
-
-        if (registerError) {
-          throw registerError;
-        }
+      if (error) {
+        throw new Error((await functionErrorMessage(error)) ?? 'An error occurred during registration.');
+      }
+      if (!data?.success) {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'An error occurred during registration.');
       }
 
       toast({
         title: 'Registration Successful!',
-        description: 'Your account has been created. Please check your email to verify your account.',
+        description: data.confirmation_email_sent === false
+          ? 'Your account has been created. Please sign in.'
+          : 'Your account has been created. Please check your email to verify your account, then sign in.',
       });
 
       navigate('/patient-login');
-    } catch (error: any) {
-      console.error('Registration error:', error);
+    } catch (error) {
       toast({
         title: 'Registration Failed',
-        description: error.message || 'An error occurred during registration.',
+        description: error instanceof Error ? error.message : 'An error occurred during registration.',
         variant: 'destructive',
       });
     } finally {
@@ -291,7 +224,7 @@ export default function PatientRegisterPage() {
                 {index < steps.length - 1 && (
                   <div
                     className={cn(
-                      'h-0.5 w-12 sm:w-20 mx-2',
+                      'h-0.5 w-16 sm:w-28 mx-2',
                       currentStep > step.id ? 'bg-primary' : 'bg-muted'
                     )}
                   />
@@ -303,32 +236,43 @@ export default function PatientRegisterPage() {
           <Card>
             <CardHeader>
               <CardTitle>
-                {currentStep === 1 && 'Personal Information'}
+                {currentStep === 1 && 'Find Your Patient Record'}
                 {currentStep === 2 && 'Create Your Account'}
-                {currentStep === 3 && 'Medical Information (Optional)'}
-                {currentStep === 4 && 'Review & Confirm'}
+                {currentStep === 3 && 'Review & Confirm'}
               </CardTitle>
               <CardDescription>
-                {currentStep === 1 && 'Enter your basic personal details'}
-                {currentStep === 2 && 'Set up your login credentials'}
-                {currentStep === 3 && 'Add any relevant medical information'}
-                {currentStep === 4 && 'Review your information and agree to our terms'}
+                {currentStep === 1 && 'Use the details from your hospital registration card or visit summary'}
+                {currentStep === 2 && 'Use the email address your hospital has on file for you'}
+                {currentStep === 3 && 'Review your information and agree to our terms'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Step 1: Basic Info */}
+              {/* Step 1: Record details */}
               {currentStep === 1 && (
                 <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="hospitalCode" className="flex items-center gap-1">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Hospital Code *
+                    </Label>
+                    <Input
+                      id="hospitalCode"
+                      value={formData.hospitalCode}
+                      onChange={(e) => updateFormData('hospitalCode', e.target.value)}
+                      placeholder="Hospital code provided by your healthcare provider"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mrn">Medical Record Number (MRN) *</Label>
+                    <Input
+                      id="mrn"
+                      value={formData.mrn}
+                      onChange={(e) => updateFormData('mrn', e.target.value)}
+                      placeholder="e.g., MRN00001234"
+                      autoComplete="off"
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name *</Label>
-                      <Input
-                        id="firstName"
-                        value={formData.firstName}
-                        onChange={(e) => updateFormData('firstName', e.target.value)}
-                        placeholder="John"
-                      />
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name *</Label>
                       <Input
@@ -336,30 +280,9 @@ export default function PatientRegisterPage() {
                         value={formData.lastName}
                         onChange={(e) => updateFormData('lastName', e.target.value)}
                         placeholder="Doe"
+                        autoComplete="family-name"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => updateFormData('email', e.target.value)}
-                      placeholder="john@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => updateFormData('phone', e.target.value)}
-                      placeholder="(555) 123-4567"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                       <Input
@@ -369,76 +292,28 @@ export default function PatientRegisterPage() {
                         onChange={(e) => updateFormData('dateOfBirth', e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gender">Gender *</Label>
-                      <Select
-                        value={formData.gender}
-                        onValueChange={(value) => updateFormData('gender', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => updateFormData('address', e.target.value)}
-                      placeholder="123 Main St"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">City</Label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={(e) => updateFormData('city', e.target.value)}
-                        placeholder="New York"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="state">State</Label>
-                      <Input
-                        id="state"
-                        value={formData.state}
-                        onChange={(e) => updateFormData('state', e.target.value)}
-                        placeholder="NY"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="zip">ZIP Code</Label>
-                      <Input
-                        id="zip"
-                        value={formData.zip}
-                        onChange={(e) => updateFormData('zip', e.target.value)}
-                        placeholder="10001"
-                      />
-                    </div>
-                  </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hospitalCode" className="flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5" />
-                    Hospital Code <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <Input
-                    id="hospitalCode"
-                    value={formData.hospitalCode}
-                    onChange={(e) => updateFormData('hospitalCode', e.target.value)}
-                    placeholder="Enter hospital license number to link your account"
-                  />
                   <p className="text-xs text-muted-foreground">
-                    If provided by your healthcare provider, enter it here to link to their facility.
+                    Don&apos;t have an MRN yet, or is your email missing from your record? Ask the hospital&apos;s
+                    reception desk to register you or update your record first.
                   </p>
                 </div>
+              )}
+
+              {/* Step 2: Account */}
+              {currentStep === 2 && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => updateFormData('email', e.target.value)}
+                      placeholder="The email address on your hospital record"
+                      autoComplete="email"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password *</Label>
                     <Input
@@ -447,6 +322,7 @@ export default function PatientRegisterPage() {
                       value={formData.password}
                       onChange={(e) => updateFormData('password', e.target.value)}
                       placeholder="Create a strong password"
+                      autoComplete="new-password"
                     />
                     <p className="text-xs text-muted-foreground">
                       Must be at least 8 characters with uppercase, lowercase, number, and symbol
@@ -460,141 +336,28 @@ export default function PatientRegisterPage() {
                       value={formData.confirmPassword}
                       onChange={(e) => updateFormData('confirmPassword', e.target.value)}
                       placeholder="Confirm your password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="securityQuestion">Security Question</Label>
-                    <Select
-                      value={formData.securityQuestion}
-                      onValueChange={(value) => updateFormData('securityQuestion', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a security question" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pet">What was the name of your first pet?</SelectItem>
-                        <SelectItem value="city">In what city were you born?</SelectItem>
-                        <SelectItem value="school">What was the name of your first school?</SelectItem>
-                        <SelectItem value="mother">What is your mother's maiden name?</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="securityAnswer">Security Answer</Label>
-                    <Input
-                      id="securityAnswer"
-                      value={formData.securityAnswer}
-                      onChange={(e) => updateFormData('securityAnswer', e.target.value)}
-                      placeholder="Your answer"
+                      autoComplete="new-password"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Step 3: Medical Info */}
+              {/* Step 3: Review & Confirm */}
               {currentStep === 3 && (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    This information helps us provide better care. All fields are optional.
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
-                      <Input
-                        id="emergencyContactName"
-                        value={formData.emergencyContactName}
-                        onChange={(e) => updateFormData('emergencyContactName', e.target.value)}
-                        placeholder="Jane Doe"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
-                      <Input
-                        id="emergencyContactPhone"
-                        type="tel"
-                        value={formData.emergencyContactPhone}
-                        onChange={(e) => updateFormData('emergencyContactPhone', e.target.value)}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emergencyContactRelationship">Relationship</Label>
-                    <Select
-                      value={formData.emergencyContactRelationship}
-                      onValueChange={(value) => updateFormData('emergencyContactRelationship', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select relationship" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="spouse">Spouse</SelectItem>
-                        <SelectItem value="parent">Parent</SelectItem>
-                        <SelectItem value="child">Child</SelectItem>
-                        <SelectItem value="sibling">Sibling</SelectItem>
-                        <SelectItem value="friend">Friend</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bloodType">Blood Type</Label>
-                    <Select
-                      value={formData.bloodType}
-                      onValueChange={(value) => updateFormData('bloodType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select blood type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A+">A+</SelectItem>
-                        <SelectItem value="A-">A-</SelectItem>
-                        <SelectItem value="B+">B+</SelectItem>
-                        <SelectItem value="B-">B-</SelectItem>
-                        <SelectItem value="AB+">AB+</SelectItem>
-                        <SelectItem value="AB-">AB-</SelectItem>
-                        <SelectItem value="O+">O+</SelectItem>
-                        <SelectItem value="O-">O-</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="allergies">Known Allergies</Label>
-                    <Input
-                      id="allergies"
-                      value={formData.allergies}
-                      onChange={(e) => updateFormData('allergies', e.target.value)}
-                      placeholder="e.g., Penicillin, Peanuts (comma separated)"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="chronicConditions">Chronic Conditions</Label>
-                    <Input
-                      id="chronicConditions"
-                      value={formData.chronicConditions}
-                      onChange={(e) => updateFormData('chronicConditions', e.target.value)}
-                      placeholder="e.g., Diabetes, Hypertension (comma separated)"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Review & Confirm */}
-              {currentStep === 4 && (
                 <div className="space-y-6">
                   <div className="rounded-lg bg-muted/50 p-4 space-y-3">
-                    <h4 className="font-medium">Personal Information</h4>
+                    <h4 className="font-medium">Your Details</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <span className="text-muted-foreground">Name:</span>
-                      <span>{formData.firstName} {formData.lastName}</span>
-                      <span className="text-muted-foreground">Email:</span>
-                      <span>{formData.email}</span>
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span>{formData.phone || 'Not provided'}</span>
+                      <span className="text-muted-foreground">Hospital Code:</span>
+                      <span>{formData.hospitalCode}</span>
+                      <span className="text-muted-foreground">MRN:</span>
+                      <span>{formData.mrn}</span>
+                      <span className="text-muted-foreground">Last Name:</span>
+                      <span>{formData.lastName}</span>
                       <span className="text-muted-foreground">Date of Birth:</span>
                       <span>{formData.dateOfBirth}</span>
-                      <span className="text-muted-foreground">Gender:</span>
-                      <span className="capitalize">{formData.gender}</span>
+                      <span className="text-muted-foreground">Email:</span>
+                      <span>{formData.email}</span>
                     </div>
                   </div>
 
@@ -617,7 +380,7 @@ export default function PatientRegisterPage() {
                         onCheckedChange={(checked) => updateFormData('agreeToHipaa', checked as boolean)}
                       />
                       <Label htmlFor="agreeToHipaa" className="text-sm leading-relaxed">
-                        I acknowledge the <Link to="#" className="text-primary hover:underline">HIPAA Privacy Notice</Link> and 
+                        I acknowledge the <Link to="#" className="text-primary hover:underline">HIPAA Privacy Notice</Link> and
                         consent to the electronic storage and sharing of my health information as described *
                       </Label>
                     </div>
@@ -635,7 +398,7 @@ export default function PatientRegisterPage() {
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Previous
                 </Button>
-                {currentStep < 4 ? (
+                {currentStep < steps.length ? (
                   <Button onClick={nextStep}>
                     Next
                     <ArrowRight className="w-4 h-4 ml-2" />
