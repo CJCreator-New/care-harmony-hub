@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from '../_shared/cors.ts'
-import { authorize, getAuthorizedActor } from '../_shared/authorize.ts'
+import { getAuthorizedActor, type AuthorizedActor } from '../_shared/authorize.ts'
+import { assertPatientInHospital, checkBodyHospital, clampInt, hasAnyRole, scopeRecordData } from '../_shared/tenantScope.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
 import { validateRequest } from '../_shared/validation.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
@@ -55,14 +56,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     const { action, data } = validation.data;
-    const scopedData = {
-      ...(data ?? {}),
-      hospital_id: actor.hospitalId,
-    };
+    const body = (data && typeof data === 'object' && !Array.isArray(data) ? data : {}) as Record<string, any>
+    // S0-06 / EDGE-07: the top-level hospital may repeat the caller's but not name another.
+    const hospitalCheck = checkBodyHospital(actor.hospitalId, body.hospital_id)
+    if (!hospitalCheck.ok) return jsonError(hospitalCheck.status, hospitalCheck.error)
+    const scopedData = { ...body, hospital_id: actor.hospitalId }
 
     switch (action) {
       case 'process_workflow_rules':
-        return await processWorkflowRules(supabaseClient, scopedData)
+        return await processWorkflowRules(supabaseClient, scopedData, actor)
 
       case 'auto_assign_tasks':
         return await autoAssignTasks(supabaseClient, scopedData)
@@ -71,10 +73,14 @@ const handler = async (req: Request): Promise<Response> => {
         return await calculateWorkflowMetrics(supabaseClient, scopedData)
 
       case 'send_bulk_notifications':
-        return await sendBulkNotifications(supabaseClient, scopedData)
+        // Broadcast to all staff is an admin action, sent as the admin themself.
+        if (!hasAnyRole(actor, ['admin'])) {
+          return jsonError(403, 'Forbidden - only an admin can send bulk notifications')
+        }
+        return await sendBulkNotifications(supabaseClient, scopedData, actor)
 
       default:
-        throw new Error(`Unknown action: ${action}`)
+        return jsonError(400, `Unknown action: ${action}`)
     }
 
   } catch (error) {
@@ -88,13 +94,28 @@ const handler = async (req: Request): Promise<Response> => {
 
 serve((req) => withRateLimit(req, handler));
 
-async function processWorkflowRules(supabaseClient: any, data: any) {
-  const { trigger_event, record_data, hospital_id } = data
-  if (!hospital_id) {
-    return new Response(JSON.stringify({ error: 'hospital_id is required for workflow processing' }), {
-      status: 400,
-      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
-    })
+function jsonError(status: number, error: string) {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+async function processWorkflowRules(supabaseClient: any, data: any, actor: AuthorizedActor) {
+  const { trigger_event, hospital_id } = data
+  if (typeof trigger_event !== 'string' || trigger_event.length === 0) {
+    return jsonError(400, 'trigger_event is required')
+  }
+
+  // EDGE-07: the nested record drives every write, so pin it to the caller's
+  // hospital (a record naming another hospital is refused) and verify its patient.
+  const scoped = scopeRecordData(data.record_data, actor.hospitalId)
+  if (!scoped.ok) return jsonError(scoped.status, scoped.error)
+  const record_data: Record<string, any> = scoped.value
+  if (record_data.patient_id !== undefined && record_data.patient_id !== null) {
+    if (!(await assertPatientInHospital(supabaseClient, record_data.patient_id, actor.hospitalId))) {
+      return jsonError(403, 'Forbidden - patient not found in caller hospital')
+    }
   }
 
   // Get active workflow rules for this trigger event
@@ -110,7 +131,7 @@ async function processWorkflowRules(supabaseClient: any, data: any) {
   const triggeredRules = []
   const createdTasks = []
 
-  for (const rule of rules) {
+  for (const rule of rules ?? []) {
     // Check cooldown period
     if (rule.last_triggered) {
       const lastTriggered = new Date(rule.last_triggered)
@@ -133,6 +154,7 @@ async function processWorkflowRules(supabaseClient: any, data: any) {
         .from('workflow_rules')
         .update({ last_triggered: new Date().toISOString() })
         .eq('id', rule.id)
+        .eq('hospital_id', hospital_id)
     }
   }
 
@@ -199,7 +221,7 @@ async function executeRuleActions(supabaseClient: any, rule: WorkflowRule, recor
               workflow_type: targetRole,
               priority:     action.priority    || action.metadata?.priority || 'normal',
               assigned_to:  assigneeId,
-              patient_id:   recordData.patient_id || recordData.id,
+              patient_id:   recordData.patient_id ?? null,
               due_date:     dueDate,
               hospital_id:  recordData.hospital_id,
               metadata: {
@@ -247,7 +269,7 @@ async function executeRuleActions(supabaseClient: any, rule: WorkflowRule, recor
             metadata: {
               rule_id:       rule.id,
               trigger_event: rule.trigger_event,
-              patient_id:    recordData.patient_id || recordData.id,
+              patient_id:    recordData.patient_id ?? null,
               ...(action.metadata || {}),
             },
           })
@@ -342,11 +364,13 @@ async function findOptimalAssignee(
 
 async function sendTaskNotification(supabaseClient: any, task: WorkflowTask, assigneeId: string) {
   // Get assignee profile
+  // assigneeId is a user_roles.user_id (auth uid) in the task's hospital.
   const { data: assignee } = await supabaseClient
     .from('profiles')
-    .select('id, full_name, role')
-    .eq('id', assigneeId)
-    .single()
+    .select('id')
+    .eq('user_id', assigneeId)
+    .eq('hospital_id', task.hospital_id)
+    .maybeSingle()
 
   if (!assignee) return
 
@@ -398,13 +422,8 @@ function checkTriggerConditions(conditions: any, recordData: any) {
 }
 
 async function autoAssignTasks(supabaseClient: any, data: any) {
-  const { hospital_id, workflow_type, limit = 10 } = data
-  if (!hospital_id) {
-    return new Response(JSON.stringify({ error: 'hospital_id is required for task assignment' }), {
-      status: 400,
-      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
+  const { hospital_id } = data
+  const limit = clampInt(data.limit, { min: 1, max: 50, fallback: 10 })
 
   // Get unassigned tasks
   const { data: unassignedTasks, error } = await supabaseClient
@@ -420,7 +439,7 @@ async function autoAssignTasks(supabaseClient: any, data: any) {
 
   const assignments = []
 
-  for (const task of unassignedTasks) {
+  for (const task of unassignedTasks ?? []) {
     const assigneeId = await findOptimalAssignee(supabaseClient, task.workflow_type, hospital_id, 'workload')
 
     if (assigneeId) {
@@ -431,6 +450,7 @@ async function autoAssignTasks(supabaseClient: any, data: any) {
           metadata: { ...task.metadata, auto_assigned: true }
         })
         .eq('id', task.id)
+        .eq('hospital_id', hospital_id)
 
       if (!updateError) {
         assignments.push({ task_id: task.id, assigned_to: assigneeId })
@@ -451,13 +471,8 @@ async function autoAssignTasks(supabaseClient: any, data: any) {
 }
 
 async function calculateWorkflowMetrics(supabaseClient: any, data: any) {
-  const { hospital_id, timeframe_days = 30 } = data
-  if (!hospital_id) {
-    return new Response(JSON.stringify({ error: 'hospital_id is required for metrics calculation' }), {
-      status: 400,
-      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
+  const { hospital_id } = data
+  const timeframe_days = clampInt(data.timeframe_days, { min: 1, max: 365, fallback: 30 })
 
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - timeframe_days)
@@ -511,22 +526,31 @@ async function calculateWorkflowMetrics(supabaseClient: any, data: any) {
   })
 }
 
-async function sendBulkNotifications(supabaseClient: any, data: any) {
-  const { hospital_id, recipient_roles, subject, content, priority = 'normal', message_type = 'broadcast' } = data
-  if (!hospital_id) {
-    return new Response(JSON.stringify({ error: 'hospital_id is required for notifications' }), {
-      status: 400,
-      headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
-    })
+async function sendBulkNotifications(supabaseClient: any, data: any, actor: AuthorizedActor) {
+  const { hospital_id, subject, content, priority = 'normal', message_type = 'broadcast' } = data
+  const recipient_roles: string[] = Array.isArray(data.recipient_roles)
+    ? data.recipient_roles.filter((r: unknown) => typeof r === 'string').slice(0, 10)
+    : []
+  if (recipient_roles.length === 0) return jsonError(400, 'recipient_roles is required')
+  if (typeof subject !== 'string' || subject.length === 0 || subject.length > 200) {
+    return jsonError(400, 'subject is required (max 200 chars)')
+  }
+  if (typeof content !== 'string' || content.length === 0 || content.length > 5000) {
+    return jsonError(400, 'content is required (max 5000 chars)')
   }
 
-  // Get recipient profiles
-  const { data: recipients, error } = await supabaseClient
-    .from('profiles')
-    .select('id')
+  // Recipients: staff holding one of the roles in this hospital (profiles has no role column).
+  const { data: roleRows, error: roleError } = await supabaseClient
+    .from('user_roles')
+    .select('user_id')
     .eq('hospital_id', hospital_id)
     .in('role', recipient_roles)
+  if (roleError) throw roleError
 
+  const userIds = [...new Set((roleRows ?? []).map((r: any) => r.user_id))]
+  const { data: recipients, error } = userIds.length
+    ? await supabaseClient.from('profiles').select('id').eq('hospital_id', hospital_id).in('user_id', userIds)
+    : { data: [], error: null }
   if (error) throw error
 
   if (!recipients?.length) {
@@ -539,30 +563,23 @@ async function sendBulkNotifications(supabaseClient: any, data: any) {
     })
   }
 
-  const recipientIds = recipients.map(r => r.id)
+  const recipientIds = recipients.map((r: any) => r.id)
 
-  // Get sender info (system user or first admin)
+  // EDGE-07: the sender is the verified caller, not "the first admin".
   const { data: sender } = await supabaseClient
     .from('profiles')
-    .select('id, full_name, role')
+    .select('id, first_name, last_name')
+    .eq('user_id', actor.userId)
     .eq('hospital_id', hospital_id)
-    .eq('role', 'admin')
-    .limit(1)
-    .single()
+    .maybeSingle()
+  if (!sender) return jsonError(403, 'Forbidden - sender profile not found in caller hospital')
 
-  const senderInfo = sender || {
-    id: recipientIds[0], // Fallback
-    full_name: 'System Notification',
-    role: 'system'
-  }
-
-  // Create bulk message
   const { data: message, error: messageError } = await supabaseClient
     .from('communication_messages')
     .insert({
-      sender_id: senderInfo.id,
-      sender_name: senderInfo.full_name,
-      sender_role: senderInfo.role,
+      sender_id: sender.id,
+      sender_name: [sender.first_name, sender.last_name].filter(Boolean).join(' ') || 'Administrator',
+      sender_role: 'admin',
       recipient_ids: recipientIds,
       recipient_roles: recipient_roles,
       subject,
@@ -585,5 +602,3 @@ async function sendBulkNotifications(supabaseClient: any, data: any) {
     headers: { ...defaultCorsHeaders, 'Content-Type': 'application/json' },
   })
 }
-
-

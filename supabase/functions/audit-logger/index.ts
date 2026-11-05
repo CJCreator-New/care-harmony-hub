@@ -1,191 +1,138 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize, getAuthorizedActor } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest } from "../_shared/validation.ts";
+import {
+  AUDIT_READ_ROLES,
+  AUDIT_WRITE_ROLES,
+  auditLimit,
+  buildAuditRecord,
+  type AuditRecord,
+} from "../_shared/auditEvent.ts";
+import { hasAnyRole } from "../_shared/tenantScope.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+// S0-06 / EDGE-09: the audit subject is always the JWT caller in their own
+// hospital (body user_id / hospital_id / timestamp / severity are ignored);
+// reads are admin-only, always hospital-scoped, and capped. An actor without a
+// hospital is refused by getAuthorizedActor.
 
 const auditSchema = z.object({
   action: z.string().min(1),
   events: z.any().optional(),
 });
 
-interface AuditEvent {
-  user_id: string;
-  action: string;
-  resource_type: string;
-  resource_id?: string;
-  details: Record<string, any>;
-  ip_address?: string;
-  user_agent?: string;
-  session_id?: string;
-}
-
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-
-  const allowedRoles = ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician'];
-  const { actor, response } = await getAuthorizedActor(req, allowedRoles);
-  if (response || !actor) {
-    return response ?? new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  const json = (status: number, payload: Record<string, unknown>) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  }
+
+  const { actor, response } = await getAuthorizedActor(req, [...AUDIT_WRITE_ROLES]);
+  if (response || !actor) return response ?? json(401, { error: "Unauthorized" });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const validation = await validateRequest(req, auditSchema);
     if (!validation.success) {
-      return new Response(
-        JSON.stringify({ error: 'Validation failed', details: validation.error }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
+      return json(400, { error: "Validation failed", details: validation.error });
     }
     const { action, events } = validation.data;
-
-    // All audit log queries are strictly hospital-scoped to the authenticated actor
-    const hospitalScope = actor.hospitalId;
+    const params = (events && typeof events === "object" ? events : {}) as Record<string, unknown>;
 
     switch (action) {
-      case 'log_event':
-        return await logAuditEvent(supabase, events, req, corsHeaders);
-      case 'get_audit_trail':
-        return await getAuditTrail(supabase, events, hospitalScope, corsHeaders);
-      case 'search_logs':
-        return await searchAuditLogs(supabase, events, hospitalScope, corsHeaders);
+      case "log_event": {
+        const built = buildAuditRecord(events, {
+          userId: actor.userId,
+          hospitalId: actor.hospitalId,
+          // Client-reported; recorded for correlation only, not trusted for identity.
+          ipAddress: req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown",
+          userAgent: req.headers.get("user-agent") || "unknown",
+          now: new Date(),
+        });
+        if (!built.ok) return json(built.status, { error: built.error });
+        return await logAuditEvent(supabase, built.value, json);
+      }
+      case "get_audit_trail":
+      case "search_logs":
+        if (!hasAnyRole(actor, [...AUDIT_READ_ROLES])) {
+          return json(403, { error: "Forbidden - audit trail is admin only" });
+        }
+        return action === "get_audit_trail"
+          ? await getAuditTrail(supabase, params, actor.hospitalId, json)
+          : await searchAuditLogs(supabase, params, actor.hospitalId, json);
       default:
-        throw new Error('Invalid action');
+        return json(400, { error: "Invalid action" });
     }
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    console.error("audit-logger error:", error);
+    return json(500, { error: "Internal server error" });
   }
 };
 
-async function logAuditEvent(supabase: any, event: AuditEvent, req: Request, corsHeaders: Record<string, string>) {
-  const clientIP = req.headers.get('x-forwarded-for') || 
-                   req.headers.get('x-real-ip') || 
-                   'unknown';
-  
-  const userAgent = req.headers.get('user-agent') || 'unknown';
+type Json = (status: number, payload: Record<string, unknown>) => Response;
 
-  // Derive hospital_id server-side from the event user's profile (R9)
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hospital_id')
-    .eq('user_id', event.user_id)
-    .maybeSingle();
-
-  const auditRecord = {
-    ...event,
-    hospital_id: profile?.hospital_id ?? null,
-    ip_address: clientIP,
-    user_agent: userAgent,
-    timestamp: new Date().toISOString(),
-    severity: getSeverityLevel(event.action, event.resource_type),
-  };
-
-  const { error } = await supabase
-    .from('audit_logs')
-    .insert(auditRecord);
-
+async function logAuditEvent(supabase: any, auditRecord: AuditRecord, json: Json) {
+  const { error } = await supabase.from("audit_logs").insert(auditRecord);
   if (error) throw error;
 
-  // Check for high-risk activities
-  if (auditRecord.severity === 'high' || auditRecord.severity === 'critical') {
+  if (auditRecord.severity === "high") {
     await createSecurityAlert(supabase, auditRecord);
   }
 
-  return new Response(
-    JSON.stringify({ success: true, logged: true }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
-  );
+  return json(200, { success: true, logged: true });
 }
 
-async function getAuditTrail(supabase: any, { resource_type, resource_id, limit = 50 }: any, hospitalScope: string | null, corsHeaders: Record<string, string>) {
+async function getAuditTrail(supabase: any, params: Record<string, unknown>, hospitalId: string, json: Json) {
   let query = supabase
-    .from('audit_logs')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(limit);
+    .from("audit_logs")
+    .select("*")
+    .eq("hospital_id", hospitalId)
+    .order("timestamp", { ascending: false })
+    .limit(auditLimit(params.limit));
 
-  if (hospitalScope) {
-    query = query.eq('hospital_id', hospitalScope);
-  }
-
-  if (resource_type) {
-    query = query.eq('resource_type', resource_type);
-  }
-
-  if (resource_id) {
-    query = query.eq('resource_id', resource_id);
-  }
+  if (typeof params.resource_type === "string") query = query.eq("resource_type", params.resource_type);
+  if (typeof params.resource_id === "string") query = query.eq("resource_id", params.resource_id);
 
   const { data, error } = await query;
   if (error) throw error;
-
-  return new Response(
-    JSON.stringify({ audit_trail: data }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
-  );
+  return json(200, { audit_trail: data });
 }
 
-async function searchAuditLogs(supabase: any, { user_id, action, start_date, end_date, limit = 100 }: any, hospitalScope: string | null, corsHeaders: Record<string, string>) {
+async function searchAuditLogs(supabase: any, params: Record<string, unknown>, hospitalId: string, json: Json) {
   let query = supabase
-    .from('audit_logs')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(limit);
+    .from("audit_logs")
+    .select("*")
+    .eq("hospital_id", hospitalId)
+    .order("timestamp", { ascending: false })
+    .limit(auditLimit(params.limit ?? 100));
 
-  if (hospitalScope) {
-    query = query.eq('hospital_id', hospitalScope);
-  }
-
-  if (user_id) query = query.eq('user_id', user_id);
-  if (action) query = query.eq('action', action);
-  if (start_date) query = query.gte('timestamp', start_date);
-  if (end_date) query = query.lte('timestamp', end_date);
+  if (typeof params.user_id === "string") query = query.eq("user_id", params.user_id);
+  if (typeof params.action === "string") query = query.eq("action", params.action);
+  if (typeof params.start_date === "string") query = query.gte("timestamp", params.start_date);
+  if (typeof params.end_date === "string") query = query.lte("timestamp", params.end_date);
 
   const { data, error } = await query;
   if (error) throw error;
-
-  return new Response(
-    JSON.stringify({ logs: data, total: data.length }),
-    { headers: { "Content-Type": "application/json", ...corsHeaders } }
-  );
+  return json(200, { logs: data, total: data.length });
 }
 
-function getSeverityLevel(action: string, resourceType: string): string {
-  const highRiskActions = ['delete', 'export', 'bulk_update', 'admin_access'];
-  const criticalResources = ['patients', 'medical_records', 'prescriptions'];
-  
-  if (highRiskActions.some(a => action.includes(a))) return 'high';
-  if (criticalResources.includes(resourceType) && action === 'view') return 'medium';
-  if (action.includes('login') || action.includes('logout')) return 'low';
-  
-  return 'medium';
-}
-
-async function createSecurityAlert(supabase: any, auditRecord: any) {
-  const alert = {
-    type: 'security_event',
+async function createSecurityAlert(supabase: any, auditRecord: AuditRecord) {
+  await supabase.from("security_alerts").insert({
+    type: "security_event",
     severity: auditRecord.severity,
     message: `High-risk activity: ${auditRecord.action} on ${auditRecord.resource_type}`,
     details: auditRecord,
     timestamp: new Date().toISOString(),
-  };
-
-  await supabase.from('security_alerts').insert(alert);
+  });
 }
 
 serve((req) => withRateLimit(req, handler));
