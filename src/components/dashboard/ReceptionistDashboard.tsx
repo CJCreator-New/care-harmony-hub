@@ -51,6 +51,7 @@ import { QueueOptimizer } from '@/components/receptionist/QueueOptimizer';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { DataError, DATA_UNAVAILABLE, displayStat } from '@/components/common/DataStatus';
 
 export function ReceptionistDashboard() {
   const { profile } = useAuth();
@@ -60,11 +61,38 @@ export function ReceptionistDashboard() {
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [kioskMode, setKioskMode] = useState(false);
 
-  const { data: stats, isLoading: statsLoading } = useReceptionistStats();
-  const { data: pendingRequests = [], isLoading: requestsLoading } = usePendingAppointmentRequests();
-  const { data: scheduledAppointments = [] } = useScheduledAppointments();
-  const { data: queue = [] } = useActiveQueue();
-  const { data: doctorAvailability = [] } = useDoctorAvailability();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useReceptionistStats();
+  const {
+    data: pendingRequestsData,
+    isLoading: requestsLoading,
+    isError: requestsError,
+    refetch: refetchRequests,
+  } = usePendingAppointmentRequests();
+  const {
+    data: scheduledAppointmentsData,
+    isError: scheduledError,
+    refetch: refetchScheduled,
+  } = useScheduledAppointments();
+  const {
+    data: queueData,
+    isError: queueError,
+    refetch: refetchQueue,
+  } = useActiveQueue();
+  const {
+    data: doctorAvailabilityData,
+    isError: availabilityError,
+    refetch: refetchAvailability,
+  } = useDoctorAvailability();
+  // Failed queries are never rendered as an empty list.
+  const pendingRequests = pendingRequestsData ?? [];
+  const scheduledAppointments = scheduledAppointmentsData ?? [];
+  const queue = useMemo(() => queueData ?? [], [queueData]);
+  const doctorAvailability = doctorAvailabilityData ?? [];
   const updateRequest = useUpdateAppointmentRequest();
   const autoApprove = useAutoApproveAppointmentRequests();
 
@@ -192,31 +220,32 @@ export function ReceptionistDashboard() {
 
         <TabsContent value="overview" className="space-y-8">
           {/* Stats Grid */}
+          {statsError && <DataError resource="today's figures" onRetry={() => refetchStats()} />}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Today's Appointments"
-          value={statsLoading ? '...' : stats?.todayAppointments || 0}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.todayAppointments })}
           subtitle="Scheduled"
           icon={Calendar}
           variant="primary"
         />
         <StatsCard
           title="Checked In"
-          value={statsLoading ? '...' : stats?.checkedIn || 0}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.checkedIn })}
           subtitle="Waiting for doctor"
           icon={CheckSquare}
           variant="success"
         />
         <StatsCard
           title="In Queue"
-          value={statsLoading ? '...' : stats?.waitingInQueue || 0}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.waitingInQueue })}
           subtitle={stats?.avgWaitTime ? `~${stats.avgWaitTime} min avg wait` : 'Waiting'}
           icon={Users}
           variant="info"
         />
         <StatsCard
           title="Pending Requests"
-          value={statsLoading ? '...' : stats?.pendingRequests || 0}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pendingRequests })}
           subtitle="Awaiting review"
           icon={Bell}
           variant="warning"
@@ -253,6 +282,7 @@ export function ReceptionistDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
+                {requestsError && <DataError resource="appointment requests" onRetry={() => refetchRequests()} />}
                 <ScrollArea className="h-[280px]">
                   <div className="space-y-3">
                     {pendingRequests.map((request) => (
@@ -333,7 +363,9 @@ export function ReceptionistDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {scheduledAppointments.length === 0 ? (
+              {scheduledError ? (
+                <DataError resource="scheduled appointments" onRetry={() => refetchScheduled()} />
+              ) : scheduledAppointments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" />
                   <p>No scheduled appointments remaining</p>
@@ -453,7 +485,9 @@ export function ReceptionistDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {doctorAvailability.length === 0 ? (
+                {availabilityError ? (
+                  <DataError resource="doctor availability" onRetry={() => refetchAvailability()} />
+                ) : doctorAvailability.length === 0 ? (
                   <div className="text-center py-4 text-muted-foreground">
                     <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No doctors available</p>
@@ -517,7 +551,9 @@ export function ReceptionistDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {queue.length === 0 ? (
+              {queueError ? (
+                <DataError resource="the patient queue" onRetry={() => refetchQueue()} />
+              ) : queue.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
                   <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No patients in queue</p>
@@ -556,17 +592,25 @@ export function ReceptionistDashboard() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Patients Served</span>
-                  <span className="font-medium">{stats?.completedToday || 0}</span>
+                  <span className="font-medium">
+                    {displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.completedToday })}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Revenue Collected</span>
                   <span className="font-medium text-success">
-                    ₹{(stats?.totalRevenue || 0).toLocaleString('en-IN')}
+                    {statsError
+                      ? DATA_UNAVAILABLE
+                      : statsLoading
+                        ? '...'
+                        : `₹${(stats?.totalRevenue ?? 0).toLocaleString('en-IN')}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Pending Invoices</span>
-                  <span className="font-medium text-warning">{stats?.pendingInvoices || 0}</span>
+                  <span className="font-medium text-warning">
+                    {displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pendingInvoices })}
+                  </span>
                 </div>
                 <Button variant="outline" size="sm" className="w-full mt-2" asChild>
                   <Link to="/billing">View Billing</Link>

@@ -28,13 +28,27 @@ import { toast } from 'sonner';
 import { formatDistanceToNow, differenceInYears } from 'date-fns';
 import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DataError, displayStat } from '@/components/common/DataStatus';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function LabTechDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: stats, isLoading: statsLoading } = useLabTechStats();
-  const { data: pendingOrders, isLoading: ordersLoading } = usePendingLabOrders();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useLabTechStats();
+  const {
+    data: pendingOrders,
+    isLoading: ordersLoading,
+    isError: ordersError,
+    refetch: refetchOrders,
+  } = usePendingLabOrders();
+  // Counts are only shown from a successful result; a failed query is never zero.
+  const countOf = (value: number | undefined) => displayStat({ isLoading: statsLoading, isError: statsError, value });
   const updateLabOrder = useUpdateLabOrder();
 
   const handleCollect = async (e: React.MouseEvent, orderId: string) => {
@@ -166,7 +180,7 @@ export function LabTechDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Orders"
-          value={statsLoading ? '...' : (stats?.pending || 0)}
+          value={countOf(stats?.pending)}
           subtitle="Awaiting collection"
           icon={FileText}
           variant="warning"
@@ -174,7 +188,7 @@ export function LabTechDashboard() {
         />
         <StatsCard
           title="In Progress"
-          value={statsLoading ? '...' : ((stats?.collected || 0) + (stats?.inProgress || 0))}
+          value={countOf(stats ? stats.collected + stats.inProgress : undefined)}
           subtitle="Being processed"
           icon={TestTube2}
           variant="primary"
@@ -182,7 +196,7 @@ export function LabTechDashboard() {
         />
         <StatsCard
           title="Completed Today"
-          value={statsLoading ? '...' : (stats?.completedToday || 0)}
+          value={countOf(stats?.completedToday)}
           subtitle="Results uploaded"
           icon={CheckCircle2}
           variant="success"
@@ -190,7 +204,7 @@ export function LabTechDashboard() {
         />
         <StatsCard
           title="Critical Values"
-          value={statsLoading ? '...' : (stats?.critical || 0)}
+          value={countOf(stats?.critical)}
           subtitle="Need notification"
           icon={AlertTriangle}
           variant="danger"
@@ -235,8 +249,10 @@ export function LabTechDashboard() {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  {ordersLoading ? (
-                    <div className="flex items-center justify-center py-12">
+                  {ordersError ? (
+                    <DataError resource="lab orders" onRetry={() => refetchOrders()} />
+                  ) : ordersLoading ? (
+                    <div role="status" aria-label="Loading lab orders" className="flex items-center justify-center py-12">
                       <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
                     </div>
                   ) : pendingOrders && pendingOrders.length > 0 ? (
@@ -322,11 +338,13 @@ export function LabTechDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {statsLoading ? (
-                    <div className="flex items-center justify-center py-6">
+                  {statsError ? (
+                    <DataError resource="urgent orders" onRetry={() => refetchStats()} />
+                  ) : statsLoading ? (
+                    <div role="status" aria-label="Loading urgent orders" className="flex items-center justify-center py-6">
                       <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
                     </div>
-                  ) : (stats?.urgent || 0) === 0 ? (
+                  ) : (stats?.urgent ?? 0) === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-70" />
                       <p className="text-sm font-medium">No urgent orders</p>
@@ -348,7 +366,7 @@ export function LabTechDashboard() {
                             </p>
                           </div>
                         ))}
-                      {(stats?.urgent || 0) > 3 && (
+                      {(stats?.urgent ?? 0) > 3 && (
                         <Button variant="ghost" size="sm" className="w-full" asChild>
                           <Link to="/laboratory?priority=urgent">
                             View all {stats?.urgent} urgent orders
@@ -371,15 +389,15 @@ export function LabTechDashboard() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Blood Tests</span>
-                    <span className="font-medium">{statsLoading ? '--' : stats?.bloodTests || 0}</span>
+                    <span className="font-medium">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.bloodTests })}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Urine Analysis</span>
-                    <span className="font-medium">{statsLoading ? '--' : stats?.urineAnalysis || 0}</span>
+                    <span className="font-medium">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.urineAnalysis })}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Other</span>
-                    <span className="font-medium">{statsLoading ? '--' : stats?.other || 0}</span>
+                    <span className="font-medium">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.other })}</span>
                   </div>
                 </CardContent>
               </Card>

@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { DataError } from '@/components/common/DataStatus';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 export function PrescriptionQueue() {
@@ -64,7 +65,12 @@ export function PrescriptionQueue() {
   const [selectedForClarification, setSelectedForClarification] = useState<any>(null);
   const [clarificationModalOpen, setClarificationModalOpen] = useState(false);
 
-  const { data: prescriptions, isLoading } = usePrescriptions();
+  const {
+    data: prescriptions,
+    isLoading,
+    isError: prescriptionsError,
+    refetch: refetchPrescriptions,
+  } = usePrescriptions();
   const dispenseMutation = useDispensePrescription();
   const approveMutation = useApprovePrescription();
   const clarifyMutation = useClarifyPrescription();
@@ -255,7 +261,13 @@ export function PrescriptionQueue() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {prescriptionsError ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-4">
+                    <DataError resource="prescriptions" onRetry={() => refetchPrescriptions()} />
+                  </TableCell>
+                </TableRow>
+              ) : isLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Loading prescriptions...

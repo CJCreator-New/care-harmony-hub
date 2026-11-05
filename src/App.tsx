@@ -12,6 +12,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
 import { bootstrap } from "@/bootstrap";
+import { RouteFallback } from "@/components/common/RouteFallback";
 import {
   fallbackRoute,
   publicRoutes,
@@ -104,7 +105,7 @@ const AppContent = () => {
   useAmendmentAlert();
 
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={<RouteFallback />}>
       <AppRoutes />
     </Suspense>
   );

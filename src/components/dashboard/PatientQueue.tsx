@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { useActiveQueue, useQueueRealtime, QueueEntry } from '@/hooks/useQueue';
 import { usePatientChecklists } from '@/hooks/useNurseWorkflow';
 import { differenceInMinutes } from 'date-fns';
+import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
 
 const priorityStyles = {
   emergency: 'destructive',
@@ -33,7 +34,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export function PatientQueue() {
-  const { data: queue = [], isLoading } = useActiveQueue();
+  const { data: queueData, isLoading, isError, refetch } = useActiveQueue();
+  const queue = queueData ?? [];
   const { checklists = [] } = usePatientChecklists();
 
   // Enable realtime updates
@@ -64,7 +66,9 @@ export function PatientQueue() {
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div>
           <h3 className="font-semibold">Patient Queue</h3>
-          <p className="text-sm text-muted-foreground">{queue.length} patients active</p>
+          <p className="text-sm text-muted-foreground">
+            {isError ? `${DATA_UNAVAILABLE} patients active` : isLoading ? 'Loading...' : `${queue.length} patients active`}
+          </p>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link to="/queue">
@@ -74,8 +78,12 @@ export function PatientQueue() {
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
+      {isError ? (
+        <div className="p-4">
+          <DataError resource="the patient queue" onRetry={() => refetch()} />
+        </div>
+      ) : isLoading ? (
+        <div role="status" aria-label="Loading patient queue" className="flex flex-col items-center justify-center py-12 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3" />
           <p className="text-muted-foreground">Loading queue...</p>
         </div>

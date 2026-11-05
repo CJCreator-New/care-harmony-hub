@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /** Shown in place of a number when its data could not be loaded. Never "0". */
-const DATA_UNAVAILABLE = '—';
+export const DATA_UNAVAILABLE = '—';
 
 interface DataErrorProps {
   /** Human name of the failed data, e.g. "pending prescriptions". */
@@ -97,4 +97,22 @@ export function StatValue({ isLoading, isError, value, resource }: StatValueProp
     );
   }
   return <>{value}</>;
+}
+
+/**
+ * Text for a StatsCard value (which accepts only strings or numbers).
+ * Error gives a dash, loading gives "...", and success gives the count, never 0 on failure.
+ */
+export function displayStat({
+  isLoading,
+  isError,
+  value,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  value: number | null | undefined;
+}): string {
+  if (isError) return DATA_UNAVAILABLE;
+  if (isLoading) return '...';
+  return String(value ?? 0);
 }

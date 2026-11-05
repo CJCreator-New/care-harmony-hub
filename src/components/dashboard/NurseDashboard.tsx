@@ -35,6 +35,7 @@ import { useActiveQueue } from '@/hooks/useQueue';
 import { usePendingHandovers, usePatientChecklists } from '@/hooks/useNurseWorkflow';
 import { NurseTaskPanel } from '@/components/nurse/NurseTaskPanel';
 import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { DataError, displayStat } from '@/components/common/DataStatus';
 
 export function NurseDashboard() {
   const { profile } = useAuth();
@@ -47,17 +48,38 @@ export function NurseDashboard() {
     'history'
   );
   
-  const { data: vitalsCount } = useTodayVitalsCount();
-  const { data: activeQueue = [] } = useActiveQueue();
-  const { handovers: pendingHandovers = [] } = usePendingHandovers(profile?.id);
-  const { checklists = [] } = usePatientChecklists();
+  const {
+    data: vitalsCount,
+    isLoading: vitalsLoading,
+    isError: vitalsError,
+  } = useTodayVitalsCount();
+  const {
+    data: activeQueue,
+    isLoading: queueLoading,
+    isError: queueError,
+    refetch: refetchQueue,
+  } = useActiveQueue();
+  const {
+    handovers: pendingHandoversData,
+    loading: handoversLoading,
+    error: handoversError,
+  } = usePendingHandovers(profile?.id);
+  const {
+    checklists = [],
+    loading: checklistsLoading,
+    error: checklistsError,
+  } = usePatientChecklists();
 
-  // Count ALL active queue entries (waiting, called, in_service) for the KPI
-  const waitingPatients = activeQueue || [];  const patientsInPrepCount = waitingPatients.filter(q => {
+  // A failed queue or checklist query is shown as unavailable, never as zero patients.
+  const waitingPatients = activeQueue ?? [];
+  const pendingHandovers = pendingHandoversData ?? [];
+  const queueDataUnavailable = queueError || !!checklistsError;
+  const patientsInPrepCount = waitingPatients.filter(q => {
     const checklist = checklists.find(c => c.patient_id === q.patient_id);
     return !checklist?.ready_for_doctor && !checklist?.vitals_completed;
-  }).length;  const readyForDoctor = waitingPatients.filter(q => 
-    (q.status === 'waiting' || q.status === 'called') && 
+  }).length;
+  const readyForDoctor = waitingPatients.filter(q =>
+    (q.status === 'waiting' || q.status === 'called') &&
     checklists.some(c => c.patient_id === q.patient_id && c.ready_for_doctor)
   ).length;
 
@@ -127,31 +149,42 @@ export function NurseDashboard() {
 
       <DashboardSection>
       {/* Stats Grid */}
+      {queueError && (
+        <DataError resource="the patient queue" onRetry={() => refetchQueue()} className="mb-4" />
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Patients in Queue"
-          value={waitingPatients.length.toString()}
+          value={displayStat({ isLoading: queueLoading, isError: queueError, value: waitingPatients.length })}
           subtitle="Active patients"
           icon={Users}
           variant="warning"
         />
         <StatsCard
           title="Vitals Recorded"
-          value={vitalsCount?.toString() || '0'}
+          value={displayStat({ isLoading: vitalsLoading, isError: vitalsError, value: vitalsCount })}
           subtitle="Today"
           icon={Heart}
           variant="success"
         />
         <StatsCard
           title="Ready for Doctor"
-          value={readyForDoctor.toString()}
+          value={displayStat({
+            isLoading: queueLoading || checklistsLoading,
+            isError: queueDataUnavailable,
+            value: readyForDoctor,
+          })}
           subtitle="Prep complete"
           icon={CheckCircle2}
           variant="primary"
         />
         <StatsCard
           title="Pending Handovers"
-          value={pendingHandovers.length.toString()}
+          value={displayStat({
+            isLoading: handoversLoading,
+            isError: !!handoversError,
+            value: pendingHandovers.length,
+          })}
           subtitle="Need acknowledgment"
           icon={ClipboardList}
           variant="info"

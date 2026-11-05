@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
@@ -40,38 +40,28 @@ import { useAudit } from '@/hooks/useAudit';
 import { getGreeting } from '@/lib/utils/datetime';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { DataError, displayStat } from '@/components/common/DataStatus';
 
 export function DoctorDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const { data: unreadCount } = useUnreadMessagesCount();
-  const { data: stats, isLoading: statsLoading } = useDoctorStats();
-  const { data: patientsReady = [], isLoading: readyLoading } = usePatientsReadyForDoctor();
-  const [stableStats, setStableStats] = useState({
-    todaysPatients: 0,
-    completedConsultations: 0,
-    pendingLabs: 0,
-    readyForConsult: 0,
-  });
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useDoctorStats();
+  const {
+    data: patientsReadyData,
+    isLoading: readyLoading,
+    isError: readyError,
+    refetch: refetchReady,
+  } = usePatientsReadyForDoctor();
+  // A failed query is never shown as an empty list.
+  const patientsReady = patientsReadyData ?? [];
   const [showConsultationModal, setShowConsultationModal] = useState(false);
   const { logActivity } = useAudit();
-
-  useEffect(() => {
-    if (stats) {
-      setStableStats((prev) => ({
-        ...prev,
-        todaysPatients: stats.todaysPatients ?? prev.todaysPatients,
-        completedConsultations: stats.completedConsultations ?? prev.completedConsultations,
-        pendingLabs: stats.pendingLabs ?? prev.pendingLabs,
-      }));
-    }
-  }, [stats]);
-
-  useEffect(() => {
-    if (!readyLoading) {
-      setStableStats((prev) => ({ ...prev, readyForConsult: patientsReady.length }));
-    }
-  }, [patientsReady.length, readyLoading]);
 
   const handleStartConsultation = (patientId: string) => {
     logActivity({
@@ -152,44 +142,36 @@ export function DoctorDashboard() {
           </div>
 
       {/* Stats Grid */}
-      {statsLoading && stableStats.todaysPatients === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            title="Today's Patients"
-            value={String(stableStats.todaysPatients)}
-            subtitle="Scheduled"
-            icon={Users}
-            variant="primary"
-          />
-          <StatsCard
-            title="Ready for Consult"
-            value={String(stableStats.readyForConsult)}
-            subtitle="Awaiting you"
-            icon={UserCheck}
-            variant="success"
-          />
-          <StatsCard
-            title="Consultations"
-            value={String(stableStats.completedConsultations)}
-            subtitle="Completed today"
-            icon={Stethoscope}
-            variant="info"
-          />
-          <StatsCard
-            title="Pending Labs"
-            value={String(stableStats.pendingLabs)}
-            subtitle="Awaiting results"
-            icon={TestTube2}
-            variant="warning"
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatsCard
+          title="Today's Patients"
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.todaysPatients })}
+          subtitle="Scheduled"
+          icon={Users}
+          variant="primary"
+        />
+        <StatsCard
+          title="Ready for Consult"
+          value={displayStat({ isLoading: readyLoading, isError: readyError, value: patientsReadyData?.length })}
+          subtitle="Awaiting you"
+          icon={UserCheck}
+          variant="success"
+        />
+        <StatsCard
+          title="Consultations"
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.completedConsultations })}
+          subtitle="Completed today"
+          icon={Stethoscope}
+          variant="info"
+        />
+        <StatsCard
+          title="Pending Labs"
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pendingLabs })}
+          subtitle="Awaiting results"
+          icon={TestTube2}
+          variant="warning"
+        />
+      </div>
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
@@ -197,7 +179,13 @@ export function DoctorDashboard() {
           {/* Enhanced Task Management */}
           <EnhancedTaskManagement />
           {/* Patients Ready for Consultation */}
-          {patientsReady.length > 0 && (
+          {readyError && (
+            <DataError resource="patients ready for consultation" onRetry={() => refetchReady()} />
+          )}
+          {readyLoading && !patientsReadyData && (
+            <Skeleton role="status" aria-label="Loading patients ready for consultation" className="h-32 w-full rounded-xl" />
+          )}
+          {!readyError && patientsReady.length > 0 && (
             <Card className="border-success/50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -281,6 +269,7 @@ export function DoctorDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {statsError && <DataError resource="pending actions" onRetry={() => refetchStats()} />}
               <Link 
                 to="/laboratory" 
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
@@ -290,11 +279,11 @@ export function DoctorDashboard() {
                   <div>
                     <p className="font-medium text-sm">Lab Results to Review</p>
                     <p className="text-xs text-muted-foreground">
-                      {statsLoading ? '...' : `${stats?.pendingLabReviews || 0} pending`}
+                      {statsError ? 'Could not load' : statsLoading ? '...' : `${stats?.pendingLabReviews ?? 0} pending`}
                     </p>
                   </div>
                 </div>
-                {(stats?.pendingLabReviews || 0) > 0 && (
+                {!statsError && (stats?.pendingLabReviews ?? 0) > 0 && (
                   <Badge variant="secondary">{stats?.pendingLabReviews}</Badge>
                 )}
               </Link>
@@ -307,11 +296,11 @@ export function DoctorDashboard() {
                   <div>
                     <p className="font-medium text-sm">Prescriptions Pending</p>
                     <p className="text-xs text-muted-foreground">
-                      {statsLoading ? '...' : `${stats?.pendingPrescriptions || 0} pending`}
+                      {statsError ? 'Could not load' : statsLoading ? '...' : `${stats?.pendingPrescriptions ?? 0} pending`}
                     </p>
                   </div>
                 </div>
-                {(stats?.pendingPrescriptions || 0) > 0 && (
+                {!statsError && (stats?.pendingPrescriptions ?? 0) > 0 && (
                   <Badge variant="secondary">{stats?.pendingPrescriptions}</Badge>
                 )}
               </Link>
@@ -324,11 +313,11 @@ export function DoctorDashboard() {
                   <div>
                     <p className="font-medium text-sm">Follow-up Notes</p>
                     <p className="text-xs text-muted-foreground">
-                      {statsLoading ? '...' : `${stats?.pendingFollowUps || 0} due`}
+                      {statsError ? 'Could not load' : statsLoading ? '...' : `${stats?.pendingFollowUps ?? 0} due`}
                     </p>
                   </div>
                 </div>
-                {(stats?.pendingFollowUps || 0) > 0 && (
+                {!statsError && (stats?.pendingFollowUps ?? 0) > 0 && (
                   <Badge variant="secondary">{stats?.pendingFollowUps}</Badge>
                 )}
               </Link>

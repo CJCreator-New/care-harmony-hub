@@ -122,28 +122,28 @@ export function useLabTechStats() {
       }
 
       // Pending orders
-      const { data: pending } = await supabase
+      const { data: pending, error: pendingError } = await supabase
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
         .eq('status', 'pending');
 
       // Collected samples
-      const { data: collected } = await supabase
+      const { data: collected, error: collectedError } = await supabase
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
         .eq('status', 'sample_collected');
 
       // In progress
-      const { data: inProgress } = await supabase
+      const { data: inProgress, error: inProgressError } = await supabase
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
         .eq('status', 'in_progress');
 
       // Completed today
-      const { data: completed } = await supabase
+      const { data: completed, error: completedError } = await supabase
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
@@ -152,7 +152,7 @@ export function useLabTechStats() {
         .lte('completed_at', `${today}T23:59:59`);
 
       // Urgent orders
-      const { data: urgent } = await supabase
+      const { data: urgent, error: urgentError } = await supabase
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
@@ -160,7 +160,7 @@ export function useLabTechStats() {
         .neq('status', 'completed');
 
       // Critical results
-      const { data: critical } = await supabase
+      const { data: critical, error: criticalError } = await supabase
         .from('lab_orders')
         .select('id')
         .eq('hospital_id', hospital.id)
@@ -168,12 +168,16 @@ export function useLabTechStats() {
         .eq('critical_notified', false);
 
       // Test categories for today
-      const { data: todayTests } = await supabase
+      const { data: todayTests, error: todayTestsError } = await supabase
         .from('lab_orders')
         .select('test_category')
         .eq('hospital_id', hospital.id)
         .gte('created_at', `${today}T00:00:00`)
         .lte('created_at', `${today}T23:59:59`);
+
+      // Surface query failures so the dashboard shows an error, not zero counts.
+      const queryError = [pendingError, collectedError, inProgressError, completedError, urgentError, criticalError, todayTestsError].find(Boolean);
+      if (queryError) throw queryError;
 
       const categoryCounts = {
         bloodTests: todayTests?.filter(t => t.test_category?.toLowerCase().includes('blood') || t.test_category?.toLowerCase().includes('hematology')).length || 0,
