@@ -133,7 +133,7 @@ export async function decryptFile(
  */
 export async function deriveKeyFromPassword(
   password: string,
-  salt: Uint8Array
+  salt: Uint8Array<ArrayBuffer>
 ): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const baseKey = await crypto.subtle.importKey(
