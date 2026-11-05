@@ -30,7 +30,7 @@
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
     "target": "ES2020",
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
     "useDefineForClassFields": true,
     "noImplicitThis": true
   },
