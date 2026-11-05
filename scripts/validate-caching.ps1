@@ -49,7 +49,7 @@ Write-Host "  • Grafana dashboard for cache monitoring" -ForegroundColor White
 Write-Host ""
 Write-Host "=== Next Steps ===" -ForegroundColor Yellow
 Write-Host "1. Start the services: docker-compose up -d" -ForegroundColor White
-Write-Host "2. Test caching: .\scripts\test-response-caching.ps1" -ForegroundColor White
+Write-Host "2. Test caching: .\archive\scripts\test-response-caching.ps1" -ForegroundColor White
 Write-Host "3. Monitor performance: http://localhost:3000" -ForegroundColor White
 Write-Host ""
 Write-Host "Cache TTL Configuration:" -ForegroundColor Green

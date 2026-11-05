@@ -42,11 +42,10 @@ The system has been finalized with advanced production optimizations:
 /product-strategy-session — Build competitive analysis for clinical AI features
 ```
 
-**Documentation Hub**: All 32+ project documents consolidated in a single, self-contained skill directory:
-- 📚 [Consolidated Documentation](./github/copilot-instructions.md?region=product-strategy-session) — All business, technical, security, and operational docs
-- 🎯 [Product Strategy Skill](./agents/skills/product-strategy-session/) — Market analysis, roadmap, business cases
-- 🗓️ [Index & Navigation](./agents/skills/product-strategy-session/INDEX.md) — Complete documentation master index
-- 📖 [Implementation Guide](./docs/IMPLEMENTATION_GUIDE.md) — Code patterns and development standards
+**Documentation Hub**: start at the documentation index.
+- 📚 [Documentation index](./docs/INDEX.md) — All current business, technical, security and operational docs
+- 🏛️ [Architecture decisions](./docs/adr/) — ADR-0001 sets the Supabase-native runtime
+- 📖 [Development standards](./docs/DEVELOPMENT_STANDARDS.md) — Code patterns and development standards
 
 ---
 
@@ -55,12 +54,11 @@ The system has been finalized with advanced production optimizations:
 ### Prerequisites
 
 - Node.js 18+ & npm
-- Docker & Docker Compose (for full microservices setup)
 - Git
 
 ### Installation
 
-#### Option 1: Development with API Gateway (Recommended)
+#### Development
 
 ```bash
 # Clone the repository
@@ -70,35 +68,17 @@ cd caresync
 # Install dependencies
 npm install
 
-# Start full microservices stack
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-
-# Initialize Kong API Gateway
-docker-compose --profile init up kong-init
-
-# Start development frontend
-npm run dev
-```
-
-The app will be available at `http://localhost:5173` with API Gateway at `http://localhost:8000`
-
-#### Option 2: Simple Development (Frontend Only)
-
-```bash
-# Install dependencies
-npm install
-
 # Start development server
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:5173`. The former Kong/microservices stack is archived in [archive/](archive/README.md) and is not needed to run the app.
 
 ### Environment Setup
 
 The project uses Lovable Cloud for backend services. Environment variables are automatically configured.
 
-For local microservices development, see [API_GATEWAY.md](docs/API_GATEWAY.md) for detailed setup instructions.
+The former microservices stack and Kong gateway are archived in [archive/](archive/README.md) and are not part of the runtime (ADR-0001).
 
 ### Pre-Deployment Validation
 
@@ -136,9 +116,7 @@ cat scripts/validate-rls.ts
 - **50+ database tables** with comprehensive RLS policies
 - **16+ edge functions** for advanced automation
 - **AI-powered task routing** and real-time communication
-- See [PHASES_1-8_COMPLETE_SUMMARY.md](PHASES_1-8_COMPLETE_SUMMARY.md) for complete implementation details
-- See [PHASES_1-4_COMPLETE_SUMMARY.md](PHASES_1-4_COMPLETE_SUMMARY.md) for Phase 1-4 details
-- See [CHANGELOG.md](docs/CHANGELOG.md) for complete feature history
+- See [docs/FEATURES.md](docs/FEATURES.md) for the shipped feature list
 
 ---
 
@@ -211,14 +189,14 @@ caresync/
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System architecture & design |
+| [Architecture](docs/SYSTEM_ARCHITECTURE.md) | System architecture & design |
 | [Features](docs/FEATURES.md) | Complete feature documentation |
 | [Database Schema](docs/DATABASE.md) | Database structure & relations |
-| [API Reference](docs/API.md) | Edge functions & endpoints |
+| [API Reference](docs/product/API_REFERENCE.md) | Edge functions & endpoints |
 | [Security](docs/SECURITY.md) | Security & compliance |
 | [Deployment](docs/DEPLOYMENT.md) | Deployment guide |
-| [Contributing](docs/CONTRIBUTING.md) | Contribution guidelines |
-| [Changelog](docs/CHANGELOG.md) | Version history |
+| [Development standards](docs/DEVELOPMENT_STANDARDS.md) | Coding and contribution standards |
+| [Archive](archive/README.md) | Non-runtime infrastructure per ADR-0001 (microservices, Kong, compose, k8s, mobile skeleton) |
 
 ---
 

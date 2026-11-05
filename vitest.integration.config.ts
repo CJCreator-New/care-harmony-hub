@@ -15,7 +15,7 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/.git/**',
-      'services/**',
+      'archive/**',
     ],
   },
   resolve: {

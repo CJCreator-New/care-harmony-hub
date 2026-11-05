@@ -48,10 +48,10 @@ echo ""
 # 3. BLOCKER #3 VALIDATION: Deployment Automation
 echo "TEST 3: Deployment Automation & Rollback"
 echo "==========================================="
-echo "Checking: deploy-prod.sh exists..."
-if [ -f "deploy-prod.sh" ]; then
+echo "Checking: deploy-prod.sh (archived per ADR-0001 at archive/deploy-prod.sh)..."
+if [ -f "archive/deploy-prod.sh" ]; then
   echo "✓ Deployment script found"
-  DEPLOY_FUNCS=$(grep -c "deploy_blue_green\|health_check\|toggle_kill_switch" deploy-prod.sh || echo "0")
+  DEPLOY_FUNCS=$(grep -c "deploy_blue_green\|health_check\|toggle_kill_switch" archive/deploy-prod.sh || echo "0")
   if [ "$DEPLOY_FUNCS" -ge 2 ]; then
     echo "✓ Blue-green deployment functions implemented"
   else

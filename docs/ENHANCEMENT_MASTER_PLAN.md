@@ -406,7 +406,7 @@ export function App() {
 |----|------|--------|-------|--------|-------|----------|
 | 5.1 | PWA offline mode for nurses (vitals capture) | 🟢 ✅ | GitHub Copilot | 3.5h | ✅ Offline vitals capture modal, indicator, history, sync UI | — |
 | 5.2 | Patient portal v2 rollout & feature completion | 🔴 | — | 15h | Flag exists (`patient_portal_v2`); finish UI | — |
-| 5.3 | Mobile app parity with web feature flags | 🔴 | — | 6h | `mobile-app/` is thin shell; align | — |
+| 5.3 | Mobile app parity with web feature flags | 🔴 | — | 6h | `archive/mobile-app/` is thin shell; align | — |
 | 5.4 | Accessibility audit (ARIA, keyboard nav, screen-reader) | 🟢 ✅ | GitHub Copilot | 12h | ✅ WCAG 2.1 AAA complete; all phases delivered | [See Below] |
 
 **Subtasks for 5.1 (PWA Offline):** ✅ COMPLETE (3.5/12 hours - Phase 1-3 delivered)

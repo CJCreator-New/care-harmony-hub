@@ -62,9 +62,7 @@ Required environment variables:
 
 ## Docker Deployment
 
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
+The Kong/microservices compose stack is archived under `archive/` (ADR-0001) and is not deployed. Production runs the Supabase-native SPA.
 
 ## Monitoring
 

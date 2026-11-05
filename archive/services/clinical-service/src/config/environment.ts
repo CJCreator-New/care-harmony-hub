@@ -2,39 +2,25 @@ import { z } from 'zod';
 
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.number().default(3006),
+  PORT: z.number().default(3003),
   HOST: z.string().default('0.0.0.0'),
-
-  // Database
-  DATABASE_URL: z.string().url(),
-
-  // Redis
-  REDIS_URL: z.string().url().optional(),
-
-  // Kafka
-  KAFKA_BROKERS: z.string().optional(),
-  KAFKA_CLIENT_ID: z.string().default('appointment-service'),
-
-  // Security
+  DATABASE_URL: z.string(),
+  REDIS_URL: z.string(),
+  KAFKA_BROKERS: z.string(),
+  KAFKA_CLIENT_ID: z.string().default('clinical-service'),
+  KAFKA_SASL_USERNAME: z.string().optional(),
+  KAFKA_SASL_PASSWORD: z.string().optional(),
+  KAFKA_SSL: z.boolean().default(false),
   JWT_SECRET: z.string().min(32),
   ENCRYPTION_KEY: z.string().length(64), // 32 bytes hex encoded
-
-  // External Services
-  PATIENT_SERVICE_URL: z.string().url().optional(),
-  AUTH_SERVICE_URL: z.string().url().optional(),
-
-  // Logging
+  PATIENT_SERVICE_URL: z.string().optional(),
+  APPOINTMENT_SERVICE_URL: z.string().optional(),
+  AUTH_SERVICE_URL: z.string().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-
-  // CORS
-  CORS_ORIGIN: z.string().default('*'),
-
-  // Rate Limiting
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
   RATE_LIMIT_MAX: z.number().default(100),
   RATE_LIMIT_WINDOW: z.number().default(900000), // 15 minutes
-
-  // JWT
-  JWT_EXPIRES_IN: z.string().default('1h'),
+  HOSPITAL_ID: z.string().uuid(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -53,15 +39,19 @@ export function loadConfig(): Config {
     REDIS_URL: process.env.REDIS_URL,
     KAFKA_BROKERS: process.env.KAFKA_BROKERS,
     KAFKA_CLIENT_ID: process.env.KAFKA_CLIENT_ID,
+    KAFKA_SASL_USERNAME: process.env.KAFKA_SASL_USERNAME,
+    KAFKA_SASL_PASSWORD: process.env.KAFKA_SASL_PASSWORD,
+    KAFKA_SSL: process.env.KAFKA_SSL ? process.env.KAFKA_SSL === 'true' : undefined,
     JWT_SECRET: process.env.JWT_SECRET,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     PATIENT_SERVICE_URL: process.env.PATIENT_SERVICE_URL,
+    APPOINTMENT_SERVICE_URL: process.env.APPOINTMENT_SERVICE_URL,
     AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL,
     LOG_LEVEL: process.env.LOG_LEVEL as any,
     CORS_ORIGIN: process.env.CORS_ORIGIN,
     RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX ? parseInt(process.env.RATE_LIMIT_MAX) : undefined,
     RATE_LIMIT_WINDOW: process.env.RATE_LIMIT_WINDOW ? parseInt(process.env.RATE_LIMIT_WINDOW) : undefined,
-    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
+    HOSPITAL_ID: process.env.HOSPITAL_ID,
   };
 
   try {

@@ -621,15 +621,10 @@ git clone <repo>
 cd care-harmony-hub
 npm install
 
-# 2. Start microservices (Docker)
-docker-compose -f docker-compose.dev.yml up -d
-
-# 3. Initialize Kong API Gateway
-docker-compose --profile init up kong-init
-
-# 4. Start frontend dev server
+# 2. Start frontend dev server
 npm run dev
 # → http://localhost:5173
+# (Kong and the microservices are archived under archive/ per ADR-0001.)
 
 # 5. Run tests during development
 npm run test:unit --watch

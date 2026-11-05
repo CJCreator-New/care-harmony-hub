@@ -32,6 +32,9 @@ result dumps were removed; only the documents below are current.
 - [operations/DISASTER_RECOVERY_RUNBOOK.md](./operations/DISASTER_RECOVERY_RUNBOOK.md)
 - [operations/STAGING_DEPLOYMENT_VALIDATION.md](./operations/STAGING_DEPLOYMENT_VALIDATION.md)
 
+## Archive
+- [../archive/README.md](../archive/README.md) — non-runtime infrastructure archived per ADR-0001 (microservices, Kong, compose files, k8s manifests, mobile skeleton)
+
 ## Role Workflows
 See [workflows/](./workflows): WORKFLOW_OVERVIEW, doctor, nurse, pharmacist,
 receptionist, lab_technician, admin, patient.

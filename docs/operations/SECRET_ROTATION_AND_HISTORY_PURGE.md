@@ -172,12 +172,12 @@ Background: before `supabase/functions/phi-crypto` existed, the client encrypted
 
 ### 4.3 Kong, Loggly and the microservice stack (C4 to C14)
 
-These belong to the archived Kong/microservice stack (`docker-compose*.yml`, `kong.yml`, `services/*`). The audit recommends deleting that stack (OPS-05).
+These belong to the archived Kong/microservice stack (`archive/docker-compose*.yml`, `archive/kong.yml`, `archive/services/*`). The audit recommends deleting that stack (OPS-05).
 
-1. Find out where it ever ran: any host that used `docker-compose.prod.yml` or `.deployment/kubernetes`. **If it never ran anywhere reachable, deleting the stack is enough.** The values only need purging (section 6).
+1. Find out where it ever ran: any host that used `archive/docker-compose.prod.yml` or `archive/.deployment/kubernetes`. **If it never ran anywhere reachable, deleting the stack is enough.** The values only need purging (section 6).
 2. If it did run:
    - **Loggly (C7):** Loggly → Source Setup → Customer Tokens: create a new token and **delete the old one**.
-   - **Kong consumer keys (C4, C6, C8):** generate new keys with `openssl rand -base64 32 | tr -d '/+=' | cut -c1-40`. Set `KONG_FRONTEND_API_KEY`, `KONG_MOBILE_API_KEY`, `KONG_ADMIN_API_KEY` and `LOGGLY_TOKEN` in the deploy environment. Run `scripts/render-kong-config.sh` to produce the untracked `kong.rendered.yml`, then reload Kong. The old keys disappear when the declarative config is replaced. Confirm with `curl -H "apikey: <old>" … → 401`.
+   - **Kong consumer keys (C4, C6, C8):** generate new keys with `openssl rand -base64 32 | tr -d '/+=' | cut -c1-40`. Set `KONG_FRONTEND_API_KEY`, `KONG_MOBILE_API_KEY`, `KONG_ADMIN_API_KEY` and `LOGGLY_TOKEN` in the deploy environment. Run `archive/scripts/render-kong-config.sh` to produce the untracked `kong.rendered.yml`, then reload Kong. The old keys disappear when the declarative config is replaced. Confirm with `curl -H "apikey: <old>" … → 401`.
    - **Databases (C5, C10, C13, C14):** `ALTER ROLE … PASSWORD …` on each database, then update `KONG_DB_PASSWORD`, `DB_PASSWORD`, `PATIENT_DB_PASSWORD` and `APPOINTMENT_DB_PASSWORD`.
    - **JWT and encryption secrets (C9, C13):** rotate `JWT_SECRET`, which invalidates the service's tokens. Treat `ENCRYPTION_KEY` like 4.2 if any service stored ciphertext.
    - **Grafana (C11) and the Kong GUI session secret (C12):** set new values through `GRAFANA_PASSWORD` and `KONG_ADMIN_GUI_SESSION_SECRET`.
@@ -320,7 +320,7 @@ Acceptance criteria (from S0-11, SECF-19/20/21, OPS-06/16/17):
 - [ ] `PHI_ENCRYPTION_KEY` is rotated, 0 rows remain below the new key version, and the previous key is unset.
 - [ ] Production has 0 `@testgeneral.com`, `test-*@caresync.local` and `550e8400-…` users, and no test tenant.
 - [ ] Seed and test scripts abort on the production ref. Try it: `SUPABASE_URL=https://<prod-ref>.supabase.co node scripts/seed-e2e-data.mjs` must exit 1 with "REFUSING TO RUN".
-- [ ] `grep -rE "PASSWORD=[^$]|SECRET=[^$]" docker-compose*.yml` returns nothing, and no admin port is bound to 0.0.0.0.
+- [ ] `grep -rE "PASSWORD=[^$]|SECRET=[^$]" archive/docker-compose*.yml` returns nothing, and no admin port is bound to 0.0.0.0.
 - [ ] Push protection is on, and `Secret Scan` is a required check.
 
 Rotation record. Keep it here or in your secrets manager. **No values.**
@@ -343,7 +343,7 @@ Rotation record. Keep it here or in your secrets manager. **No values.**
 
 - **Current tree has no literal credentials.**
   - The compose files use `${VAR:?…}` and fail closed. Their admin, DB and Redis ports bind to `127.0.0.1`.
-  - `kong.yml` is a template rendered by `scripts/render-kong-config.sh` or `scripts/init-kong.sh`. Compose mounts the untracked `kong.rendered.yml`. The credentialed CORS lists have no `*.vercel.app` wildcard.
+  - `archive/kong.yml` is a template rendered by `archive/scripts/render-kong-config.sh` or `archive/scripts/init-kong.sh`. Compose mounts the untracked `kong.rendered.yml`. The credentialed CORS lists have no `*.vercel.app` wildcard.
   - The test scripts read `KONG_API_KEY` and do not print it. Docs and `.env.example` files are redacted.
   - `.gitignore` ignores every `.env` / `.env.*` except `*.example` and `.env.test`.
 - **No shared test password.**

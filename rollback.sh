@@ -97,7 +97,7 @@ log_info "📝 Next steps:"
 log_info "   1. Investigate root cause of GREEN deployment failure"
 log_info "   2. Review logs: /tmp/green-server.log"
 log_info "   3. Fix issues and test in staging"
-log_info "   4. Retry deployment when ready: bash deploy-prod.sh deploy"
+log_info "   4. Retry deployment when ready: bash archive/deploy-prod.sh deploy"
 log_info ""
 
 exit 0
