@@ -156,3 +156,6 @@ tests/e2e/.recordings/
 playwright-report/
 test-results/
 *-test.png
+
+# Migration replay reports (scripts/db/replay-migrations.mjs)
+migration-replay-report*/

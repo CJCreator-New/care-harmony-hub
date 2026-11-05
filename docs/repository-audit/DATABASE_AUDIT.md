@@ -18,7 +18,7 @@ Until the live schema is dumped and reconciled with the repository, no claim abo
 | ID | Evidence | Result |
 |---|---|---|
 | DB-01 | `20260204000011_misc.sql:274-276`: the profile UPDATE policy has `USING (user_id = auth.uid())`, no `WITH CHECK` and no column restriction. The INSERT policy checks only `user_id`. No later migration or trigger guards `hospital_id`. | CONFIRMED |
-| DB-03 | The parameter rename via `CREATE OR REPLACE` in `20260311000007:11` and `20260909000001:11`. `types.ts:3328-3330` still lists `_user_id` / `_hospital_id`. | CONFIRMED |
+| DB-03 | The parameter rename via `CREATE OR REPLACE` in `20260311000007:11` and `20260909000001:11`. `types.ts:3328-3330` still lists `_user_id` / `_hospital_id`. **Executed 2026-11-05:** PostgreSQL 16 rejects both files (`cannot change name of input parameter "_user_id"`), and a from-empty replay applies 0 of 64 files in CLI order ([REPLAY_FINDINGS](../../supabase/baseline/REPLAY_FINDINGS_2026-11-05.md)). | CONFIRMED (executed) |
 | DB-04 | The NULL-comparison guard and the default PUBLIC EXECUTE on a SECURITY DEFINER purge of `public.audit_log` (`20260313000004:324-351`). | CONFIRMED in code. Deployment unknown. |
 | `scripts/validate-migrations.mjs` | Executed: "69/69 reversible, ALL MIGRATIONS REVERSIBLE". It scans text patterns only. It never parses or runs SQL, so it cannot detect the failures behind DB-03. | CONFIRMED (tool limitation, see DB-21) |
 | `scripts/validate-rls.ts` | `.catch(() => ({ data: null, error: null }))` at :69 turns any connection or query failure into a pass. | CONFIRMED (see OPS-02) |

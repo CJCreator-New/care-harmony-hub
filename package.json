@@ -110,6 +110,8 @@
     "test:e2e:full:phase:workflows": "npx playwright test --config=playwright.e2e-full.config.ts --project=workflows",
     "test:e2e:full:phase:security": "npx playwright test --config=playwright.e2e-full.config.ts --project=security",
     "validate:migrations": "node scripts/validate-migrations.mjs",
+    "db:replay": "node scripts/db/replay-migrations.mjs",
+    "db:capture-live": "bash scripts/db/capture-live-schema.sh",
     "test:release:gates": "npm run lint && npm run type-check && npm run test:unit && npm run test:integration && npm run test:api && npm run test:security && npm run test:accessibility && npm run test:e2e:smoke && npm run test:e2e:roles && npm run test:e2e:full",
     "prepare": "husky"
   },

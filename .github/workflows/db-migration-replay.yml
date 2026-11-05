@@ -1,0 +1,75 @@
+name: DB migration replay
+
+# Audit task S0-01 / ADR-0007 (proposed): every migration must apply cleanly to
+# an empty database in Supabase CLI order. This job executes the SQL (it does
+# not pattern-match it) on the runner's preinstalled PostgreSQL 16.
+#
+# EXPECTED TO FAIL until the live-schema baseline replaces the current history
+# (supabase/baseline/README.md, step 5). The report artifact lists every failing
+# file. Do not add continue-on-error: a red result here is the true state.
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/db/**'
+      - '.github/workflows/db-migration-replay.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/db/**'
+      - '.github/workflows/db-migration-replay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migration-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    name: Replay migrations from empty (CLI order)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Locate PostgreSQL server binaries
+        run: |
+          PG_BIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          test -x "$PG_BIN/initdb"
+          echo "PG_BIN=$PG_BIN" >> "$GITHUB_ENV"
+          "$PG_BIN/postgres" --version
+
+      - name: Replay (stop on first error, like supabase db reset)
+        run: node scripts/db/replay-migrations.mjs --stop-on-error --out migration-replay-report
+
+      # Diagnostic only: runs after the gate above has already failed, to list
+      # every failing file. Its own exit code is irrelevant, hence "|| true".
+      - name: Full diagnostic replay (all failures)
+        if: failure()
+        run: node scripts/db/replay-migrations.mjs --out migration-replay-report-full || true
+
+      - name: Job summary
+        if: always()
+        run: |
+          for f in migration-replay-report/REPORT.md migration-replay-report-full/REPORT.md; do
+            [ -f "$f" ] && { echo "## $f"; sed -n '1,40p' "$f"; } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-replay-report
+          path: |
+            migration-replay-report/
+            migration-replay-report-full/
+          retention-days: 14

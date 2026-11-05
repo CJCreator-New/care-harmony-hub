@@ -99,6 +99,8 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-01: Establish ground truth: dump the live schema, regenerate types, rebuild a replayable migration baseline
 
+- **Status (2026-11-05): in progress, blocked on operator capture.** The replay, capture, comparison and baseline-builder tooling, the CI replay job and the runbook are merged (`supabase/baseline/README.md`). The replay confirmed DB-03 by execution (`supabase/baseline/REPLAY_FINDINGS_2026-11-05.md`). Remaining steps 1–5 need production database access. Tracked in `.scratch/repository-audit/issues/01-live-schema-baseline.md`.
+
 - **Priority:** P0. Covers 4 issue(s), of which 1 are P0 and 2 are P1.
 - **Related issues:** DB-03, DB-14, DB-21, ARCH-02
 - **Dependencies:** none
