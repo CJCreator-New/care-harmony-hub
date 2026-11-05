@@ -38,7 +38,7 @@ SELECT DISTINCT t AS tablename, unnest(names) AS policyname FROM (VALUES
   ('medication_administrations', ARRAY['Nurses can record medication administrations','Staff can view medication administrations']),
   ('medications', ARRAY['Medications hospital scoped','Pharmacists and admins can manage medications','Staff can view medications in their hospital']),
   ('messages', ARRAY['Messages hospital scoped','Recipients can update messages','Users can send messages','Users can view their messages','messages_hospital_access','messages_user_access']),
-  ('notifications', ARRAY['Notifications recipient access','Staff can create notifications','Users can update own notifications','Users can update their own notifications','Users can view own notifications','Users can view their own notifications']),
+  ('notifications', ARRAY['Notifications recipient access','Staff can create notifications','Users can update own notifications','Users can update their own notifications','Users can view own notifications','Users can view their own notifications','notifications_hospital_recipient_read']),
   ('patient_consents', ARRAY['Patients can insert own consents','Patients can update own consents','Patients can view their own consents','Staff can insert consents','Staff can manage consents','Staff can update consents']),
   ('patient_prep_checklists', ARRAY['Nurses can manage checklists','Patient prep checklists hospital scoped','Staff can view checklists in their hospital']),
   ('patient_queue', ARRAY['Patient queue hospital scoped','Staff can manage queue','Staff can view queue in their hospital']),
@@ -47,7 +47,7 @@ SELECT DISTINCT t AS tablename, unnest(names) AS policyname FROM (VALUES
   ('payments', ARRAY['Patients can view their own payments','Staff can create payments','Staff can view payments in their hospital']),
   ('prescription_items', ARRAY['Doctors can create prescription items','Patients can view their own prescription items','Pharmacists can update prescription items','Staff can view prescription items','prescription_items_hospital_isolation']),
   ('prescription_refill_requests', ARRAY['Patients can create refill requests','Patients can view own refill requests','Patients can view their refill requests','Pharmacists and doctors can update refill requests','Pharmacists can update refill requests','Staff can view refill requests']),
-  ('prescriptions', ARRAY['Clinical staff can view prescriptions','Doctors can create prescriptions','Patients can view their own prescriptions','Pharmacists can insert prescriptions','Pharmacists can update prescriptions','Pharmacists can view prescriptions']),
+  ('prescriptions', ARRAY['Clinical staff can view prescriptions','Doctors can create prescriptions','Patients can view their own prescriptions','Pharmacists can insert prescriptions','Pharmacists can update prescriptions','Pharmacists can view prescriptions','Staff can view prescriptions in their hospital','prescriptions_hospital_read_v2']),
   ('purchase_order_items', ARRAY['Pharmacists and admins can manage purchase order items','Purchase order items hospital scoped','Staff can view purchase order items']),
   ('purchase_orders', ARRAY['Pharmacists and admins can manage purchase orders','Purchase orders hospital scoped','Staff can view purchase orders']),
   ('reorder_rules', ARRAY['Pharmacists and admins can manage reorder rules','Reorder rules hospital scoped','Staff can view reorder rules']),
@@ -59,7 +59,7 @@ SELECT DISTINCT t AS tablename, unnest(names) AS policyname FROM (VALUES
   ('task_assignments', ARRAY['Staff can create task assignments','Staff can update task assignments','Staff can view task assignments in their hospital','Task assignments hospital scoped','Users can create tasks','Users can update their tasks','Users can view their tasks']),
   ('telemedicine_sessions', ARRAY['Clinical staff can manage telemedicine sessions','Staff can view telemedicine sessions','Telemedicine sessions hospital scoped','Users can view their telemedicine sessions']),
   ('time_slots', ARRAY['Staff can manage time slots','Staff can view time slots','Time slots hospital scoped']),
-  ('vital_signs', ARRAY['Clinical staff can manage vital signs','Healthcare staff can insert patient vital signs','Healthcare staff can view patient vital signs','Nurses can insert vital signs','Nurses can view vital signs for their patients','Patients can view their own vital signs']),
+  ('vital_signs', ARRAY['Clinical staff can manage vital signs','Healthcare staff can insert patient vital signs','Healthcare staff can view patient vital signs','Nurses can insert vital signs','Nurses can view vital signs for their patients','Patients can view their own vital signs','Staff can insert vital signs','Staff can update vital signs','Staff can view vital signs']),
   ('lab_queue', ARRAY['Hospital staff can view lab queue','Hospital staff can insert into lab queue','Lab techs can update lab queue','lab_queue_hospital_access','lab_queue_lab_tech_write']),
   ('prescription_queue', ARRAY['Hospital staff can view prescription queue','Hospital staff can insert into prescription queue','Pharmacist can update prescription queue status','hospital_staff_prescription_queue_access'])
 ) AS v(t, names)
@@ -249,7 +249,7 @@ SELECT DISTINCT t AS tablename, unnest(names) AS policyname FROM (VALUES
   ('medication_administrations', ARRAY['Nurses can record medication administrations','Staff can view medication administrations']),
   ('medications', ARRAY['Medications hospital scoped','Pharmacists and admins can manage medications','Staff can view medications in their hospital']),
   ('messages', ARRAY['Messages hospital scoped','Recipients can update messages','Users can send messages','Users can view their messages','messages_hospital_access','messages_user_access']),
-  ('notifications', ARRAY['Notifications recipient access','Staff can create notifications','Users can update own notifications','Users can update their own notifications','Users can view own notifications','Users can view their own notifications']),
+  ('notifications', ARRAY['Notifications recipient access','Staff can create notifications','Users can update own notifications','Users can update their own notifications','Users can view own notifications','Users can view their own notifications','notifications_hospital_recipient_read']),
   ('patient_consents', ARRAY['Patients can insert own consents','Patients can update own consents','Patients can view their own consents','Staff can insert consents','Staff can manage consents','Staff can update consents']),
   ('patient_prep_checklists', ARRAY['Nurses can manage checklists','Patient prep checklists hospital scoped','Staff can view checklists in their hospital']),
   ('patient_queue', ARRAY['Patient queue hospital scoped','Staff can manage queue','Staff can view queue in their hospital']),
@@ -258,7 +258,7 @@ SELECT DISTINCT t AS tablename, unnest(names) AS policyname FROM (VALUES
   ('payments', ARRAY['Patients can view their own payments','Staff can create payments','Staff can view payments in their hospital']),
   ('prescription_items', ARRAY['Doctors can create prescription items','Patients can view their own prescription items','Pharmacists can update prescription items','Staff can view prescription items','prescription_items_hospital_isolation']),
   ('prescription_refill_requests', ARRAY['Patients can create refill requests','Patients can view own refill requests','Patients can view their refill requests','Pharmacists and doctors can update refill requests','Pharmacists can update refill requests','Staff can view refill requests']),
-  ('prescriptions', ARRAY['Clinical staff can view prescriptions','Doctors can create prescriptions','Patients can view their own prescriptions','Pharmacists can insert prescriptions','Pharmacists can update prescriptions','Pharmacists can view prescriptions']),
+  ('prescriptions', ARRAY['Clinical staff can view prescriptions','Doctors can create prescriptions','Patients can view their own prescriptions','Pharmacists can insert prescriptions','Pharmacists can update prescriptions','Pharmacists can view prescriptions','Staff can view prescriptions in their hospital','prescriptions_hospital_read_v2']),
   ('purchase_order_items', ARRAY['Pharmacists and admins can manage purchase order items','Purchase order items hospital scoped','Staff can view purchase order items']),
   ('purchase_orders', ARRAY['Pharmacists and admins can manage purchase orders','Purchase orders hospital scoped','Staff can view purchase orders']),
   ('reorder_rules', ARRAY['Pharmacists and admins can manage reorder rules','Reorder rules hospital scoped','Staff can view reorder rules']),
@@ -270,7 +270,7 @@ SELECT DISTINCT t AS tablename, unnest(names) AS policyname FROM (VALUES
   ('task_assignments', ARRAY['Staff can create task assignments','Staff can update task assignments','Staff can view task assignments in their hospital','Task assignments hospital scoped','Users can create tasks','Users can update their tasks','Users can view their tasks']),
   ('telemedicine_sessions', ARRAY['Clinical staff can manage telemedicine sessions','Staff can view telemedicine sessions','Telemedicine sessions hospital scoped','Users can view their telemedicine sessions']),
   ('time_slots', ARRAY['Staff can manage time slots','Staff can view time slots','Time slots hospital scoped']),
-  ('vital_signs', ARRAY['Clinical staff can manage vital signs','Healthcare staff can insert patient vital signs','Healthcare staff can view patient vital signs','Nurses can insert vital signs','Nurses can view vital signs for their patients','Patients can view their own vital signs']),
+  ('vital_signs', ARRAY['Clinical staff can manage vital signs','Healthcare staff can insert patient vital signs','Healthcare staff can view patient vital signs','Nurses can insert vital signs','Nurses can view vital signs for their patients','Patients can view their own vital signs','Staff can insert vital signs','Staff can update vital signs','Staff can view vital signs']),
   ('lab_queue', ARRAY['Hospital staff can view lab queue','Hospital staff can insert into lab queue','Lab techs can update lab queue','lab_queue_hospital_access','lab_queue_lab_tech_write']),
   ('prescription_queue', ARRAY['Hospital staff can view prescription queue','Hospital staff can insert into prescription queue','Pharmacist can update prescription queue status','hospital_staff_prescription_queue_access'])
 ) AS v(t, names);
