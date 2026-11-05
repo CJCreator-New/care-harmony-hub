@@ -130,7 +130,7 @@ describe('useLabOrderStats', () => {
 describe('useUpdateLabOrder', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(createMockAuthContext({ primaryRole: "doctor", roles: ["doctor"] }));
   });
 
   it('updates lab order by id', async () => {
@@ -157,13 +157,13 @@ describe('useUpdateLabOrder', () => {
   });
 });{
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(createMockAuthContext({ primaryRole: "doctor", roles: ["doctor"] }));
   }
 
 describe('useCreateLabOrder', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(createMockAuthContext({ primaryRole: "doctor", roles: ["doctor"] }));
   });
 
   it('inserts lab order and creates lab_queue entry', async () => {

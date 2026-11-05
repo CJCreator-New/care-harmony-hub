@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAI, AIUnavailableError } from '@/hooks/useAI';
-import { usePermissions } from '@/lib/hooks';
 import { usePatients } from '@/lib/hooks/patients';
 import { useAppointments } from '@/lib/hooks/appointments';
 import { AlertTriangle, TrendingUp, Users, Bed, Stethoscope, Clock, BarChart3, Target, Zap, Activity, Calendar, Settings } from 'lucide-react';
@@ -65,7 +64,6 @@ interface OptimizationMetrics {
 }
 
 export const ResourceUtilizationOptimizationEngine: React.FC = () => {
-  const permissions = usePermissions();
   const { data: patients } = usePatients();
   const { data: appointments } = useAppointments();
   const { optimizeResourceUtilization, isLoading } = useAI({ purpose: 'resource_optimization' });
@@ -172,18 +170,7 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
     return 'text-red-600';
   };
 
-  if (!permissions.can('resource-utilization-optimization')) {
-    return (
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Access Denied</AlertTitle>
-        <AlertDescription>
-          You do not have permission to access resource utilization optimization features.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
+  // Access is decided by the route policy in @/modules/rbac (admin, doctor), not here.
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

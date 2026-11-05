@@ -9,7 +9,7 @@ import {
 } from '@/lib/clinical/criticalResultSafeguard';
 
 /** Roles that see the interim safeguard at all. */
-const CLINICAL_ROLES = ['doctor', 'nurse', 'lab_technician', 'admin', 'super_admin', 'hospital_admin'];
+const CLINICAL_ROLES = ['doctor', 'nurse', 'lab_technician', 'admin'];
 const LOOKBACK_HOURS = 72;
 const POLL_MS = 30_000;
 export const CRITICAL_RECEIPT_ACTION = 'critical_result_receipt';
@@ -115,7 +115,7 @@ export function useCriticalResultSafeguard() {
       queryClient.invalidateQueries({ queryKey: ['critical-result-safeguard', 'receipts', user?.id] }),
   });
 
-  const isLabOrAdmin = roleList.some((r) => ['lab_technician', 'admin', 'super_admin', 'hospital_admin'].includes(r));
+  const isLabOrAdmin = roleList.some((r) => ['lab_technician', 'admin'].includes(r));
 
   return {
     enabled,

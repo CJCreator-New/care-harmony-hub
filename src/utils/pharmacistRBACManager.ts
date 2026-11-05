@@ -1,5 +1,6 @@
 import { PharmacistPermission, PharmacistUser } from '../types/pharmacist';
 import { supabase } from '@/integrations/supabase/client';
+import { hasAnyRole } from '@/modules/rbac';
 
 export class PharmacistRBACManager {
   private pharmacistUser: PharmacistUser;
@@ -26,9 +27,8 @@ export class PharmacistRBACManager {
     let role: string | null = null;
     if (import.meta.env.MODE === 'test' && this.mockRoleRegistry.has(userId)) {
       role = this.mockRoleRegistry.get(userId) || null;
-    } else if (userId === 'default-pharmacist') {
-      role = 'pharmacist';
     } else {
+      // No identity shortcuts in production (SECF-08): every actor is resolved from user_roles.
       try {
         const { data: userRole, error } = await supabase
           .from('user_roles')
@@ -43,26 +43,19 @@ export class PharmacistRBACManager {
       }
     }
 
-    // Only pharmacist and admin have access
-    if (role !== 'pharmacist' && role !== 'admin') {
+    // Only pharmacist and admin have access (canonical roles, ADR-0002)
+    if (!hasAnyRole(role, ['pharmacist', 'admin'])) {
       return false;
     }
 
-    // If a specific permission is queried, verify against pharmacist permissions
+    // If a specific permission is queried, it must be an exact PharmacistPermission value.
+    // No substring matching (SECF-08).
     if (permission) {
       // Admin has full oversight
       if (role === 'admin') return true;
 
-      // Check against valid PharmacistPermission enum values
-      const validPermissions = Object.values(PharmacistPermission).map((p) => p.toLowerCase());
-      const normalizedPermission = permission.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      const isValid = validPermissions.some(
-        (vp) =>
-          vp === normalizedPermission ||
-          normalizedPermission.includes(vp) ||
-          vp.includes(normalizedPermission)
-      );
-      if (!isValid) return false;
+      const validPermissions: string[] = Object.values(PharmacistPermission);
+      if (!validPermissions.includes(permission)) return false;
     }
 
     return true;

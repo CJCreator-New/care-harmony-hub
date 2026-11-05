@@ -1,27 +1,27 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserRole } from '@/types/auth';
-import { hasAnyAllowedRole, hasPermissionForAnyRole, Permission } from '@/lib/permissions';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 import { usePermissionAudit } from '@/lib/hooks';
 import { checkRouteAccess } from '@/middleware/routeGuard';
+import { resolveActingRole, findRoutePolicy } from '@/modules/rbac';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
-  allowedRoles: UserRole[];
-  requiredPermission?: Permission;
   redirectTo?: string;
   showUnauthorized?: boolean;
 }
 
+/**
+ * Guards a route with the access policy in `@/modules/rbac`. The policy is
+ * looked up by pathname, so the guard, the sidebar and the manifest read the
+ * same entry. The acting role is the dev test role or the primary role.
+ */
 export function RoleProtectedRoute({
   children,
-  allowedRoles,
-  requiredPermission,
   redirectTo = '/dashboard',
   showUnauthorized = true,
 }: RoleProtectedRouteProps) {
@@ -57,70 +57,27 @@ export function RoleProtectedRoute({
     return <Navigate to="/hospital/login" state={{ from: location }} replace />;
   }
 
-  const effectiveRoles = persistedTestRole ? [persistedTestRole] : (primaryRole ? [primaryRole] : roles);
+  const actingRole = resolveActingRole({ primaryRole, testRole: persistedTestRole });
+  const decision = checkRouteAccess(location.pathname, actingRole);
 
-  // NEW: Middleware-level route guard check (BEFORE component render)
-  const middlewareCheck = checkRouteAccess(location.pathname, effectiveRoles);
-  if (!middlewareCheck.allowed) {
+  if (import.meta.env.DEV && !decision.allowed) {
+    console.warn('[RBAC] Access Denied:', {
+      path: location.pathname,
+      actingRole,
+      reason: decision.denyReason,
+    });
+  }
+
+  if (!decision.allowed) {
     logPermissionDenial({
       path: location.pathname,
       attemptedBy: user?.email || user?.id || null,
       userRole: primaryRole,
-      allowedRoles,
+      allowedRoles: [...(findRoutePolicy(location.pathname)?.roles ?? [])],
       severity: 'critical',
-      detail: middlewareCheck.denyReason,
-    }).catch(() => {});
-
-    if (showUnauthorized) {
-      return (
-        <DashboardLayout>
-          <div className="min-h-[70vh] flex items-center justify-center bg-background">
-            <div className="text-center max-w-md mx-auto px-4">
-              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
-                <ShieldAlert className="h-8 w-8 text-destructive" />
-              </div>
-              <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-              <p className="text-muted-foreground mb-6">{middlewareCheck.denyReason}</p>
-              <Button onClick={() => window.history.back()}>Go Back</Button>
-            </div>
-          </div>
-        </DashboardLayout>
-      );
-    }
-    return <Navigate to={redirectTo} replace />;
-  }
-
-  const hasRoleAccess = hasAnyAllowedRole(effectiveRoles, allowedRoles);
-  const hasRequiredPermission = requiredPermission
-    ? hasPermissionForAnyRole(effectiveRoles, requiredPermission)
-    : true;
-
-  // Debug logging for RBAC enforcement
-  if (import.meta.env.DEV) {
-    const accessLogData = {
-      path: location.pathname,
-      effectiveRoles,
-      allowedRoles,
-      hasRoleAccess,
-      requiredPermission,
-      hasRequiredPermission,
-      granted: hasRoleAccess && hasRequiredPermission,
-    };
-    if (!hasRoleAccess || !hasRequiredPermission) {
-      console.warn('[RBAC] Access Denied:', accessLogData);
-    }
-  }
-
-  if (!hasRoleAccess || !hasRequiredPermission) {
-    // Audit log the unauthorized access attempt
-    logPermissionDenial({
-      path: location.pathname,
-      attemptedBy: user?.email || user?.id || null,
-      userRole: primaryRole,
-      allowedRoles,
-      severity: requiredPermission ? 'critical' : 'warning',
+      detail: decision.denyReason,
     }).catch(() => {
-      // Silently fail if audit logging fails - don't block the access denial UI
+      // Audit logging must not block the denial UI.
     });
 
     if (showUnauthorized) {
@@ -135,9 +92,7 @@ export function RoleProtectedRoute({
               <p className="text-muted-foreground mb-6">
                 You don't have permission to access this page. Please contact your administrator if you believe this is an error.
               </p>
-              <Button onClick={() => window.history.back()}>
-                Go Back
-              </Button>
+              <Button onClick={() => window.history.back()}>Go Back</Button>
             </div>
           </div>
         </DashboardLayout>
@@ -148,4 +103,3 @@ export function RoleProtectedRoute({
 
   return <>{children}</>;
 }
-

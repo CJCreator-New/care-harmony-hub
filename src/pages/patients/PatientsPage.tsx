@@ -50,6 +50,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
+import { can } from '@/modules/rbac';
 
 interface Patient {
   id: string;
@@ -281,7 +282,7 @@ export default function PatientsPage() {
 
   const showRegisterPatient = canCreatePatients && primaryRole !== 'doctor' && primaryRole !== 'nurse';
   const canBookAppointment = primaryRole === 'admin' || primaryRole === 'receptionist';
-  const canGenerateInvoice = primaryRole === 'admin' || primaryRole === 'receptionist' || primaryRole === 'billing';
+  const canGenerateInvoice = can(primaryRole, 'billing:write');
   const canRecordHistory = primaryRole === 'admin' || primaryRole === 'doctor' || primaryRole === 'nurse';
 
   return (

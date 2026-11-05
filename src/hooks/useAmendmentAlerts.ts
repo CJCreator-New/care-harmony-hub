@@ -164,7 +164,7 @@ export function useAmendmentAlerts(
         }
         // Show lab amendments to lab staff/doctors
         if (alert.recordType === 'lab_result') {
-          return ['doctor', 'lab_technician', 'pathologist'].includes(
+          return ['doctor', 'lab_technician'].includes(
             userRole.toLowerCase()
           );
         }

@@ -436,7 +436,13 @@ const defaultRbacManager = new PharmacistRBACManager({
   isActive: true,
   permissions: ['*'],
 } as any);
-const defaultService = new PharmacistOperationsService(defaultRbacManager, 'default-pharmacist', 'default-hospital');
+const STANDALONE_TEST_ACTOR_ID = 'default-pharmacist';
+// The standalone helpers below act as this test-only actor. The identity exists only in
+// the test role registry (MODE === 'test'). In production it resolves to no role and is denied (SECF-08).
+if (import.meta.env.MODE === 'test') {
+  PharmacistRBACManager.setMockUserRoleForTesting(STANDALONE_TEST_ACTOR_ID, 'pharmacist');
+}
+const defaultService = new PharmacistOperationsService(defaultRbacManager, STANDALONE_TEST_ACTOR_ID, 'default-hospital');
 
 // Internal storage for prescriptions
 const prescriptionStore = new Map<string, any>();
@@ -444,7 +450,7 @@ const prescriptionStore = new Map<string, any>();
 export async function receivePrescription(prescriptionData: any): Promise<any> {
   // Check authorization
   const authorized = await PharmacistRBACManager.checkPermission(
-    'default-pharmacist',
+    STANDALONE_TEST_ACTOR_ID,
     'prescription_receive'
   );
   if (!authorized) {

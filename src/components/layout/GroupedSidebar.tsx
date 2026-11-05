@@ -22,7 +22,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
-import { hasAnyAllowedRole, hasPermissionForAnyRole } from '@/lib/permissions';
+import { decideRouteAccess, resolveActingRole } from '@/modules/rbac';
 import { routeManifest, type AppRouteManifestGroup, type AppRouteManifestItem } from '@/config/routeManifest';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
@@ -35,7 +35,7 @@ interface GroupedSidebarProps {
 
 export function GroupedSidebar({ userRole, testRole, collapsed = false, className }: GroupedSidebarProps) {
   const location = useLocation();
-  const { roles } = useAuth();
+  const { primaryRole } = useAuth();
   const { isEnabled, isLoading: flagsLoading } = useFeatureFlags();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -69,21 +69,19 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
     }));
   };
 
-  const resolvedRoles = testRole
-    ? [testRole]
-    : roles.length > 0
-      ? roles
-      : userRole
-        ? [userRole]
-        : [];
+  // Same acting role as the route guard: test role, else primary role (see @/modules/rbac).
+  const actingRole = resolveActingRole({
+    primaryRole,
+    testRole: testRole ?? null,
+  });
 
   const hasAccessToGroup = (group: AppRouteManifestGroup) => {
-    return hasAnyAllowedRole(resolvedRoles, group.allowedRoles);
+    return group.items.some((item) => hasAccessToItem(item));
   };
 
+  // Visibility is the guard's own decision for the item's href, so a visible item always opens.
   const hasAccessToItem = (item: AppRouteManifestItem) => {
-    return hasAnyAllowedRole(resolvedRoles, item.allowedRoles) &&
-      (!item.requiredPermission || hasPermissionForAnyRole(resolvedRoles, item.requiredPermission)) &&
+    return decideRouteAccess(item.href, actingRole).allowed &&
       (!item.featureFlag || (!flagsLoading && isEnabled(item.featureFlag as any)));
   };
 

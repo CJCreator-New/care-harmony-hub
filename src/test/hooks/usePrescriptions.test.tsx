@@ -115,7 +115,7 @@ describe('usePrescriptionStats', () => {
 describe('useCreatePrescription', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(createMockAuthContext({ primaryRole: "doctor", roles: ["doctor"] }));
   });
 
   it('inserts prescription, items, and queue entry', async () => {

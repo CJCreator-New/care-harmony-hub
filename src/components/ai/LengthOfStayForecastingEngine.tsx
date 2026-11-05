@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAI, AIUnavailableError } from '@/hooks/useAI';
-import { usePermissions } from '@/lib/hooks';
 import { usePatients, type Patient } from '@/lib/hooks/patients';
 import { AlertTriangle, TrendingUp, Clock, Users, Activity, BarChart3, Target, Zap } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,7 +37,6 @@ interface ForecastingMetrics {
 }
 
 export const LengthOfStayForecastingEngine: React.FC = () => {
-  const permissions = usePermissions();
   const { predictLengthOfStay, isLoading } = useAI({ purpose: 'length_of_stay' });
   const { data: patientsData } = usePatients();
   const patients = patientsData?.patients || [];
@@ -129,18 +127,7 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
     return 'text-red-600';
   };
 
-  if (!permissions.can('predictive-analytics')) {
-    return (
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Access Denied</AlertTitle>
-        <AlertDescription>
-          You do not have permission to access length of stay forecasting features.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
+  // Access is decided by the route policy in @/modules/rbac (admin, doctor), not here.
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

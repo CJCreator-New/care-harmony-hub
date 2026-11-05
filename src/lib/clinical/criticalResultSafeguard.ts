@@ -46,7 +46,7 @@ export interface SafeguardAlert<T extends CriticalLabOrderLike = CriticalLabOrde
 export const ON_CALL_AFTER_MIN = 5;
 export const ED_AFTER_MIN = 10;
 
-const LAB_AND_ADMIN = ['lab_technician', 'admin', 'super_admin', 'hospital_admin'];
+const LAB_AND_ADMIN = ['lab_technician', 'admin'];
 const WIDE_AUDIENCE = ['doctor', 'nurse'];
 
 export function readBackRecorded(results: unknown): boolean {
