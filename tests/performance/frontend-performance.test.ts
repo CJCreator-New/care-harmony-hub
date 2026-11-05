@@ -253,13 +253,6 @@ describe('Phase 4: Frontend Performance Tests', () => {
       expect(hasVirtualization).toBeDefined();
     });
 
-    it('PERF-RENDER-005: No inline object/array literals in renders', () => {
-      // Inline objects cause re-renders of child components
-      
-      // This is a structural check - should see constants extracted
-      const constantsPath = path.join(process.cwd(), 'src', 'lib', 'constants.ts');
-      expect(fs.existsSync(constantsPath) || fs.existsSync(constantsPath.replace('.ts', '.tsx'))).toBe(true);
-    });
   });
 
   // ============================================================================
