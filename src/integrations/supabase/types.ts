@@ -316,6 +316,7 @@ export type Database = {
       }
       appointments: {
         Row: {
+          appointment_date: string | null
           appointment_type: string
           attended_at: string | null
           attended_by: string | null
@@ -347,6 +348,7 @@ export type Database = {
           waitlist_position: number | null
         }
         Insert: {
+          appointment_date?: string | null
           appointment_type: string
           attended_at?: string | null
           attended_by?: string | null
@@ -378,6 +380,7 @@ export type Database = {
           waitlist_position?: number | null
         }
         Update: {
+          appointment_date?: string | null
           appointment_type?: string
           attended_at?: string | null
           attended_by?: string | null
@@ -454,7 +457,7 @@ export type Database = {
           changes: Json | null
           created_at: string
           details: Json | null
-          hospital_id: string | null
+          hospital_id: string
           id: string
           ip_address: string | null
           performed_by: string | null
@@ -474,7 +477,7 @@ export type Database = {
           changes?: Json | null
           created_at?: string
           details?: Json | null
-          hospital_id?: string | null
+          hospital_id: string
           id?: string
           ip_address?: string | null
           performed_by?: string | null
@@ -494,7 +497,7 @@ export type Database = {
           changes?: Json | null
           created_at?: string
           details?: Json | null
-          hospital_id?: string | null
+          hospital_id?: string
           id?: string
           ip_address?: string | null
           performed_by?: string | null
@@ -881,6 +884,243 @@ export type Database = {
           },
         ]
       }
+      discharge_workflow_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          discharge_workflow_id: string
+          evidence_data: Json | null
+          hospital_id: string
+          id: string
+          notes: string | null
+          status: string
+          step_number: number
+          task_category: string
+          task_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          discharge_workflow_id: string
+          evidence_data?: Json | null
+          hospital_id: string
+          id?: string
+          notes?: string | null
+          status?: string
+          step_number: number
+          task_category: string
+          task_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          discharge_workflow_id?: string
+          evidence_data?: Json | null
+          hospital_id?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          step_number?: number
+          task_category?: string
+          task_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discharge_workflow_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflow_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflow_tasks_discharge_workflow_id_fkey"
+            columns: ["discharge_workflow_id"]
+            isOneToOne: false
+            referencedRelation: "discharge_workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflow_tasks_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discharge_workflows: {
+        Row: {
+          admission_id: string
+          billing_clearance_at: string | null
+          billing_clearance_by: string | null
+          cancellation_reason: string | null
+          checkout_details: Json | null
+          clinical_notes: Json | null
+          created_at: string | null
+          current_step: number
+          doctor_clearance_at: string | null
+          doctor_clearance_by: string | null
+          financial_details: Json | null
+          hospital_id: string
+          id: string
+          initiated_by: string
+          last_action_at: string | null
+          last_action_by: string | null
+          medication_reconciliation: Json | null
+          metadata: Json | null
+          nurse_confirmed_at: string | null
+          nurse_confirmed_by: string | null
+          patient_id: string
+          pharmacist_reconciliation_at: string | null
+          pharmacist_reconciliation_by: string | null
+          receptionist_checkout_at: string | null
+          receptionist_checkout_by: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          admission_id: string
+          billing_clearance_at?: string | null
+          billing_clearance_by?: string | null
+          cancellation_reason?: string | null
+          checkout_details?: Json | null
+          clinical_notes?: Json | null
+          created_at?: string | null
+          current_step?: number
+          doctor_clearance_at?: string | null
+          doctor_clearance_by?: string | null
+          financial_details?: Json | null
+          hospital_id: string
+          id?: string
+          initiated_by: string
+          last_action_at?: string | null
+          last_action_by?: string | null
+          medication_reconciliation?: Json | null
+          metadata?: Json | null
+          nurse_confirmed_at?: string | null
+          nurse_confirmed_by?: string | null
+          patient_id: string
+          pharmacist_reconciliation_at?: string | null
+          pharmacist_reconciliation_by?: string | null
+          receptionist_checkout_at?: string | null
+          receptionist_checkout_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admission_id?: string
+          billing_clearance_at?: string | null
+          billing_clearance_by?: string | null
+          cancellation_reason?: string | null
+          checkout_details?: Json | null
+          clinical_notes?: Json | null
+          created_at?: string | null
+          current_step?: number
+          doctor_clearance_at?: string | null
+          doctor_clearance_by?: string | null
+          financial_details?: Json | null
+          hospital_id?: string
+          id?: string
+          initiated_by?: string
+          last_action_at?: string | null
+          last_action_by?: string | null
+          medication_reconciliation?: Json | null
+          metadata?: Json | null
+          nurse_confirmed_at?: string | null
+          nurse_confirmed_by?: string | null
+          patient_id?: string
+          pharmacist_reconciliation_at?: string | null
+          pharmacist_reconciliation_by?: string | null
+          receptionist_checkout_at?: string | null
+          receptionist_checkout_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discharge_workflows_billing_clearance_by_fkey"
+            columns: ["billing_clearance_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_doctor_clearance_by_fkey"
+            columns: ["doctor_clearance_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_last_action_by_fkey"
+            columns: ["last_action_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_nurse_confirmed_by_fkey"
+            columns: ["nurse_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_pharmacist_reconciliation_by_fkey"
+            columns: ["pharmacist_reconciliation_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discharge_workflows_receptionist_checkout_by_fkey"
+            columns: ["receptionist_checkout_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_availability: {
         Row: {
           created_at: string
@@ -1020,6 +1260,153 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drug_interaction_cache: {
+        Row: {
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string | null
+          details: Json | null
+          expires_at: string | null
+          hospital_id: string
+          id: string
+          interactions_found: number | null
+          new_drug_name: string
+          new_drug_rxcui: string
+          patient_id: string
+          severity_max: string | null
+        }
+        Insert: {
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          details?: Json | null
+          expires_at?: string | null
+          hospital_id: string
+          id?: string
+          interactions_found?: number | null
+          new_drug_name: string
+          new_drug_rxcui: string
+          patient_id: string
+          severity_max?: string | null
+        }
+        Update: {
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string | null
+          details?: Json | null
+          expires_at?: string | null
+          hospital_id?: string
+          id?: string
+          interactions_found?: number | null
+          new_drug_name?: string
+          new_drug_rxcui?: string
+          patient_id?: string
+          severity_max?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drug_interaction_cache_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drug_interaction_cache_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drug_interaction_cache_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drug_interactions: {
+        Row: {
+          age_ranges: Json | null
+          clinical_recommendation: string | null
+          contraindicated_in_lactation: boolean | null
+          contraindicated_in_pregnancy: boolean | null
+          created_at: string | null
+          description: string
+          drug1_name: string
+          drug1_rxcui: string
+          drug2_name: string
+          drug2_rxcui: string
+          evidence_level: string | null
+          excludes_formulations: string[] | null
+          excludes_routes: string[] | null
+          external_id: string | null
+          hospital_id: string
+          id: string
+          mechanism: string | null
+          pregnancy_note: string | null
+          severity: string
+          source: string
+          updated_at: string | null
+        }
+        Insert: {
+          age_ranges?: Json | null
+          clinical_recommendation?: string | null
+          contraindicated_in_lactation?: boolean | null
+          contraindicated_in_pregnancy?: boolean | null
+          created_at?: string | null
+          description: string
+          drug1_name: string
+          drug1_rxcui: string
+          drug2_name: string
+          drug2_rxcui: string
+          evidence_level?: string | null
+          excludes_formulations?: string[] | null
+          excludes_routes?: string[] | null
+          external_id?: string | null
+          hospital_id: string
+          id?: string
+          mechanism?: string | null
+          pregnancy_note?: string | null
+          severity?: string
+          source?: string
+          updated_at?: string | null
+        }
+        Update: {
+          age_ranges?: Json | null
+          clinical_recommendation?: string | null
+          contraindicated_in_lactation?: boolean | null
+          contraindicated_in_pregnancy?: boolean | null
+          created_at?: string | null
+          description?: string
+          drug1_name?: string
+          drug1_rxcui?: string
+          drug2_name?: string
+          drug2_rxcui?: string
+          evidence_level?: string | null
+          excludes_formulations?: string[] | null
+          excludes_routes?: string[] | null
+          external_id?: string | null
+          hospital_id?: string
+          id?: string
+          mechanism?: string | null
+          pregnancy_note?: string | null
+          severity?: string
+          source?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drug_interactions_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
@@ -1449,6 +1836,70 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_alert_escalations: {
+        Row: {
+          alert_id: string
+          created_at: string
+          dispatched_at: string | null
+          error_message: string | null
+          escalation_level: string
+          hospital_id: string
+          id: string
+          scheduled_for: string
+          status: string
+          target_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          alert_id: string
+          created_at?: string
+          dispatched_at?: string | null
+          error_message?: string | null
+          escalation_level: string
+          hospital_id: string
+          id?: string
+          scheduled_for: string
+          status?: string
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alert_id?: string
+          created_at?: string
+          dispatched_at?: string | null
+          error_message?: string | null
+          escalation_level?: string
+          hospital_id?: string
+          id?: string
+          scheduled_for?: string
+          status?: string
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_alert_escalations_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "lab_critical_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_alert_escalations_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_alert_escalations_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2179,6 +2630,7 @@ export type Database = {
           id: string
           interpretation: string | null
           lab_order_id: string | null
+          lab_result: string | null
           loinc_code: string | null
           performed_at: string | null
           reference_range: string | null
@@ -2197,6 +2649,7 @@ export type Database = {
           id?: string
           interpretation?: string | null
           lab_order_id?: string | null
+          lab_result?: string | null
           loinc_code?: string | null
           performed_at?: string | null
           reference_range?: string | null
@@ -2215,6 +2668,7 @@ export type Database = {
           id?: string
           interpretation?: string | null
           lab_order_id?: string | null
+          lab_result?: string | null
           loinc_code?: string | null
           performed_at?: string | null
           reference_range?: string | null
@@ -3534,12 +3988,163 @@ export type Database = {
           },
         ]
       }
+      prescription_dur_reviews: {
+        Row: {
+          age_appropriate: boolean | null
+          age_checked: boolean | null
+          age_note: string | null
+          allergy_checked: boolean | null
+          allergy_conflicts: string[] | null
+          created_at: string | null
+          ddi_checked: boolean | null
+          ddi_details: Json | null
+          ddi_severity: string | null
+          doctor_approval_at: string | null
+          doctor_approval_note: string | null
+          doctor_approval_status: string | null
+          doctor_approved_by: string | null
+          hepatic_checked: boolean | null
+          hepatic_dosage_ok: boolean | null
+          hepatic_note: string | null
+          hospital_id: string
+          id: string
+          patient_child_pugh_score: string | null
+          patient_egfr: number | null
+          patient_id: string
+          pharmacist_notes: string | null
+          pharmacist_recommendation: string | null
+          pregnancy_checked: boolean | null
+          pregnancy_note: string | null
+          pregnancy_safe: boolean | null
+          prescription_id: string
+          renal_checked: boolean | null
+          renal_dosage_ok: boolean | null
+          renal_note: string | null
+          requires_doctor_approval: boolean | null
+          reviewed_at: string | null
+          reviewed_by: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          age_appropriate?: boolean | null
+          age_checked?: boolean | null
+          age_note?: string | null
+          allergy_checked?: boolean | null
+          allergy_conflicts?: string[] | null
+          created_at?: string | null
+          ddi_checked?: boolean | null
+          ddi_details?: Json | null
+          ddi_severity?: string | null
+          doctor_approval_at?: string | null
+          doctor_approval_note?: string | null
+          doctor_approval_status?: string | null
+          doctor_approved_by?: string | null
+          hepatic_checked?: boolean | null
+          hepatic_dosage_ok?: boolean | null
+          hepatic_note?: string | null
+          hospital_id: string
+          id?: string
+          patient_child_pugh_score?: string | null
+          patient_egfr?: number | null
+          patient_id: string
+          pharmacist_notes?: string | null
+          pharmacist_recommendation?: string | null
+          pregnancy_checked?: boolean | null
+          pregnancy_note?: string | null
+          pregnancy_safe?: boolean | null
+          prescription_id: string
+          renal_checked?: boolean | null
+          renal_dosage_ok?: boolean | null
+          renal_note?: string | null
+          requires_doctor_approval?: boolean | null
+          reviewed_at?: string | null
+          reviewed_by: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          age_appropriate?: boolean | null
+          age_checked?: boolean | null
+          age_note?: string | null
+          allergy_checked?: boolean | null
+          allergy_conflicts?: string[] | null
+          created_at?: string | null
+          ddi_checked?: boolean | null
+          ddi_details?: Json | null
+          ddi_severity?: string | null
+          doctor_approval_at?: string | null
+          doctor_approval_note?: string | null
+          doctor_approval_status?: string | null
+          doctor_approved_by?: string | null
+          hepatic_checked?: boolean | null
+          hepatic_dosage_ok?: boolean | null
+          hepatic_note?: string | null
+          hospital_id?: string
+          id?: string
+          patient_child_pugh_score?: string | null
+          patient_egfr?: number | null
+          patient_id?: string
+          pharmacist_notes?: string | null
+          pharmacist_recommendation?: string | null
+          pregnancy_checked?: boolean | null
+          pregnancy_note?: string | null
+          pregnancy_safe?: boolean | null
+          prescription_id?: string
+          renal_checked?: boolean | null
+          renal_dosage_ok?: boolean | null
+          renal_note?: string | null
+          requires_doctor_approval?: boolean | null
+          reviewed_at?: string | null
+          reviewed_by?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescription_dur_reviews_doctor_approved_by_fkey"
+            columns: ["doctor_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_dur_reviews_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_dur_reviews_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_dur_reviews_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_dur_reviews_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescription_items: {
         Row: {
           created_at: string
           dosage: string
           duration: string
           frequency: string
+          hospital_id: string
           id: string
           instructions: string | null
           is_dispensed: boolean | null
@@ -3553,6 +4158,7 @@ export type Database = {
           dosage: string
           duration: string
           frequency: string
+          hospital_id: string
           id?: string
           instructions?: string | null
           is_dispensed?: boolean | null
@@ -3566,6 +4172,7 @@ export type Database = {
           dosage?: string
           duration?: string
           frequency?: string
+          hospital_id?: string
           id?: string
           instructions?: string | null
           is_dispensed?: boolean | null
@@ -3575,6 +4182,13 @@ export type Database = {
           quantity?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "prescription_items_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "prescription_items_medication_id_fkey"
             columns: ["medication_id"]
@@ -3685,6 +4299,7 @@ export type Database = {
           verification_required: boolean | null
           verified_at: string | null
           verified_by: string | null
+          version: number
         }
         Insert: {
           allergy_alerts?: Json | null
@@ -3705,6 +4320,7 @@ export type Database = {
           verification_required?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          version?: number
         }
         Update: {
           allergy_alerts?: Json | null
@@ -3725,6 +4341,7 @@ export type Database = {
           verification_required?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -3780,6 +4397,7 @@ export type Database = {
           first_name: string
           hospital_id: string | null
           id: string
+          is_active: boolean
           is_staff: boolean | null
           last_login: string | null
           last_name: string
@@ -3789,6 +4407,7 @@ export type Database = {
           security_answer: string | null
           security_question: string | null
           two_factor_enabled: boolean | null
+          two_factor_required: boolean
           updated_at: string
           user_id: string
         }
@@ -3800,6 +4419,7 @@ export type Database = {
           first_name: string
           hospital_id?: string | null
           id?: string
+          is_active?: boolean
           is_staff?: boolean | null
           last_login?: string | null
           last_name: string
@@ -3809,6 +4429,7 @@ export type Database = {
           security_answer?: string | null
           security_question?: string | null
           two_factor_enabled?: boolean | null
+          two_factor_required?: boolean
           updated_at?: string
           user_id: string
         }
@@ -3820,6 +4441,7 @@ export type Database = {
           first_name?: string
           hospital_id?: string | null
           id?: string
+          is_active?: boolean
           is_staff?: boolean | null
           last_login?: string | null
           last_name?: string
@@ -3829,6 +4451,7 @@ export type Database = {
           security_answer?: string | null
           security_question?: string | null
           two_factor_enabled?: boolean | null
+          two_factor_required?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -4424,6 +5047,59 @@ export type Database = {
           },
         ]
       }
+      system_metrics: {
+        Row: {
+          ai_calls_count: number | null
+          ai_cost_estimate: number | null
+          ai_feature: string | null
+          ai_model: string | null
+          ai_tokens_used: number | null
+          created_at: string | null
+          hospital_id: string
+          id: string
+          measured_at: string
+          memory_usage_mb: number | null
+          notes: string | null
+          response_time_ms: number | null
+        }
+        Insert: {
+          ai_calls_count?: number | null
+          ai_cost_estimate?: number | null
+          ai_feature?: string | null
+          ai_model?: string | null
+          ai_tokens_used?: number | null
+          created_at?: string | null
+          hospital_id: string
+          id?: string
+          measured_at?: string
+          memory_usage_mb?: number | null
+          notes?: string | null
+          response_time_ms?: number | null
+        }
+        Update: {
+          ai_calls_count?: number | null
+          ai_cost_estimate?: number | null
+          ai_feature?: string | null
+          ai_model?: string | null
+          ai_tokens_used?: number | null
+          created_at?: string | null
+          hospital_id?: string
+          id?: string
+          measured_at?: string
+          memory_usage_mb?: number | null
+          notes?: string | null
+          response_time_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_metrics_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_assignments: {
         Row: {
           assigned_by: string | null
@@ -4963,6 +5639,7 @@ export type Database = {
           oxygen_saturation: number | null
           pain_level: number | null
           patient_id: string
+          pulse: number | null
           recorded_at: string
           recorded_by: string | null
           respiratory_rate: number | null
@@ -4982,6 +5659,7 @@ export type Database = {
           oxygen_saturation?: number | null
           pain_level?: number | null
           patient_id: string
+          pulse?: number | null
           recorded_at?: string
           recorded_by?: string | null
           respiratory_rate?: number | null
@@ -5001,6 +5679,7 @@ export type Database = {
           oxygen_saturation?: number | null
           pain_level?: number | null
           patient_id?: string
+          pulse?: number | null
           recorded_at?: string
           recorded_by?: string | null
           respiratory_rate?: number | null
@@ -5090,7 +5769,62 @@ export type Database = {
         }
         Returns: undefined
       }
+      recompute_two_factor_required: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       reset_failed_login: { Args: { _user_id: string }; Returns: undefined }
+      role_requires_2fa: { Args: { p_role: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      transition_discharge_workflow: {
+        Args: {
+          p_actor_id: string
+          p_expected_step: string
+          p_hospital_id: string
+          p_metadata?: Json
+          p_next_status: string
+          p_next_step: string
+          p_rejection_reason?: string
+          p_workflow_id: string
+        }
+        Returns: {
+          admission_id: string
+          billing_clearance_at: string | null
+          billing_clearance_by: string | null
+          cancellation_reason: string | null
+          checkout_details: Json | null
+          clinical_notes: Json | null
+          created_at: string | null
+          current_step: number
+          doctor_clearance_at: string | null
+          doctor_clearance_by: string | null
+          financial_details: Json | null
+          hospital_id: string
+          id: string
+          initiated_by: string
+          last_action_at: string | null
+          last_action_by: string | null
+          medication_reconciliation: Json | null
+          metadata: Json | null
+          nurse_confirmed_at: string | null
+          nurse_confirmed_by: string | null
+          patient_id: string
+          pharmacist_reconciliation_at: string | null
+          pharmacist_reconciliation_by: string | null
+          receptionist_checkout_at: string | null
+          receptionist_checkout_by: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "discharge_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       user_belongs_to_hospital: {
         Args: { _hospital_id: string; _user_id: string }
         Returns: boolean

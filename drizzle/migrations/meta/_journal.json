@@ -120,6 +120,55 @@
       "when": 1793863553041,
       "tag": "0016_push_audit_logs_superset",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793868398746,
+      "tag": "0017_push_tier4_drug_interactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793868436113,
+      "tag": "0018_push_hardening_2fa_immutability_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793868449147,
+      "tag": "0019_push_tier4_discharge_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793868469623,
+      "tag": "0020_push_optimistic_locking_and_active_user_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793868477363,
+      "tag": "0021_push_discharge_workflow_transition_rpc",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793868487213,
+      "tag": "0022_push_grants_sweep_for_new_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793868573887,
+      "tag": "0023_push_telehealth_screen_share_policy",
+      "breakpoints": true
     }
   ]
 }
