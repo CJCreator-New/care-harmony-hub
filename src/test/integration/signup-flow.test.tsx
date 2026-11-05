@@ -37,7 +37,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 describe('Signup Flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSignup.mockResolvedValue({ error: null });
+    mockSignup.mockResolvedValue({ error: null, userId: 'user-new-1' });
     mockCreateHospitalAndProfile.mockResolvedValue({ error: null });
 
     const chain = {
@@ -92,7 +92,8 @@ describe('Signup Flow', () => {
           phone: '+1-555-0101',
           email: 'info@caresync.com',
           license_number: 'LIC-12345',
-        })
+        }),
+        'user-new-1'
       );
     });
 

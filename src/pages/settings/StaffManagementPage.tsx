@@ -121,38 +121,32 @@ function StaffManagementPageContent() {
 
     setIsLoadingStaff(true);
     try {
-      // Fetch active staff profiles for the hospital.
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, user_id, first_name, last_name, email, phone, avatar_url, created_at')
+      // Staff are the accounts that hold at least one non-patient role in this
+      // hospital. This is derived from user_roles, not profiles.is_staff: the
+      // onboarding paths never set that flag, so the list was empty (FUNC-04).
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
         .eq('hospital_id', profile.hospital_id)
-        .eq('is_staff', true);
+        .neq('role', 'patient');
 
-      if (profilesError) throw profilesError;
-      if (!profiles || profiles.length === 0) {
+      if (rolesError) throw rolesError;
+
+      const roles = (rolesData || []) as Array<{ user_id: string; role: string }>;
+      const userIds = [...new Set(roles.map((r) => r.user_id).filter(Boolean))];
+      if (userIds.length === 0) {
         setStaffMembers([]);
         return;
       }
 
-      const userIds = profiles.map((p) => p.user_id).filter(Boolean);
-      let roles: Array<{ user_id: string; role: string }> = [];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, user_id, first_name, last_name, email, phone, avatar_url, created_at')
+        .eq('hospital_id', profile.hospital_id)
+        .in('user_id', userIds);
 
-      // Fetch roles only when we have valid user ids.
-      if (userIds.length > 0) {
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role')
-          .eq('hospital_id', profile.hospital_id)
-          .in('user_id', userIds);
-
-        // Roles are additive metadata; don't block staff list when this secondary
-        // query fails due to transient/RLS issues.
-        if (rolesError) {
-          console.warn('Unable to load staff roles:', rolesError);
-        } else {
-          roles = (rolesData || []) as Array<{ user_id: string; role: string }>;
-        }
-      }
+      if (profilesError) throw profilesError;
+      const profiles = profilesData || [];
 
       // Combine profiles with roles
       const staffWithRoles = profiles.map((p) => ({
@@ -215,7 +209,7 @@ function StaffManagementPageContent() {
     } else {
       toast({
         title: 'Invitation resent',
-        description: 'A new invitation has been sent',
+        description: 'A new join link was generated. The previous link no longer works.',
       });
       loadInvitations();
     }

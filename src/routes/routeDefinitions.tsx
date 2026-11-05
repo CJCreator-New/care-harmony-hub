@@ -9,6 +9,7 @@ import type { UserRole } from '@/types/auth';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 import { useMfaAssurance } from '@/lib/hooks/auth/useMfaAssurance';
 import { MFA_CHALLENGE_PATH, MFA_ENROLL_PATH, type MfaGateDecision } from '@/lib/auth/mfa';
+import { isHospitalSignupInFlight } from '@/lib/onboarding/hospitalSignupInFlight';
 
 const LandingPage = lazy(() => import('../pages/hospital/LandingPage'));
 const LoginPage = lazy(() => import('../pages/hospital/LoginPage'));
@@ -234,7 +235,9 @@ function RoleSelectionRoute({ children }: { children: React.ReactNode }) {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, pendingRoleSelection } = useAuth();
-  if (isAuthenticated) {
+  // Hospital sign-up signs the account in before it creates the hospital; keep
+  // the form on screen until that submit finishes (FUNC-03).
+  if (isAuthenticated && !isHospitalSignupInFlight()) {
     return <Navigate to={pendingRoleSelection ? '/hospital/select-role' : '/dashboard'} replace />;
   }
   return <>{children}</>;

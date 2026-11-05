@@ -133,10 +133,10 @@ export function StaffInviteModal({ open, onOpenChange, onSuccess }: StaffInviteM
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Check className="h-5 w-5 text-success" />
-                Invitation Sent!
+                Invitation Created
               </DialogTitle>
               <DialogDescription>
-                Share this link with <strong>{inviteSuccess.email}</strong> to join your hospital.
+                No email is sent yet. Share this link with <strong>{inviteSuccess.email}</strong> to join your hospital.
               </DialogDescription>
             </DialogHeader>
 

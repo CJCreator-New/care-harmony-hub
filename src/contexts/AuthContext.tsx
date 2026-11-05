@@ -18,6 +18,7 @@ import { useSessionTimeout } from '@/lib/hooks/auth';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 import { purgeClientState } from '@/lib/security/purgeClientState';
+import { getEdgeFunctionErrorMessage } from '@/lib/onboarding/edgeFunctionError';
 
 interface Profile {
   id: string;
@@ -62,7 +63,15 @@ interface AuthContextType {
     lastName: string
   ) => Promise<{ error: Error | null; userId?: string }>;
   logout: () => Promise<void>;
-  createHospitalAndProfile: (hospitalData: Partial<Hospital>) => Promise<{ error: Error | null }>;
+  /**
+   * Creates the hospital for the signed-in account and makes it the first admin.
+   * Pass the `userId` returned by `signup()`: the caller's React state can be
+   * stale right after sign-up (FUNC-03), so it must not be relied on here.
+   */
+  createHospitalAndProfile: (
+    hospitalData: Partial<Hospital>,
+    userId?: string
+  ) => Promise<{ error: Error | null }>;
   pendingRoleSelection: boolean;
   /**
    * @deprecated Derived from the retired custom-2FA flag `two_factor_enabled`.
@@ -745,7 +754,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const createHospitalAndProfile = useCallback(
-    async (hospitalData: Partial<Hospital>) => {
+    async (hospitalData: Partial<Hospital>, userId?: string) => {
       if (isE2EMockAuthEnabled) {
         const adminRole: UserRole = 'admin';
         setHospital({
@@ -771,10 +780,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: null };
       }
 
-      const effectiveUserId = user?.id ?? session?.user?.id;
+      // Prefer the id from signup(): React state captured by this callback can
+      // still be null right after sign-up (FUNC-03 stale closure).
+      const effectiveUserId = userId ?? user?.id ?? session?.user?.id;
       if (!effectiveUserId) return { error: new Error('Not authenticated') };
 
       try {
+        // The server identifies the caller from the JWT. Without a session (for
+        // example when email confirmation is still pending) the request would be
+        // rejected as anonymous, so say what the user needs to do.
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          throw new Error(
+            'Confirm your email address and sign in to finish creating your hospital.'
+          );
+        }
+
         const { data, error } = await supabase.functions.invoke('create-hospital-admin', {
           body: {
             name: hospitalData.name || 'My Hospital',
@@ -788,7 +809,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Surface the server's `error` text (for example the 409 "already belongs
+          // to a hospital" response) instead of supabase-js's generic message.
+          throw new Error(
+            await getEdgeFunctionErrorMessage(error, 'Could not create the hospital.')
+          );
+        }
         if (data?.error) {
           throw new Error(data.error);
         }

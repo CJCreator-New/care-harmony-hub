@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
+import { getEdgeFunctionErrorMessage } from '@/lib/onboarding/edgeFunctionError';
 
 export interface StaffInvitation {
   id: string;
@@ -23,6 +24,13 @@ export interface StaffInvitation {
 interface CreateInvitationParams {
   email: string;
   role: UserRole;
+}
+
+interface AcceptInvitationParams {
+  token: string;
+  password: string;
+  firstName: string;
+  lastName: string;
 }
 
 export function useStaffInvitations() {
@@ -80,8 +88,12 @@ export function useStaffInvitations() {
       }
 
       // Handle E2E Mock Auth where the profile ID doesn't exist in the database
-      const isE2EMockMode = import.meta.env.VITE_E2E_MOCK_AUTH === 'true' ||
-           (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user'));
+      // Never in production builds: a stray localStorage key must not turn a real
+      // insert into a fake success (FUNC-21).
+      const isE2EMockMode = !import.meta.env.PROD && (
+        import.meta.env.VITE_E2E_MOCK_AUTH === 'true' ||
+        (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user'))
+      );
       if (isE2EMockMode) {
         return {
           data: {
@@ -202,26 +214,42 @@ export function useStaffInvitations() {
     }
   }, []);
 
-  const acceptInvitation = useCallback(async (token: string, userId: string) => {
-    try {
-      // Delegate the entire acceptance — profile update, role assignment, and
-      // invitation status update — to the accept-invitation-signup edge function
-      // which calls the accept_staff_invitation SECURITY DEFINER RPC. This
-      // prevents client-side direct inserts into user_roles (privilege escalation).
-      // The edge function performs its own token validation server-side.
-      const { error: acceptError } = await supabase.functions.invoke(
-        'accept-invitation-signup',
-        { body: { token, userId } }
-      );
+  /**
+   * Accepts an invitation by creating the invitee's account. The body matches the
+   * `accept-invitation-signup` contract: the server creates the user itself from
+   * the invited email, so the client sends the password and name, not a user id.
+   */
+  const acceptInvitation = useCallback(
+    async ({ token, password, firstName, lastName }: AcceptInvitationParams) => {
+      // Delegate the entire acceptance (user creation, profile, role assignment,
+      // invitation status) to the edge function, which calls the
+      // accept_staff_invitation RPC. The client never writes user_roles itself.
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'accept-invitation-signup',
+          { body: { token, password, firstName, lastName } }
+        );
 
-      if (acceptError) throw acceptError;
+        if (invokeError) {
+          return {
+            data: null,
+            error: await getEdgeFunctionErrorMessage(invokeError, 'Failed to accept invitation'),
+          };
+        }
+        if (!data?.success) {
+          return { data: null, error: data?.error || 'Failed to accept invitation' };
+        }
 
-      return { error: null };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to accept invitation';
-      return { error: message };
-    }
-  }, []);
+        return { data, error: null };
+      } catch (err) {
+        return {
+          data: null,
+          error: await getEdgeFunctionErrorMessage(err, 'Failed to accept invitation'),
+        };
+      }
+    },
+    []
+  );
 
   return {
     isLoading,
