@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { useQualityControl } from '@/hooks/useQualityControl';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCard } from '@/components/dashboard/StatsCard';
+import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
 import {
   TestTube2,
   AlertTriangle,
@@ -27,7 +29,9 @@ import {
 
 export function LabAutomationPage() {
   const { profile } = useAuth();
-  const { samples, urgentSamples, overdueSamples } = useSampleTracking();
+  const queryClient = useQueryClient();
+  const { samples, urgentSamples, overdueSamples, error: samplesError } = useSampleTracking();
+  const samplesUnavailable = !!samplesError;
   const {
     qcResults,
     criticalResults,
@@ -45,10 +49,14 @@ export function LabAutomationPage() {
   const completionRate = totalSamples > 0 ? (completedSamples / totalSamples) * 100 : 0;
 
   const todayStats = {
-    samplesProcessed: completedSamples,
+    samplesProcessed: samplesUnavailable ? DATA_UNAVAILABLE : completedSamples,
     qcTestsPerformed: qcResults?.length || 0,
     criticalResultsHandled: criticalResults?.filter(r => r.status !== 'pending').length || 0,
-    averageProcessingTime: completedSamples > 0 ? '2.3 hours' : 'N/A',
+    averageProcessingTime: samplesUnavailable ? DATA_UNAVAILABLE : completedSamples > 0 ? '2.3 hours' : 'N/A',
+  };
+
+  const retrySamples = () => {
+    void queryClient.invalidateQueries({ queryKey: ['lab-samples'] });
   };
 
   return (
@@ -71,9 +79,13 @@ export function LabAutomationPage() {
         </div>
 
         {/* Critical Alerts */}
+        {samplesUnavailable && (
+          <DataError resource="lab samples" onRetry={retrySamples} />
+        )}
+
         {(urgentSamples.length > 0 || pendingCriticalResults.length > 0 || overdueSamples.length > 0) && (
           <div className="space-y-4">
-            {urgentSamples.length > 0 && (
+            {!samplesUnavailable && urgentSamples.length > 0 && (
               <Alert className="border-red-200 bg-red-50">
                 <AlertTriangle className="h-4 w-4 text-red-600" />
                 <AlertDescription className="text-red-800">
@@ -97,7 +109,7 @@ export function LabAutomationPage() {
               </Alert>
             )}
 
-            {overdueSamples.length > 0 && (
+            {!samplesUnavailable && overdueSamples.length > 0 && (
               <Alert className="border-yellow-200 bg-yellow-50">
                 <Clock className="h-4 w-4 text-yellow-600" />
                 <AlertDescription className="text-yellow-800">
@@ -115,8 +127,8 @@ export function LabAutomationPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Today's Samples"
-            value={totalSamples}
-            subtitle={`${completedSamples} completed`}
+            value={samplesUnavailable ? DATA_UNAVAILABLE : totalSamples}
+            subtitle={samplesUnavailable ? 'Samples unavailable' : `${completedSamples} completed`}
             icon={TestTube2}
             trend={totalSamples > 0 ? { value: 12, isPositive: true } : undefined}
           />
@@ -137,8 +149,8 @@ export function LabAutomationPage() {
           />
           <StatsCard
             title="Processing Rate"
-            value={`${completionRate.toFixed(1)}%`}
-            subtitle={`${processingSamples} in progress`}
+            value={samplesUnavailable ? DATA_UNAVAILABLE : `${completionRate.toFixed(1)}%`}
+            subtitle={samplesUnavailable ? 'Samples unavailable' : `${processingSamples} in progress`}
             icon={TrendingUp}
             trend={totalSamples > 0 ? { value: 8.2, isPositive: true } : undefined}
           />
@@ -249,7 +261,9 @@ export function LabAutomationPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {samples?.slice(0, 5).map((sample) => (
+                  {samplesUnavailable ? (
+                    <DataError resource="recent sample activity" onRetry={retrySamples} />
+                  ) : samples?.slice(0, 5).map((sample) => (
                     <div key={sample.id} className="flex items-center gap-4 p-3 border rounded-lg">
                       <div className="flex-shrink-0">
                         <TestTube2 className="h-8 w-8 text-blue-500" />

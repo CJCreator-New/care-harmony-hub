@@ -15,7 +15,7 @@
 // next deploy overwrites any live copy of the old code. Operators should also
 // run `supabase functions delete backup-manager`; see
 // supabase/pending-migrations/20261105000005.README.md.
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { retiredFunctionResponse } from "../_shared/retired.ts";
 
 serve((req) =>

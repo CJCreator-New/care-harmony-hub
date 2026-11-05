@@ -1,8 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getIdentifier, rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
 import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 import { authorize } from "../_shared/authorize.ts";
+import { logEdge } from "../_shared/sanitizeLog.ts";
+
+/** Log a backend failure with PHI-safe redaction and return a correlation reference for the client. */
+function failureRef(stage: string, error: unknown): string {
+  const requestId = crypto.randomUUID();
+  logEdge("error", "fhir-integration", { stage, request_id: requestId, error });
+  return requestId;
+}
 
 const FHIR_CONTENT_TYPE = "application/fhir+json";
 const OBS_STATUS_VALUES = new Set([
@@ -807,7 +815,7 @@ async function exportPatientToFHIR(
     throw new HttpError({
       status: 500,
       code: "exception",
-      diagnostics: `Failed to load patient '${patientId}': ${error.message}`,
+      diagnostics: `Failed to load patient '${patientId}' (ref: ${failureRef("load_patient", error)})`,
     });
   }
   if (!patient) {
@@ -1036,7 +1044,7 @@ async function syncObservations(
     throw new HttpError({
       status: 500,
       code: "exception",
-      diagnostics: `Failed to sync observations: ${error.message}`,
+      diagnostics: `Failed to sync observations (ref: ${failureRef("sync_observations", error)})`,
     });
   }
 
@@ -1087,7 +1095,7 @@ async function exportEncounter(
     throw new HttpError({
       status: 500,
       code: "exception",
-      diagnostics: `Failed to load consultation '${consultationId}': ${error.message}`,
+      diagnostics: `Failed to load consultation '${consultationId}' (ref: ${failureRef("load_consultation", error)})`,
     });
   }
   if (!consultation) {
@@ -1228,7 +1236,7 @@ async function exportMedicationRequests(
     .eq("hospital_id", patient.hospital_id);
 
   if (error) {
-    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load prescriptions: ${error.message}` });
+    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load prescriptions (ref: ${failureRef("load_prescriptions", error)})` });
   }
 
   const bundle = {
@@ -1283,7 +1291,7 @@ async function exportConditions(
     .not("final_diagnosis", "is", null);
 
   if (error) {
-    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load conditions: ${error.message}` });
+    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load conditions (ref: ${failureRef("load_conditions", error)})` });
   }
 
   const conditions: any[] = [];
@@ -1335,7 +1343,7 @@ async function exportDiagnosticReports(
     .eq("hospital_id", patient.hospital_id);
 
   if (error) {
-    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load lab results: ${error.message}` });
+    throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load lab results (ref: ${failureRef("load_lab_results", error)})` });
   }
 
   const reports = (labResults ?? []).map((lab: any) => ({

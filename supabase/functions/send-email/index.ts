@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { validateRequest } from "../_shared/validation.ts";
@@ -12,6 +12,7 @@ import {
   recipientsOutsideAllowlist,
 } from "../_shared/emailSafety.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // S0-06 / EDGE-16: no longer an open relay.
 //   - Recipients must be staff of the caller's hospital (profiles.email), max 10.
@@ -112,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return json(200, { id: result?.id ?? null });
   } catch (error: unknown) {
-    console.error("Error in send-email function:", error);
+    logEdge('error', 'send-email', { stage: 'error_in_send_email_function', error: error });
     return json(500, { error: "Internal server error" });
   }
 };

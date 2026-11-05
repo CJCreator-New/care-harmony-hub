@@ -1,112 +1,64 @@
 import { describe, it, expect } from 'vitest';
-import { AdminRBACManager } from '@/utils/adminRBACManager';
-import { AdminPermission } from '@/types/admin';
+import { PermissionCategory, ROLE_HIERARCHY } from '@/types/rbac';
+import { can, canAll, canAny, hasAnyRole, grantedCapabilities } from '@/modules/rbac';
 
-describe('Admin RBAC Tests', () => {
-  it('admin has full permissions', () => {
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_FULL_ACCESS)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.USER_CREATE)).toBe(true);
+// Admin-panel behaviour, asserted through the canonical RBAC module (ADR-0005).
+
+describe('Admin RBAC (canonical module)', () => {
+  it('admin holds staff, settings, report and audit capabilities', () => {
+    expect(can('admin', PermissionCategory.STAFF_MANAGE)).toBe(true);
+    expect(can('admin', PermissionCategory.STAFF_WRITE)).toBe(true);
+    expect(can('admin', PermissionCategory.SETTINGS_WRITE)).toBe(true);
+    expect(can('admin', PermissionCategory.HOSPITAL_SETTINGS)).toBe(true);
+    expect(can('admin', PermissionCategory.AUDIT_LOGS)).toBe(true);
+    expect(can('admin', PermissionCategory.REPORTS_GENERATE)).toBe(true);
   });
 
-  it('clinical staff has no admin permissions', () => {
-    expect(AdminRBACManager.hasPermission('doctor', AdminPermission.USER_CREATE)).toBe(false);
-    expect(AdminRBACManager.hasPermission('nurse', AdminPermission.ANALYTICS_VIEW_ALL)).toBe(false);
+  it('clinical staff hold no admin capabilities', () => {
+    expect(can('doctor', PermissionCategory.STAFF_MANAGE)).toBe(false);
+    expect(can('nurse', PermissionCategory.REPORTS_GENERATE)).toBe(false);
+    expect(can('patient', PermissionCategory.HOSPITAL_SETTINGS)).toBe(false);
+    expect(can('nurse', PermissionCategory.AUDIT_LOGS)).toBe(false);
   });
 
-  it('admin can manage lower roles', () => {
-    expect(AdminRBACManager.canManageRole('admin', 'doctor')).toBe(true);
-    expect(AdminRBACManager.canManageRole('admin', 'nurse')).toBe(true);
+  it('only admin is an admin-panel role', () => {
+    expect(hasAnyRole('admin', ['admin'])).toBe(true);
+    for (const role of ['doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient']) {
+      expect(hasAnyRole(role, ['admin'])).toBe(false);
+    }
   });
 
-  it('admin roles can access panel', () => {
-    expect(AdminRBACManager.canAccessAdminPanel('admin')).toBe(true);
+  it('denies undefined, null and unknown roles', () => {
+    expect(can(undefined, PermissionCategory.STAFF_MANAGE)).toBe(false);
+    expect(can(null, PermissionCategory.STAFF_MANAGE)).toBe(false);
+    expect(can('invalid_role', PermissionCategory.STAFF_MANAGE)).toBe(false);
+    expect(hasAnyRole(undefined, ['admin'])).toBe(false);
   });
 
-  it('clinical staff cannot access panel', () => {
-    expect(AdminRBACManager.canAccessAdminPanel('doctor')).toBe(false);
-    expect(AdminRBACManager.canAccessAdminPanel('nurse')).toBe(false);
-    expect(AdminRBACManager.canAccessAdminPanel('patient')).toBe(false);
+  it('canAny / canAll combine capabilities correctly', () => {
+    const adminCaps = [PermissionCategory.STAFF_MANAGE, PermissionCategory.SYSTEM_MAINTENANCE];
+    expect(canAny('admin', adminCaps)).toBe(true);
+    expect(canAny('doctor', adminCaps)).toBe(false);
+    expect(canAll('admin', adminCaps)).toBe(true);
+    expect(canAll('admin', [PermissionCategory.STAFF_MANAGE, PermissionCategory.PATIENT_WRITE])).toBe(true);
+    expect(canAll('doctor', [PermissionCategory.PATIENT_WRITE, PermissionCategory.STAFF_MANAGE])).toBe(false);
   });
 
-  it('returns correct hierarchy levels', () => {
-    expect(AdminRBACManager.getRoleLevel('admin')).toBe(80);
-    expect(AdminRBACManager.getRoleLevel('doctor')).toBe(70);
-    expect(AdminRBACManager.getRoleLevel('patient')).toBe(10);
+  it('empty capability lists: any is false, all is true', () => {
+    expect(canAny('admin', [])).toBe(false);
+    expect(canAll('admin', [])).toBe(true);
   });
 
-  it('hasAnyPermission works correctly', () => {
-    const perms = [AdminPermission.USER_CREATE, AdminPermission.SYSTEM_FULL_ACCESS];
-    expect(AdminRBACManager.hasAnyPermission('admin', perms)).toBe(true);
-    expect(AdminRBACManager.hasAnyPermission('doctor', perms)).toBe(false);
+  it('admin has more granted capabilities than doctor and nurse', () => {
+    const admin = grantedCapabilities('admin').length;
+    expect(admin).toBeGreaterThan(0);
+    expect(admin).toBeGreaterThan(grantedCapabilities('doctor').length);
+    expect(admin).toBeGreaterThan(grantedCapabilities('nurse').length);
   });
 
-  it('hasAllPermissions works correctly', () => {
-    const perms = [AdminPermission.USER_CREATE, AdminPermission.ANALYTICS_VIEW_ALL];
-    expect(AdminRBACManager.hasAllPermissions('admin', perms)).toBe(true);
-    expect(AdminRBACManager.hasAllPermissions('admin', [AdminPermission.SYSTEM_FULL_ACCESS])).toBe(true);
-  });
-
-  it('handles undefined roles', () => {
-    expect(AdminRBACManager.hasPermission(undefined, AdminPermission.USER_CREATE)).toBe(false);
-    expect(AdminRBACManager.canAccessAdminPanel(undefined)).toBe(false);
-  });
-
-  it('getRolePermissions returns correct permissions', () => {
-    const adminPerms = AdminRBACManager.getRolePermissions('admin');
-    expect(adminPerms.length).toBeGreaterThan(0);
-    expect(adminPerms).toContain(AdminPermission.USER_CREATE);
-  });
-
-  it('validateRoleHierarchy works correctly', () => {
-    expect(AdminRBACManager.validateRoleHierarchy('admin', 'doctor')).toBe(true);
-    expect(AdminRBACManager.validateRoleHierarchy('doctor', 'admin')).toBe(false);
-  });
-
-  it('getAccessibleRoles returns correct roles', () => {
-    const adminRoles = AdminRBACManager.getAccessibleRoles('admin');
-    expect(adminRoles).toContain('doctor');
-  });
-
-  it('admin can view all analytics', () => {
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.ANALYTICS_VIEW_ALL)).toBe(true);
-  });
-
-  it('admin can manage users', () => {
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.USER_CREATE)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.USER_READ)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.USER_UPDATE)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.USER_ASSIGN_ROLE)).toBe(true);
-  });
-
-  it('admin can access system settings and audit logs', () => {
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_SETTINGS)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.SYSTEM_AUDIT)).toBe(true);
-  });
-
-  it('admin can view and export reports', () => {
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.REPORT_VIEW)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.REPORT_EXPORT)).toBe(true);
-    expect(AdminRBACManager.hasPermission('admin', AdminPermission.REPORT_SCHEDULE)).toBe(true);
-  });
-
-  it('admin has permissions', () => {
-    const adminPerms = AdminRBACManager.getRolePermissions('admin');
-    expect(adminPerms.length).toBeGreaterThan(0);
-  });
-
-  it('enforces role hierarchy in management', () => {
-    expect(AdminRBACManager.canManageRole('admin', 'doctor')).toBe(true);
-    expect(AdminRBACManager.canManageRole('doctor', 'nurse')).toBe(true);
-  });
-
-  it('handles empty permission arrays', () => {
-    expect(AdminRBACManager.hasAnyPermission('admin', [])).toBe(false);
-    expect(AdminRBACManager.hasAllPermissions('admin', [])).toBe(true);
-  });
-
-  it('handles invalid roles', () => {
-    const invalid = 'invalid_role' as any;
-    expect(AdminRBACManager.hasPermission(invalid, AdminPermission.USER_CREATE)).toBe(false);
-    expect(AdminRBACManager.getRoleLevel(invalid)).toBe(0);
+  it('role hierarchy: admin outranks clinical roles, patient is lowest', () => {
+    expect(ROLE_HIERARCHY.admin).toBeGreaterThan(ROLE_HIERARCHY.doctor);
+    expect(ROLE_HIERARCHY.doctor).toBeGreaterThan(ROLE_HIERARCHY.nurse);
+    expect(Math.min(...Object.values(ROLE_HIERARCHY))).toBe(ROLE_HIERARCHY.patient);
   });
 });

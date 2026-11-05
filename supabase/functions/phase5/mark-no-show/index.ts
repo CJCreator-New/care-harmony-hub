@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../../_shared/cors.ts";
 import { getAuthorizedActor } from "../../_shared/authorize.ts";
+import { logEdge } from '../../_shared/sanitizeLog.ts';
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -149,7 +150,7 @@ serve(async (req) => {
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error marking no-show:", error);
+    logEdge('error', 'mark-no-show', { stage: 'error_marking_no_show', error: error });
 
     await supabase.from("audit_logs").insert([
       {

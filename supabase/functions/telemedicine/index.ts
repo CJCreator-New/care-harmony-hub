@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getAuthorizedActor, type AuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { checkBodyHospital, findInHospital, hasAnyRole, isActorIdentity } from "../_shared/tenantScope.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // S0-06 / EDGE-06: identity and tenant come from the JWT. Appointment, doctor and
 // patient are read from the appointment row in the caller's hospital, never from
@@ -73,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
         return json(400, { error: "Invalid action" });
     }
   } catch (error) {
-    console.error("telemedicine error:", error);
+    logEdge('error', 'telemedicine', { stage: 'telemedicine_error', error: error });
     return json(500, { error: "Internal server error" });
   }
 };
@@ -249,7 +250,7 @@ async function recordConsultationNotes(supabase: Db, actor: AuthorizedActor, dat
   });
   // Never report success for notes that were not saved.
   if (consultError) {
-    console.error("telemedicine consultation insert failed:", consultError);
+    logEdge('error', 'telemedicine', { stage: 'telemedicine_consultation_insert_failed', error: consultError });
     return json(500, { error: "Consultation notes were not saved" });
   }
 
@@ -270,7 +271,7 @@ async function recordConsultationNotes(supabase: Db, actor: AuthorizedActor, dat
     }));
     const { error: rxError } = await supabase.from("prescriptions").insert(prescriptionRecords);
     if (rxError) {
-      console.error("telemedicine prescription insert failed:", rxError);
+      logEdge('error', 'telemedicine', { stage: 'telemedicine_prescription_insert_failed', error: rxError });
       return json(500, {
         error: "Consultation saved but prescriptions were not saved",
         consultation_id: consultationId,

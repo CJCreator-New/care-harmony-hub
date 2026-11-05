@@ -22,9 +22,10 @@
 // ===================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { logEdge } from "../_shared/sanitizeLog.ts";
 import {
   type AcknowledgeRequest,
   type AlertSeverity,
@@ -122,9 +123,10 @@ serve(async (req) => {
     if (request.action === "acknowledge") return await acknowledge(db, ctx, request, json);
     return await createAlert(db, ctx, request, json);
   } catch (error) {
-    // Never log request bodies: they carry PHI.
-    console.error("[critical-lab-check] unhandled error:", error instanceof Error ? error.message : String(error));
-    return json(500, { error: "Internal error in critical-lab-check" });
+    // Never log request bodies or raw messages: they can carry PHI. Log a correlation id only.
+    const requestId = crypto.randomUUID();
+    logEdge("error", "critical-lab-check", { stage: "unhandled", request_id: requestId, error });
+    return json(500, { error: "Internal error in critical-lab-check", request_id: requestId });
   }
 });
 
@@ -215,7 +217,7 @@ async function createAlert(
   const inserted = await db.from("lab_critical_alerts").insert(alertRow).select("*").single();
   if (inserted.error) {
     if (inserted.error.code !== "23505") {
-      console.error("[critical-lab-check] alert insert failed:", inserted.error.code, inserted.error.message);
+      logEdge("error", "critical-lab-check", { stage: "alert_insert", code: inserted.error.code });
       return json(500, { error: "Failed to record critical alert" });
     }
     // Unique open alert per lab order: this submission is a retry or a re-entry.
@@ -248,7 +250,7 @@ async function createAlert(
     .from("lab_alert_escalations")
     .upsert(ladder, { onConflict: "alert_id,escalation_level", ignoreDuplicates: true });
   if (ladderRes.error) {
-    console.error("[critical-lab-check] ladder insert failed:", ladderRes.error.code, ladderRes.error.message);
+    logEdge("error", "critical-lab-check", { stage: "ladder_insert", code: ladderRes.error.code });
     return json(500, { error: "Critical alert recorded but escalation queue could not be created", alert_id: alertId });
   }
 
@@ -315,7 +317,7 @@ async function acknowledge(
       .is("acknowledged_at", null)
       .select("id");
     if (ackErr) {
-      console.error("[critical-lab-check] acknowledge failed:", ackErr.code, ackErr.message);
+      logEdge("error", "critical-lab-check", { stage: "acknowledge", code: ackErr.code });
       return json(500, { error: "Failed to acknowledge critical alert" });
     }
     if (!updated?.length) alreadyAcknowledged = true; // lost a race with another acknowledger
@@ -355,7 +357,7 @@ async function processDueEscalations(db: Db, limit: number, now: Date) {
     .or(`and(status.eq.pending,scheduled_for.lte."${nowIso}"),and(status.eq.processing,last_attempt_at.lt."${leaseIso}")`)
     .order("scheduled_for", { ascending: true })
     .limit(limit);
-  if (error) throw new Error(`fetch due escalations failed: ${error.code ?? ""} ${error.message}`);
+  if (error) throw new Error(`fetch due escalations failed: ${error.code ?? "unknown"}`);
 
   const results: Array<Record<string, unknown>> = [];
   for (const row of due ?? []) {

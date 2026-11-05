@@ -20,8 +20,9 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 interface EncryptedData {
   encrypted: string;
@@ -251,13 +252,13 @@ serve(async (req) => {
         });
       }
     } catch (logErr) {
-      console.warn("Failed to write phi decrypt audit log:", logErr);
+      logEdge('warn', 'phi-crypto', { stage: 'failed_to_write_phi_decrypt_audit_log', error: logErr });
     }
 
     return json(200, { results });
   } catch (err) {
     // Never leak key/crypto internals to the client.
-    console.error("phi-crypto error:", err instanceof Error ? err.message : String(err));
+    logEdge('error', 'phi-crypto', { stage: 'phi_crypto_error', error: err });
     return json(500, { error: "PHI crypto operation failed" });
   }
 });

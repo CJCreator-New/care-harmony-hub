@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authorize } from '../_shared/authorize.ts';
 import { withRateLimit } from '../_shared/rateLimit.ts';
@@ -74,7 +74,8 @@ async function getSystemStatus(supabaseClient: any, corsHeaders: Record<string, 
 
   const systemHealth = {
     overall_status: dbStatus === 'critical' ? 'critical' : dbStatus === 'slow' ? 'degraded' : 'healthy',
-    uptime_percentage: 99.9,
+    // EDGE-15: uptime is not measured by this function. Report null, not a fixed value.
+    uptime_percentage: null,
     services: [
       {
         name: 'database',
@@ -96,7 +97,8 @@ async function getSystemStatus(supabaseClient: any, corsHeaders: Record<string, 
     },
     api: {
       requests_per_minute: activeConnections || 0,
-      error_rate: 0.5,
+      // EDGE-15: error rate is not measured here. Report null, not a fixed value.
+      error_rate: null,
       avg_response_time: dbResponseTime,
     },
   };

@@ -2,7 +2,7 @@
  * Edge Function: Drug Interaction Check (Tier 4.5 - Phase 2)
  * 
  * Purpose: Check for drug-drug interactions (DDI) when a medication is prescribed
- * Pattern: Check local DB first, fall back to RxNorm API, cache results
+ * Pattern: Check local DB first, fail closed to manual review when unmatched (RxNav retired, EDGE-29), cache results
  * 
  * Trigger: Called by React hook when pharmacist adds prescription
  * 
@@ -13,14 +13,11 @@
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { getAuthorizedActor } from '../_shared/authorize.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { assertPatientInHospital } from '../_shared/tenantScope.ts';
-
-const RXNORM_API = 'https://rxnav.nlm.nih.gov/REST';
-const TIMEOUT_MS = 5000; // RxNorm API timeout
 
 // Clinical roles permitted to run interaction checks.
 const ALLOWED_ROLES = ['admin', 'doctor', 'pharmacist', 'nurse'];
@@ -73,81 +70,6 @@ function getMaxSeverity(
   });
 
   return max.severity;
-}
-
-/**
- * Map RxNorm severity strings to our enum
- */
-function mapRxNormSeverity(rxnormSeverity: string): 'contraindicated' | 'serious' | 'moderate' | 'minor' {
-  const map: Record<string, 'contraindicated' | 'serious' | 'moderate' | 'minor'> = {
-    'contraindicated': 'contraindicated',
-    'serious': 'serious',
-    'moderate': 'moderate',
-    'minor': 'minor',
-    'mild': 'minor',
-    'n/a': 'minor',
-    'unknown': 'minor',
-  };
-  return map[rxnormSeverity?.toLowerCase() || 'unknown'] || 'minor';
-}
-
-/**
- * Call RxNorm API with timeout
- */
-async function fetchFromRxNorm(rxcui: string): Promise<any> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`${RXNORM_API}/interaction/list.json?rxcuis=${rxcui}`, {
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`RxNorm API error: ${response.status}`);
-    }
-
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-/**
- * Parse RxNorm API response and extract interactions
- */
-function parseRxNormInteractions(data: any): Interaction[] {
-  const interactions: Interaction[] = [];
-
-  if (!data.interactionTypeGroup) {
-    return interactions;
-  }
-
-  for (const group of data.interactionTypeGroup) {
-    if (!group.interactionType) continue;
-
-    for (const type of group.interactionType) {
-      if (!type.interactionPair) continue;
-
-      for (const pair of type.interactionPair) {
-        const interactingConcepts = pair.interactionConcept || [];
-        if (interactingConcepts.length < 2) continue;
-
-        const drugName = interactingConcepts[1]?.preferred || 'Unknown Drug';
-        const severity = mapRxNormSeverity(pair.severity);
-        const recommendation = pair.description || 'Consult with pharmacist';
-
-        interactions.push({
-          interactingDrug: drugName,
-          severity,
-          recommendation,
-          source: 'rxnorm',
-        });
-      }
-    }
-  }
-
-  return interactions;
 }
 
 serve(async (req) => {
@@ -393,30 +315,14 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // 4. IF NO LOCAL MATCHES, TRY RXNORM API (with timeout)
+    // 4. NO LOCAL MATCH: FAIL CLOSED (EDGE-29)
+    // The RxNav interaction API was retired by NLM (January 2024), so it is no longer called.
+    // Until a licensed interaction knowledge base is wired in, an unmatched pair is reported
+    // as 'unknown' and routed to pharmacist review. It is never assumed safe.
     // ========================================================================
     if (interactions.length === 0 && newDrugRxcui.match(/^\d+$/)) {
-      try {
-        console.log(`Querying RxNorm API for drug ${newDrugRxcui}`);
-        const rxnormData = await fetchFromRxNorm(newDrugRxcui);
-        const rxnormInteractions = parseRxNormInteractions(rxnormData);
-
-        interactions.push(...rxnormInteractions);
-
-        // Update max severity from RxNorm
-        for (const interaction of rxnormInteractions) {
-          if (SEVERITY_RANK[interaction.severity] > SEVERITY_RANK[maxSeverity]) {
-            maxSeverity = interaction.severity;
-          }
-        }
-
-        console.log(`RxNorm returned ${rxnormInteractions.length} interactions`);
-      } catch (err: any) {
-        // Fail-closed: do NOT downgrade to minor or assume safe; pharmacist must manually review
-        console.error('RxNorm API error (fail-closed):', err.message);
-        maxSeverity = 'unknown';
-        hasApiError = true;
-      }
+      maxSeverity = 'unknown';
+      hasApiError = true;
     }
 
     // ========================================================================
@@ -477,7 +383,7 @@ serve(async (req) => {
       interactions,
       cacheHit: false,
       requiresManualReview: hasApiError || maxSeverity === 'unknown' || hasSevere,
-      ...(hasApiError ? { error: 'RxNorm API unavailable — manual pharmacist verification required' } : {}),
+      ...(hasApiError ? { error: 'No local interaction data for this drug and the external interaction source is retired (EDGE-29): manual pharmacist verification required' } : {}),
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
@@ -499,5 +405,5 @@ serve(async (req) => {
  * Deno deploy configuration:
  * - Update supabase/config.toml:
  *   [functions."drug-interaction-check"]
- *   imports = ["https://deno.land/std@0.168.0/http/server.ts", "https://esm.sh/@supabase/supabase-js@2"]
+ *   imports = ["https://deno.land/std@0.168.0/http/server.ts", "https://esm.sh/@supabase/supabase-js@2.49.4"]
  */

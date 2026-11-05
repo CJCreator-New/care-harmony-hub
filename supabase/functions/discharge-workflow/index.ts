@@ -1,11 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authorize, getAuthorizedActor } from '../_shared/authorize.ts';
 import { assertPatientInHospital, findInHospital } from '../_shared/tenantScope.ts';
 import { withRateLimit } from '../_shared/rateLimit.ts';
 import { validateRequest, validationErrorResponse } from '../_shared/validation.ts';
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 const requestSchema = z.object({
   workflowId: z.string().uuid().optional(),
@@ -134,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return await cancelWorkflow(supabase, actor, typedWorkflow, corsHeaders);
   } catch (err) {
-    console.error('[discharge-workflow]', err);
+    logEdge('error', 'discharge-workflow', { stage: 'discharge_workflow', error: err });
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

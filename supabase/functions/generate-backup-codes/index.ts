@@ -16,7 +16,8 @@
 //   (public.replace_mfa_backup_codes, one transaction).
 //
 // Requires supabase/pending-migrations/20261105000002_mfa_backup_codes_and_aal2.sql.
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { rateLimit } from "../_shared/rateLimit.ts";
@@ -48,7 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   const pepperConfig = resolvePeppers((name) => Deno.env.get(name));
   if (!pepperConfig) {
-    console.error("generate-backup-codes: BACKUP_CODE_PEPPER is not configured (or shorter than 32 characters)");
+    logEdge('error', 'generate-backup-codes', { stage: 'pepper_not_configured' });
     return json(500, { success: false, error: "not_configured" });
   }
 
@@ -88,13 +89,13 @@ const handler = async (req: Request): Promise<Response> => {
       p_code_hashes: hashes,
     });
     if (rpcError) {
-      console.error("generate-backup-codes: store failed:", rpcError.message);
+      logEdge('error', 'generate-backup-codes', { stage: 'store_failed', code: rpcError.code });
       return json(500, { success: false, error: "internal_error" });
     }
 
     return json(200, { success: true, codes: codes.map(formatBackupCode) });
   } catch (error: unknown) {
-    console.error("generate-backup-codes error:", error instanceof Error ? error.message : "unknown");
+    logEdge('error', 'generate-backup-codes', { stage: 'unhandled', error });
     return json(500, { success: false, error: "internal_error" });
   }
 };

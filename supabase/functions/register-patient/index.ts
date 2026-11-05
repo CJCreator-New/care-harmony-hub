@@ -17,7 +17,7 @@
 //
 // Requires supabase/pending-migrations/20261105000003_lock_tenant_key.sql.
 // Without it, step 1 fails and the function returns 500 (fails closed).
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { rateLimit } from "../_shared/rateLimit.ts";

@@ -3,8 +3,9 @@
 // Roles: admin, doctor, nurse
 // Rate limit: 30 req / 60s (analytics preset)
 
+import { logEdge } from '../_shared/sanitizeLog.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
@@ -168,7 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (err) {
-    console.error("Census report error:", (err as Error).message);
+    logEdge('error', 'census-reports', { stage: 'unhandled', error: err });
     return new Response(
       JSON.stringify({ error: 'Failed to generate census report' }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }

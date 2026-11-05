@@ -20,13 +20,14 @@
 //     window. It is enforced in the database, so it holds across isolates.
 //
 // Requires supabase/pending-migrations/20261105000002_mfa_backup_codes_and_aal2.sql.
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { rateLimit } from "../_shared/rateLimit.ts";
 import { candidateHashes, normalizeBackupCode, resolvePeppers } from "../_shared/backupCodes.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 const requestSchema = z.object({
   code: z.string().min(1).max(64),
@@ -52,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   const pepperConfig = resolvePeppers((name) => Deno.env.get(name));
   if (!pepperConfig) {
-    console.error("verify-backup-code: BACKUP_CODE_PEPPER is not configured (or shorter than 32 characters)");
+    logEdge('error', 'verify-backup-code', { stage: 'pepper_not_configured' });
     return json(500, { success: false, error: "not_configured" });
   }
 
@@ -86,7 +87,7 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("user_id", userId)
         .is("used_at", null);
       if (batchError) {
-        console.error("verify-backup-code: batch lookup failed:", batchError.message);
+        logEdge('error', 'verify-backup-code', { stage: 'batch_lookup_failed', code: batchError.code });
         return json(500, { success: false, error: "internal_error" });
       }
       const unique = new Map<string, { salt: string; pepper_id: string }>();
@@ -99,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
       p_code_hashes: hashes,
     });
     if (rpcError || !result) {
-      console.error("verify-backup-code: consume failed:", rpcError?.message);
+      logEdge('error', 'verify-backup-code', { stage: 'consume_failed', code: rpcError?.code });
       return json(500, { success: false, error: "internal_error" });
     }
 
@@ -128,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (resetError) {
       // Give the code back so the user is not charged for a failed recovery.
-      console.error("verify-backup-code: factor reset failed:", resetError);
+      logEdge('error', 'verify-backup-code', { stage: 'verify_backup_code_factor_reset_failed', error: resetError });
       if (codeId) {
         await supabaseAdmin.from("mfa_backup_codes").update({ used_at: null }).eq("id", codeId).eq("user_id", userId);
       }
@@ -137,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return json(200, { success: true });
   } catch (error: unknown) {
-    console.error("verify-backup-code error:", error instanceof Error ? error.message : "unknown");
+    logEdge('error', 'verify-backup-code', { stage: 'unhandled', error });
     return json(500, { success: false, error: "internal_error" });
   }
 };

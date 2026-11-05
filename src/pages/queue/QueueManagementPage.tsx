@@ -33,9 +33,15 @@ import { formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { PatientPrepChecklistCard } from '@/components/nurse/PatientPrepChecklistCard';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
+import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
 
 export default function QueueManagementPage() {
-  const { data: queue = [], isLoading } = useActiveQueue();
+  const {
+    data: queue = [],
+    isLoading,
+    isError: queueError,
+    refetch: refetchQueue,
+  } = useActiveQueue();
   const { checklists = [] } = usePatientChecklists();
   const permissions = usePermissions();
   const callNext = useCallNextPatient();
@@ -196,38 +202,41 @@ export default function QueueManagementPage() {
         </div>
 
         {/* Stats Grid */}
+        {queueError && (
+          <DataError resource="the patient queue" onRetry={() => void refetchQueue()} />
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatsCard
             title="Waiting"
-            value={waitingPatients.length}
+            value={queueError ? DATA_UNAVAILABLE : waitingPatients.length}
             subtitle="In queue"
             icon={Users}
             variant="warning"
           />
           <StatsCard
             title="Ready for Doctor"
-            value={readyForDoctorCount}
+            value={queueError ? DATA_UNAVAILABLE : readyForDoctorCount}
             subtitle="Prep complete"
             icon={Stethoscope}
             variant="success"
           />
           <StatsCard
             title="Called"
-            value={calledPatients.length}
+            value={queueError ? DATA_UNAVAILABLE : calledPatients.length}
             subtitle="Ready for service"
             icon={Bell}
             variant="info"
           />
           <StatsCard
             title="In Service"
-            value={inServicePatients.length}
+            value={queueError ? DATA_UNAVAILABLE : inServicePatients.length}
             subtitle="Being attended"
             icon={UserCheck}
             variant="primary"
           />
           <StatsCard
             title="Avg Wait Time"
-            value={`${avgWaitTime}m`}
+            value={queueError ? DATA_UNAVAILABLE : `${avgWaitTime}m`}
             subtitle="Current average"
             icon={Clock}
             variant="default"
@@ -254,10 +263,14 @@ export default function QueueManagementPage() {
                 <Users className="h-5 w-5" />
                 Waiting Queue
               </CardTitle>
-              <Badge variant="outline">{waitingPatients.length} waiting</Badge>
+              <Badge variant="outline">
+                {queueError ? `${DATA_UNAVAILABLE} waiting` : `${waitingPatients.length} waiting`}
+              </Badge>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {queueError ? (
+                <DataError resource="waiting patients" onRetry={() => void refetchQueue()} />
+              ) : isLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading...</div>
               ) : waitingPatients.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
@@ -401,7 +414,9 @@ export default function QueueManagementPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {calledPatients.length === 0 ? (
+                {queueError ? (
+                  <DataError resource="called patients" onRetry={() => void refetchQueue()} />
+                ) : calledPatients.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No patients called
                   </p>
@@ -444,7 +459,9 @@ export default function QueueManagementPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {inServicePatients.length === 0 ? (
+                {queueError ? (
+                  <DataError resource="patients in service" onRetry={() => void refetchQueue()} />
+                ) : inServicePatients.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No patients in service
                   </p>

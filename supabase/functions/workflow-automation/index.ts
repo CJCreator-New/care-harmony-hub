@@ -1,5 +1,6 @@
+import { logEdge } from '../_shared/sanitizeLog.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from '../_shared/cors.ts'
 import { getAuthorizedActor, type AuthorizedActor } from '../_shared/authorize.ts'
 import { assertPatientInHospital, checkBodyHospital, clampInt, hasAnyRole, scopeRecordData } from '../_shared/tenantScope.ts'
@@ -84,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error) {
-    console.error('Workflow automation error:', error)
+    logEdge('error', 'workflow-automation', { stage: 'unhandled', error: error })
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
@@ -289,14 +290,14 @@ async function executeRuleActions(supabaseClient: any, rule: WorkflowRule, recor
               body: { action: 'process', data: recordData },
             })
           } catch (err) {
-            console.warn(`trigger_function ${fnName} failed:`, err)
+            logEdge('warn', 'workflow-automation', { stage: 'trigger_function_failed', function_name: fnName, error: err })
           }
         }
         break
       }
 
       default:
-        console.warn(`Unknown workflow action type: ${action.type}`)
+        logEdge('warn', 'workflow-automation', { stage: 'unknown_action_type', action_type: action.type })
     }
   }
 

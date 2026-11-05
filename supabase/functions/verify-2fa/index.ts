@@ -6,7 +6,7 @@
 // supabase/pending-migrations/20261105000002_mfa_backup_codes_and_aal2.sql).
 // The previous implementation verified a client-supplied secret and returned a
 // boolean that nothing on the server trusted (EDGE-05, EDGE-12).
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { retiredFunctionResponse } from "../_shared/retired.ts";
 
 serve((req) =>

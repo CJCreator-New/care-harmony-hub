@@ -1,0 +1,409 @@
+-- =============================================================================
+-- PENDING MIGRATION (not in supabase/migrations/, so neither the Supabase CLI
+-- nor the Lovable sync applies it). Read supabase/pending-migrations/README.md
+-- and the sibling note 20261105000007.README.md before promoting it.
+--
+-- 20261105000007_state_machines.sql
+-- Roadmap S1-02 (issues DB-10, CLIN-11, CLIN-20). CLIN-17 (lab specimen
+-- rejection) is not covered here; see the README.
+--
+-- Enforces the prescription and discharge state machines in the database, so
+-- that illegal transitions fail even when they are sent with direct REST calls.
+--
+--   prescription_approval_workflows (ADR-0004)
+--       BEFORE UPDATE trigger on status. Only the transitions the code performs
+--       are allowed (edge function prescription-approval and the client module
+--       prescription-dispensing/core/stateMachine.ts). For an end user (JWT
+--       role authenticated), the actor must hold the role the code requires.
+--       Direct pending_approval/initiated -> dispensed is refused (ADR-0004).
+--       The status CHECK gains 'partially_dispensed', which the client writes.
+--
+--   discharge_workflows (ADR-0003)
+--       BEFORE UPDATE trigger on (current_step, status). Sequential steps
+--       doctor/pharmacist/billing/nurse, the rejection rollbacks the code
+--       performs, AMA discharge and cancel. Terminal states are final. The
+--       status and current_step CHECKs gain 'completed_ama' (the AMA path
+--       writes it; it was refused by the CHECK before).
+--
+--   prescriptions (ADR-0004, status column)
+--       BEFORE UPDATE trigger on status. Only the transitions the client makes
+--       in src/lib/hooks/pharmacy/usePrescriptions.ts. Verification and
+--       clarification need the pharmacist role. Direct pending -> dispensed is
+--       refused.
+--
+-- Role rule: the role check applies only to end-user sessions (JWT role
+-- authenticated). Service role, the table owner and SQL-editor sessions skip it
+-- and keep the transition rule, so the edge functions (service role) and
+-- operator work are not blocked by the role rule.
+--
+-- Helpers (SECURITY DEFINER, SET search_path = ''), all prefixed sm_:
+--   sm_caller_is_end_user()                     JWT role is authenticated or anon
+--   sm_caller_has_role(uuid, text[])            caller is an active user with one of
+--                                               the roles in the given hospital
+--   sm_check_prescription_approval()            trigger function
+--   sm_check_discharge_workflow()               trigger function
+--   sm_check_prescription_status()              trigger function
+--
+-- Idempotent: functions use CREATE OR REPLACE; triggers are DROP TRIGGER IF
+-- EXISTS then CREATE; CHECK constraints are dropped by inspection and re-added
+-- under fixed names. Re-running the file changes nothing.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 0. Guard: abort before changing anything if a prerequisite is missing.
+-- -----------------------------------------------------------------------------
+DO $guard$
+DECLARE
+  t text;
+  c record;
+  missing_tables text[] := ARRAY[]::text[];
+  missing_cols text[] := ARRAY[]::text[];
+BEGIN
+  FOREACH t IN ARRAY ARRAY['prescriptions', 'prescription_approval_workflows',
+                           'discharge_workflows', 'user_roles', 'profiles'] LOOP
+    IF to_regclass('public.' || t) IS NULL THEN
+      missing_tables := missing_tables || t;
+    END IF;
+  END LOOP;
+  IF cardinality(missing_tables) > 0 THEN
+    RAISE EXCEPTION '20261105000007 aborted, nothing changed: missing table(s) in public: %',
+      array_to_string(missing_tables, ', ');
+  END IF;
+
+  IF to_regprocedure('auth.uid()') IS NULL OR to_regprocedure('auth.role()') IS NULL THEN
+    RAISE EXCEPTION '20261105000007 aborted, nothing changed: auth.uid() and auth.role() are required';
+  END IF;
+
+  FOR c IN SELECT * FROM (VALUES
+      ('prescriptions', 'hospital_id'), ('prescriptions', 'status'),
+      ('prescription_approval_workflows', 'id'),
+      ('prescription_approval_workflows', 'hospital_id'),
+      ('prescription_approval_workflows', 'status'),
+      ('discharge_workflows', 'hospital_id'), ('discharge_workflows', 'status'),
+      ('discharge_workflows', 'current_step'), ('discharge_workflows', 'initiated_by'),
+      ('user_roles', 'user_id'), ('user_roles', 'hospital_id'), ('user_roles', 'role'),
+      ('profiles', 'user_id')) AS v(tbl, col) LOOP
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = c.tbl AND column_name = c.col) THEN
+      missing_cols := missing_cols || (c.tbl || '.' || c.col);
+    END IF;
+  END LOOP;
+  IF cardinality(missing_cols) > 0 THEN
+    RAISE EXCEPTION '20261105000007 aborted, nothing changed: missing column(s): %',
+      array_to_string(missing_cols, ', ');
+  END IF;
+END
+$guard$;
+
+-- -----------------------------------------------------------------------------
+-- 1. Helper functions
+-- -----------------------------------------------------------------------------
+
+-- End-user session: the PostgREST role is authenticated (or anon, which has no
+-- write policy and is refused by the role check). Service role, owner and
+-- SQL-editor sessions carry no such role and are not role-checked.
+CREATE OR REPLACE FUNCTION public.sm_caller_is_end_user()
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT coalesce(auth.role(), '') IN ('authenticated', 'anon')
+$$;
+
+-- The caller holds one of _roles in _hospital_id and the caller's profile is not
+-- deactivated. A NULL or missing is_active counts as active, as in the lab helpers.
+CREATE OR REPLACE FUNCTION public.sm_caller_has_role(_hospital_id uuid, _roles text[])
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT auth.uid() IS NOT NULL
+     AND _hospital_id IS NOT NULL
+     AND EXISTS (
+       SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = auth.uid()
+          AND ur.hospital_id = _hospital_id
+          AND ur.role::text = ANY (_roles))
+     AND EXISTS (
+       SELECT 1 FROM public.profiles p
+        WHERE p.user_id = auth.uid()
+          AND coalesce((to_jsonb(p) ->> 'is_active')::boolean, true))
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 2. Trigger function: prescription_approval_workflows (ADR-0004)
+--    Transitions: the union of the edge function's getNextState and the client
+--    stateMachine.ts. Role lists follow the ADR and the edge function where they
+--    agree (approval steps: pharmacist only). Where only the client defines a
+--    role, the union is used.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sm_check_prescription_approval()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $$
+DECLARE
+  v_key   text := OLD.status || '>' || NEW.status;
+  v_roles text[];
+BEGIN
+  CASE v_key
+    WHEN 'initiated>pending_approval',
+         'pending_clarification>pending_approval',      -- review
+         'pending_approval>approved',
+         'pending_clarification>approved',              -- approve
+         'initiated>pending_clarification',
+         'pending_approval>pending_clarification',      -- clarify
+         'initiated>rejected',
+         'pending_approval>rejected',
+         'pending_clarification>rejected',
+         'approved>rejected'                            -- reject
+    THEN
+      v_roles := ARRAY['pharmacist']::text[];
+    WHEN 'approved>dispensed',
+         'approved>partially_dispensed',
+         'partially_dispensed>dispensed',               -- dispense / partially dispense
+         'dispensed>completed',
+         'partially_dispensed>completed'                -- complete
+    THEN
+      v_roles := ARRAY['nurse', 'pharmacist', 'doctor', 'admin']::text[];
+    WHEN 'initiated>cancelled',
+         'pending_approval>cancelled',
+         'pending_clarification>cancelled',
+         'approved>cancelled'                           -- cancel (before dispensing)
+    THEN
+      v_roles := ARRAY['nurse', 'pharmacist', 'doctor', 'admin']::text[];
+    ELSE
+      RAISE EXCEPTION 'SM_ILLEGAL_TRANSITION: prescription approval workflow % cannot move from % to %',
+        OLD.id, OLD.status, NEW.status
+        USING ERRCODE = 'check_violation';
+  END CASE;
+
+  IF public.sm_caller_is_end_user()
+     AND NOT public.sm_caller_has_role(NEW.hospital_id, v_roles) THEN
+    RAISE EXCEPTION 'SM_ROLE_FORBIDDEN: the caller may not move prescription approval workflow % from % to %',
+      OLD.id, OLD.status, NEW.status
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  RETURN NEW;
+END
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 3. Trigger function: discharge_workflows (ADR-0003)
+--    The key is "from_step>to_step". The status a transition sets is fixed per
+--    edge: a row whose step moves without the matching status is refused.
+--    Role rules mirror discharge-workflow/index.ts (STEP_ROLE_MAP, AMA, cancel).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sm_check_discharge_workflow()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $$
+DECLARE
+  v_key    text := OLD.current_step || '>' || NEW.current_step;
+  v_action text;
+  v_status text;
+  v_roles  text[];
+BEGIN
+  IF NEW.current_step = OLD.current_step AND NEW.status = OLD.status THEN
+    RETURN NEW;
+  END IF;
+
+  CASE v_key
+    WHEN 'pharmacist>billing' THEN
+      v_action := 'approve'; v_status := 'in_progress'; v_roles := ARRAY['pharmacist']::text[];
+    WHEN 'billing>nurse' THEN
+      v_action := 'approve'; v_status := 'in_progress'; v_roles := ARRAY['receptionist', 'admin']::text[];
+    WHEN 'nurse>completed' THEN
+      v_action := 'approve'; v_status := 'completed'; v_roles := ARRAY['nurse']::text[];
+    WHEN 'pharmacist>doctor' THEN
+      v_action := 'reject'; v_status := 'in_progress'; v_roles := ARRAY['pharmacist']::text[];
+    WHEN 'billing>pharmacist', 'billing>doctor' THEN
+      v_action := 'reject'; v_status := 'in_progress'; v_roles := ARRAY['receptionist', 'admin']::text[];
+    WHEN 'nurse>billing', 'nurse>doctor' THEN
+      v_action := 'reject'; v_status := 'in_progress'; v_roles := ARRAY['nurse']::text[];
+    WHEN 'doctor>completed_ama', 'pharmacist>completed_ama',
+         'billing>completed_ama', 'nurse>completed_ama' THEN
+      v_action := 'discharge_ama'; v_status := 'completed_ama'; v_roles := ARRAY['doctor', 'admin']::text[];
+    WHEN 'doctor>cancelled', 'pharmacist>cancelled',
+         'billing>cancelled', 'nurse>cancelled' THEN
+      v_action := 'cancel'; v_status := 'cancelled'; v_roles := ARRAY['doctor', 'admin']::text[];
+    ELSE
+      RAISE EXCEPTION 'SM_ILLEGAL_TRANSITION: discharge workflow % cannot move from step % to step % (status % to %)',
+        OLD.id, OLD.current_step, NEW.current_step, OLD.status, NEW.status
+        USING ERRCODE = 'check_violation';
+  END CASE;
+
+  IF NEW.status IS DISTINCT FROM v_status THEN
+    RAISE EXCEPTION 'SM_ILLEGAL_TRANSITION: discharge workflow % moving to step % must have status %, not %',
+      OLD.id, NEW.current_step, v_status, NEW.status
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  IF public.sm_caller_is_end_user() THEN
+    IF v_action = 'cancel' THEN
+      -- Cancel: an admin, or the doctor who initiated the discharge.
+      IF NOT (public.sm_caller_has_role(NEW.hospital_id, ARRAY['admin']::text[])
+              OR (public.sm_caller_has_role(NEW.hospital_id, ARRAY['doctor']::text[])
+                  AND OLD.initiated_by = auth.uid())) THEN
+        RAISE EXCEPTION 'SM_ROLE_FORBIDDEN: only the initiating doctor or an admin may cancel discharge workflow %', OLD.id
+          USING ERRCODE = 'insufficient_privilege';
+      END IF;
+    ELSIF NOT public.sm_caller_has_role(NEW.hospital_id, v_roles) THEN
+      RAISE EXCEPTION 'SM_ROLE_FORBIDDEN: the caller may not perform % on discharge workflow % (step % to %)',
+        v_action, OLD.id, OLD.current_step, NEW.current_step
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 4. Trigger function: prescriptions.status (ADR-0004, client writes)
+--    pending -> pending_clarification and pending/pending_clarification ->
+--    verified are the pharmacist's review. Dispensing is recorded by the client
+--    without a role check in the DB (see README). Direct pending -> dispensed is
+--    refused (ADR-0004).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sm_check_prescription_status()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $$
+DECLARE
+  v_key   text := OLD.status || '>' || NEW.status;
+  v_roles text[];
+BEGIN
+  CASE v_key
+    WHEN 'pending>verified',
+         'pending_clarification>verified',
+         'pending>pending_clarification' THEN
+      v_roles := ARRAY['pharmacist']::text[];
+    WHEN 'verified>dispensed',
+         'verified>partially_dispensed',
+         'partially_dispensed>dispensed' THEN
+      v_roles := NULL;   -- no role rule in the DB yet (see README)
+    ELSE
+      RAISE EXCEPTION 'SM_ILLEGAL_TRANSITION: prescription % cannot move from status % to %',
+        OLD.id, OLD.status, NEW.status
+        USING ERRCODE = 'check_violation';
+  END CASE;
+
+  IF v_roles IS NOT NULL
+     AND public.sm_caller_is_end_user()
+     AND NOT public.sm_caller_has_role(NEW.hospital_id, v_roles) THEN
+    RAISE EXCEPTION 'SM_ROLE_FORBIDDEN: the caller may not move prescription % from % to %',
+      OLD.id, OLD.status, NEW.status
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  RETURN NEW;
+END
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 5. CHECK constraints: add the states the code writes.
+--    Existing CHECKs on the status/step columns are found by inspection, dropped,
+--    and re-added under fixed names. A CHECK that also contains a subquery (for
+--    example the unique-active rule in tier4_1, if present) is not touched.
+-- -----------------------------------------------------------------------------
+DO $checks$
+DECLARE
+  c record;
+BEGIN
+  FOR c IN
+    SELECT con.conname, t.relname
+      FROM pg_constraint con
+      JOIN pg_class t ON t.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+     WHERE n.nspname = 'public'
+       AND t.relname IN ('prescription_approval_workflows', 'discharge_workflows')
+       AND con.contype = 'c'
+       AND pg_get_constraintdef(con.oid) ~* '\m(status|current_step)\M'
+       AND pg_get_constraintdef(con.oid) !~* 'select'
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', c.relname, c.conname);
+  END LOOP;
+END
+$checks$;
+
+ALTER TABLE public.prescription_approval_workflows
+  ADD CONSTRAINT prescription_approval_workflows_status_check
+  CHECK (status IN ('initiated', 'pending_approval', 'pending_clarification', 'approved',
+                    'partially_dispensed', 'dispensed', 'completed', 'rejected', 'cancelled'));
+
+ALTER TABLE public.discharge_workflows
+  ADD CONSTRAINT discharge_workflows_status_check
+  CHECK (status IN ('draft', 'in_progress', 'completed', 'completed_ama', 'cancelled'));
+
+ALTER TABLE public.discharge_workflows
+  ADD CONSTRAINT discharge_workflows_current_step_check
+  CHECK (current_step IN ('doctor', 'pharmacist', 'billing', 'nurse',
+                          'completed', 'completed_ama', 'cancelled'));
+
+-- -----------------------------------------------------------------------------
+-- 6. Triggers. The WHEN clause keeps the check off updates that do not move the
+--    state, such as notes, metadata and timestamps.
+-- -----------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS sm_prescription_approval_transition ON public.prescription_approval_workflows;
+CREATE TRIGGER sm_prescription_approval_transition
+  BEFORE UPDATE ON public.prescription_approval_workflows
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION public.sm_check_prescription_approval();
+
+DROP TRIGGER IF EXISTS sm_discharge_workflow_transition ON public.discharge_workflows;
+CREATE TRIGGER sm_discharge_workflow_transition
+  BEFORE UPDATE ON public.discharge_workflows
+  FOR EACH ROW
+  WHEN (OLD.current_step IS DISTINCT FROM NEW.current_step
+        OR OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION public.sm_check_discharge_workflow();
+
+DROP TRIGGER IF EXISTS sm_prescription_status_transition ON public.prescriptions;
+CREATE TRIGGER sm_prescription_status_transition
+  BEFORE UPDATE ON public.prescriptions
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION public.sm_check_prescription_status();
+
+-- -----------------------------------------------------------------------------
+-- 7. Function privileges. Trigger functions and helpers are not callable by
+--    API roles; they run through the triggers as the owner.
+-- -----------------------------------------------------------------------------
+REVOKE ALL ON FUNCTION public.sm_caller_is_end_user() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.sm_caller_has_role(uuid, text[]) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.sm_check_prescription_approval() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.sm_check_discharge_workflow() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.sm_check_prescription_status() FROM PUBLIC, anon, authenticated;
+
+-- -----------------------------------------------------------------------------
+-- 8. Verify: all three triggers are present and enabled, and both CHECKs
+--    accept the states the code writes. Fails the migration otherwise.
+-- -----------------------------------------------------------------------------
+DO $verify$
+DECLARE
+  t text;
+  missing text[] := ARRAY[]::text[];
+  v_def text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['sm_prescription_approval_transition',
+                           'sm_discharge_workflow_transition',
+                           'sm_prescription_status_transition'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger tg
+                    WHERE tg.tgname = t AND NOT tg.tgisinternal AND tg.tgenabled <> 'D') THEN
+      missing := missing || t;
+    END IF;
+  END LOOP;
+  IF cardinality(missing) > 0 THEN
+    RAISE EXCEPTION '20261105000007 failed: trigger(s) missing or disabled: %',
+      array_to_string(missing, ', ');
+  END IF;
+
+  SELECT pg_get_constraintdef(con.oid) INTO v_def
+    FROM pg_constraint con
+   WHERE con.conrelid = 'public.discharge_workflows'::regclass
+     AND con.conname = 'discharge_workflows_status_check';
+  IF v_def IS NULL OR v_def NOT LIKE '%completed_ama%' THEN
+    RAISE EXCEPTION '20261105000007 failed: discharge_workflows_status_check does not accept completed_ama';
+  END IF;
+END
+$verify$;

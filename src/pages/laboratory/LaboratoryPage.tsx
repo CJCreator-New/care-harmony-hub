@@ -24,6 +24,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
 import {
   TestTube2,
   Search,
@@ -254,7 +255,7 @@ export default function LaboratoryPage() {
     enabled: !!hospital?.id,
   });
 
-  const { data: stats } = useLabOrderStats();
+  const { data: stats, isError: statsError, refetch: refetchStats } = useLabOrderStats();
   const updateOrder = useUpdateLabOrder();
   const createOrder = useCreateLabOrder();
   const { triggerWorkflow } = useWorkflowOrchestrator();
@@ -693,6 +694,13 @@ export default function LaboratoryPage() {
         />
 
         {/* Stats */}
+        {statsError && (
+          <DataError
+            resource="lab order statistics"
+            onRetry={() => void refetchStats()}
+            className="mb-4"
+          />
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="pt-6">
@@ -701,7 +709,9 @@ export default function LaboratoryPage() {
                   <FileText className="h-6 w-6 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.pending ?? 0}</p>
+                  <p className="text-2xl font-bold" aria-label={statsError ? 'Pending collection unavailable' : undefined}>
+                    {statsError ? DATA_UNAVAILABLE : (stats?.pending ?? 0)}
+                  </p>
                   <p className="text-sm text-muted-foreground">Pending Collection</p>
                 </div>
               </div>
@@ -714,7 +724,9 @@ export default function LaboratoryPage() {
                   <TestTube2 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.inProgress ?? 0}</p>
+                  <p className="text-2xl font-bold" aria-label={statsError ? 'In progress unavailable' : undefined}>
+                    {statsError ? DATA_UNAVAILABLE : (stats?.inProgress ?? 0)}
+                  </p>
                   <p className="text-sm text-muted-foreground">Accessioned / In Progress</p>
                 </div>
               </div>
@@ -727,7 +739,9 @@ export default function LaboratoryPage() {
                   <CheckCircle2 className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.completedToday ?? 0}</p>
+                  <p className="text-2xl font-bold" aria-label={statsError ? 'Completed today unavailable' : undefined}>
+                    {statsError ? DATA_UNAVAILABLE : (stats?.completedToday ?? 0)}
+                  </p>
                   <p className="text-sm text-muted-foreground">Completed Today</p>
                 </div>
               </div>

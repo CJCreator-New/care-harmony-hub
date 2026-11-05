@@ -1,5 +1,6 @@
+import { logEdge } from '../_shared/sanitizeLog.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { getAuthorizedActor } from '../_shared/authorize.ts'
 import { validateRequest } from '../_shared/validation.ts'
@@ -137,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
     })
 
   } catch (error) {
-    console.error('Queue optimization error:', error)
+    logEdge('error', 'optimize-queue', { stage: 'unhandled', error: error })
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

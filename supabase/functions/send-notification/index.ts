@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
@@ -14,6 +14,7 @@ import {
   sanitizeDisplayName,
 } from "../_shared/emailSafety.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // S0-06 / EDGE-16:
 //   - The recipient must be a patient or staff member of the caller's hospital.
@@ -204,7 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return json(200, { success: true, ...emailResponse });
   } catch (error: any) {
-    console.error("Error sending notification:", error);
+    logEdge('error', 'send-notification', { stage: 'error_sending_notification', error: error });
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }

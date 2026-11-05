@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
@@ -13,6 +13,7 @@ import {
 } from "../_shared/auditEvent.ts";
 import { hasAnyRole } from "../_shared/tenantScope.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // S0-06 / EDGE-09: the audit subject is always the JWT caller in their own
 // hospital (body user_id / hospital_id / timestamp / severity are ignored);
@@ -73,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
         return json(400, { error: "Invalid action" });
     }
   } catch (error) {
-    console.error("audit-logger error:", error);
+    logEdge('error', 'audit-logger', { stage: 'audit_logger_error', error: error });
     return json(500, { error: "Internal server error" });
   }
 };

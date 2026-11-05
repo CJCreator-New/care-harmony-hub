@@ -4,8 +4,9 @@
 // Roles: admin
 // Rate limit: 20 req / 60s
 
+import { logEdge } from '../_shared/sanitizeLog.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
@@ -165,7 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (err) {
-    console.error("Billing reconciliation error:", (err as Error).message);
+    logEdge('error', 'billing-reconciliation', { stage: 'unhandled', error: err });
     return new Response(
       JSON.stringify({ error: 'Failed to generate billing reconciliation report' }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }

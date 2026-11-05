@@ -8,7 +8,7 @@
 //   - TOTP secrets: Supabase Auth MFA (supabase.auth.mfa.enroll / challenge / verify).
 //   - Backup codes: the generate-backup-codes function (server-generated, aal2
 //     session required, stored as peppered hashes) and verify-backup-code.
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { retiredFunctionResponse } from "../_shared/retired.ts";
 
 serve((req) =>

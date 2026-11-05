@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { addDays, addWeeks, addMonths, isBefore, isAfter, format } from "https://esm.sh/date-fns@2.29.3";
 import { getCorsHeaders } from "../../_shared/cors.ts";
 import { getAuthorizedActor } from "../../_shared/authorize.ts";
+import { logEdge } from '../../_shared/sanitizeLog.ts';
 
 interface RecurrencePattern {
   id: string;
@@ -228,7 +229,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error generating recurring appointments:", error);
+    logEdge('error', 'generate-recurring-appointments', { stage: 'error_generating_recurring_appointments', error: error });
 
     // Log error to audit trail
     await supabase.from("audit_logs").insert([

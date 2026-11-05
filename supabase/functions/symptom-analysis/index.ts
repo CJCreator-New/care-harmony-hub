@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getAuthorizedActor } from '../_shared/authorize.ts';
 import { assertPatientInHospital } from '../_shared/tenantScope.ts';
 import { withRateLimit } from '../_shared/rateLimit.ts';
 import { validateRequest } from '../_shared/validation.ts';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 const symptomItemSchema = z.object({
   id: z.string(),
@@ -335,7 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     if (insertError) {
-      console.error('Error storing analysis:', insertError);
+      logEdge('error', 'symptom-analysis', { stage: 'error_storing_analysis', error: insertError });
       // Continue anyway - analysis was successful even if storage failed
     }
 
@@ -348,7 +349,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error) {
-    console.error('Error in symptom analysis:', error);
+    logEdge('error', 'symptom-analysis', { stage: 'error_in_symptom_analysis', error: error });
     return new Response(
       JSON.stringify({ error: 'Internal server error during symptom analysis' }),
       {

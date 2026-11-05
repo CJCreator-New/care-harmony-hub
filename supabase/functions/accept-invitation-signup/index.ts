@@ -1,9 +1,10 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { rateLimit, getIdentifier, withRateLimit } from "../_shared/rateLimit.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 const requestSchema = z.object({
   token: z.string().min(10),
@@ -80,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (invitationError) {
-      console.error("Invitation lookup error:", invitationError);
+      logEdge('error', 'accept-invitation-signup', { stage: 'invitation_lookup_error', error: invitationError });
       return new Response(
         JSON.stringify({ error: "Unable to process invitation" }),
         { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
@@ -132,7 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     if (acceptError) {
-      console.error("Invitation acceptance error:", acceptError);
+      logEdge('error', 'accept-invitation-signup', { stage: 'invitation_acceptance_error', error: acceptError });
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return new Response(
         JSON.stringify({ error: "Failed to complete invitation acceptance" }),
@@ -169,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
       { status: 200, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
     );
   } catch (error: unknown) {
-    console.error("accept-invitation-signup error:", error);
+    logEdge('error', 'accept-invitation-signup', { stage: 'accept_invitation_signup_error', error: error });
     return new Response(
       JSON.stringify({ error: "Unable to process invitation" }),
       { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }

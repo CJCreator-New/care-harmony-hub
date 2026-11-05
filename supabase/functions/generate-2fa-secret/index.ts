@@ -6,7 +6,7 @@
 // supabase/pending-migrations/20261105000002_mfa_backup_codes_and_aal2.sql).
 // The previous implementation emitted base64url instead of RFC 4648 base32
 // (EDGE-12) and was removed to reduce attack surface (EDGE-05).
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { retiredFunctionResponse } from "../_shared/retired.ts";
 
 serve((req) =>

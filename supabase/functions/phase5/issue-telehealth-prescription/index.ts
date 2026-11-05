@@ -7,9 +7,10 @@
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders } from '../../_shared/cors.ts';
 import { getAuthorizedActor } from '../../_shared/authorize.ts';
+import { logEdge } from '../../_shared/sanitizeLog.ts';
 import { checkBodyHospital, findInHospital, isActorIdentity } from '../../_shared/tenantScope.ts';
 
 interface IssuePrescriptionRequest {
@@ -73,7 +74,7 @@ async function validateTelehealthSession(
 
     return true;
   } catch (error) {
-    console.error('Telehealth session validation error:', error);
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'telehealth_session_validation_error', error: error });
     return false;
   }
 }
@@ -108,7 +109,7 @@ async function validateDoctorPermission(
 
     return canPrescribe;
   } catch (error) {
-    console.error('Doctor permission validation error:', error);
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'doctor_permission_validation_error', error: error });
     return false;
   }
 }
@@ -132,7 +133,7 @@ async function validateMedications(
 
     return new Map(data.map(med => [med.id, med]));
   } catch (error) {
-    console.error('Medication validation error:', error);
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'medication_validation_error', error: error });
     return new Map();
   }
 }
@@ -163,14 +164,14 @@ async function createPrescriptionRecord(
       .single();
 
     if (error) {
-      console.error('Prescription creation error:', error);
-      return { prescription_id: '', error: error.message };
+      logEdge('error', 'issue-telehealth-prescription', { stage: 'prescription_creation_error', error: error });
+      return { prescription_id: '', error: error.code ?? 'insert_failed' };
     }
 
     return { prescription_id: data.id };
   } catch (error) {
-    console.error('Prescription record creation error:', error);
-    return { prescription_id: '', error: String(error) };
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'prescription_record_creation_error', error: error });
+    return { prescription_id: '', error: 'unexpected_error' };
   }
 }
 
@@ -190,7 +191,7 @@ async function notifyPharmacy(
       .single();
 
     if (hospitalError || !hospital) {
-      console.error('Hospital fetch error:', hospitalError);
+      logEdge('error', 'issue-telehealth-prescription', { stage: 'hospital_fetch_error', error: hospitalError });
       return false;
     }
 
@@ -211,14 +212,14 @@ async function notifyPharmacy(
       );
 
       if (notifyError) {
-        console.warn('Pharmacy notification error:', notifyError);
+        logEdge('warn', 'issue-telehealth-prescription', { stage: 'pharmacy_notification_error', error: notifyError });
         return false;
       }
     }
 
     return true;
   } catch (error) {
-    console.error('Pharmacy notification error:', error);
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'pharmacy_notification_error', error: error });
     return false;
   }
 }
@@ -264,13 +265,13 @@ async function notifyPatient(
     );
 
     if (notifyError) {
-      console.warn('Patient notification error:', notifyError);
+      logEdge('warn', 'issue-telehealth-prescription', { stage: 'patient_notification_error', error: notifyError });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Patient notification error:', error);
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'patient_notification_error', error: error });
     return false;
   }
 }
@@ -304,7 +305,7 @@ async function createAuditLog(
         phi_involved: true,
       });
   } catch (error) {
-    console.error('Audit log creation error:', error);
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'audit_log_creation_error', error: error });
   }
 }
 
@@ -426,7 +427,7 @@ serve(async (req) => {
     // Step 4: Create prescription record
     const { prescription_id, error: prescError } = await createPrescriptionRecord(request);
     if (!prescription_id) {
-      console.error('Prescription creation failed:', prescError);
+      logEdge('error', 'issue-telehealth-prescription', { stage: 'prescription_creation_failed', error: prescError });
       return new Response(
         JSON.stringify({
           status: 'error',
@@ -462,12 +463,14 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Prescription issuance error:', error);
+    const requestId = crypto.randomUUID();
+    logEdge('error', 'issue-telehealth-prescription', { stage: 'prescription_issuance_error', request_id: requestId, error: error });
     return new Response(
       JSON.stringify({
         status: 'error',
         message: 'Internal server error',
-        error: String(error),
+        error: 'Internal server error',
+        request_id: requestId,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

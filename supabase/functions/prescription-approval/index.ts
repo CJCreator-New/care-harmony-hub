@@ -9,10 +9,11 @@
 
 // @ts-ignore — Deno types
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // Roles that can participate in the approval workflow (per-action RBAC enforced below).
 const AUTHORIZED_ROLES = ["admin", "doctor", "pharmacist", "nurse"];
@@ -203,7 +204,7 @@ async function performDURCheck(
     const passed = warnings.length === 0;
     return { passed, warnings };
   } catch (err) {
-    console.error("DUR check error:", err);
+    logEdge('error', 'prescription-approval', { stage: 'dur_check_error', error: err });
     return { passed: false, warnings: ["DUR check failed"] };
   }
 }
@@ -303,7 +304,7 @@ serve(async (req: Request) => {
 
       if (!durResult.passed) {
         // Don't block on DUR warnings, but flag for review
-        console.warn("DUR warnings:", durResult.warnings);
+        logEdge('warn', 'prescription-approval', { stage: 'dur_warnings', count: durResult.warnings.length });
       }
     }
 
@@ -377,7 +378,7 @@ serve(async (req: Request) => {
       durWarnings: updateData.dur_warnings,
     });
   } catch (err) {
-    console.error("Workflow handler error:", err);
+    logEdge('error', 'prescription-approval', { stage: 'workflow_handler_error', error: err });
     return json(500, { error: "Workflow action failed" });
   }
 });
