@@ -72,7 +72,7 @@
     "test:unit": "vitest run src/test",
     "test:unit:watch": "vitest src/test",
     "test:coverage": "vitest run --coverage src/test",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "validate:all": "npm run lint && npm run lint:boundaries && npm run test && npm run validate:rls",
     "deploy:staging": "./scripts/deploy.sh staging",
     "deploy:production": "./scripts/deploy.sh production",

@@ -47,7 +47,13 @@ jobs:
         run: npm ci
 
       - name: Run TypeScript check
-        run: npm run type-check
+        # type-check compiles tsconfig.app.json and tsconfig.node.json (ARCH-01).
+        # The file-count guard stops the gate silently going vacuous again.
+        run: |
+          npm run type-check
+          FILES=$(npx tsc -p tsconfig.app.json --listFilesOnly | grep -v node_modules | grep -c '/src/')
+          echo "tsc checked $FILES app source files"
+          test "$FILES" -gt 900
 
       - name: Run linter
         run: npm run lint -- --format json > lint-report.json

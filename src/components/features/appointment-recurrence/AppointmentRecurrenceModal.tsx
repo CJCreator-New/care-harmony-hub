@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Sonner } from 'sonner';
+import { toast } from 'sonner';
 
 // Schema for recurrence pattern
 const RecurrencePatternSchema = z.object({
@@ -52,11 +52,11 @@ export const AppointmentRecurrenceModal: React.FC<{
       if (error) throw error;
     },
     onSuccess: () => {
-      Sonner.success('Recurrence pattern created successfully');
+      toast.success('Recurrence pattern created successfully');
       onSuccess();
     },
     onError: (error) => {
-      Sonner.error('Failed to create recurrence pattern: ' + (error as Error).message);
+      toast.error('Failed to create recurrence pattern: ' + (error as Error).message);
     },
   });
 
