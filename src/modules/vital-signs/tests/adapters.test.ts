@@ -30,7 +30,8 @@ describe('fromVitalsRecord (CLIN-08)', () => {
 
   it('maps consciousness and supplemental oxygen when recorded', () => {
     const input = fromVitalsRecord({ consciousness: 'confused', supplemental_oxygen: true });
-    expect(input.consciousness).toBe('voice');
+    // "confused" is the C of ACVPU, now its own level rather than folded into voice (CLIN-12).
+    expect(input.consciousness).toBe('confusion');
     expect(input.supplementalOxygen).toBe(true);
   });
 

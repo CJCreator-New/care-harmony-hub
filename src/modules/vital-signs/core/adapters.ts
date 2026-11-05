@@ -46,7 +46,7 @@ export function inferTemperatureUnit(value: number | null, stated?: unknown): Te
 
 const CONSCIOUSNESS: Record<string, ConsciousnessLevel> = {
   a: 'alert', alert: 'alert',
-  c: 'voice', confused: 'voice', confusion: 'voice', new_confusion: 'voice',
+  c: 'confusion', confused: 'confusion', confusion: 'confusion', new_confusion: 'confusion',
   v: 'voice', voice: 'voice',
   p: 'pain', pain: 'pain',
   u: 'unresponsive', unresponsive: 'unresponsive',
@@ -78,8 +78,12 @@ export function fromVitalsRecord(record: Raw): VitalSignsInput {
   const consciousness =
     typeof consciousnessRaw === 'string' ? CONSCIOUSNESS[consciousnessRaw.trim().toLowerCase()] : undefined;
 
+  // Explicit yes/no is kept; an absent value stays undefined so NEWS2 reports it as missing (CLIN-12).
   const o2 = pick(r, 'supplementalOxygen', 'supplemental_oxygen', 'on_oxygen');
-  const supplementalOxygen = o2 === true || o2 === 'true' || o2 === 'yes' ? true : undefined;
+  const supplementalOxygen =
+    o2 === true || o2 === 'true' || o2 === 'yes' ? true : o2 === false || o2 === 'false' || o2 === 'no' ? false : undefined;
+  const spo2ScaleRaw = num(pick(r, 'spo2Scale', 'spo2_scale', 'oxygen_saturation_scale'));
+  const spo2Scale = spo2ScaleRaw === 1 || spo2ScaleRaw === 2 ? spo2ScaleRaw : undefined;
 
   const weightUnit = String(pick(r, 'weight_unit', 'weightUnit') ?? '').toLowerCase();
   const heightUnit = String(pick(r, 'height_unit', 'heightUnit') ?? '').toLowerCase();
@@ -100,7 +104,8 @@ export function fromVitalsRecord(record: Raw): VitalSignsInput {
     bloodPressureDiastolic: diastolic,
     respiratoryRate: num(pick(r, 'respiratoryRate', 'respiratory_rate', 'resp_rate')),
     oxygenSaturation: num(pick(r, 'oxygenSaturation', 'oxygen_saturation', 'spo2', 'SpO2')),
-    ...(supplementalOxygen ? { supplementalOxygen } : {}),
+    ...(supplementalOxygen !== undefined ? { supplementalOxygen } : {}),
+    ...(spo2Scale ? { spo2Scale } : {}),
     ...(consciousness ? { consciousness } : {}),
     painScale: num(pick(r, 'painScale', 'pain_level', 'pain_scale', 'pain_score')),
     weightKg,
