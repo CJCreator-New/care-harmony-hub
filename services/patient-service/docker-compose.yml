@@ -11,11 +11,11 @@ services:
       - NODE_ENV=development
       - HOST=0.0.0.0
       - PORT=3001
-      - DATABASE_URL=postgresql://patient_user:patient_password@postgres:5432/patient_db
+      - DATABASE_URL=postgresql://patient_user:${PATIENT_DB_PASSWORD:?set PATIENT_DB_PASSWORD in the untracked .env (see .env.example)}@postgres:5432/patient_db
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKERS=kafka:9092
-      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
-      - ENCRYPTION_KEY=your-encryption-key-32-chars-long-change-in-production
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET in the untracked .env (see .env.example)}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?set ENCRYPTION_KEY in the untracked .env (see .env.example)}
       - CORS_ORIGIN=http://localhost:5173
     depends_on:
       - postgres
@@ -33,9 +33,9 @@ services:
     environment:
       - POSTGRES_DB=patient_db
       - POSTGRES_USER=patient_user
-      - POSTGRES_PASSWORD=patient_password
+      - POSTGRES_PASSWORD=${PATIENT_DB_PASSWORD:?set PATIENT_DB_PASSWORD in the untracked .env (see .env.example)}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
@@ -46,7 +46,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
     networks:

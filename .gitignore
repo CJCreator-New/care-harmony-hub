@@ -10,13 +10,27 @@ build/
 **/dist/
 services/**/dist/
 
-# Environment variables
+# Environment variables (S0-11: real env files are never committed)
+# Every .env / .env.* file is ignored except the credential-free templates
+# (*.example) and .env.test (mock-auth only, holds no real credentials).
 .env
+.env.*
+!.env.example
+!.env.*.example
+!.env.test
+*.env
 .env.kong
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+# Rendered Kong config with real consumer keys (scripts/render-kong-config.sh)
+kong.rendered.yml
+# Local secret-scan reports may echo matched secrets
+gitleaks-report*.json
+gitleaks-report*.sarif
+# node_modules may be a symlink in worktrees (a trailing-slash pattern misses symlinks)
+/node_modules
 
 # IDE files
 .vscode/

@@ -37,9 +37,9 @@ services:
     environment:
       - POSTGRES_DB=appointment_service
       - POSTGRES_USER=appointment_user
-      - POSTGRES_PASSWORD=appointment_password
+      - POSTGRES_PASSWORD=${APPOINTMENT_DB_PASSWORD:?set APPOINTMENT_DB_PASSWORD in the untracked .env (see .env.example)}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - appointment_postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
@@ -51,7 +51,7 @@ services:
     image: redis:7-alpine
     container_name: appointment-redis
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - appointment_redis_data:/data
     networks:

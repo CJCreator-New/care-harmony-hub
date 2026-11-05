@@ -2,11 +2,13 @@
 # Tests basic caching functionality
 
 $API_GATEWAY_URL = "http://localhost:8000"
-$API_KEY = "caresync_api_key_2026_secure"
+# S0-11: no key literal. Set $env:KONG_API_KEY to a Kong consumer key (see scripts/render-kong-config.sh).
+$API_KEY = $env:KONG_API_KEY
+if (-not $API_KEY) { throw "Set KONG_API_KEY to a Kong consumer key" }
 
 Write-Host "=== Kong Response Caching Test Script ===" -ForegroundColor Cyan
 Write-Host "API Gateway URL: $API_GATEWAY_URL"
-Write-Host "API Key: $API_KEY"
+Write-Host "API Key: (from KONG_API_KEY, not printed)"
 Write-Host ""
 
 # Function to make API request and show cache headers

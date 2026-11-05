@@ -1,3 +1,13 @@
+# Kong declarative config TEMPLATE (S0-11 / SECF-19).
+#
+# This file holds NO secrets. Consumer API keys and the Loggly token are
+# ${VAR} placeholders rendered at deploy time by scripts/render-kong-config.sh
+# (or by scripts/init-kong.sh inside the kong-init container) from:
+#   KONG_FRONTEND_API_KEY, KONG_MOBILE_API_KEY, KONG_ADMIN_API_KEY, LOGGLY_TOKEN
+# Never point KONG_DECLARATIVE_CONFIG at this file directly: the placeholder
+# strings would become valid API keys. Compose mounts ./kong.rendered.yml (untracked).
+# CORS: exact origins only while credentials: true (no wildcard preview domains).
+
 # Kong API Gateway Configuration
 # This file defines the declarative configuration for Kong Gateway
 # Used to route traffic to microservices with authentication and security
@@ -158,11 +168,11 @@ consumers:
 # API Keys for consumers
 keyauth_credentials:
   - consumer: caresync-frontend
-    key: caresync_frontend_key_2026_secure
+    key: "${KONG_FRONTEND_API_KEY}"
   - consumer: caresync-mobile
-    key: caresync_mobile_key_2026_secure
+    key: "${KONG_MOBILE_API_KEY}"
   - consumer: caresync-admin
-    key: caresync_admin_key_2026_secure
+    key: "${KONG_ADMIN_API_KEY}"
 
 # Plugins
 plugins:
@@ -174,7 +184,6 @@ plugins:
         - "http://localhost:5173"
         - "http://localhost:3000"
         - "https://care-harmony-hub.vercel.app"
-        - "https://*.vercel.app"
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
       headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-API-Key"]
       exposed_headers: ["X-API-Version", "X-Response-Time"]
@@ -188,7 +197,6 @@ plugins:
         - "http://localhost:5173"
         - "http://localhost:3000"
         - "https://care-harmony-hub.vercel.app"
-        - "https://*.vercel.app"
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
       headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-API-Key"]
       exposed_headers: ["X-API-Version", "X-Response-Time"]
@@ -202,7 +210,6 @@ plugins:
         - "http://localhost:5173"
         - "http://localhost:3000"
         - "https://care-harmony-hub.vercel.app"
-        - "https://*.vercel.app"
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
       headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-API-Key"]
       exposed_headers: ["X-API-Version", "X-Response-Time"]
@@ -303,7 +310,7 @@ plugins:
   - name: loggly
     service: clinical-service
     config:
-      key: "caresync-logs"
+      key: "${LOGGLY_TOKEN}"
       tags: ["api-gateway", "clinical-service"]
       host: "logs-01.loggly.com"
 

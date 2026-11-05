@@ -7,18 +7,18 @@ services:
     ports:
       - "8000:8000"    # Proxy port
       - "8443:8443"    # Proxy SSL port
-      - "8001:8001"    # Admin API port
-      - "8444:8444"    # Admin SSL port
-      - "8002:8002"    # Admin GUI port
-      - "8100:8100"    # Status port
+      - "127.0.0.1:8001:8001"    # Admin API port
+      - "127.0.0.1:8444:8444"    # Admin SSL port
+      - "127.0.0.1:8002:8002"    # Admin GUI port
+      - "127.0.0.1:8100:8100"    # Status port
     environment:
       - KONG_DATABASE=postgres
       - KONG_PG_HOST=kong-database
       - KONG_PG_PORT=5432
       - KONG_PG_USER=kong
-      - KONG_PG_PASSWORD=kong_password_2026_secure
+      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:?set KONG_DB_PASSWORD in the untracked .env (see .env.example)}
       - KONG_PG_DATABASE=kong
-      - KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl  # published on 127.0.0.1 only (see ports)
       - KONG_ADMIN_GUI_LISTEN=0.0.0.0:8002, 0.0.0.0:8445 ssl
       - KONG_PROXY_LISTEN=0.0.0.0:8000, 0.0.0.0:8443 ssl
       - KONG_STATUS_LISTEN=0.0.0.0:8100
@@ -29,7 +29,7 @@ services:
       - KONG_ENFORCE_RBAC=on
       - KONG_TRUSTED_IPS=127.0.0.1,172.16.0.0/12,192.168.0.0/16
     volumes:
-      - ./kong.yml:/usr/local/kong/kong.yml:ro
+      - ./kong.rendered.yml:/usr/local/kong/kong.yml:ro  # rendered from kong.yml by scripts/render-kong-config.sh (untracked)
       - kong-prefix:/usr/local/kong
       - kong-tmp:/tmp/kong
     depends_on:
@@ -46,7 +46,7 @@ services:
     image: postgres:15
     environment:
       - POSTGRES_USER=kong
-      - POSTGRES_PASSWORD=kong_password_2026_secure
+      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:?set KONG_DB_PASSWORD in the untracked .env (see .env.example)}
       - POSTGRES_DB=kong
     volumes:
       - kong-db:/var/lib/postgresql/data
@@ -70,10 +70,14 @@ services:
       - KONG_PG_HOST=kong-database
       - KONG_PG_PORT=5432
       - KONG_PG_USER=kong
-      - KONG_PG_PASSWORD=kong_password_2026_secure
+      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:?set KONG_DB_PASSWORD in the untracked .env (see .env.example)}
       - KONG_PG_DATABASE=kong
+      - KONG_FRONTEND_API_KEY=${KONG_FRONTEND_API_KEY:?set KONG_FRONTEND_API_KEY in the untracked .env (see .env.example)}
+      - KONG_MOBILE_API_KEY=${KONG_MOBILE_API_KEY:?set KONG_MOBILE_API_KEY in the untracked .env (see .env.example)}
+      - KONG_ADMIN_API_KEY=${KONG_ADMIN_API_KEY:?set KONG_ADMIN_API_KEY in the untracked .env (see .env.example)}
+      - LOGGLY_TOKEN=${LOGGLY_TOKEN:?set LOGGLY_TOKEN in the untracked .env (see .env.example)}
     volumes:
-      - ./kong.yml:/usr/local/kong/kong.yml:ro
+      - ./kong.yml:/usr/local/kong/kong.template.yml:ro
       - ./scripts/init-kong.sh:/usr/local/kong/init.sh:ro
     command: ["/bin/bash", "/usr/local/kong/init.sh"]
     profiles:
@@ -89,11 +93,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3003
-      - DATABASE_URL=postgresql://postgres:postgres_password_2026_secure@postgres:5432/caresync
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:?set DB_PASSWORD in the untracked .env (see .env.example)}@postgres:5432/caresync
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKERS=kafka:9092
-      - JWT_SECRET=caresync_jwt_secret_2026_secure
-      - ENCRYPTION_KEY=caresync_encryption_key_32_chars
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET in the untracked .env (see .env.example)}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?set ENCRYPTION_KEY in the untracked .env (see .env.example)}
     depends_on:
       - postgres
       - redis
@@ -110,13 +114,13 @@ services:
     image: postgres:15
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres_password_2026_secure
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?set DB_PASSWORD in the untracked .env (see .env.example)}
       - POSTGRES_DB=caresync
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
@@ -128,7 +132,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -209,7 +213,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in the untracked .env (see .env.example)}
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards

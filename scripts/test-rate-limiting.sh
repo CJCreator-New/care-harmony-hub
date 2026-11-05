@@ -4,11 +4,12 @@
 # Tests various rate limiting scenarios to ensure proper functionality
 
 API_GATEWAY_URL="http://localhost:8000"
-API_KEY="caresync_api_key_2026_secure"
+# S0-11: no key literal. Export the gateway consumer key you rendered into kong.rendered.yml.
+API_KEY="${KONG_API_KEY:?Set KONG_API_KEY to a Kong consumer key (see scripts/render-kong-config.sh)}"
 
 echo "=== Kong Rate Limiting Test Script ==="
 echo "API Gateway URL: $API_GATEWAY_URL"
-echo "API Key: $API_KEY"
+echo "API Key: (from KONG_API_KEY, not printed)"
 echo ""
 
 # Function to make API request

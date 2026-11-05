@@ -502,7 +502,7 @@ flowchart TD
 
 - **Location**: `src/services/phiCryptoService.ts`, `.env:16`
 - **Standard**: OWASP A02:2021
-- **Description**: The frontend includes `VITE_API_KEY="caresync_frontend_key_2026_secure"`. This key is baked into public client JavaScript bundles, creating a false sense of security while providing zero protection against unauthorized API requests.
+- **Description**: The frontend includes `VITE_API_KEY="<REDACTED: see docs/operations/SECRET_ROTATION_AND_HISTORY_PURGE.md>"`. This key is baked into public client JavaScript bundles, creating a false sense of security while providing zero protection against unauthorized API requests.
 
 ### 6.3 Medium Severity Security Vulnerabilities
 
