@@ -145,20 +145,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Fix duplicate consultation creation issue
 -- Add unique constraint to prevent multiple active consultations for same patient
 
--- First, clean up any existing duplicates (keep the latest one)
-WITH duplicate_consultations AS (
-  SELECT id, 
-         ROW_NUMBER() OVER (
-           PARTITION BY patient_id, doctor_id, status 
-           ORDER BY created_at DESC
-         ) as rn
-  FROM public.consultations 
-  WHERE status != 'completed'
-)
-DELETE FROM public.consultations 
-WHERE id IN (
-  SELECT id FROM duplicate_consultations WHERE rn > 1
-);
+-- S0-05 / DB-11: this block used to hard-delete "duplicate" consultations (and
+-- everything that cascades from them) for every hospital before adding the
+-- constraint. A schema migration must not destroy clinical records. Without the
+-- DELETE, the constraint below fails if duplicates exist, so the migration stops
+-- and an operator resolves them with a reviewed, audited data change.
 
 -- Add unique constraint to prevent future duplicates
 ALTER TABLE public.consultations 

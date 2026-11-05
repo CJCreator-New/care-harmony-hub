@@ -1,0 +1,71 @@
+-- ============================================================================
+-- 20261105000005_neutralize_destructive_endpoints.sql
+-- Roadmap S0-05 (issue DB-04). PENDING: not applied automatically; see
+-- supabase/pending-migrations/README.md and 20261105000005.README.md.
+--
+-- Removes test and purge utilities that shipped in production migration
+-- 20260313000004_audit_testing_compliance_utilities.sql:
+--
+--   * public.purge_old_audit_logs_staging_only(int)
+--       SECURITY DEFINER; DELETEs public.audit_log. Its guard
+--       `current_setting('app.environment', true) != 'staging'` is NULL when the
+--       setting is unset, so the check is skipped, and EXECUTE was never revoked
+--       from PUBLIC: anon could wipe the audit trail via /rest/v1/rpc.
+--   * public.test_setup_prescription_audit_scenario()
+--   * public.test_setup_invoice_audit_scenario()
+--       SECURITY DEFINER test fixtures granted to `authenticated`; they insert
+--       fabricated rows into the audit tables.
+--
+-- Nothing in src/ or supabase/functions/ calls any of them.
+--
+-- Every overload with these names in schema public is handled, whatever its
+-- signature in the live database. EXECUTE is revoked first (so the database is
+-- safe even if a DROP were blocked by a dependency) and then the function is
+-- dropped. Idempotent: a second run finds nothing and does nothing.
+--
+-- Prerequisites: none. The roles anon, authenticated and service_role are
+-- revoked only when they exist.
+-- ============================================================================
+
+DO $s005$
+DECLARE
+  v_fn  record;
+  v_role text;
+BEGIN
+  FOR v_fn IN
+    SELECT p.oid::regprocedure::text AS sig
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND p.proname IN ('purge_old_audit_logs_staging_only',
+                         'test_setup_prescription_audit_scenario',
+                         'test_setup_invoice_audit_scenario')
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', v_fn.sig);
+    FOREACH v_role IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_role) THEN
+        EXECUTE format('REVOKE ALL ON FUNCTION %s FROM %I', v_fn.sig, v_role);
+      END IF;
+    END LOOP;
+    EXECUTE format('DROP FUNCTION %s', v_fn.sig);
+    RAISE NOTICE 'S0-05: revoked and dropped %', v_fn.sig;
+  END LOOP;
+END
+$s005$;
+
+-- Post-condition: fail the migration if any of them is still present.
+DO $s005_check$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND p.proname IN ('purge_old_audit_logs_staging_only',
+                         'test_setup_prescription_audit_scenario',
+                         'test_setup_invoice_audit_scenario')
+  ) THEN
+    RAISE EXCEPTION 'S0-05: a destructive or test utility function is still present in schema public';
+  END IF;
+END
+$s005_check$;

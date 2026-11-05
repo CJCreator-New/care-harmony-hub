@@ -1,11 +1,10 @@
--- Normalize MRN format: ensure all MRNs use 8-digit zero-padded format (MRN00000001 … MRN99999999)
--- Fixes Admin #29 / DATA-03: inconsistent MRN lengths in existing seed/test data
-
-UPDATE public.patients
-SET mrn = 'MRN' || LPAD(
-  CAST(NULLIF(REGEXP_REPLACE(mrn, '^MRN', ''), '') AS TEXT),
-  8,
-  '0'
-)
-WHERE mrn ~ '^MRN\d+$'         -- only standard auto-generated MRNs
-  AND length(mrn) <> 11;        -- skip those already in the correct 11-char format (MRN + 8 digits)
+-- NEUTRALIZED (roadmap S0-05, issue DB-11). This file is intentionally a no-op.
+--
+-- It used to rewrite every hospital's MRNs in place with
+--   UPDATE public.patients SET mrn = 'MRN' || LPAD(<digits>, 8, '0') WHERE length(mrn) <> 11
+-- LPAD truncates values longer than 8 digits, so longer MRNs were silently cut
+-- and could collide with UNIQUE (hospital_id, mrn). Patient identifiers must not
+-- be rewritten by a schema migration. Any MRN correction is a reviewed,
+-- hospital-scoped, audited data change run by an operator.
+-- tests/security/s0-05-destructive-endpoints.test.ts fails if PHI DML returns.
+DO $noop$ BEGIN NULL; END $noop$;
