@@ -275,6 +275,42 @@ SELECT 'OBJ-0006-F-lab_rls_is_active_admin' AS check_id, '0006: function public.
        CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = 'public' AND p.proname = 'lab_rls_is_active_admin')) THEN 'ok' ELSE 'MISSING' END AS result
 UNION ALL
+SELECT 'OBJ-0007-F-sm_caller_is_end_user' AS check_id, '0007: function public.sm_caller_is_end_user exists' AS check_name, ('public.sm_caller_is_end_user')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'sm_caller_is_end_user')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0007-F-sm_caller_has_role' AS check_id, '0007: function public.sm_caller_has_role exists' AS check_name, ('public.sm_caller_has_role')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'sm_caller_has_role')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0007-F-sm_check_prescription_approval' AS check_id, '0007: function public.sm_check_prescription_approval exists' AS check_name, ('public.sm_check_prescription_approval')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'sm_check_prescription_approval')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0007-F-sm_check_discharge_workflow' AS check_id, '0007: function public.sm_check_discharge_workflow exists' AS check_name, ('public.sm_check_discharge_workflow')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'sm_check_discharge_workflow')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0007-F-sm_check_prescription_status' AS check_id, '0007: function public.sm_check_prescription_status exists' AS check_name, ('public.sm_check_prescription_status')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'sm_check_prescription_status')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0008-F-audit_reject_mutation' AS check_id, '0008: function public.audit_reject_mutation exists' AS check_name, ('public.audit_reject_mutation')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'audit_reject_mutation')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0009-F-phi_reject_hard_delete' AS check_id, '0009: function public.phi_reject_hard_delete exists' AS check_name, ('public.phi_reject_hard_delete')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'phi_reject_hard_delete')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0009-F-purge_operational_logs_before' AS check_id, '0009: function public.purge_operational_logs_before exists' AS check_name, ('public.purge_operational_logs_before')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'purge_operational_logs_before')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
+SELECT 'OBJ-0009-F-storage_staff_hospital_ids' AS check_id, '0009: function public.storage_staff_hospital_ids exists' AS check_name, ('public.storage_staff_hospital_ids')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'storage_staff_hospital_ids')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
 SELECT 'TRG-profiles-guard' AS check_id, 'trigger profiles_guard_privileged_columns on public.profiles' AS check_name, ('public.profiles')::text AS detail,
        CASE WHEN (EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = to_regclass('public.profiles') AND tgname = 'profiles_guard_privileged_columns' AND NOT tgisinternal)) THEN 'ok' ELSE 'MISSING' END AS result
 UNION ALL

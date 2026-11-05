@@ -938,7 +938,40 @@ CREATE TABLE public.appointment_recurrence_patterns (id uuid PRIMARY KEY DEFAULT
 CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.break_glass_overrides (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.discharge_workflow_tasks (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
-CREATE TABLE public.discharge_workflows (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
+CREATE TABLE public.discharge_workflows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id UUID REFERENCES public.hospitals(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE,
+  consultation_id UUID REFERENCES public.consultations(id) ON DELETE SET NULL,
+  initiated_by UUID,
+  current_step TEXT DEFAULT 'pharmacist' CHECK (current_step IN ('doctor','pharmacist','billing','nurse','completed','cancelled')),
+  status TEXT DEFAULT 'in_progress' CHECK (status IN ('draft','in_progress','completed','cancelled')),
+  last_action_by UUID,
+  last_action_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE public.prescription_approval_workflows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id UUID REFERENCES public.hospitals(id) ON DELETE CASCADE,
+  prescription_id UUID REFERENCES public.prescriptions(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE,
+  initiated_by UUID REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  status TEXT DEFAULT 'initiated' CHECK (status IN ('initiated','pending_approval','pending_clarification','approved','dispensed','completed','rejected','cancelled')),
+  current_step INTEGER DEFAULT 1,
+  approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  approved_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  rejected_at TIMESTAMPTZ,
+  dur_check_passed BOOLEAN DEFAULT NULL,
+  dur_warnings TEXT[],
+  clarification_notes TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 CREATE TABLE public.drug_interaction_cache (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.feature_flags (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.lab_critical_acknowledgements (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
@@ -946,7 +979,6 @@ CREATE TABLE public.lab_critical_escalation_log (id uuid PRIMARY KEY DEFAULT gen
 CREATE TABLE public.lab_result_notifications (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.medication_reconciliation_audit (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.medication_reconciliation_workflows (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
-CREATE TABLE public.prescription_approval_workflows (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.prescription_dur_reviews (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.system_metrics (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);
 CREATE TABLE public.telehealth_messages (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), hospital_id uuid);

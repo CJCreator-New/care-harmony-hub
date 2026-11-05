@@ -122,6 +122,39 @@ const MIGRATIONS = [
       'lab_rls_is_active_admin',
     ],
   },
+  {
+    file: '20261105000007_state_machines.sql',
+    slug: 'state-machines',
+    task: 'S1-02 (DB-10, CLIN-11, CLIN-17, CLIN-20)',
+    gate:
+      'Behaviour change. Prescription approval is pharmacist-only for end users, and pending to dispensed is refused. The client flows that still do this (PrescriptionDispensingEngine, usePrescriptions dispense, admin approve in the client state machine) fail after this part. Do not run this part until those code paths are fixed (20261105000007.README.md, code paths that violate the machine).',
+    what: 'BEFORE UPDATE triggers that enforce the prescription approval, prescription status and discharge workflow state machines; partially_dispensed and completed_ama added to the status checks.',
+    after: 'No ERROR expected. 99-verify must show the sm_* functions.',
+    extraTables: [],
+    extraFunctions: ['sm_caller_is_end_user', 'sm_caller_has_role', 'sm_check_prescription_approval', 'sm_check_discharge_workflow', 'sm_check_prescription_status'],
+  },
+  {
+    file: '20261105000008_audit_trail_integrity.sql',
+    slug: 'audit-trail-integrity',
+    task: 'S1-05 (DB-08, EDGE-09, DB-06)',
+    gate:
+      'Behaviour change. Audit tables become append-only (UPDATE, DELETE and TRUNCATE are refused) and the permissive INSERT and SELECT policies are replaced. Before running, ship the app fixes: telemedicine uploads under <hospital_id>/ without upsert (VideoCallModal), SupabaseAdapters logSafetyEvent setting user_id, and admin-only document deletes (20261105000008.README.md).',
+    what: 'Append-only triggers on every audit table and its partitions; client-role grants revoked; actor-bound audit inserts; hospital-scoped admin reads; audit_log_summary runs as invoker.',
+    after: 'Expect audit_reject_mutation on every audit table. A client UPDATE or DELETE on activity_logs or audit_logs now fails by design.',
+    extraTables: [],
+    extraFunctions: ['audit_reject_mutation'],
+  },
+  {
+    file: '20261105000009_db_integrity_hygiene.sql',
+    slug: 'db-integrity-hygiene',
+    task: 'S2-08 (DB-12, DB-20, DB-17, SECF-24)',
+    gate:
+      'Behaviour change. Patients, appointments and consultations gain a soft-delete path and hard DELETE is refused; PHI parent FKs become RESTRICT. Storage policies are scoped to the <hospital_id>/ folder. Ship the telemedicine and document-delete app fixes first (20261105000009.README.md). The visit uniqueness index is skipped with a WARNING if open duplicates exist.',
+    what: 'Soft-delete and hard-DELETE guard on PHI parents; RESTRICT FKs; NOT VALID CHECK constraints; hot-column indexes; explicit-cutoff purge_operational_logs_before (dry run by default, not scheduled); storage policies scoped by hospital folder.',
+    after: 'Expect phi_reject_hard_delete on the PHI parents and purge_operational_logs_before. Check the NOTICE for any skipped visit index.',
+    extraTables: [],
+    extraFunctions: ['phi_reject_hard_delete', 'purge_operational_logs_before', 'storage_staff_hospital_ids'],
+  },
 ];
 
 /**
@@ -257,8 +290,18 @@ function createdObjects(code) {
   for (const m of code.matchAll(/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?(\w+)(?=\s*\()/gi)) {
     tables.add(m[1].toLowerCase());
   }
+  // A function the same migration drops after its last CREATE is a helper, not an end-state object.
+  const lastCreate = new Map();
   for (const m of code.matchAll(/\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?(\w+)\s*\(/gi)) {
-    functions.add(m[1].toLowerCase());
+    lastCreate.set(m[1].toLowerCase(), m.index);
+  }
+  const lastDrop = new Map();
+  for (const m of code.matchAll(/\bDROP\s+FUNCTION\s+(?:IF\s+EXISTS\s+)?(?:public\.)?(\w+)\s*\(/gi)) {
+    lastDrop.set(m[1].toLowerCase(), m.index);
+  }
+  for (const [name, at] of lastCreate) {
+    if (lastDrop.has(name) && lastDrop.get(name) > at) continue;
+    functions.add(name);
   }
   return { tables: [...tables], functions: [...functions] };
 }
