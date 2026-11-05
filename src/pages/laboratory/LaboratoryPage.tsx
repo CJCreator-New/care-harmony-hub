@@ -71,7 +71,15 @@ import { AuditTimeline } from '@/components/audit/AuditTimeline';
 import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
 import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
 import { usePermissions } from '@/lib/hooks';
-import { useCriticalLabEscalation } from '@/modules/critical-lab-escalation';
+import {
+  useCriticalLabEscalation,
+  matchLabPanel,
+  buildCriticalLabCheckPayload,
+  shouldRunServerCriticalCheck,
+  runCriticalLabCheck,
+  acknowledgeCriticalLabAlert,
+  type CriticalLabCheckOutcome,
+} from '@/modules/critical-lab-escalation';
 import { toast } from 'sonner';
 
 const statusConfig: Record<
@@ -165,8 +173,9 @@ export default function LaboratoryPage() {
   const [orderForAck, setOrderForAck] = useState<LabOrder | null>(null);
 
   // Critical escalation hook
-  const { acknowledgeAlert: acknowledgeEscalationAlert, refresh: refreshEscalations } =
-    useCriticalLabEscalation();
+  const { refresh: refreshEscalations } = useCriticalLabEscalation();
+  const invokeEdgeFunction = (name: string, options: { body: unknown }) =>
+    supabase.functions.invoke(name, options as { body: Record<string, unknown> });
 
   // Check if selected order has recent amendments
   const getRecentAmendment = (orderId: string) => {
@@ -390,6 +399,17 @@ export default function LaboratoryPage() {
 
     const prevResults = (target.results as any) || {};
 
+    // Server-side critical-value check (S0-08). Runs for every structured panel result
+    // and for anything the technologist flagged; the server re-grades and fails closed.
+    const criticalPayload = buildCriticalLabCheckPayload({
+      labOrderId: target.id,
+      panel: target.test_name ? matchLabPanel(target.test_name) : null,
+      rawValues: data.rawValues,
+      flaggedCritical: data.isCritical,
+      notes: data.criticalSummary,
+    });
+    let escalation: CriticalLabCheckOutcome | null = null;
+
     await recordOperation(
       {
         operationName: 'submit_lab_result',
@@ -410,8 +430,9 @@ export default function LaboratoryPage() {
             result_notes: data.resultNotes,
             completed_at: new Date().toISOString(),
             is_critical: data.isCritical,
-            critical_notified: data.isCritical,
-            critical_notified_at: data.isCritical ? new Date().toISOString() : null,
+            // Only set once critical-lab-check confirms the notification was dispatched.
+            critical_notified: false,
+            critical_notified_at: null,
             processed_by: user?.id,
             results: {
               ...prevResults,
@@ -424,26 +445,31 @@ export default function LaboratoryPage() {
           },
         });
 
-        // CLIN-002: Dispatch critical lab escalation engine if panic value
-        if (data.isCritical && target.hospital_id) {
-          try {
-            await supabase.functions.invoke('critical-lab-check', {
-              body: {
-                labResultId: target.id,
-                labResult: {
-                  hospital_id: target.hospital_id,
-                  patient_id: target.patient_id,
-                  test_code: target.test_name,
-                  test_name: target.test_name,
-                  result_value: data.criticalSummary || data.resultNotes || 'CRITICAL_ALERT',
-                  ordering_doctor_id: target.ordered_by,
+        // S0-08: server-side critical value grading + escalation ladder. Errors are
+        // surfaced to the user below; nothing is reported as notified unless the
+        // function confirms it.
+        if (shouldRunServerCriticalCheck(criticalPayload)) {
+          escalation = await runCriticalLabCheck(invokeEdgeFunction, criticalPayload);
+          if (escalation.kind === 'alert_created') {
+            try {
+              await updateOrder.mutateAsync({
+                id: target.id,
+                updates: {
+                  is_critical: true,
+                  ...(escalation.primaryNotified
+                    ? { critical_notified: true, critical_notified_at: new Date().toISOString() }
+                    : {}),
                 },
-              },
-            });
-          } catch (criticalErr) {
-            console.warn('[LaboratoryPage] Failed to invoke critical-lab-check:', criticalErr);
+              });
+            } catch (flagErr) {
+              // The server-side alert and ladder exist regardless; only the order's
+              // display flags are stale. Do not let this hide the escalation outcome.
+              console.warn('[LaboratoryPage] Could not update critical flags on order:', flagErr);
+            }
           }
         }
+        // The server may grade a value critical that the UI did not (hospital ranges).
+        const isCritical = data.isCritical || escalation?.kind === 'alert_created';
 
         // Trigger workflow for lab results ready
         if (target.ordered_by) {
@@ -463,14 +489,14 @@ export default function LaboratoryPage() {
                 patientName,
                 testName: target.test_name,
                 labOrderId: target.id,
-                isCritical: data.isCritical,
+                isCritical,
                 orderedBy: target.ordered_by,
                 orderedByUserId,
               },
-              priority: data.isCritical ? 'urgent' : 'normal',
+              priority: isCritical ? 'urgent' : 'normal',
             });
 
-            if (data.isCritical) {
+            if (isCritical) {
               await triggerWorkflow({
                 type: WORKFLOW_EVENT_TYPES.LAB_CRITICAL_ALERT,
                 patientId: target.patient_id,
@@ -488,20 +514,44 @@ export default function LaboratoryPage() {
         }
       }
     );
+    // (cast: TS narrows `escalation` to null because it is assigned inside the callback)
+    const outcome = escalation as CriticalLabCheckOutcome | null;
 
     recordCustomEvent('lab_result.submitted', {
       lab_order_id: target.id,
       test_name: target.test_name,
       patient_id: target.patient_id,
-      is_critical: data.isCritical,
+      is_critical: data.isCritical || outcome?.kind === 'alert_created',
     });
 
     setStructuredEntryOpen(false);
     setOrderForEntry(null);
-    if (data.isCritical) {
+    if (outcome?.kind === 'alert_created') {
+      if (outcome.primaryNotified) {
+        toast.error(
+          'Critical value recorded. Automated escalation started: the ordering clinician has been notified; on-call at 5 min and ED at 10 min unless acknowledged. Complete the verbal read-back.',
+          { duration: 12000 }
+        );
+      } else {
+        toast.error(
+          'Critical value recorded and escalation queued, but the automatic notification to the ordering clinician could not be confirmed (it will be retried). Phone the ordering clinician now and record the read-back.',
+          { duration: 20000 }
+        );
+      }
+    } else if (outcome?.kind === 'error') {
       toast.error(
-        'Critical Panic Value Recorded! 15-Minute Closed-Loop Notification Protocol Initiated.',
-        { duration: 8000 }
+        `Results saved, but the automated critical-value check FAILED: ${outcome.message}. ${
+          data.isCritical
+            ? 'No escalation is running. Phone the ordering clinician now and record the read-back.'
+            : 'Review the values manually for panic results.'
+        }`,
+        { duration: 20000 }
+      );
+    } else if (data.isCritical) {
+      // Unreachable while the server honours manual_critical; kept so a regression is visible.
+      toast.warning(
+        'Critical flag recorded, but the server did not open an escalation. Phone the ordering clinician now.',
+        { duration: 20000 }
       );
     } else {
       toast.success('Lab results finalized and uploaded successfully.');
@@ -549,20 +599,37 @@ export default function LaboratoryPage() {
       },
     });
 
-    if (data.alertId) {
-      try {
-        await acknowledgeEscalationAlert(data.alertId, data.notes);
-        await refreshEscalations();
-      } catch (escErr) {
-        console.warn('[LaboratoryPage] Escalation engine acknowledgment error:', escErr);
-      }
-    }
+    // Stop the automated escalation ladder for this order (S0-08). Looked up by lab
+    // order, so it works even when the modal has no alert id.
+    const ack = await acknowledgeCriticalLabAlert(invokeEdgeFunction, {
+      labOrderId: data.orderId,
+      alertId: data.alertId,
+      notes: data.notes,
+      readBack: {
+        clinicianName: data.clinicianName,
+        clinicianRole: data.clinicianRole,
+        channel: data.communicationChannel,
+        confirmed: data.verbalReadBackConfirmed,
+      },
+    });
+    void refreshEscalations();
 
     setAcknowledgmentModalOpen(false);
     setOrderForAck(null);
-    toast.success(
-      `Verbal read-back verified with ${data.clinicianName}. CLIA 15-min closed-loop protocol successfully fulfilled.`
-    );
+    if (ack.kind === 'error') {
+      toast.error(
+        `Read-back with ${data.clinicianName} was recorded, but the automated escalation could NOT be stopped: ${ack.message}. On-call/ED may still be paged; inform them the result has been acknowledged.`,
+        { duration: 20000 }
+      );
+    } else {
+      toast.success(
+        `Verbal read-back verified with ${data.clinicianName}. ${
+          ack.kind === 'acknowledged'
+            ? 'Automated escalation stopped.'
+            : 'No automated escalation was open for this order.'
+        }`
+      );
+    }
   };
 
   const openViewDialog = (order: LabOrder) => {
