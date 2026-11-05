@@ -261,10 +261,24 @@ export async function loadActivePrescriptionMedications(
   }
   if (encrypted.length > 0) {
     try {
-      const decrypted = await fieldEncryption.decryptFields(encrypted.map((e) => e.meta));
-      decrypted.forEach((n) => {
-        if (typeof n === 'string' && n && !n.startsWith(ENCRYPTED_PREFIX)) plain.push(n);
-        else unreadable++;
+      // phi-crypto refuses non-admin decryption without a resource context
+      // (supabase/functions/phi-crypto/index.ts, SEC-001) and re-checks that
+      // the caller can read that resource under RLS. These items were just read
+      // through this patient's prescriptions, so the patient is the resource.
+      const decrypted = await fieldEncryption.decryptFields(
+        encrypted.map((e) => e.meta),
+        { resourceType: 'patients', resourceId: patientId }
+      );
+      // Walk the requested items, not the response, so a short response leaves
+      // gaps instead of silently dropping medications. A value equal to the
+      // ciphertext (decryptFields' test-mode fallback) is not a drug name.
+      encrypted.forEach((e, i) => {
+        const n = Array.isArray(decrypted) ? decrypted[i] : undefined;
+        if (typeof n === 'string' && n && !n.startsWith(ENCRYPTED_PREFIX) && n !== e.meta?.encrypted) {
+          plain.push(n);
+        } else {
+          unreadable++;
+        }
       });
     } catch {
       unreadable += encrypted.length;
@@ -355,11 +369,18 @@ export async function writeIntakeToPatientRecord(
     if (error || !data) return { ok: false, changed: false, error: error?.message ?? 'patient not found' };
     const patch = mergeIntakeIntoPatientRecord(data as any, intake);
     if (!patch) return { ok: true, changed: false };
-    const { error: updateError } = await supabase
+    // `.select` makes PostgREST return the updated rows. Without it, an UPDATE
+    // that row-level security filters out "succeeds" with no error and no
+    // change, and the nurse never sees the could-not-save warning.
+    const { data: updated, error: updateError } = await supabase
       .from('patients')
       .update(patch as any)
-      .eq('id', patientId);
+      .eq('id', patientId)
+      .select('id');
     if (updateError) return { ok: false, changed: false, error: updateError.message };
+    if (!Array.isArray(updated) || updated.length === 0) {
+      return { ok: false, changed: false, error: 'patient record was not updated (not permitted or not found)' };
+    }
     return { ok: true, changed: true };
   } catch (err) {
     return { ok: false, changed: false, error: err instanceof Error ? err.message : String(err) };
