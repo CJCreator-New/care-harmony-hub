@@ -4,7 +4,7 @@
  * Used by frontend components (PediatricDosingCard) and backend edge functions (prescription-approval).
  */
 
-import { AAP_DOSING_RULES, type AAPDosingRule } from '@/modules/order-safety';
+import { AAP_DOSING_RULES, getDosesPerDay, type AAPDosingRule } from '@/modules/order-safety';
 export { AAP_DOSING_RULES, type AAPDosingRule };
 
 export interface ValidatePediatricDoseParams {
@@ -91,7 +91,8 @@ export function validatePediatricDose(
   const dosePerKg =
     isHighDoseProtocol && rule.highDoseMgPerKg ? rule.highDoseMgPerKg : rule.doseMgPerKg;
   let rawSingleDose = Math.round(weightKg * dosePerKg * 10) / 10;
-  const dosesPerDay = rule.dosesPerDay;
+  // CLIN-15: the prescribed frequency governs the daily total; the rule default applies only when none is given.
+  const dosesPerDay = frequency ? getDosesPerDay(frequency, rule.dosesPerDay) : rule.dosesPerDay;
   let rawDailyDose = Math.round(rawSingleDose * dosesPerDay * 10) / 10;
 
   // AC-2: Enforce Adult Dose Cap

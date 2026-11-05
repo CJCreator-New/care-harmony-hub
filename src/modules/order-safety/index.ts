@@ -81,6 +81,11 @@ export {
 
 // Core Rules & Taxonomies
 export { ALLERGEN_CLASS_MAP, normalizeAllergyTerm } from './core/allergyEngine';
-export { AAP_DOSING_RULES, type AAPDosingRule } from './core/pediatricEngine';
+export {
+  AAP_DOSING_RULES,
+  type AAPDosingRule,
+  evaluatePediatricDosing,
+  getDosesPerDay,
+} from './core/pediatricEngine';
 export { CRITICAL_PAIRS, type CriticalPairDefinition } from './core/ddiEngine';
 export { ROUTE_RESTRICTIONS, TERATOGENIC_DRUGS } from './core/clinicalInvariants';
