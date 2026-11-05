@@ -382,7 +382,7 @@ describe('Phase 3A: HIPAA RBAC Endpoint Authorization Patterns', () => {
    * ✅ Hospital scoping enforced
    * ✅ All access attempts logged
    * 
-   * Documentation: docs/HIPAA_AUDIT/02_PHI_ACCESS_PATHS.md
+   * Documentation: docs/HIPAA_AUDIT/02_PHI_ACCESS_PATHS.md (removed; see git history)
    * 
    * GRAND TOTAL: 85 HIPAA Tests (19 + 25 + 40)
    * 

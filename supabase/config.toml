@@ -43,7 +43,7 @@ verify_jwt = true
 # default. Every one is set to verify_jwt = true, which is that same default, so the
 # gateway behaviour does not change. None of them is a cron or webhook entry point, so
 # none needs verify_jwt = false. Per-function auth notes are in
-# .scratch/repository-audit/issues/12-edge-platform.md.
+# the removed audit issue 12 (edge platform); see git history.
 [functions.accept-invitation-signup]
 verify_jwt = true
 

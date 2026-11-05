@@ -1,7 +1,7 @@
 /**
  * S0-07 regression suite: fail-closed CDS on the live prescribing path.
  *
- * Pins the acceptance criteria from docs/repository-audit (CLIN-01, CLIN-02,
+ * Pins the acceptance criteria from the S0-07 audit item (CLIN-01, CLIN-02,
  * CLIN-14, CLIN-15 frequency math, CLIN-27 actor derivation) against the
  * order-safety module, the code the prescribing screens now import.
  */

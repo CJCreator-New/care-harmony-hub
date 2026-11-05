@@ -1,6 +1,6 @@
 # S0-07 clinical safety smoke test (staging only)
 
-`clinical-safety.smoke.spec.ts` is the Playwright check required by roadmap item S0-07 (`docs/repository-audit/IMPLEMENTATION_ROADMAP.md`). It runs against a deployed **staging** app. It never starts a local server and never runs against production.
+`clinical-safety.smoke.spec.ts` is the Playwright check required by audit roadmap item S0-07. It runs against a deployed **staging** app. It never starts a local server and never runs against production.
 
 | Test | What it proves |
 |---|---|

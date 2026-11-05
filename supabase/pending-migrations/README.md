@@ -2,7 +2,7 @@
 
 SQL in this folder is **not applied automatically**. The Supabase CLI reads only `supabase/migrations/`, and the Lovable sync does the same, so nothing here reaches a database until an operator moves it.
 
-The folder exists because the live schema has not been reconciled with the migration history yet (roadmap task **S0-01**; see `docs/repository-audit/IMPLEMENTATION_ROADMAP.md`). Until the live baseline exists, a new migration in `supabase/migrations/` could be applied to a database whose shape nobody has verified. Fixes that need schema changes wait here, written to be idempotent, and are promoted once S0-01 is done.
+The folder exists because the live schema has not been reconciled with the migration history yet (roadmap task **S0-01**; the audit roadmap was removed, see git history). Until the live baseline exists, a new migration in `supabase/migrations/` could be applied to a database whose shape nobody has verified. Fixes that need schema changes wait here, written to be idempotent, and are promoted once S0-01 is done.
 
 ## Files
 

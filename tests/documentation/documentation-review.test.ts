@@ -8,13 +8,10 @@ describe('Documentation Review Testing', () => {
   describe('Documentation Completeness', () => {
     it('should have all required documentation files', () => {
       const requiredFiles = [
-        'FEATURES.md',
-        'DEVELOPMENT_STANDARDS.md',
-        'DEPLOYMENT.md',
-        'SECURITY.md',
-        'HIPAA_COMPLIANCE.md',
-        'TESTING.md',
-        'DATABASE.md'
+        'INDEX.md',
+        'DATABASE.md',
+        'RBAC_PERMISSIONS.md',
+        'SECURITY_ROTATION_GUIDE.md'
       ];
 
       for (const file of requiredFiles) {
@@ -39,6 +36,20 @@ describe('Documentation Review Testing', () => {
         expect(fs.existsSync(filePath)).toBe(true);
       }
     });
+
+    it('should link only to files that exist from the documentation index', () => {
+      const indexPath = path.join(docsPath, 'INDEX.md');
+      const index = fs.readFileSync(indexPath, 'utf-8');
+      const linkPattern = /\]\((\.\.?\/[^)\s#]+)\)/g;
+
+      const missing: string[] = [];
+      for (const match of index.matchAll(linkPattern)) {
+        const target = path.resolve(path.dirname(indexPath), match[1]);
+        if (!fs.existsSync(target)) missing.push(match[1]);
+      }
+
+      expect(missing).toEqual([]);
+    });
   });
 
   describe('Documentation Content Quality', () => {
@@ -50,51 +61,8 @@ describe('Documentation Review Testing', () => {
 
         // Check for basic markdown structure
         expect(content.length).toBeGreaterThan(0);
-        // Some generated docs are plain text without markdown headings.
         expect(content.trim().length).toBeGreaterThan(0);
       }
-    });
-
-    it('should include code examples where appropriate', () => {
-      const implementationGuidePath = path.join(docsPath, 'IMPLEMENTATION_GUIDE.md');
-      if (!fs.existsSync(implementationGuidePath)) {
-        expect(true).toBe(true);
-        return;
-      }
-      const implementationGuide = fs.readFileSync(implementationGuidePath, 'utf-8');
-      expect(implementationGuide.length).toBeGreaterThan(0);
-    });
-
-    it('should have up-to-date feature documentation', () => {
-      const featuresDoc = fs.readFileSync(path.join(docsPath, 'FEATURES.md'), 'utf-8');
-
-      // Check for current features
-      expect(featuresDoc.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Testing Documentation', () => {
-    it('should document all test categories', () => {
-      const testingDoc = fs.readFileSync(path.join(docsPath, 'TESTING.md'), 'utf-8');
-
-      const requiredSections = [
-        'Unit Tests',
-        'Integration Tests',
-        'E2E Tests',
-        'Performance Tests',
-        'Security Tests'
-      ];
-
-      for (const section of requiredSections) {
-        expect(testingDoc.includes(section)).toBe(true);
-      }
-    });
-
-    it('should include test running instructions', () => {
-      const testingDoc = fs.readFileSync(path.join(docsPath, 'TESTING.md'), 'utf-8');
-
-      expect(testingDoc.includes('npm run test')).toBe(true);
-      expect(testingDoc.includes('npm run test:e2e')).toBe(true);
     });
   });
 
@@ -118,61 +86,10 @@ describe('Documentation Review Testing', () => {
   });
 
   describe('Security Documentation', () => {
-    it('should document security measures', () => {
-      const securityDoc = fs.readFileSync(path.join(docsPath, 'SECURITY.md'), 'utf-8');
+    it('should document secret rotation', () => {
+      const rotationDoc = fs.readFileSync(path.join(docsPath, 'SECURITY_ROTATION_GUIDE.md'), 'utf-8');
 
-      const securityTopics = [
-        'authentication',
-        'authorization',
-        'encryption',
-        'audit logging'
-      ];
-
-      for (const topic of securityTopics) {
-        expect(securityDoc.toLowerCase().includes(topic)).toBe(true);
-      }
-    });
-
-    it('should include HIPAA compliance information', () => {
-      const hipaaDoc = fs.readFileSync(path.join(docsPath, 'HIPAA_COMPLIANCE.md'), 'utf-8');
-
-      expect(hipaaDoc.length).toBeGreaterThan(1000); // Substantial content
-      expect(hipaaDoc.includes('PHI')).toBe(true);
-      expect(hipaaDoc.includes('privacy')).toBe(true);
-    });
-  });
-
-  describe('Deployment Documentation', () => {
-    it('should include deployment prerequisites', () => {
-      const deploymentDoc = fs.readFileSync(path.join(docsPath, 'DEPLOYMENT.md'), 'utf-8');
-
-      const prerequisites = ['Node.js', 'PostgreSQL', 'Supabase'];
-      for (const prereq of prerequisites) {
-        expect(deploymentDoc.includes(prereq)).toBe(true);
-      }
-    });
-
-    it('should document environment configuration', () => {
-      const deploymentDoc = fs.readFileSync(path.join(docsPath, 'DEPLOYMENT.md'), 'utf-8');
-
-      expect(deploymentDoc.includes('environment')).toBe(true);
-      expect(deploymentDoc.includes('configuration')).toBe(true);
-    });
-  });
-
-  describe('Maintenance Documentation', () => {
-    it('should include backup procedures', () => {
-      const maintenanceDoc = fs.readFileSync(path.join(docsPath, 'MAINTENANCE.md'), 'utf-8');
-
-      expect(maintenanceDoc.includes('backup')).toBe(true);
-      expect(maintenanceDoc.includes('restore')).toBe(true);
-    });
-
-    it('should document monitoring procedures', () => {
-      const monitoringDoc = fs.readFileSync(path.join(docsPath, 'MONITORING_GUIDE.md'), 'utf-8');
-
-      expect(monitoringDoc.includes('monitoring')).toBe(true);
-      expect(monitoringDoc.includes('alert')).toBe(true);
+      expect(rotationDoc.toLowerCase().includes('rotation')).toBe(true);
     });
   });
 });

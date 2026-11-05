@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Roadmap task | S0-11 (P0), in [IMPLEMENTATION_ROADMAP.md](../repository-audit/IMPLEMENTATION_ROADMAP.md) |
+| Roadmap task | S0-11 (P0), from the repository audit roadmap (removed; see git history) |
 | Issues | SECF-20, SECF-19, OPS-16, SECF-21, OPS-17, OPS-06 |
-| Replaces | `.scratch/audit-remediation/issues/18-git-secrets-purge.md` (its `--path-glob '*.env*'` would also delete `.env.example` and `.env.test`) |
+| Replaces | audit-remediation ticket 18, git secrets purge (removed with `.scratch/`; its `--path-glob '*.env*'` would also delete `.env.example` and `.env.test`) |
 | Audience | Repository owner, Supabase project owner, whoever controls Lovable, hosting and provider accounts |
 | Status | Repository changes are done (see section 9). Every step in sections 2 to 8 is an **operator action** that has not been performed yet. |
 
@@ -30,7 +30,7 @@ Legend for the "Where" column:
 | C1 | Supabase anon key, legacy JWT, `role=anon`, `ref` = production project (208 chars) | `.env` (`VITE_SUPABASE_PUBLISHABLE_KEY`) | History: added by `df8831e`/`ff2ea46`, deleted by `791c933` | Public by design and shipped in every bundle. It belongs to production, so rotating it is still required by SECF-20. No `service_role` JWT was found anywhere in visible history (the `.env` `SUPABASE_SERVICE_ROLE_KEY=` line was empty). |
 | C2 | Supabase project URL and ref | `.env`, `supabase/config.toml:1`, `deploy.bat`, `scripts/inspect-database-rls.sql:459`, `tests/security/authentication.test.ts:91` | Tree + history | An identifier, not a secret. It stays: the guards in section 9 use it to block production targets. |
 | C3 | **Former client-side PHI encryption key** `VITE_ENCRYPTION_KEY` (39 chars) | `.env`; `docs/AUDIT_TRACKER.md` (`5a2dc50`); `docs/QUICK_START_15_MIN.md` (`df8831e`) | History only | **Highest impact.** Any PHI encrypted with it is decryptable by anyone with repo access. See section 4.2. |
-| C4 | Generic frontend API key `VITE_API_KEY` (33 chars) | `.env`; `docs/QUICK_START_15_MIN.md`. The **same value** is the Kong `caresync-frontend` consumer key (C6), `REACT_APP_API_KEY` in `docker-compose.dev.yml:40`, `scripts/init-kong.sh` (echoed) and `docs/COMPREHENSIVE_AUDIT_REPORT.md:505` | History; tree (kong/dev compose/init script/doc) | One value reused in five places. |
+| C4 | Generic frontend API key `VITE_API_KEY` (33 chars) | `.env`; `docs/QUICK_START_15_MIN.md`. The **same value** is the Kong `caresync-frontend` consumer key (C6), `REACT_APP_API_KEY` in `docker-compose.dev.yml:40`, `scripts/init-kong.sh` (echoed) and the removed audit report (`COMPREHENSIVE_AUDIT_REPORT.md:505`) | History; tree (kong/dev compose/init script/doc) | One value reused in five places. |
 | C5 | Kong database password `KONG_PG_PASSWORD` (25 chars) | `.env.kong`; `docker-compose.yml:19,49,73` (also used as the `kong-database` `POSTGRES_PASSWORD`) | History; tree (compose) | |
 | C6 | Kong key-auth consumer keys ×3 (`caresync-frontend` 33, `caresync-mobile` 31, `caresync-admin` 30 chars) | `kong.yml:159-165`; all three echoed by `scripts/init-kong.sh:51-53` | Tree + history | `docker-compose.prod.yml` mounted this file into the production Kong. |
 | C7 | Loggly customer token (13 chars) | `kong.yml:306` | Tree + history | |
@@ -292,7 +292,7 @@ shred -u ../replacements.txt ../before.json 2>/dev/null || rm -P ../replacements
 3. Everyone **re-clones**. Delete old clones and worktrees. Never `git pull` into an old clone.
 4. Check Lovable: it shows the rewritten `main` and builds green.
 5. Run the `Secret Scan` workflow manually (Actions → Secret Scan → Run workflow). The full-scan job must pass.
-6. Update `.scratch/audit-remediation/issues/18-git-secrets-purge.md` to `resolved`, and link the rotation record.
+6. Mark audit-remediation ticket 18 (git secrets purge) as `resolved` in its tracker (the `.scratch/` tickets were removed; see git history), and link the rotation record.
 
 ---
 

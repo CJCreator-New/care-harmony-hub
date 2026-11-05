@@ -2,7 +2,7 @@
 
 The migrations in `supabase/migrations/` cannot rebuild the production database. Replaying them from empty fails on the first file, and the 2026-03 and 2026-09 hardening migrations are rejected by PostgreSQL. The evidence is in [REPLAY_FINDINGS_2026-11-05.md](./REPLAY_FINDINGS_2026-11-05.md). The only trustworthy description of the database is therefore the live database itself.
 
-This folder holds the procedure and the artifacts for replacing the migration history with a **baseline captured from production**, after which every new migration must replay cleanly in CI. Related audit items: DB-03, DB-14, DB-21 and ARCH-02 ([ISSUE_REGISTER](../../docs/repository-audit/ISSUE_REGISTER.md)), and ADR-0007 (proposed) in [ARCHITECTURAL_DECISIONS](../../docs/repository-audit/ARCHITECTURAL_DECISIONS.md).
+This folder holds the procedure and the artifacts for replacing the migration history with a **baseline captured from production**, after which every new migration must replay cleanly in CI. Related audit items: DB-03, DB-14, DB-21 and ARCH-02 (the repository audit register, removed; see git history), and ADR-0007 (proposed).
 
 ## Tools
 
@@ -52,7 +52,7 @@ node scripts/db/compare-migration-history.mjs supabase/baseline/live-<date>/live
 awk -F'\t' '$2 == "f"' supabase/baseline/live-<date>/live_rls_summary.tsv      # public tables with RLS off
 ```
 
-Answer these from the capture and record the answers in the S0-01 ticket (`.scratch/repository-audit/issues/01-live-schema-baseline.md`):
+Answer these from the capture and record the answers in the S0-01 ticket (removed with `.scratch/`; see git history):
 
 - Which tables in `live_rls_summary.tsv` have RLS off (DB-13)?
 - Does `user_belongs_to_hospital` in the dump check `is_active` (DB-03)?

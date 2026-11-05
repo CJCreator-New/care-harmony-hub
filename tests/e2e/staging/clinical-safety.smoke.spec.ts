@@ -1,7 +1,7 @@
 /**
  * S0-07 clinical safety smoke test (staging only).
  *
- * Definition of Done (docs/repository-audit/IMPLEMENTATION_ROADMAP.md, S0-07):
+ * Definition of Done (audit roadmap item S0-07):
  *   (a) "Penicillin allergy" / "PCN" block amoxicillin at the prescriber step
  *       (consultation Treatment Plan) and at the pharmacist approval modal.
  *   (b) When the patient safety context cannot load, the order needs a

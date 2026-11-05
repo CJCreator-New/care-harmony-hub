@@ -11,13 +11,13 @@
 
 | Role | Workflows | Pages | Document |
 |------|-----------|-------|----------|
-| **Patient** | Self-serve portal, book appointments, view records | 3-5 | [Patient Workflows](./workflows/patient.md) |
-| **Receptionist** | Appointments, check-in, insurance verification | 4-6 | [Receptionist Workflows](./workflows/receptionist.md) |
-| **Doctor** | Consultations, orders, approvals | 5-8 | [Doctor Workflows](./workflows/doctor.md) |
-| **Nurse** | Vital signs, medication admin, care plans | 4-7 | [Nurse Workflows](./workflows/nurse.md) |
-| **Pharmacist** | Dispensing, inventory, drug interactions | 3-5 | [Pharmacist Workflows](./workflows/pharmacist.md) |
-| **Lab Technician** | Specimen collection, results entry, QC | 3-5 | [Lab Tech Workflows](./workflows/lab_technician.md) |
-| **Admin** | User management, settings, compliance | 6-10 | [Admin Workflows](./workflows/admin.md) |
+| **Patient** | Self-serve portal, book appointments, view records | 3-5 | [Patient Workflows](./patient.md) |
+| **Receptionist** | Appointments, check-in, insurance verification | 4-6 | [Receptionist Workflows](./receptionist.md) |
+| **Doctor** | Consultations, orders, approvals | 5-8 | [Doctor Workflows](./doctor.md) |
+| **Nurse** | Vital signs, medication admin, care plans | 4-7 | [Nurse Workflows](./nurse.md) |
+| **Pharmacist** | Dispensing, inventory, drug interactions | 3-5 | [Pharmacist Workflows](./pharmacist.md) |
+| **Lab Technician** | Specimen collection, results entry, QC | 3-5 | [Lab Tech Workflows](./lab_technician.md) |
+| **Admin** | User management, settings, compliance | 6-10 | [Admin Workflows](./admin.md) |
 
 ---
 
@@ -359,10 +359,10 @@ If override justified:
 
 ### For Feature Implementation
 
-- **Starting feature**: See [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md)
-- **Data model**: See [DATA_MODEL.md](./DATA_MODEL.md)
-- **API details**: See [API_REFERENCE.md](./API_REFERENCE.md)
-- **Testing**: See [TESTING_STRATEGY.md](./TESTING_STRATEGY.md)
+- **Starting feature**: See the role guides in this folder and [../product/API_REFERENCE.md](../product/API_REFERENCE.md)
+- **Data model**: See [DATA_MODEL.md](../product/DATA_MODEL.md)
+- **API details**: See [API_REFERENCE.md](../product/API_REFERENCE.md)
+- **Testing**: See [TESTING_STRATEGY.md](../product/TESTING_STRATEGY.md)
 
 ### For Role-Specific Details
 

@@ -4,7 +4,7 @@
  *
  * Replays supabase/migrations against a throwaway, vanilla PostgreSQL cluster
  * and reports exactly which migration files fail to apply and why.
- * Audit task S0-01 (docs/repository-audit/IMPLEMENTATION_ROADMAP.md), issue DB-03.
+ * Audit task S0-01, issue DB-03.
  *
  * Unlike scripts/validate-migrations.mjs (a text-pattern scan), this EXECUTES
  * the SQL. It needs PostgreSQL server binaries (initdb, pg_ctl, postgres, psql,

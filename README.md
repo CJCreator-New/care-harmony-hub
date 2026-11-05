@@ -45,7 +45,7 @@ The system has been finalized with advanced production optimizations:
 **Documentation Hub**: start at the documentation index.
 - 📚 [Documentation index](./docs/INDEX.md) — All current business, technical, security and operational docs
 - 🏛️ [Architecture decisions](./docs/adr/) — ADR-0001 sets the Supabase-native runtime
-- 📖 [Development standards](./docs/DEVELOPMENT_STANDARDS.md) — Code patterns and development standards
+- 📖 [Development standards](./docs/product/DEVELOPMENT_STANDARDS.md) — Code patterns and development standards
 
 ---
 
@@ -72,13 +72,13 @@ npm install
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`. The former Kong/microservices stack has been removed from the tree (see git history) and is not needed to run the app.
+The app will be available at `http://localhost:5173`. The former Kong/microservices stack is archived in [archive/](archive/README.md) and is not needed to run the app.
 
 ### Environment Setup
 
 The project uses Lovable Cloud for backend services. Environment variables are automatically configured.
 
-The former microservices stack and Kong gateway have been removed from the tree (see git history) and are not part of the runtime (ADR-0001).
+The former microservices stack and Kong gateway are archived in [archive/](archive/README.md) and are not part of the runtime (ADR-0001).
 
 ### Pre-Deployment Validation
 
@@ -100,7 +100,7 @@ cat scripts/validate-rls.ts
 - ✅ No unintended `USING(true)` policies on clinical data
 - ✅ Role-based access control enforced
 
-**Documentation:** See [docs/RLS_AUDIT_REPORT.md](docs/RLS_AUDIT_REPORT.md) for policy exceptions and security rationale.
+**Documentation:** See [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md) for roles, permissions and access-control rationale.
 
 ### Recent Updates (January 2026)
 
@@ -116,7 +116,6 @@ cat scripts/validate-rls.ts
 - **50+ database tables** with comprehensive RLS policies
 - **16+ edge functions** for advanced automation
 - **AI-powered task routing** and real-time communication
-- See [docs/FEATURES.md](docs/FEATURES.md) for the shipped feature list
 
 ---
 
@@ -189,13 +188,14 @@ caresync/
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/SYSTEM_ARCHITECTURE.md) | System architecture & design |
-| [Features](docs/FEATURES.md) | Complete feature documentation |
+| [Architecture](docs/product/SYSTEM_ARCHITECTURE.md) | System architecture & design |
 | [Database Schema](docs/DATABASE.md) | Database structure & relations |
 | [API Reference](docs/product/API_REFERENCE.md) | Edge functions & endpoints |
-| [Security](docs/SECURITY.md) | Security & compliance |
-| [Deployment](docs/DEPLOYMENT.md) | Deployment guide |
-| [Development standards](docs/DEVELOPMENT_STANDARDS.md) | Coding and contribution standards |
+| [RBAC & permissions](docs/RBAC_PERMISSIONS.md) | Roles, permissions & access control |
+| [Security checklist](docs/product/SECURITY_CHECKLIST.md) | Security review checklist |
+| [Staging deployment](docs/operations/STAGING_DEPLOYMENT_VALIDATION.md) | Staging deployment validation |
+| [Development standards](docs/product/DEVELOPMENT_STANDARDS.md) | Coding and contribution standards |
+| [Archive](archive/README.md) | Non-runtime infrastructure per ADR-0001 (microservices, Kong, compose, k8s, mobile skeleton) |
 
 ---
 

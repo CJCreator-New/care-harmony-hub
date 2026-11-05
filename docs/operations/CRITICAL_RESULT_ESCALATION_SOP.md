@@ -5,7 +5,7 @@ Owner: Laboratory lead and Medical Director. Review weekly while in force.
 
 ## Why this exists
 
-The automatic escalation ladder (notify the primary clinician at 0 min, on-call at 5 min, Emergency Department at 10 min) does not work in the current release. See audit findings EDGE-03 and CLIN-10 in `docs/repository-audit/`. **No one is paged, texted or emailed automatically.** Until it is fixed, the telephone procedure below is the escalation mechanism, and the in-app banner is only a reminder.
+The automatic escalation ladder (notify the primary clinician at 0 min, on-call at 5 min, Emergency Department at 10 min) does not work in the current release. See audit findings EDGE-03 and CLIN-10 (repository audit, removed; see git history). **No one is paged, texted or emailed automatically.** Until it is fixed, the telephone procedure below is the escalation mechanism, and the in-app banner is only a reminder.
 
 ## The in-app safeguard
 

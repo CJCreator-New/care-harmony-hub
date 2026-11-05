@@ -152,7 +152,7 @@ export class HttpRxNormAdapter implements RxNormTerminologyPort {
 /**
  * Writes order-safety audit events to public.activity_logs, the audit table the
  * rest of the application uses (public.audit_logs is not present in the live
- * schema; see docs/repository-audit DB-08).
+ * schema; audit item DB-08).
  */
 export class SupabaseActivityLogAuditAdapter implements AuditLoggerPort {
   async logSafetyEvent(event: AuditSafetyEvent): Promise<string> {
