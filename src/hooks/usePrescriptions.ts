@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAudit } from '@/hooks/useAudit';
-import { fieldEncryption } from '@/utils/dataProtection';
+import { decryptRecordFields, fieldEncryption } from '@/utils/dataProtection';
 import { hasPermission } from '@/lib/permissions';
 import { createPrescriptionDispensingEngine } from '@/modules/prescription-dispensing';
 
@@ -68,24 +68,11 @@ const isMissingPrescriptionQueueSchemaError = (error: { message?: string } | nul
 // F2.4 — HIPAA §164.312(e)(2)(ii): decrypt PHI fields on prescription items
 async function decryptPrescriptionItems(prescription: any): Promise<any> {
   if (!prescription.items?.length) return prescription;
+  // CLIN-05: each item row is the resource its ciphertext belongs to, so phi-crypto authorises against it.
   const decryptedItems = await Promise.all(
-    prescription.items.map(async (item: any) => {
-      if (!item.encryption_metadata || Object.keys(item.encryption_metadata).length === 0)
-        return item;
-      const decrypted = { ...item };
-      for (const [field, encData] of Object.entries(
-        item.encryption_metadata as Record<string, any>
-      )) {
-        if (typeof decrypted[field] === 'string' && decrypted[field].startsWith('__ENCRYPTED__')) {
-          try {
-            decrypted[field] = await fieldEncryption.decryptField(encData);
-          } catch {
-            decrypted[field] = '[Encrypted]';
-          }
-        }
-      }
-      return decrypted;
-    })
+    prescription.items.map((item: any) =>
+      decryptRecordFields(item, { resourceType: 'prescription_items', resourceId: item.id })
+    )
   );
   return { ...prescription, items: decryptedItems };
 }

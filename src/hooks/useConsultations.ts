@@ -10,7 +10,7 @@ import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 import { hasPermission } from '@/lib/permissions';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { useAudit } from '@/hooks/useAudit';
-import { fieldEncryption } from '@/utils/dataProtection';
+import { decryptRecordFields, fieldEncryption, mergeEncryptionMetadata } from '@/utils/dataProtection';
 
 export type ConsultationStatus =
   | 'scheduled'
@@ -219,30 +219,10 @@ const stripUnsupportedConsultationFields = <T extends Record<string, any>>(
 };
 
 /** F2.3 — Decrypt consultation clinical PHI fields if encryption_metadata is present. */
-async function decryptConsultationFields(consultation: any): Promise<any> {
-  if (
-    !consultation?.encryption_metadata ||
-    Object.keys(consultation.encryption_metadata).length === 0
-  ) {
-    return consultation;
-  }
-  const decrypted = { ...consultation };
-  for (const [field, encData] of Object.entries(
-    consultation.encryption_metadata as Record<string, any>
-  )) {
-    if (
-      decrypted[field] &&
-      typeof decrypted[field] === 'string' &&
-      decrypted[field].startsWith('__ENCRYPTED__')
-    ) {
-      try {
-        decrypted[field] = await fieldEncryption.decryptField(encData);
-      } catch {
-        decrypted[field] = '[Encrypted]';
-      }
-    }
-  }
-  return decrypted;
+// CLIN-05: the consultation row is the resource the ciphertext belongs to, so phi-crypto authorises against it.
+export async function decryptConsultationFields(consultation: any): Promise<any> {
+  if (!consultation?.id) return consultation;
+  return decryptRecordFields(consultation, { resourceType: 'consultations', resourceId: consultation.id });
 }
 
 export function useConsultations() {
@@ -519,7 +499,7 @@ export function useUpdateConsultation() {
           'follow_up_notes',
           'handoff_notes',
         ] as const;
-        const encMeta: Record<string, any> = (updates as any).encryption_metadata ?? {};
+        const encMeta: Record<string, any> = { ...((updates as any).encryption_metadata ?? {}) };
         for (const field of clinicalPHIFields) {
           const value = (updates as any)[field];
           if (value && typeof value === 'string' && !value.startsWith('__ENCRYPTED__')) {
@@ -529,7 +509,19 @@ export function useUpdateConsultation() {
           }
         }
         if (Object.keys(encMeta).length > 0) {
-          (updates as any).encryption_metadata = encMeta;
+          // CLIN-05: a partial update (for example a signed addendum) must not replace the
+          // ciphertext of the other fields. Merge with the stored metadata. A missing-column
+          // error is left for the retry loop below, which strips the field.
+          const { data: current, error: readError } = await supabase
+            .from('consultations')
+            .select('encryption_metadata')
+            .eq('id', id)
+            .maybeSingle();
+          if (readError && getMissingConsultationColumns(readError).length === 0) throw readError;
+          (updates as any).encryption_metadata = mergeEncryptionMetadata(
+            readError ? undefined : (current as any)?.encryption_metadata,
+            encMeta
+          );
         }
 
         let pendingUpdates = { ...updates };
