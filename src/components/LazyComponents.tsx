@@ -13,12 +13,6 @@ export const AuditTrailDashboard = lazy(() =>
   }))
 );
 
-export const BackupRecoveryDashboard = lazy(() => 
-  import('@/components/admin/BackupRecoveryDashboard').then(module => ({
-    default: module.BackupRecoveryDashboard
-  }))
-);
-
 export const SystemMonitoringDashboard = lazy(() => 
   import('@/components/admin/SystemMonitoringDashboard').then(module => ({
     default: module.SystemMonitoringDashboard

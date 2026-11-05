@@ -1,4 +1,7 @@
-// Response for edge functions that have been retired (roadmap S0-10).
+// Response for edge functions that have been retired (roadmaps S0-10, S0-05).
+//
+// backup-manager (S0-05, EDGE-02) also answers 410: backups are an operator
+// function (Supabase PITR), not a tenant-callable endpoint.
 //
 // The custom TOTP functions (generate-2fa-secret, verify-2fa, verify-totp,
 // store-2fa-secret) are replaced by Supabase Auth MFA (TOTP factors, aal2 in the
