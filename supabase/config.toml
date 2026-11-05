@@ -21,6 +21,12 @@ verify_jwt = true
 [functions.generate-2fa-secret]
 verify_jwt = true
 
+[functions.generate-backup-codes]
+verify_jwt = true
+
+[functions.verify-backup-code]
+verify_jwt = true
+
 [functions.phi-crypto]
 verify_jwt = true
 
