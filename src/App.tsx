@@ -12,6 +12,7 @@ import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
 import { bootstrap } from "@/bootstrap";
 import { RouteFallback } from "@/components/common/RouteFallback";
+import { SessionTimeoutDialog } from "@/components/common/SessionTimeoutDialog";
 import {
   fallbackRoute,
   publicRoutes,
@@ -75,6 +76,7 @@ const App = () => {
           <TestingProvider>
             <TooltipProvider>
               <Sonner position="top-right" />
+              <SessionTimeoutDialog />
               <BrowserRouter
                 future={{
                   v7_startTransition: true,

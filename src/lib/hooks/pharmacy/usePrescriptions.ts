@@ -494,6 +494,8 @@ export interface DispensePrescriptionOptions {
   readonly prescriptionId: string;
   readonly batchNumber?: string;
   readonly notes?: string;
+  /** Audit reason entered in the dispense confirmation. */
+  readonly reason?: string;
   readonly patientVerified?: boolean;
   readonly safetyChecksComplete?: boolean;
   readonly items?: readonly DispensedItemAllocation[];
@@ -645,7 +647,7 @@ export function useDispensePrescription() {
         console.warn('[useDispensePrescription] Workflow advance bypassed:', err);
       }
 
-      return { id: prescriptionId, isPartial, finalStatus };
+      return { id: prescriptionId, isPartial, finalStatus, reason: opts?.reason?.trim() || null };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
@@ -661,7 +663,11 @@ export function useDispensePrescription() {
         actionType: data.isPartial ? 'PRESCRIPTION_PARTIALLY_DISPENSED' : 'PRESCRIPTION_DISPENSED',
         entityType: 'prescriptions',
         entityId: data.id,
-        details: { dispensed_by: profile?.id, status: data.finalStatus },
+        details: {
+          dispensed_by: profile?.id,
+          status: data.finalStatus,
+          reason: data.reason,
+        },
         severity: 'info',
       });
     },

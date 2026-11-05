@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatsCard } from './StatsCard';
 import { Button } from '@/components/ui/button';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -114,12 +115,14 @@ export function ReceptionistDashboard() {
     });
   }, [profile?.id, updateRequest]);
 
-  const handleRejectRequest = useCallback((requestId: string) => {
+  // Rejects with a reason. Throws on failure so the confirmation stays open with the reason.
+  const handleRejectRequest = useCallback(async (requestId: string, reason: string) => {
     if (!profile?.id) return;
-    updateRequest.mutate({
+    await updateRequest.mutateAsync({
       id: requestId,
       status: 'rejected',
       reviewed_by: profile.id,
+      reason,
     });
   }, [profile?.id, updateRequest]);
 
@@ -325,15 +328,28 @@ export function ReceptionistDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleRejectRequest(request.id)}
-                            disabled={updateRequest.isPending}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <ConfirmDestructiveAction
+                            trigger={
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                disabled={updateRequest.isPending}
+                                aria-label={`Reject appointment request for ${request.patient?.first_name ?? 'patient'} ${request.patient?.last_name ?? ''}`.trim()}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            }
+                            title="Reject this appointment request?"
+                            description={
+                              <p>
+                                The request will be marked as rejected. The reason is saved in the audit history.
+                              </p>
+                            }
+                            confirmLabel="Reject request"
+                            isPending={updateRequest.isPending}
+                            onConfirm={(reason) => handleRejectRequest(request.id, reason)}
+                          />
                           <Button
                             size="sm"
                             onClick={() => handleApproveRequest(request.id)}
@@ -623,12 +639,8 @@ export function ReceptionistDashboard() {
         </TabsContent>
 
         <TabsContent value="appointment-management">
-        <AppointmentCalendarView
-          onNewAppointment={() => setWalkInOpen(true)}
-          onAppointmentClick={(appointment) => {
-            // Handle appointment click - could open edit modal
-          }}
-        />
+        {/* The calendar opens its own appointment details dialog on click. */}
+        <AppointmentCalendarView onNewAppointment={() => setWalkInOpen(true)} />
       </TabsContent>
 
         <TabsContent value="queue-optimization">

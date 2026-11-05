@@ -2,11 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/test-utils';
-import {
-  ConfirmDestructiveAction,
-  MIN_REASON_LENGTH,
-  isValidDestructiveReason,
-} from '@/components/common/ConfirmDestructiveAction';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
+import { MIN_REASON_LENGTH, isValidDestructiveReason } from '@/lib/audit/destructiveReason';
 
 function renderWithTrigger(onConfirm: (reason: string) => void | Promise<void>, extra = {}) {
   return render(

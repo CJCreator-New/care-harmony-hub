@@ -13,16 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-
-/**
- * Minimum length for an audit reason. Matches the order-safety override rule
- * (`overrideReason.trim().length >= 10` in src/modules/order-safety).
- */
-export const MIN_REASON_LENGTH = 10;
-
-export function isValidDestructiveReason(reason: string): boolean {
-  return reason.trim().length >= MIN_REASON_LENGTH;
-}
+import { MIN_REASON_LENGTH, isValidDestructiveReason } from '@/lib/audit/destructiveReason';
 
 export interface ConfirmDestructiveActionProps {
   /** Element that opens the dialog. Omit it when the parent controls `open`. */

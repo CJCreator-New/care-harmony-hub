@@ -106,6 +106,7 @@ export function PrescriptionQueue() {
     batchNumber: string;
     patientVerified: boolean;
     safetyChecksComplete: boolean;
+    reason: string;
     notes: string;
     items: Array<{
       itemId?: string;
@@ -158,6 +159,7 @@ export function PrescriptionQueue() {
           safetyChecksComplete: safetyData.safetyChecksComplete,
           items: safetyData.items,
           witness: safetyData.witness,
+          reason: safetyData.reason,
         });
 
         // Emit canonical dispense event for downstream patient notification rules.

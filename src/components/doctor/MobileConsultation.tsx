@@ -8,6 +8,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { supabase } from '@/integrations/supabase/client';
 import { Mic, MicOff, Save, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDraftState } from '@/hooks/useDraftState';
 
 interface MobileConsultationProps {
   patientId: string;
@@ -15,7 +16,8 @@ interface MobileConsultationProps {
 }
 
 export function MobileConsultation({ patientId, consultationId }: MobileConsultationProps) {
-  const [notes, setNotes] = useState('');
+  // In-memory draft: survives an inactivity sign-out until the note is saved or queued.
+  const { value: notes, setValue: setNotes, clearDraft } = useDraftState(`mobile-consultation:${consultationId}`, '');
   const [isSaving, setIsSaving] = useState(false);
   const { isSupported, isListening, transcript, startListening, stopListening, resetTranscript } = useVoiceTranscription();
   const { isOnline, pendingActionCount, queueAction } = useOfflineSync();
@@ -39,9 +41,11 @@ export function MobileConsultation({ patientId, consultationId }: MobileConsulta
           clinical_notes: notes,
         }).eq('id', consultationId);
         if (error) throw error;
+        clearDraft();
         toast.success('Consultation notes saved successfully');
       } else {
         queueAction('update', 'consultations', { id: consultationId, patient_id: patientId, clinical_notes: notes });
+        clearDraft();
         toast.success('Consultation notes queued for sync');
       }
     } catch (error) {

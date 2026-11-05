@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useAudit } from '@/hooks/useAudit';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { 
   Building2, 
   Plus, 
@@ -31,6 +33,7 @@ interface Department {
 export function DepartmentManagement() {
   const { hospital } = useAuth();
   const { toast } = useToast();
+  const { logActivity } = useAudit();
   const queryClient = useQueryClient();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
@@ -111,12 +114,19 @@ export function DepartmentManagement() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase.from('departments') as any)
         .update({ is_active: false })
         .eq('id', id);
       if (error) throw error;
+      void logActivity({
+        actionType: 'DEPARTMENT_DEACTIVATED',
+        entityType: 'departments',
+        entityId: id,
+        details: { reason },
+        severity: 'warning',
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
@@ -255,17 +265,23 @@ export function DepartmentManagement() {
                   <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to remove this department?')) {
-                        deleteMutation.mutate(dept.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <ConfirmDestructiveAction
+                    trigger={
+                      <Button variant="ghost" size="icon" aria-label={`Remove ${dept.name}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    }
+                    title={`Remove ${dept.name}?`}
+                    description={
+                      <p>
+                        The department will be hidden from staff assignment and scheduling. The reason is saved in
+                        the audit history.
+                      </p>
+                    }
+                    confirmLabel="Remove department"
+                    isPending={deleteMutation.isPending}
+                    onConfirm={(reason) => deleteMutation.mutateAsync({ id: dept.id, reason })}
+                  />
                 </div>
               </div>
             ))}

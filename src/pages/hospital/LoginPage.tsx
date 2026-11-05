@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MFA_REENROLL_LOGIN_STATE } from '@/lib/auth/mfa';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
 import { describeAuthError } from '@/lib/auth/authErrors';
+import { consumeSignOutReason } from '@/lib/hooks/auth/useSessionTimeout';
 
 // Validation schema
 
@@ -32,6 +33,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [signedOutForInactivity, setSignedOutForInactivity] = useState(false);
   const location = useLocation();
   const mustReenrollMfa =
     (location.state as { mfaReenroll?: boolean } | null)?.mfaReenroll ===
@@ -48,6 +50,10 @@ export default function LoginPage() {
   });
 
   const isLoading = form.formState.isSubmitting;
+
+  useEffect(() => {
+    if (consumeSignOutReason() === 'inactivity') setSignedOutForInactivity(true);
+  }, []);
 
   useEffect(() => {
     const hadDevOverride =
@@ -184,6 +190,15 @@ export default function LoginPage() {
               <AlertDescription>
                 Your backup code was accepted and your old authenticator was removed. Sign in
                 again to set up a new one.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {signedOutForInactivity && (
+            <Alert role="status">
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                You were signed out after 30 minutes without activity. Sign in again to continue.
               </AlertDescription>
             </Alert>
           )}

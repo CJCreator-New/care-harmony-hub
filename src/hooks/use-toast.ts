@@ -48,7 +48,16 @@ function useToast() {
   return {
     toast,
     dismiss: (toastId?: string | number) => sonnerToast.dismiss(toastId),
-    toasts: [] as never[],
+    // Sonner keeps its own queue. The list is empty for legacy readers of this shape.
+    toasts: [] as Array<{
+      id: string;
+      title?: React.ReactNode;
+      description?: React.ReactNode;
+      action?: React.ReactNode;
+      open?: boolean;
+      onOpenChange?: (open: boolean) => void;
+      variant?: "default" | "destructive";
+    }>,
   };
 }
 

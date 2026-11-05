@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
 import { getEdgeFunctionErrorMessage } from '@/lib/onboarding/edgeFunctionError';
+import { useAudit } from '@/hooks/useAudit';
 
 export interface StaffInvitation {
   id: string;
@@ -50,6 +51,7 @@ interface AcceptInvitationParams {
 
 export function useStaffInvitations() {
   const { profile } = useAuth();
+  const { logActivity } = useAudit();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,7 +152,7 @@ export function useStaffInvitations() {
     }
   }, [profile?.hospital_id, profile?.id]);
 
-  const cancelInvitation = useCallback(async (invitationId: string) => {
+  const cancelInvitation = useCallback(async (invitationId: string, reason?: string) => {
     if (!profile?.hospital_id) {
       return { error: 'Not authenticated or no hospital' };
     }
@@ -168,6 +170,13 @@ export function useStaffInvitations() {
 
       if (updateError) throw updateError;
 
+      void logActivity({
+        actionType: 'STAFF_INVITATION_CANCELLED',
+        entityType: 'staff_invitations',
+        entityId: invitationId,
+        details: { reason: reason?.trim() || null },
+      });
+
       return { error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to cancel invitation';
@@ -176,7 +185,7 @@ export function useStaffInvitations() {
     } finally {
       setIsLoading(false);
     }
-  }, [profile?.hospital_id]);
+  }, [profile?.hospital_id, logActivity]);
 
   const resendInvitation = useCallback(async (invitationId: string) => {
     if (!profile?.hospital_id) {
