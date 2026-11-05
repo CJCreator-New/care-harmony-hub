@@ -19,14 +19,14 @@ Each name is the job `name:` in the workflow file. GitHub shows it in the PR che
 | `Lint` | `ci-pipeline.yml` | `npm run lint` |
 | `Architecture boundaries` | `ci-pipeline.yml` | `npm run lint:boundaries` |
 | `Migration reversibility` | `ci-pipeline.yml` | `npm run validate:migrations` on every PR |
-| `Unit tests (vitest)` | `ci-pipeline.yml` | `npx vitest run` (the whole default suite, not only `src/test`) |
+| `Unit tests (vitest)` | `ci-pipeline.yml` | `npm run test:unit:all` (`vitest run`, the whole default suite, not only `src/test`) |
 | `Client secret source scan` | `ci-pipeline.yml` | `npm run security:client-secrets` |
 | `Dependency audit (runtime, high and critical)` | `ci-pipeline.yml` | `npm audit --omit=dev --audit-level=high` |
 | `Security tests (vitest)` | `ci-pipeline.yml` | `npm run test:security` |
 | `Accessibility tests (vitest)` | `ci-pipeline.yml` | `npm run test:accessibility` |
 | `Build` | `ci-pipeline.yml` | `npm run build` |
 | `Bundle canary scan` | `ci-pipeline.yml` | Canary build, then `security:bundle-secrets` on the output |
-| `E2E smoke (Playwright, chromium)` | `ci-pipeline.yml` | Spec collection (`playwright test --list`), then `@smoke` tests |
+| `E2E smoke (Playwright, chromium)` | `ci-pipeline.yml` | Spec collection (`playwright test --list`, fails if the total is 0), then `@smoke` tests |
 | `gitleaks (new commits)` | `secret-scan.yml` | Any secret in the commits a PR or push adds |
 
 Requiring the individual checks as well as `CI required gates` is harmless and makes the failing gate visible in the PR. A gate that is skipped counts as a failure in `CI required gates`, so that job is the one to rely on.
@@ -51,12 +51,18 @@ The gates now report the truth. These checks are expected to be red on current `
 | Check | Expected reason | Tracking |
 |---|---|---|
 | `Unit tests (vitest)` | 39 failing tests in 20 files, plus live-database suites in the default run | TEST-10, TEST-02 |
+| `Type check` | `tsconfig.app.json` fails with TS6053 on `src/utils/doctorRBACManager.ts`, which no longer exists. The `src/` guard also counts 574 files, below the 900 threshold. Both are src/config issues. The threshold was not lowered. | S0-12 |
+| `Lint` | `eslint .` reports about 48,500 errors locally. Almost all are in `.claude/worktrees/`, which a clean checkout does not have. The ESLint config does not ignore that folder, so the gate is not clean in a full working tree. | OPS-03 follow-up |
 | `E2E smoke (Playwright, chromium)` | `tests/e2e/comprehensive-workflows.spec.ts` and `stress-and-edge-cases.spec.ts` import fixture exports that do not exist, so Playwright loads zero tests. The config also sets `headless: false` (the job works around this with `xvfb-run`). | TEST-01 |
 | `Dependency audit (runtime, high and critical)` | Production dependencies include 1 critical and several high advisories (DOMPurify via jsPDF, zod, react-router-dom) | OPS-19 |
 | `Accessibility tests (vitest)` | Not yet run on the current tree in CI | TEST-03 / UI audit |
 
-The checks not listed above were run locally and pass: type check, lint boundaries, client-secret source scan, bundle canary scan, migration reversibility.
+Checked locally in the S1-07 change: lint boundaries, client-secret source scan and migration reversibility pass. `playwright test --list` reports 0 tests, so the E2E job fails as intended. The type check, lint and unit suite were not clean locally (see above). The bundle canary scan and accessibility tests were not run locally in this change.
 
-## 4. Pinned actions
+## 4. Pinned actions and permissions
 
-All actions use a full major version tag (`@v4`, `@v5`, `@v3`), not `@main` or `@master`. The gitleaks container image is pinned to `v8.21.2`.
+All actions use a full major version tag (`@v4`, `@v5`, `@v3`), not `@main` or `@master`. The gitleaks container image is pinned to `v8.21.2`. SHA pinning of actions is not done; it is an operator decision.
+
+Every workflow except `deploy-production.yml` sets `permissions: contents: read` at the top level. Only `docker-build` raises a scope (`packages: write`). `ci-pipeline.yml` cancels superseded runs for pull requests only, so a push to `main` or `develop` is always evaluated.
+
+`deploy-production.yml` is not part of S1-07. It has no top-level `permissions` block, and it still runs `npm run test:unit`, which keeps the old `src/test` subset. Its deploy gating (`if:` on env values) needs review under OPS-04.
