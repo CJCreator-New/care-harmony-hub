@@ -163,19 +163,46 @@ export async function correlatedFetch(
 }
 
 /**
+ * True when the request goes to the page's own origin. Correlation headers are
+ * not CORS-safelisted, so adding them to a cross-origin request forces a
+ * preflight that most third parties (and, until their allow-list is updated
+ * and redeployed, the Supabase Edge Functions) reject (PERF-01).
+ */
+function isSameOriginRequest(url: string | URL | Request): boolean {
+  if (typeof window === 'undefined' || !window.location) return false;
+  try {
+    const raw = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    return new URL(raw, window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Add correlation ID to Fetch API before sending requests
  * Install as Fetch interceptor via registerFetchInterceptor()
+ *
+ * Only same-origin requests are tagged; cross-origin requests (Supabase REST,
+ * Auth, Edge Functions, RxNorm, ...) pass through untouched.
  */
 export function injectCorrelationIdIntoFetch(
   originalFetch: typeof fetch
 ): typeof fetch {
-  return function (url: string | Request, init?: RequestInit) {
+  const wrapped = function (url: string | URL | Request, init?: RequestInit) {
+    if (!isSameOriginRequest(url)) {
+      return originalFetch(url, init);
+    }
+
     const correlationId = getCorrelationId();
     const traceContext = getTraceContext();
 
-    const headers = new Headers(init?.headers || {});
+    // Start from the Request's own headers when no init headers are given, so
+    // fetch(new Request(...)) does not lose them.
+    const baseHeaders =
+      init?.headers ?? (typeof Request !== 'undefined' && url instanceof Request ? url.headers : undefined);
+    const headers = new Headers(baseHeaders || {});
     headers.set('x-correlation-id', correlationId);
-    
+
     if (traceContext) {
       headers.set('x-trace-context', JSON.stringify(traceContext));
     }
@@ -185,12 +212,15 @@ export function injectCorrelationIdIntoFetch(
       headers,
     });
   };
+  (wrapped as any).__correlationIdInterceptor = true;
+  return wrapped as typeof fetch;
 }
 
 /**
  * Register automatic correlation ID injection into global fetch
- * Call this once at app initialization
- * 
+ * Call this once at app initialization. Calling it again (HMR, a second
+ * bootstrap) does not wrap fetch twice.
+ *
  * @example
  * if (typeof window !== 'undefined') {
  *   registerFetchInterceptor();
@@ -200,6 +230,7 @@ export function registerFetchInterceptor(): void {
   if (typeof window === 'undefined') return;
 
   const originalFetch = window.fetch;
+  if ((originalFetch as any)?.__correlationIdInterceptor) return;
   window.fetch = injectCorrelationIdIntoFetch(originalFetch);
 }
 

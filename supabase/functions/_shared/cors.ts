@@ -14,8 +14,10 @@ const EFFECTIVE_ALLOWED_ORIGINS =
   ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ALLOWED_ORIGINS;
 
 const CORS_BASE_HEADERS = {
+  // x-correlation-id / x-trace-context: request tracing headers (see _shared/tracing.ts,
+  // src/utils/correlationId.ts). Browsers preflight them, so they must be listed (PERF-01).
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-correlation-id, x-trace-context",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
