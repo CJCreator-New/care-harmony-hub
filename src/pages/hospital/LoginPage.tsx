@@ -113,7 +113,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
         <title>Hospital Login | AROCORD-HIMS</title>
         <meta name="description" content="Sign in to your AROCORD-HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />

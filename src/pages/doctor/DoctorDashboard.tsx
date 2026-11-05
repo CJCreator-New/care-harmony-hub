@@ -42,14 +42,14 @@ export default function DoctorDashboard() {
           <h2 className="text-xl font-semibold">Quick Actions</h2>
           <div className="flex gap-2">
             <Button 
-              onClick={() => navigate('/hospital/patients')}
+              onClick={() => navigate('/patients')}
               size="lg"
             >
               New Prescription
             </Button>
             <Button 
               variant="outline"
-              onClick={() => navigate('/hospital/patients')}
+              onClick={() => navigate('/patients')}
               size="lg"
             >
               View Patients

@@ -242,7 +242,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
         <title>Hospital Signup | AROCORD-HIMS</title>
         <meta name="description" content="Create a new hospital account on AROCORD-HIMS to onboard staff, manage patients, and run a modern healthcare facility." />

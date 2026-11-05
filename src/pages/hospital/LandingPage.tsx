@@ -108,7 +108,7 @@ export default function LandingPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="min-h-screen bg-background">
+    <div id="main-content" tabIndex={-1} className="min-h-screen bg-background">
       <Helmet>
         <title>AROCORD-HIMS | Modern Hospital Management System</title>
         <meta name="description" content="Streamline your hospital operations with AROCORD-HIMS. Unified EMR, OP/IP management, smart billing, and AI-powered healthcare workflows." />
