@@ -27,9 +27,9 @@ import { evaluateAllergyConflicts } from './core/allergyEngine';
 import { evaluatePediatricDosing } from './core/pediatricEngine';
 import { evaluateClinicalInvariants } from './core/clinicalInvariants';
 import { evaluateDrugInteractions } from './core/ddiEngine';
+import { evaluateContextIntegrity } from './core/contextIntegrity';
 import {
-  HttpRxNormAdapter,
-  SupabaseAuditLoggerAdapter,
+  SupabaseActivityLogAuditAdapter,
   SupabaseLocalDdiAdapter,
 } from './adapters/SupabaseAdapters';
 
@@ -47,7 +47,7 @@ export class HeadlessOrderSafetyEngine implements IOrderSafetyEngine {
   constructor(dependencies: OrderSafetyEngineDependencies = {}) {
     this.localDdiRepo = dependencies.localDdiRepo;
     this.rxNormPort = dependencies.rxNormPort;
-    this.auditLogger = dependencies.auditLogger || new SupabaseAuditLoggerAdapter();
+    this.auditLogger = dependencies.auditLogger || new SupabaseActivityLogAuditAdapter();
   }
 
   /**
@@ -84,6 +84,9 @@ export class HeadlessOrderSafetyEngine implements IOrderSafetyEngine {
     // 2. Allergy Cross-Reactivity Evaluation (In-Process)
     const allergyFindings = evaluateAllergyConflicts(items, patient.allergies || []);
     allFindings.push(...allergyFindings);
+
+    // 2b. Patient-context integrity (Fail-Closed CDS on incomplete data)
+    allFindings.push(...evaluateContextIntegrity(items, patient));
 
     // 3. Clinical Invariants, Gender, Route, Teratogenicity (In-Process)
     const invariantFindings = evaluateClinicalInvariants(items, patient);
@@ -243,7 +246,10 @@ export class HeadlessOrderSafetyEngine implements IOrderSafetyEngine {
       overrides: validOverrides.map((o) => ({ code: o.findingCode, reason: o.overrideReason })),
     });
 
-    const receiptId = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const receiptId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const orderHash = await computeSha256(orderPayload);
     const signature = `hmac_sig_${orderHash.substring(0, 16)}_${actor.userId.substring(0, 8)}`;
     const clearedAt = new Date().toISOString();
@@ -305,14 +311,20 @@ async function computeSha256(message: string): Promise<string> {
 }
 
 /**
- * Factory creating an OrderSafetyEngine with default production dependencies
+ * Factory creating an OrderSafetyEngine with default production dependencies.
+ *
+ * No RxNorm port is wired by default: the NLM RxNav interaction API that
+ * HttpRxNormAdapter calls was retired in January 2024, so every call would
+ * report a degraded service and force an override on every order. A maintained
+ * interaction source is roadmap task S2-07. Pass `rxNormPort` explicitly to
+ * opt in to an alternative implementation.
  */
 export function createOrderSafetyEngine(
   dependencies: OrderSafetyEngineDependencies = {}
 ): IOrderSafetyEngine {
   return new HeadlessOrderSafetyEngine({
     localDdiRepo: dependencies.localDdiRepo || new SupabaseLocalDdiAdapter(),
-    rxNormPort: dependencies.rxNormPort || new HttpRxNormAdapter(4000),
-    auditLogger: dependencies.auditLogger || new SupabaseAuditLoggerAdapter(),
+    rxNormPort: dependencies.rxNormPort,
+    auditLogger: dependencies.auditLogger || new SupabaseActivityLogAuditAdapter(),
   });
 }

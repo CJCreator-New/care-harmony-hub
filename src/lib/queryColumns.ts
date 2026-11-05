@@ -5,7 +5,7 @@
 export const PATIENT_COLUMNS = {
   list: 'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, blood_type, is_active, created_at',
   detail:
-    'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, address, city, state, zip, blood_type, allergies, chronic_conditions, emergency_contact_name, emergency_contact_phone, insurance_provider, insurance_policy_number, is_active, created_at',
+    'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, address, city, state, zip, blood_type, allergies, chronic_conditions, current_medications, emergency_contact_name, emergency_contact_phone, insurance_provider, insurance_policy_number, is_active, created_at',
   search: 'id, mrn, first_name, last_name, email, phone, date_of_birth',
   minimal: 'id, first_name, last_name, mrn',
 };

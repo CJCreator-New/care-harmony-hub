@@ -37,7 +37,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { evaluateVitalSigns, type VitalSignsEvaluation } from '@/modules/vital-signs';
-import { checkPrescriptionSafety } from '@/hooks/usePrescriptionSafety';
+import {
+  buildPrescriptionSafetyColumns,
+  overrideSummary,
+  toOrderItems,
+  useOrderSafety,
+  usePatientClinicalContext,
+  type SafetyClearanceReceipt,
+} from '@/modules/order-safety';
 import {
   useConsultation,
   useUpdateConsultation,
@@ -133,6 +140,34 @@ export default function ConsultationWorkflowPage() {
   const [isSavingAddendum, setIsSavingAddendum] = useState(false);
   const canEditConsultation = permissions.can('consultations:write');
   const isReadOnly = consultation?.status === 'completed' || !canEditConsultation;
+
+  // ── Order safety (S0-07) ──────────────────────────────────────────────────
+  // One fail-closed evaluation of the prescriptions drives what the prescriber
+  // sees in the Treatment Plan step AND the step-4 / completion gates.
+  const safetyContext = usePatientClinicalContext({
+    patientId: consultation?.patient_id,
+    enabled: !!consultation?.patient_id && !isReadOnly,
+  });
+  const rxOrderItems = useMemo(
+    () => toOrderItems(formData.prescriptions, 'rx'),
+    [formData.prescriptions]
+  );
+  const orderSafety = useOrderSafety({
+    patient: safetyContext.context,
+    items: rxOrderItems,
+    actingRole: 'doctor',
+    enabled: !isReadOnly,
+    isContextLoading: safetyContext.isLoading,
+    contextError: safetyContext.loadError,
+  });
+  const safetyBlockMessage = (): string => {
+    if (orderSafety.errorMessage) return `Cannot continue: ${orderSafety.errorMessage}`;
+    if (orderSafety.hardStops.length > 0)
+      return `Cannot continue: ${orderSafety.hardStops[0].title}. Change or remove that prescription.`;
+    if (orderSafety.unhandledOverrides.length > 0)
+      return `Cannot continue: document a clinical override for ${orderSafety.unhandledOverrides.length} medication safety finding(s) in the Prescriptions section.`;
+    return 'Medication safety checks are still running. Try again in a moment.';
+  };
 
   const vitalEval: VitalSignsEvaluation | null = useMemo(() => {
     const v = formData.vitals || consultation?.vitals;
@@ -451,32 +486,9 @@ export default function ConsultationWorkflowPage() {
         return;
       }
 
-      // Pre-submission clinical safety verification (A1)
-      const currentMeds = ((consultation.patient as any)?.current_medications || []).concat(
-        (formData.prescriptions || []).map((p: any) => p.medication_name)
-      );
-      const allergies = consultation.patient?.allergies || [];
-      let hasContraindicated = false;
-
-      for (const rx of formData.prescriptions || []) {
-        const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
-        const safety = checkPrescriptionSafety(rx.medication_name, allergies, otherMeds);
-        if (
-          safety.drugInteractions.some((d: any) => d.severity === 'contraindicated') ||
-          safety.allergyAlerts.some((a: any) => a.severity === 'critical')
-        ) {
-          hasContraindicated = true;
-          break;
-        }
-      }
-
-      if (
-        hasContraindicated &&
-        (!formData.clinical_override_reason || formData.clinical_override_reason.trim() === '')
-      ) {
-        toast.error(
-          'Cannot proceed: Contraindicated prescription requires a documented Clinical Override Reason.'
-        );
+      // Fail-closed medication safety gate (order-safety module, S0-07)
+      if (rxOrderItems.length > 0 && !orderSafety.canProceed) {
+        toast.error(safetyBlockMessage());
         return;
       }
     }
@@ -518,34 +530,22 @@ export default function ConsultationWorkflowPage() {
         // Complete consultation
         setIsCompleting(true);
 
-        // Pre-submission clinical safety check (A1)
-        const currentMeds = ((consultation.patient as any)?.current_medications || []).concat(
-          (formData.prescriptions || []).map((p: any) => p.medication_name)
-        );
-        const allergies = consultation.patient?.allergies || [];
-        let hasContraindicated = false;
-
-        for (const rx of formData.prescriptions || []) {
-          const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
-          const safety = checkPrescriptionSafety(rx.medication_name, allergies, otherMeds);
-          if (
-            safety.drugInteractions.some((d: any) => d.severity === 'contraindicated') ||
-            safety.allergyAlerts.some((a: any) => a.severity === 'critical')
-          ) {
-            hasContraindicated = true;
-            break;
+        // Authoritative safety clearance (re-evaluates, validates overrides,
+        // writes the audit entry) before anything is committed. Fail-closed.
+        let safetyReceipt: SafetyClearanceReceipt | null = null;
+        if (rxOrderItems.length > 0) {
+          if (!orderSafety.canProceed) {
+            toast.error(safetyBlockMessage());
+            setIsCompleting(false);
+            return;
           }
-        }
-
-        if (
-          hasContraindicated &&
-          (!formData.clinical_override_reason || formData.clinical_override_reason.trim() === '')
-        ) {
-          toast.error(
-            'Cannot complete consultation: Contraindicated prescription requires a documented Clinical Override Reason.'
-          );
-          setIsCompleting(false);
-          return;
+          try {
+            safetyReceipt = await orderSafety.clearAndSign('DOCTOR_PRESCRIBE');
+          } catch (err) {
+            toast.error(`Prescription safety clearance failed: ${getErrorMessage(err)}`);
+            setIsCompleting(false);
+            return;
+          }
         }
 
         // Extract structured diagnoses for clinical record and billing (A3)
@@ -678,11 +678,10 @@ ${formData.soap_plan || 'Not documented'}`;
         // Create prescriptions in the database and automatically notify pharmacy
         if (formData.prescriptions?.length > 0) {
           try {
+            const appliedOverrides = safetyReceipt?.overridesApplied ?? [];
             const rxHandoffNotes = [
               formData.handoff_notes,
-              formData.clinical_override_reason
-                ? `[CLINICAL SAFETY OVERRIDE]: ${formData.clinical_override_reason}`
-                : undefined,
+              overrideSummary(orderSafety.findings, appliedOverrides) || undefined,
             ]
               .filter(Boolean)
               .join('\n');
@@ -698,15 +697,21 @@ ${formData.soap_plan || 'Not documented'}`;
                 instructions: rx.instructions,
               })),
               notes: rxHandoffNotes,
+              safety: buildPrescriptionSafetyColumns(orderSafety.findings, safetyReceipt),
             });
 
-            if (formData.clinical_override_reason) {
+            if (appliedOverrides.length > 0) {
               await logActivity({
                 actionType: 'prescription_breakglass_override',
                 entityType: 'prescription',
                 entityId: prescriptionResult.id,
                 details: {
-                  override_reason: formData.clinical_override_reason,
+                  overrides: appliedOverrides.map((o) => ({
+                    finding: o.findingCode,
+                    reason: o.overrideReason,
+                  })),
+                  safety_receipt_id: safetyReceipt?.receiptId,
+                  safety_audit_log_id: safetyReceipt?.auditLogId,
                   doctor_id: consultation.doctor_id,
                   patient_id: consultation.patient_id,
                 },
@@ -722,7 +727,7 @@ ${formData.soap_plan || 'Not documented'}`;
                   patientName,
                   prescriptionId: prescriptionResult.id,
                   medicationCount: formData.prescriptions.length,
-                  hasClinicalOverride: !!formData.clinical_override_reason,
+                  hasClinicalOverride: appliedOverrides.length > 0,
                 },
               },
               'prescription creation'
@@ -1189,8 +1194,8 @@ ${formData.soap_plan || 'Not documented'}`;
                     onUpdate={canEditConsultation ? handleUpdateField : () => {}}
                     patientId={consultation.patient_id}
                     consultationId={consultation.id}
-                    patientAllergies={consultation.patient?.allergies || []}
-                    patientMedications={(consultation.patient as any)?.current_medications || []}
+                    orderSafety={orderSafety}
+                    patientContext={safetyContext.context}
                   />
                 </TabsContent>
                 <TabsContent value="5" className="mt-0">

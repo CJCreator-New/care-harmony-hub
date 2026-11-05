@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,15 @@ import { CPTCodeMapper } from './CPTCodeMapper';
 import { ICD10Code, StructuredDiagnosis } from '@/types/icd10';
 import { useUpdateConsultation } from '@/hooks/useConsultations';
 import { useCreatePrescription } from '@/lib/hooks/pharmacy';
+import { OrderSafetyPanel } from '@/components/prescriptions/OrderSafetyPanel';
+import {
+  buildPrescriptionSafetyColumns,
+  overrideSummary,
+  toOrderItems,
+  useOrderSafety,
+  usePatientClinicalContext,
+  type SafetyClearanceReceipt,
+} from '@/modules/order-safety';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
@@ -53,6 +62,21 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
   const updateConsultation = useUpdateConsultation();
   const createPrescription = useCreatePrescription();
   const createLabOrder = useCreateLabOrder();
+
+  // Fail-closed order safety for the quick-consultation prescriptions (S0-07).
+  const safetyContext = usePatientClinicalContext({
+    patientId: consultation?.patient_id,
+    enabled: open && !!consultation?.patient_id,
+  });
+  const rxOrderItems = useMemo(() => toOrderItems(prescriptions, 'quick'), [prescriptions]);
+  const orderSafety = useOrderSafety({
+    patient: safetyContext.context,
+    items: rxOrderItems,
+    actingRole: 'doctor',
+    enabled: open,
+    isContextLoading: safetyContext.isLoading,
+    contextError: safetyContext.loadError,
+  });
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { recordOperation, recordCustomEvent, recordError } = useClinicalMetrics();
 
@@ -95,6 +119,30 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       return;
     }
 
+    // Prescriptions are only created when sent to pharmacy; gate exactly those.
+    const willCreatePrescriptions = prescriptions.length > 0 && notifyPharmacy;
+    let safetyReceipt: SafetyClearanceReceipt | null = null;
+    if (willCreatePrescriptions) {
+      if (!orderSafety.canProceed) {
+        toast.error(
+          orderSafety.errorMessage
+            ? `Cannot complete: ${orderSafety.errorMessage}`
+            : orderSafety.hardStops.length > 0
+              ? `Cannot complete: ${orderSafety.hardStops[0].title}. Change the prescription.`
+              : orderSafety.unhandledOverrides.length > 0
+                ? `Cannot complete: document a clinical override for ${orderSafety.unhandledOverrides.length} medication safety finding(s).`
+                : 'Medication safety checks are still running. Try again in a moment.'
+        );
+        return;
+      }
+      try {
+        safetyReceipt = await orderSafety.clearAndSign('DOCTOR_PRESCRIBE');
+      } catch (error) {
+        toast.error(`Prescription safety clearance failed: ${getErrorMessage(error)}`);
+        return;
+      }
+    }
+
     setIsCompleting(true);
     try {
       // Update consultation with minimal data
@@ -108,7 +156,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
 
       // Handle prescriptions
-      if (prescriptions.length > 0 && notifyPharmacy) {
+      if (willCreatePrescriptions) {
         // Phase 3B: Record prescription creation with telemetry
         const prescriptionResult = await recordOperation(
           {
@@ -132,7 +180,10 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                 duration: rx.duration,
                 instructions: rx.instructions,
               })),
-              notes,
+              notes: [notes, overrideSummary(orderSafety.findings, safetyReceipt?.overridesApplied ?? [])]
+                .filter(Boolean)
+                .join('\n'),
+              safety: buildPrescriptionSafetyColumns(orderSafety.findings, safetyReceipt),
             });
           }
         );
@@ -303,6 +354,12 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                     <Button size="sm" variant="ghost" className="h-5 px-1 shrink-0" onClick={() => setPrescriptions(prev => prev.filter((_, idx) => idx !== i))}>×</Button>
                   </div>
                 ))}
+                {prescriptions.length > 0 && <OrderSafetyPanel safety={orderSafety} />}
+                {prescriptions.length > 0 && !notifyPharmacy && (
+                  <p className="text-xs text-muted-foreground">
+                    Prescriptions are saved only when &quot;Send to Pharmacy&quot; is ticked.
+                  </p>
+                )}
                 <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
                     id="notify-pharmacy"

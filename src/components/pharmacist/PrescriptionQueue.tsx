@@ -378,8 +378,8 @@ export function PrescriptionQueue() {
           if (!open) setSelectedForApproval(null);
         }}
         prescription={selectedForApproval}
-        onApprove={async ({ prescriptionId, notes }) => {
-          await approveMutation.mutateAsync({ prescriptionId, notes });
+        onApprove={async ({ prescriptionId, notes, safety }) => {
+          await approveMutation.mutateAsync({ prescriptionId, notes, safety });
           setApprovalModalOpen(false);
           setSelectedForApproval(null);
         }}

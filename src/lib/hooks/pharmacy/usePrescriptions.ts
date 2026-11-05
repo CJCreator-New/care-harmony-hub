@@ -180,6 +180,7 @@ export function useCreatePrescription() {
       consultationId,
       items,
       notes,
+      safety,
     }: {
       patientId: string;
       consultationId?: string;
@@ -192,6 +193,12 @@ export function useCreatePrescription() {
         instructions?: string;
       }>;
       notes?: string;
+      /** Order-safety findings and overrides (order-safety module, buildPrescriptionSafetyColumns). */
+      safety?: {
+        allergy_alerts: unknown[];
+        drug_interactions: unknown[];
+        verification_required: boolean;
+      };
     }) => {
       return recordOperation(
         {
@@ -215,6 +222,13 @@ export function useCreatePrescription() {
               prescribed_by: profile.id,
               notes,
               status: 'pending',
+              ...(safety
+                ? {
+                    allergy_alerts: safety.allergy_alerts as any,
+                    drug_interactions: safety.drug_interactions as any,
+                    verification_required: safety.verification_required,
+                  }
+                : {}),
             })
             .select()
             .single();
@@ -388,7 +402,16 @@ export function useApprovePrescription() {
   const { logActivity } = useAudit();
 
   return useMutation({
-    mutationFn: async ({ prescriptionId, notes }: { prescriptionId: string; notes?: string }) => {
+    mutationFn: async ({
+      prescriptionId,
+      notes,
+      safety,
+    }: {
+      prescriptionId: string;
+      notes?: string;
+      /** Pharmacist safety verification (order-safety module); appended, never replacing the prescriber's record. */
+      safety?: { allergy_alerts: unknown[]; drug_interactions: unknown[]; verification_required: boolean };
+    }) => {
       if (!hasPermission(primaryRole, 'prescriptions:write')) {
         throw new Error('You do not have permission to approve prescriptions');
       }
@@ -408,12 +431,34 @@ export function useApprovePrescription() {
         console.warn('[useApprovePrescription] Workflow advance failed:', err);
       }
 
+      // Append the pharmacist's verification to the existing safety record and
+      // notes (audit CLIN-02: these were previously never persisted).
+      const { data: current, error: readError } = await supabase
+        .from('prescriptions')
+        .select('notes, allergy_alerts, drug_interactions')
+        .eq('id', prescriptionId)
+        .single();
+      if (readError) throw readError;
+      const asArray = (v: unknown) => (Array.isArray(v) ? v : []);
+      const verifiedAt = new Date().toISOString();
+
       // Update prescription status to 'verified'
       const { error } = await supabase
         .from('prescriptions')
         .update({
           status: 'verified',
-          updated_at: new Date().toISOString(),
+          verified_by: profile.id,
+          verified_at: verifiedAt,
+          updated_at: verifiedAt,
+          ...(notes
+            ? { notes: [current?.notes, notes].filter(Boolean).join('\n') }
+            : {}),
+          ...(safety
+            ? {
+                allergy_alerts: [...asArray(current?.allergy_alerts), ...safety.allergy_alerts] as any,
+                drug_interactions: [...asArray(current?.drug_interactions), ...safety.drug_interactions] as any,
+              }
+            : {}),
         })
         .eq('id', prescriptionId);
 
