@@ -172,6 +172,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-08: Restore critical-lab escalation (with an interim manual safeguard)
 
+- **Status (2026-11-05): interim safeguard live on branch; server fix written, not applied.** The persistent acknowledgment-required banner, telephone SOP (`docs/operations/CRITICAL_RESULT_ESCALATION_SOP.md`) and A11Y-06 fixes are on `ccr-2602d823-jeymkf`. The `critical-lab-check` rewrite, the lab call site and an idempotent migration are written; the migration is staged in `supabase/pending-migrations/` until S0-01. Remaining: apply the migration, set secrets, schedule pg_cron, fill the on-call rota, connect a BAA pager provider, and run the staging drill. Tracked in `.scratch/repository-audit/issues/03-critical-lab-escalation.md`.
 - **Priority:** P0. Covers 3 issue(s), of which 1 are P0 and 2 are P1.
 - **Related issues:** EDGE-03, CLIN-10, A11Y-06
 - **Dependencies:** S0-01
