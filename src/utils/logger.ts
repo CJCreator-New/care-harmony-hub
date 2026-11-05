@@ -42,6 +42,8 @@ export const REDACTED_VALUE = '[redacted]';
 
 const MAX_DEPTH = 6;
 const MAX_STRING_LENGTH = 2000;
+/** Upper bound on the in-memory buffer read by `getLogs`; oldest entries are dropped first. */
+const MAX_BUFFERED_ENTRIES = 500;
 
 /** Split a key into lower-case words: `patientName`, `patient_name`, `patient-name` -> [patient, name]. */
 function keyWords(key: string): string[] {
@@ -185,6 +187,7 @@ class Logger {
   private userId?: string;
   private userRole?: string;
   private context: Record<string, string>;
+  private buffer: StructuredLog[] = [];
 
   constructor(context: string, metadata?: LoggerMetadata) {
     this.correlationId = newId();
@@ -196,6 +199,20 @@ class Logger {
     this.userId = userId;
     this.userRole = role;
     this.hospitalId = hospitalId;
+  }
+
+  /** Clear the in-memory buffer of emitted entries. */
+  clearLogs() {
+    this.buffer = [];
+  }
+
+  /**
+   * Return buffered entries (already redacted when they were emitted), optionally filtered by level.
+   * The buffer is a compatibility aid for tests and diagnostics; it is not a sink.
+   */
+  getLogs(level?: LogLevel): StructuredLog[] {
+    const entries = level ? this.buffer.filter((e) => e.level === level) : this.buffer;
+    return entries.slice();
   }
 
   /** Create a new correlation ID for tracing */
@@ -299,6 +316,11 @@ class Logger {
   private emitEntry(entry: StructuredLog) {
     // Defence in depth: the entry is redacted once more before it leaves this module.
     const safe = redactForLog(entry) as StructuredLog;
+
+    this.buffer.push(safe);
+    if (this.buffer.length > MAX_BUFFERED_ENTRIES) {
+      this.buffer.splice(0, this.buffer.length - MAX_BUFFERED_ENTRIES);
+    }
 
     if (import.meta.env.DEV && typeof console !== 'undefined') {
       const method =

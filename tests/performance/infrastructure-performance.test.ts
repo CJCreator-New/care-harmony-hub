@@ -75,7 +75,7 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
     it('INFRA-K8S-004: Service exposed with LoadBalancer or Ingress', () => {
       // External access to backend properly configured
       
-      const k8sPath = path.join(process.cwd(), 'docker', 'kubernetes');
+      const k8sPath = path.join(process.cwd(), 'archive', 'docker', 'kubernetes');
       const serviceExists = fs.existsSync(path.join(k8sPath, 'service.yaml')) ||
                            fs.existsSync(path.join(k8sPath, 'ingress.yaml'));
       
@@ -310,7 +310,7 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
     it('INFRA-MON-001: Prometheus scrape endpoints configured for all services', () => {
       // Metrics collection from backend, database, cache, etc.
       
-      const promConfig = path.join(process.cwd(), 'monitoring', 'prometheus.yml');
+      const promConfig = path.join(process.cwd(), 'archive', 'monitoring', 'prometheus.yml');
       expect(fs.existsSync(promConfig)).toBe(true);
       
       const promContent = fs.readFileSync(promConfig, 'utf-8');
@@ -322,7 +322,7 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
     it('INFRA-MON-002: Alert rules defined for SLO violations', () => {
       // CPU >80%, P95 latency >1000ms, error rate >1%, database connections near pool limit
       
-      const alertsPath = path.join(process.cwd(), 'monitoring', 'alert_rules.yml');
+      const alertsPath = path.join(process.cwd(), 'archive', 'monitoring', 'alert_rules.yml');
       expect(fs.existsSync(alertsPath)).toBe(true);
       
       const alertsContent = fs.readFileSync(alertsPath, 'utf-8');
@@ -344,7 +344,7 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
     it('INFRA-MON-004: Application Performance Monitoring (APM) enabled', () => {
       // OpenTelemetry or equivalent
       
-      const otelConfig = path.join(process.cwd(), 'monitoring', 'otel-collector-config.yaml');
+      const otelConfig = path.join(process.cwd(), 'archive', 'monitoring', 'otel-collector-config.yaml');
       expect(fs.existsSync(otelConfig)).toBe(true);
     });
 
