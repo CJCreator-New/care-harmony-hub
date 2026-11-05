@@ -11,6 +11,7 @@ import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
 import { SkipNavigation } from '@/components/accessibility/SkipNavigation';
 import { ConnectionStatusBanner } from '@/components/admin/ConnectionStatusBanner';
 import { CriticalLabAlertBanner } from '@/components/labs/CriticalLabAlertBanner';
+import { CriticalResultSafeguardBanner } from '@/components/safety/CriticalResultSafeguardBanner';
 import { useCriticalLabAlerts } from '@/hooks/useCriticalLabAlerts';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -442,6 +443,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </header>
+
+        {/* S0-08 interim safeguard: unacknowledged critical results, independent of the escalation tables */}
+        <div className="px-4 lg:px-6 pt-2 empty:hidden">
+          <CriticalResultSafeguardBanner />
+        </div>
 
         {/* CLIN-002: Critical Lab Alert Banner for clinical roles */}
         {!criticalLabsLoading && criticalLabAlerts.length > 0 && (

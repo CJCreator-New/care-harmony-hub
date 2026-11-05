@@ -94,7 +94,7 @@ export function CriticalLabAlertBanner({
   };
 
   return (
-    <Card className={`border-2 ${getSeverityColor()}`}>
+    <Card role="alert" aria-label={`Critical lab alert: ${alert.test_name}`} className={`border-2 ${getSeverityColor()}`}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1">
@@ -115,6 +115,8 @@ export function CriticalLabAlertBanner({
             variant="ghost"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? 'Hide escalation details' : 'Show escalation details'}
           >
             <ChevronDown className={`w-5 h-5 transition ${isExpanded ? 'rotate-180' : ''}`} />
           </Button>

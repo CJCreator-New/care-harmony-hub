@@ -161,11 +161,13 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
                 </Badge>
               </div>
 
-              {vitalEval.news2.totalScore >= 5 && (
-                <div className="p-2 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-800 dark:text-red-300 flex items-start gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-red-600 shrink-0" />
+              {(vitalEval.news2.totalScore >= 5 || vitalEval.news2.hasRedFlag) && (
+                <div
+                  role={vitalEval.news2.riskLevel === 'high' ? 'alert' : 'status'}
+                  className="p-2 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-800 dark:text-red-300 flex items-start gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-red-600 shrink-0" aria-hidden="true" />
                   <div>
-                    <span className="font-semibold">Response: </span>
+                    <span className="font-semibold">NEWS2 {vitalEval.news2.totalScore} response: </span>
                     {vitalEval.news2.clinicalResponse}
                   </div>
                 </div>

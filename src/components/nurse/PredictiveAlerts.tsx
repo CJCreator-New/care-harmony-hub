@@ -150,12 +150,13 @@ export function PredictiveAlerts({ vitals, patientId }: Props) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
+                role={alert.type === 'critical' ? 'alert' : 'status'}
                 className={`p-3 rounded-lg border-l-4 shadow-sm flex gap-3 bg-white ${
                   alert.type === 'critical' ? 'border-l-destructive' : 'border-l-warning'
                 }`}
               >
                 <div className="mt-1">
-                  <AlertTriangle className={`h-5 w-5 ${alert.type === 'critical' ? 'text-destructive' : 'text-warning'}`} />
+                  <AlertTriangle aria-hidden="true" className={`h-5 w-5 ${alert.type === 'critical' ? 'text-destructive' : 'text-warning'}`} />
                 </div>
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center justify-between">
