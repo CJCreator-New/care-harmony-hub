@@ -9,6 +9,47 @@ import { HPITemplateSelector } from "../HPITemplateSelector";
 import { HPIData } from "@/types/soap";
 import { useLatestVitals } from "@/hooks/useVitalSigns";
 import { format } from "date-fns";
+import { inferTemperatureUnit } from "@/modules/vital-signs";
+import {
+  HEIGHT_UNITS,
+  TEMPERATURE_UNITS,
+  WEIGHT_UNITS,
+  buildNurseVitalsPatch,
+  heightNeedsUnit,
+  isTemperatureUnit,
+  weightNeedsUnit,
+} from "./consultationVitals";
+
+function UnitToggle<T extends string>({
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  name: string;
+  value: unknown;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div role="group" aria-label={`${name} unit`} className="inline-flex rounded-md border">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          aria-label={`${name} in ${o.label}`}
+          onClick={() => onChange(o.value)}
+          className={`px-1.5 text-xs leading-5 first:rounded-l-md last:rounded-r-md ${
+            value === o.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface ChiefComplaintStepProps {
   data: Record<string, any>;
@@ -28,26 +69,10 @@ export function ChiefComplaintStep({
   const vitals = data.vitals || {};
   const { data: latestVitals, isLoading: vitalsLoading } = useLatestVitals(patient?.id || "");
 
-  // Only fill fields the doctor has NOT already entered — prevents silent overwrite
+  // Only fill fields the doctor has NOT already entered — prevents silent overwrite.
+  // Weight/height are copied without a unit (CLIN-09): the doctor must state it.
   const handleUseNurseVitals = () => {
-    if (!latestVitals) return;
-    const patch: Record<string, string> = {};
-    if (!vitals.temperature && latestVitals.temperature)
-      patch.temperature = latestVitals.temperature.toString();
-    if (!vitals.heart_rate && latestVitals.heart_rate)
-      patch.heart_rate = latestVitals.heart_rate.toString();
-    if (!vitals.blood_pressure && latestVitals.blood_pressure_systolic && latestVitals.blood_pressure_diastolic)
-      patch.blood_pressure = `${latestVitals.blood_pressure_systolic}/${latestVitals.blood_pressure_diastolic}`;
-    if (!vitals.respiratory_rate && latestVitals.respiratory_rate)
-      patch.respiratory_rate = latestVitals.respiratory_rate.toString();
-    if (!vitals.oxygen_saturation && latestVitals.oxygen_saturation)
-      patch.oxygen_saturation = latestVitals.oxygen_saturation.toString();
-    if (!vitals.weight && latestVitals.weight)
-      patch.weight = latestVitals.weight.toString();
-    if (!vitals.height && latestVitals.height)
-      patch.height = latestVitals.height.toString();
-    if (!vitals.pain_level && latestVitals.pain_level)
-      patch.pain_level = latestVitals.pain_level.toString();
+    const patch = buildNurseVitalsPatch(vitals, latestVitals);
     if (Object.keys(patch).length > 0) {
       onUpdate("vitals", { ...vitals, ...patch });
     }
@@ -56,6 +81,12 @@ export function ChiefComplaintStep({
   const handleVitalsChange = (key: string, value: string) => {
     onUpdate("vitals", { ...vitals, [key]: value });
   };
+
+  const statedTemperatureUnit = isTemperatureUnit(vitals.temperature_unit) ? vitals.temperature_unit : undefined;
+  const inferredTemperatureUnit =
+    !statedTemperatureUnit && vitals.temperature
+      ? inferTemperatureUnit(parseFloat(vitals.temperature))
+      : undefined;
 
   return (
     <div className="space-y-6">
@@ -103,17 +134,31 @@ export function ChiefComplaintStep({
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Thermometer className="h-4 w-4" />
-                Temperature (°F)
-              </Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="consult-temperature" className="flex items-center gap-2">
+                  <Thermometer className="h-4 w-4" />
+                  Temperature
+                </Label>
+                <UnitToggle
+                  name="Temperature"
+                  value={statedTemperatureUnit ?? inferredTemperatureUnit}
+                  options={TEMPERATURE_UNITS}
+                  onChange={(unit) => handleVitalsChange("temperature_unit", unit)}
+                />
+              </div>
               <Input
+                id="consult-temperature"
                 type="number"
                 step="0.1"
-                placeholder="98.6"
+                placeholder={statedTemperatureUnit === "fahrenheit" ? "98.6" : "37.0"}
                 value={vitals.temperature || ""}
                 onChange={(e) => handleVitalsChange("temperature", e.target.value)}
               />
+              {inferredTemperatureUnit && (
+                <p className="text-xs text-muted-foreground">
+                  Unit not stated; read as {inferredTemperatureUnit === "celsius" ? "°C" : "°F"} from the value.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
@@ -162,22 +207,53 @@ export function ChiefComplaintStep({
               />
             </div>
             <div className="space-y-2">
-              <Label>Weight (lbs)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="consult-weight">Weight</Label>
+                <UnitToggle
+                  name="Weight"
+                  value={vitals.weight_unit}
+                  options={WEIGHT_UNITS}
+                  onChange={(unit) => handleVitalsChange("weight_unit", unit)}
+                />
+              </div>
               <Input
+                id="consult-weight"
                 type="number"
-                placeholder="150"
+                step="0.1"
+                placeholder={vitals.weight_unit === "lb" ? "150" : "70"}
                 value={vitals.weight || ""}
                 onChange={(e) => handleVitalsChange("weight", e.target.value)}
+                aria-invalid={weightNeedsUnit(vitals)}
               />
+              {weightNeedsUnit(vitals) && (
+                <p role="alert" className="text-xs text-amber-700">
+                  Select kg or lb. Weight without a unit is not used for dose checks.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Height (in)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="consult-height">Height</Label>
+                <UnitToggle
+                  name="Height"
+                  value={vitals.height_unit}
+                  options={HEIGHT_UNITS}
+                  onChange={(unit) => handleVitalsChange("height_unit", unit)}
+                />
+              </div>
               <Input
+                id="consult-height"
                 type="number"
-                placeholder="68"
+                placeholder={vitals.height_unit === "in" ? "68" : "170"}
                 value={vitals.height || ""}
                 onChange={(e) => handleVitalsChange("height", e.target.value)}
+                aria-invalid={heightNeedsUnit(vitals)}
               />
+              {heightNeedsUnit(vitals) && (
+                <p role="alert" className="text-xs text-amber-700">
+                  Select cm or in.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Pain Level (0-10)</Label>

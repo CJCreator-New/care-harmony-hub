@@ -30,6 +30,7 @@ export {
   parseBloodPressure,
   inferTemperatureUnit,
   hasNews2Parameters,
+  verifiedWeightKg,
 } from './core/adapters';
 
 // Domain Types

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, parseBloodPressure } from '../index';
+import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, parseBloodPressure, verifiedWeightKg } from '../index';
 
 describe('fromVitalsRecord (CLIN-08)', () => {
   it('scores a shocked patient recorded in consultation snake_case as HIGH', () => {
@@ -45,5 +45,26 @@ describe('fromVitalsRecord (CLIN-08)', () => {
     expect(parseBloodPressure('120 / 80')).toEqual({ systolic: 120, diastolic: 80 });
     expect(hasNews2Parameters(fromVitalsRecord({ pain_level: '3' }))).toBe(false);
     expect(hasNews2Parameters(fromVitalsRecord(null))).toBe(false);
+  });
+});
+
+describe('verifiedWeightKg (CLIN-09)', () => {
+  it('returns kg only when the unit is stated', () => {
+    expect(verifiedWeightKg({ weight: '20', weight_unit: 'kg' })).toBe(20);
+    expect(verifiedWeightKg({ weight_kg: 12.5 })).toBe(12.5);
+    expect(verifiedWeightKg({ weight: '44', weight_unit: 'lb' })).toBeCloseTo(19.96, 2);
+  });
+
+  it('never guesses a unit-less weight (legacy lbs-labelled or copied nurse value)', () => {
+    expect(verifiedWeightKg({ weight: '20' })).toBeUndefined();
+    expect(verifiedWeightKg({ weight: '20', weight_unit: null })).toBeUndefined();
+    expect(verifiedWeightKg({ weight: '20', weight_unit: 'stone' })).toBeUndefined();
+    expect(verifiedWeightKg(null)).toBeUndefined();
+  });
+
+  it('rejects implausible or unreadable weights', () => {
+    expect(verifiedWeightKg({ weight: '0', weight_unit: 'kg' })).toBeUndefined();
+    expect(verifiedWeightKg({ weight: '700', weight_unit: 'kg' })).toBeUndefined();
+    expect(verifiedWeightKg({ weight: 'abc', weight_unit: 'kg' })).toBeUndefined();
   });
 });

@@ -36,7 +36,7 @@ import {
   PenTool,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, type VitalSignsEvaluationResult } from '@/modules/vital-signs';
+import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, verifiedWeightKg, type VitalSignsEvaluationResult } from '@/modules/vital-signs';
 import {
   buildPrescriptionSafetyColumns,
   overrideSummary,
@@ -144,9 +144,17 @@ export default function ConsultationWorkflowPage() {
   // ── Order safety (S0-07) ──────────────────────────────────────────────────
   // One fail-closed evaluation of the prescriptions drives what the prescriber
   // sees in the Treatment Plan step AND the step-4 / completion gates.
+  // Weight for pediatric weight-based dose checks: only when the consultation
+  // vitals state the unit (weight_unit kg/lb). A unit-less weight is never
+  // guessed (CLIN-09); the engine then requires a documented override.
+  const dosingWeightKg = useMemo(
+    () => verifiedWeightKg(formData.vitals || consultation?.vitals),
+    [formData.vitals, consultation?.vitals]
+  );
   const safetyContext = usePatientClinicalContext({
     patientId: consultation?.patient_id,
     enabled: !!consultation?.patient_id && !isReadOnly,
+    weightKg: dosingWeightKg,
   });
   const rxOrderItems = useMemo(
     () => toOrderItems(formData.prescriptions, 'rx'),

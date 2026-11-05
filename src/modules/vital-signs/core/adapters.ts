@@ -55,8 +55,9 @@ const CONSCIOUSNESS: Record<string, ConsciousnessLevel> = {
 /**
  * Maps a stored vitals record (snake_case or camelCase) to `VitalSignsInput`.
  * Weight and height are included only when their unit is stated in the record
- * (`weight_kg`, `height_cm`, or `weight_unit`/`height_unit`); the consultation
- * form labels them lbs/in while nursing forms use kg/cm, so guessing is unsafe.
+ * (`weight_kg`, `height_cm`, or `weight_unit`/`height_unit`). Consultation
+ * records before CLIN-09 were labelled lbs/in, and nursing forms record kg/cm
+ * or lb/in into the unit-less `vital_signs` columns, so guessing is unsafe.
  */
 export function fromVitalsRecord(record: Raw): VitalSignsInput {
   if (!record || typeof record !== 'object') return {};
@@ -105,6 +106,26 @@ export function fromVitalsRecord(record: Raw): VitalSignsInput {
     weightKg,
     heightCm,
   };
+}
+
+/** Plausible body weight range in kg; matches the evaluator's plausibility check. */
+const MIN_PLAUSIBLE_WEIGHT_KG = 1;
+const MAX_PLAUSIBLE_WEIGHT_KG = 500;
+
+/**
+ * Weight in kg that is safe to use for weight-based dose checks, or `undefined`.
+ *
+ * Returns a value only when the record states the unit (`weight_kg`, or
+ * `weight` with `weight_unit` kg/lb) and the result is physiologically
+ * plausible. A bare `weight` is never used: consultation records before CLIN-09
+ * were labelled lbs, and the `vital_signs` table has no unit column while its
+ * writers disagree (kg or lb), so any guess could be off by 2.2x.
+ */
+export function verifiedWeightKg(record: Raw): number | undefined {
+  const { weightKg } = fromVitalsRecord(record);
+  if (typeof weightKg !== 'number' || !Number.isFinite(weightKg)) return undefined;
+  if (weightKg < MIN_PLAUSIBLE_WEIGHT_KG || weightKg > MAX_PLAUSIBLE_WEIGHT_KG) return undefined;
+  return Math.round(weightKg * 100) / 100;
 }
 
 /** True when the record has at least one NEWS2 parameter (otherwise a score of 0 would mislead). */
