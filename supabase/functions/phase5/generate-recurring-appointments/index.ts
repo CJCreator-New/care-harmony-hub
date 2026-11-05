@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { addDays, addWeeks, addMonths, isBefore, isAfter, format } from "https://esm.sh/date-fns@2.29.3";
 import { getCorsHeaders } from "../../_shared/cors.ts";
-import { authorize } from "../../_shared/authorize.ts";
+import { getAuthorizedActor } from "../../_shared/authorize.ts";
 
 interface RecurrencePattern {
   id: string;
@@ -97,25 +97,27 @@ serve(async (req) => {
     });
   }
 
-  const authError = await authorize(req, ['admin', 'receptionist']);
-  if (authError) return authError;
+  // S0-06 / EDGE-22: a tenant admin/receptionist generates only their own
+  // hospital's occurrences (this used to process every hospital).
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'receptionist']);
+  if (authError || !actor) return authError!;
 
   try {
     console.log("Starting recurring appointment generation...");
 
-    // Fetch all active recurrence patterns
+    // Fetch the caller hospital's recurrence patterns
     const { data: patterns, error: patternError } = await supabase
       .from("appointment_recurrence_patterns")
       .select(
         `
         *,
         appointments:appointment_id (
-          id, hospital_id, patient_id, doctor_id, 
+          id, hospital_id, patient_id, doctor_id,
           appointment_date, specialty, status
         )
       `
       )
-      .not("id", "is", null);
+      .eq("hospital_id", actor.hospitalId);
 
     if (patternError) throw patternError;
 
@@ -128,7 +130,8 @@ serve(async (req) => {
           ? pattern.appointments[0]
           : pattern.appointments;
 
-        if (!sourceAppt) continue;
+        // The source appointment must be in the same hospital as the pattern.
+        if (!sourceAppt || sourceAppt.hospital_id !== actor.hospitalId) continue;
 
         const startDate = new Date(pattern.start_date);
         const endDate = pattern.end_date ? new Date(pattern.end_date) : null;
@@ -173,7 +176,7 @@ serve(async (req) => {
                     status: "scheduled",
                     specialty: sourceAppt.specialty,
                     recurrence_pattern_id: pattern.id,
-                    created_by: "system_scheduler",
+                    created_by: actor.userId,
                     notes: `Auto-generated from recurrence pattern ${pattern.id}`,
                   },
                 ]);
@@ -202,7 +205,8 @@ serve(async (req) => {
     // Log audit event
     await supabase.from("audit_logs").insert([
       {
-        user_id: "system_scheduler",
+        user_id: actor.userId,
+        hospital_id: actor.hospitalId,
         action: "RECURRING_APPOINTMENTS_GENERATED",
         table_name: "appointments",
         description: `Generated ${generatedCount} recurring appointments with ${errors.length} errors`,
@@ -229,7 +233,8 @@ serve(async (req) => {
     // Log error to audit trail
     await supabase.from("audit_logs").insert([
       {
-        user_id: "system_scheduler",
+        user_id: actor.userId,
+        hospital_id: actor.hospitalId,
         action: "RECURRING_APPOINTMENTS_ERROR",
         table_name: "appointments",
         description: `Error during recurring appointment generation: ${(error as Error).message}`,

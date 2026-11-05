@@ -10,6 +10,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 import { getCorsHeaders } from '../../_shared/cors.ts';
 import { getAuthorizedActor } from '../../_shared/authorize.ts';
+import { checkBodyHospital, findInHospital, isActorIdentity } from '../../_shared/tenantScope.ts';
 
 interface IssuePrescriptionRequest {
   appointment_id: string;
@@ -323,33 +324,57 @@ serve(async (req) => {
     );
   }
 
-  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor']);
-  if (authError) {
-    const errorBody = await authError.text();
+  // S0-06 / EDGE-22: only a doctor prescribes, as themself, in their own hospital.
+  const { actor, response: authError } = await getAuthorizedActor(req, ['doctor']);
+  if (authError || !actor) {
+    const errorBody = authError ? await authError.text() : JSON.stringify({ error: 'Unauthorized' });
     return new Response(errorBody, {
-      status: authError.status,
+      status: authError?.status ?? 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+  const forbidden = (error: string) =>
+    new Response(JSON.stringify({ error }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   try {
     // Parse request body
-    const request: IssuePrescriptionRequest = await req.json();
+    const body = await req.json();
 
-    // Enforce tenant boundary
-    if (actor?.hospitalId && request.hospital_id && actor.hospitalId !== request.hospital_id) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden - cross-hospital access denied' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Enforce tenant boundary (fail closed: the actor always has a hospital).
+    const hospitalCheck = checkBodyHospital(actor.hospitalId, body?.hospital_id);
+    if (!hospitalCheck.ok) return forbidden('Forbidden - cross-hospital access denied');
+
+    // The prescriber is the caller; a body doctor_id naming someone else is refused.
+    if (body?.doctor_id !== undefined && !isActorIdentity(actor, body.doctor_id)) {
+      return forbidden('Forbidden - doctor_id must be the authenticated prescriber');
     }
+
+    const request: IssuePrescriptionRequest = {
+      ...body,
+      hospital_id: actor.hospitalId,
+      doctor_id: actor.profileId ?? actor.userId,
+    };
 
     // Validate required fields
     if (!request.appointment_id || !request.telehealth_session_id || !request.patient_id ||
-        !request.doctor_id || !request.hospital_id || !request.medications || request.medications.length === 0) {
+        !request.medications || request.medications.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Patient and appointment must be in the caller's hospital and match each other.
+    const appointment = await findInHospital(supabase as never, 'appointments', request.appointment_id, actor.hospitalId, {
+      select: 'id, patient_id, hospital_id',
+    });
+    if (!appointment || appointment.patient_id !== request.patient_id) {
+      return new Response(
+        JSON.stringify({ error: 'Appointment not found for this patient' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

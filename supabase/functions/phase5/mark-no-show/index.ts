@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../../_shared/cors.ts";
-import { authorize } from "../../_shared/authorize.ts";
+import { getAuthorizedActor } from "../../_shared/authorize.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -30,8 +30,10 @@ serve(async (req) => {
     });
   }
 
-  const authError = await authorize(req, ['admin', 'receptionist', 'doctor', 'nurse']);
-  if (authError) return authError;
+  // S0-06 / EDGE-22: the appointment is resolved inside the caller's hospital and
+  // the audit row names the caller.
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'receptionist', 'doctor', 'nurse']);
+  if (authError || !actor) return authError!;
 
   try {
     const { appointmentId, reasonCode = "no_show" }: NoShowRequest = await req.json();
@@ -48,7 +50,8 @@ serve(async (req) => {
       .from("appointments")
       .select("id, hospital_id, patient_id, doctor_id, appointment_date, status")
       .eq("id", appointmentId)
-      .single();
+      .eq("hospital_id", actor.hospitalId)
+      .maybeSingle();
 
     if (aptError || !appointment) {
       return new Response(
@@ -76,7 +79,7 @@ serve(async (req) => {
           appointment_id: appointmentId,
           reason_code: reasonCode,
           follow_up_status: "pending",
-          flagged_by: "system_scheduler",
+          flagged_by: actor.userId,
           patient_notified_at: null,
         },
       ]);
@@ -90,7 +93,8 @@ serve(async (req) => {
         status: "no_show",
         no_show_flagged_at: new Date().toISOString(),
       })
-      .eq("id", appointmentId);
+      .eq("id", appointmentId)
+      .eq("hospital_id", actor.hospitalId);
 
     if (updateError) throw updateError;
 
@@ -103,31 +107,14 @@ serve(async (req) => {
 
     const noShowCount = noShowHistory?.length || 0;
 
-    // 6. Send notifications
-    const { data: patient } = await supabase
-      .from("patients")
-      .select("user_id, primary_phone, email")
-      .eq("id", appointment.patient_id)
-      .single();
+    // 6. Notifications: none are sent yet (no provider is wired); the response
+    //    says so instead of claiming delivery (EDGE-22).
 
-    const { data: doctor } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", appointment.doctor_id)
-      .single();
-
-    const { data: receptionist } = await supabase
-      .from("staff")
-      .select("profiles(email)")
-      .eq("hospital_id", appointment.hospital_id)
-      .eq("role", "receptionist")
-      .limit(1)
-      .single();
-
-    // 7. Log audit event
+    // 7. Log audit event, attributed to the caller
     await supabase.from("audit_logs").insert([
       {
-        user_id: "system_scheduler",
+        user_id: actor.userId,
+        hospital_id: actor.hospitalId,
         action: "APPOINTMENT_NO_SHOW_FLAGGED",
         table_name: "appointments",
         record_id: appointmentId,
@@ -141,7 +128,8 @@ serve(async (req) => {
       await supabase
         .from("appointment_no_shows")
         .update({ follow_up_status: "requires_follow_up" })
-        .eq("appointment_id", appointmentId);
+        .eq("appointment_id", appointmentId)
+        .eq("hospital_id", actor.hospitalId);
     }
 
     console.log(
@@ -155,8 +143,8 @@ serve(async (req) => {
         appointmentId,
         noShowCount,
         requiresFollowUp: noShowCount >= 2,
-        notifiedDoctor: !!doctor,
-        notifiedPatient: !!patient,
+        notifiedDoctor: false,
+        notifiedPatient: false,
       }),
       { headers: { "Content-Type": "application/json" } }
     );
@@ -165,7 +153,8 @@ serve(async (req) => {
 
     await supabase.from("audit_logs").insert([
       {
-        user_id: "system_scheduler",
+        user_id: actor.userId,
+        hospital_id: actor.hospitalId,
         action: "APPOINTMENT_NO_SHOW_ERROR",
         table_name: "appointments",
         description: `Error marking no-show: ${(error as Error).message}`,
