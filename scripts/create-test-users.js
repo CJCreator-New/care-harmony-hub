@@ -13,7 +13,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { exitIfProductionTarget } from './lib/supabase-target-guard.mjs';
@@ -21,9 +21,9 @@ import { exitIfProductionTarget } from './lib/supabase-target-guard.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables
+// Load environment variables (.env is optional when SUPABASE_URL is exported)
 const envPath = join(__dirname, '..', '.env');
-const envContent = readFileSync(envPath, 'utf-8');
+const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
 const envVars = {};
 envContent.split('\n').forEach(line => {
   const [key, value] = line.split('=');
