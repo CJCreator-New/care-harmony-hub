@@ -51,7 +51,6 @@ import { EnhancedPaymentModal } from '@/components/billing/EnhancedPaymentModal'
 import { ItemizedReceiptModal } from '@/components/billing/ItemizedReceiptModal';
 import { CreatePaymentPlanModal } from '@/components/billing/CreatePaymentPlanModal';
 import { RecordInstallmentModal } from '@/components/billing/RecordInstallmentModal';
-import { InvoiceAdjustmentModal } from '@/components/billing/InvoiceAdjustmentModal';
 import { evaluatePaymentPlanDelinquency } from '@/lib/clinical/billingCycleRules';
 import { formatCurrency } from '@/lib/currency';
 import { usePermissions } from '@/lib/hooks';
@@ -101,13 +100,6 @@ export default function BillingPage() {
     open: false,
     invoice: null,
     latestPayments: undefined,
-  });
-  const [adjustmentModal, setAdjustmentModal] = useState<{
-    open: boolean;
-    invoice: Invoice | null;
-  }>({
-    open: false,
-    invoice: null,
   });
   const [installmentModal, setInstallmentModal] = useState<{ open: boolean; plan: any | null }>({
     open: false,
@@ -375,15 +367,20 @@ export default function BillingPage() {
                                     </Button>
                                   )}
 
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                  onClick={() => setAdjustmentModal({ open: true, invoice })}
-                                  title="Apply Waiver, Concession, or Refund"
-                                >
-                                  <SlidersHorizontal className="h-3 w-3" />
-                                </Button>
+                                {/* FUNC-33: adjustments/refunds were authorised by a hardcoded
+                                    client-side PIN and written straight to invoices. Disabled
+                                    until the server-side adjust_invoice RPC lands (S1-01). */}
+                                <span title="Waivers, concessions and refunds are temporarily disabled pending server-side approval. Contact an administrator.">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs text-muted-foreground"
+                                    disabled
+                                    aria-label="Adjustments temporarily disabled"
+                                  >
+                                    <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+                                  </Button>
+                                </span>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -694,12 +691,6 @@ export default function BillingPage() {
         onOpenChange={(open) => setReceiptModal({ open, invoice: receiptModal.invoice })}
         invoice={receiptModal.invoice}
         latestPayments={receiptModal.latestPayments}
-      />
-
-      <InvoiceAdjustmentModal
-        open={adjustmentModal.open}
-        onOpenChange={(open) => setAdjustmentModal({ open, invoice: adjustmentModal.invoice })}
-        invoice={adjustmentModal.invoice}
       />
 
       <RecordInstallmentModal
