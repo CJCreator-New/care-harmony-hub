@@ -43,7 +43,6 @@
     "src/**/__tests__/**",
     "src/test/**",
     "src/__tests__/**",
-    "src/integrations/supabase/client.ts",
-    "src/utils/clinicalNoteService.ts"
+    "src/integrations/supabase/client.ts"
   ]
 }
