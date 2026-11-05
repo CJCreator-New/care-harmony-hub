@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
   if (authError) return authError;
 
   const validation = await validateRequest(req, requestSchema);
-  if (!validation.success) return validationErrorResponse(validation.error);
+  if (!validation.success) return validationErrorResponse(validation.error, req);
 
   try {
     const supabase = createClient(

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateAIClinicalRequest } from "../_shared/validation.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 // Module-level `corsHeaders` is used by the action helpers below (they referenced
@@ -30,9 +30,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Apply rate limiting
-  const rateLimitResponse = await rateLimit(req, { limit: 10, window: 60 });
-  if (rateLimitResponse) return rateLimitResponse;
+  // Rate limiting is applied by withRateLimit at serve() below. The inline call that was
+  // here passed the request as the bucket key and returned a plain object, not a Response (EDGE-11).
 
   // Check authorization
   const { actor, response: authResponse } = await getAuthorizedActor(req, ["doctor", "admin"]);

@@ -38,3 +38,92 @@ verify_jwt = true
 
 [functions.prescription-approval]
 verify_jwt = true
+
+# S2-07 / EDGE-26: the functions below were missing from this file and relied on the CLI
+# default. Every one is set to verify_jwt = true, which is that same default, so the
+# gateway behaviour does not change. None of them is a cron or webhook entry point, so
+# none needs verify_jwt = false. Per-function auth notes are in
+# .scratch/repository-audit/issues/12-edge-platform.md.
+[functions.accept-invitation-signup]
+verify_jwt = true
+
+[functions.ai-clinical-support]
+verify_jwt = true
+
+[functions.analytics-engine]
+verify_jwt = true
+
+[functions.audit-logger]
+verify_jwt = true
+
+[functions.backup-manager]
+verify_jwt = true
+
+[functions.billing-reconciliation]
+verify_jwt = true
+
+[functions.census-reports]
+verify_jwt = true
+
+[functions.clinical-pharmacy]
+verify_jwt = true
+
+[functions.create-hospital-admin]
+verify_jwt = true
+
+[functions.discharge-workflow]
+verify_jwt = true
+
+[functions.fhir-integration]
+verify_jwt = true
+
+[functions.health-check]
+verify_jwt = true
+
+[functions.insurance-integration]
+verify_jwt = true
+
+[functions.lab-automation]
+verify_jwt = true
+
+[functions.lab-result-notify]
+verify_jwt = true
+
+[functions.monitoring]
+verify_jwt = true
+
+[functions.optimize-queue]
+verify_jwt = true
+
+[functions.pediatric-dosing]
+verify_jwt = true
+
+[functions.predict-deterioration]
+verify_jwt = true
+
+[functions.register-patient]
+verify_jwt = true
+
+[functions.store-2fa-secret]
+verify_jwt = true
+
+[functions.symptom-analysis]
+verify_jwt = true
+
+[functions.system-monitoring]
+verify_jwt = true
+
+[functions.telemedicine]
+verify_jwt = true
+
+[functions.test-execution]
+verify_jwt = true
+
+[functions.validate-invitation-token]
+verify_jwt = true
+
+[functions.verify-2fa]
+verify_jwt = true
+
+[functions.workflow-automation]
+verify_jwt = true

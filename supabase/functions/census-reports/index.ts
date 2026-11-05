@@ -28,7 +28,7 @@ const handler = async (req: Request): Promise<Response> => {
   if (authError) return authError;
 
   const validation = await validateRequest(req, requestSchema);
-  if (!validation.success) return validationErrorResponse(validation.error);
+  if (!validation.success) return validationErrorResponse(validation.error, req);
 
   // Pin hospital_id strictly to the authenticated actor's hospital context
   if (validation.data.hospital_id && validation.data.hospital_id !== actor!.hospitalId) {

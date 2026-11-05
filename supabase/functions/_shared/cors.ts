@@ -1,17 +1,23 @@
-const DEFAULT_ALLOWED_ORIGINS = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-];
+import { resolveOriginPolicy } from "./corsPolicy.ts";
 
-const ALLOWED_ORIGINS = (Deno.env.get("CORS_ALLOWED_ORIGINS") || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+// Origin policy (EDGE-26):
+//   - CORS_ALLOWED_ORIGINS (comma separated) is the allow-list when set.
+//   - When it is unset, the localhost allow-list applies only outside production.
+//   - In production with CORS_ALLOWED_ORIGINS unset, every browser origin is rejected.
+//     Requests without an Origin header (server-to-server) are not affected.
+// ENVIRONMENT=production is the existing signal, also used by errorHandler.ts.
+const ORIGIN_POLICY = resolveOriginPolicy({
+  configuredOrigins: Deno.env.get("CORS_ALLOWED_ORIGINS"),
+  environment: Deno.env.get("ENVIRONMENT"),
+});
 
-const EFFECTIVE_ALLOWED_ORIGINS =
-  ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ALLOWED_ORIGINS;
+if (ORIGIN_POLICY.source === "none") {
+  console.error(
+    "[cors] CORS_ALLOWED_ORIGINS is not set in production; browser origins are rejected",
+  );
+}
+
+const EFFECTIVE_ALLOWED_ORIGINS = ORIGIN_POLICY.allowedOrigins;
 
 const CORS_BASE_HEADERS = {
   // x-correlation-id / x-trace-context: request tracing headers (see _shared/tracing.ts,
@@ -33,6 +39,7 @@ export const isOriginAllowed = (reqOrOrigin?: Request | string | null): boolean 
   return EFFECTIVE_ALLOWED_ORIGINS.includes(origin);
 };
 
+/** Per-request CORS headers. Always use this in handlers and helpers. */
 export const getCorsHeaders = (req?: Request): Record<string, string> => {
   const requestOrigin = req?.headers.get("origin");
   const allowedOrigin =
@@ -47,5 +54,9 @@ export const getCorsHeaders = (req?: Request): Record<string, string> => {
   };
 };
 
-// Backward compatibility for functions that still spread `corsHeaders`.
-export const corsHeaders = getCorsHeaders();
+/**
+ * @deprecated Evaluated once at module load and not tied to a request, so it always
+ * carries the first allowed origin. Use getCorsHeaders(req). Kept frozen so that no
+ * importer can mutate it for every other caller.
+ */
+export const corsHeaders: Readonly<Record<string, string>> = Object.freeze(getCorsHeaders());
