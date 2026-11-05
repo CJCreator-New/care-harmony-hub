@@ -191,7 +191,11 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
                 {vitals?.temperature && (
                   <div>
                     Temp:{' '}
-                    <span className="font-medium text-foreground">{vitals.temperature}°C</span>
+                    <span className="font-medium text-foreground">
+                      {vitalEval?.normalized.temperatureCelsius != null
+                        ? `${vitalEval.normalized.temperatureCelsius}°C`
+                        : vitals.temperature}
+                    </span>
                   </div>
                 )}
                 {(vitals?.blood_pressure || (vitals?.systolic_bp && vitals?.diastolic_bp)) && (

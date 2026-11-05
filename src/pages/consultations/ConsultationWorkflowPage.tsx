@@ -1082,9 +1082,12 @@ ${formData.soap_plan || 'Not documented'}`;
 
           {/* Clinical Deterioration Alert Banner (A2) */}
           {vitalEval && (vitalEval.news2.totalScore >= 5 || vitalEval.news2.hasRedFlag) && (
-            <div className="rounded-lg border border-red-300 bg-red-50/90 p-4 dark:border-red-900/60 dark:bg-red-950/40">
+            <div
+              role={vitalEval.news2.riskLevel === 'high' ? 'alert' : 'status'}
+              className="rounded-lg border border-red-300 bg-red-50/90 p-4 dark:border-red-900/60 dark:bg-red-950/40"
+            >
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />
+                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-pulse motion-reduce:animate-none" aria-hidden="true" />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-red-900 dark:text-red-200">
