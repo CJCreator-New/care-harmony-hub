@@ -156,10 +156,14 @@ export function usePrescriptionStats() {
           .gte('created_at', `${today}T00:00:00`),
       ]);
 
+      // A failed count must surface as a query error, never as a valid zero.
+      const failed = [pendingRes, dispensedRes, todayRes].find((r) => r.error);
+      if (failed?.error) throw failed.error;
+
       return {
-        pending: pendingRes.count || 0,
-        dispensed: dispensedRes.count || 0,
-        today: todayRes.count || 0,
+        pending: pendingRes.count ?? 0,
+        dispensed: dispensedRes.count ?? 0,
+        today: todayRes.count ?? 0,
       };
     },
     enabled: !!hospital?.id,

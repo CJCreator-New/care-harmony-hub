@@ -38,6 +38,7 @@ const statusColors: Record<string, string> = {
 };
 
 import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { DataError, StatValue } from '@/components/common/DataStatus';
 
 const skeletonKeys = ['skeleton-1', 'skeleton-2', 'skeleton-3'];
 
@@ -45,9 +46,33 @@ export function PatientDashboard() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
   const { profile: patientProfile, loading: profileLoading } = usePatientProfile();
-  const { appointments = [], loading: appointmentsLoading } = usePatientAppointments();
-  const { prescriptions = [], loading: prescriptionsLoading } = usePatientPrescriptions();
-  const { labResults = [], loading: labLoading } = usePatientLabResults();
+  const {
+    appointments = [],
+    loading: appointmentsLoading,
+    error: appointmentsError,
+    refetch: refetchAppointments,
+  } = usePatientAppointments();
+  const {
+    prescriptions = [],
+    loading: prescriptionsLoading,
+    error: prescriptionsError,
+    refetch: refetchPrescriptions,
+  } = usePatientPrescriptions();
+  const {
+    labResults = [],
+    loading: labLoading,
+    error: labError,
+    refetch: refetchLabResults,
+  } = usePatientLabResults();
+
+  // Records are "up to date" only when every source loaded successfully.
+  const recordsError = Boolean(appointmentsError || prescriptionsError || labError);
+  const recordsLoading = appointmentsLoading || prescriptionsLoading || labLoading;
+  const retryRecords = () => {
+    void refetchAppointments();
+    void refetchPrescriptions();
+    void refetchLabResults();
+  };
 
   const today = startOfDay(new Date());
   const upcomingAppointments = appointments.filter(
@@ -105,14 +130,15 @@ export function PatientDashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {appointmentsLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
-                <p className="text-xs text-muted-foreground">scheduled visits</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">
+              <StatValue
+                isLoading={appointmentsLoading}
+                isError={Boolean(appointmentsError)}
+                value={upcomingAppointments.length}
+                resource="upcoming appointments"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">scheduled visits</p>
           </CardContent>
         </Card>
         </Link>
@@ -124,14 +150,15 @@ export function PatientDashboard() {
             <Pill className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {prescriptionsLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{activePrescriptions.length}</div>
-                <p className="text-xs text-muted-foreground">to be dispensed</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">
+              <StatValue
+                isLoading={prescriptionsLoading}
+                isError={Boolean(prescriptionsError)}
+                value={activePrescriptions.length}
+                resource="active prescriptions"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">to be dispensed</p>
           </CardContent>
         </Card>
         </Link>
@@ -143,18 +170,30 @@ export function PatientDashboard() {
             <TestTube2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {labLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{recentLabResults.length}</div>
-                <p className="text-xs text-muted-foreground">recent results</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">
+              <StatValue
+                isLoading={labLoading}
+                isError={Boolean(labError)}
+                value={recentLabResults.length}
+                resource="lab results"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">recent results</p>
           </CardContent>
         </Card>
         </Link>
 
+        {recordsError ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Health Status</CardTitle>
+            <Heart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <DataError resource="your health records" onRetry={retryRecords} />
+          </CardContent>
+        </Card>
+        ) : (
         <Link to="/patient/portal" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -162,14 +201,21 @@ export function PatientDashboard() {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              <span className="text-sm font-medium text-success">Active</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">All records up to date</p>
+            {recordsLoading ? (
+              <Skeleton role="status" aria-label="Loading health status" className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-sm font-medium text-success">Active</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">All records up to date</p>
+              </>
+            )}
           </CardContent>
         </Card>
         </Link>
+        )}
       </div>
 
       {/* Main Content Grid */}
@@ -188,7 +234,9 @@ export function PatientDashboard() {
             </Button>
           </CardHeader>
           <CardContent>
-            {appointmentsLoading ? (
+            {appointmentsError ? (
+              <DataError resource="upcoming appointments" onRetry={() => void refetchAppointments()} />
+            ) : appointmentsLoading ? (
               <div className="space-y-3">
                 {skeletonKeys.map((key) => (
                   <Skeleton key={key} className="h-16 w-full" />
@@ -253,7 +301,9 @@ export function PatientDashboard() {
             </Button>
           </CardHeader>
           <CardContent>
-            {prescriptionsLoading ? (
+            {prescriptionsError ? (
+              <DataError resource="active prescriptions" onRetry={() => void refetchPrescriptions()} />
+            ) : prescriptionsLoading ? (
               <div className="space-y-3">
                 {skeletonKeys.map((key) => (
                   <Skeleton key={key} className="h-16 w-full" />
@@ -313,7 +363,9 @@ export function PatientDashboard() {
             </Button>
           </CardHeader>
           <CardContent>
-            {labLoading ? (
+            {labError ? (
+              <DataError resource="lab results" onRetry={() => void refetchLabResults()} />
+            ) : labLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {skeletonKeys.map((key) => (
                   <Skeleton key={key} className="h-24 w-full" />

@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { usePrescriptionStats } from '@/lib/hooks/pharmacy';
+import { DataError, StatValue } from '@/components/common/DataStatus';
+import { cn } from '@/lib/utils';
 import { useInventoryAutomation } from '@/hooks/useInventoryAutomation';
 import { useConsultations } from '@/hooks/useConsultations';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +24,6 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { InventoryDashboard } from './InventoryDashboard';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -30,22 +31,39 @@ import { useEffect } from 'react';
 export default function PharmacistDashboard() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('queue');
-  const { data: stats, isLoading: statsLoading } = usePrescriptionStats();
-  const { stockAlerts } = useInventoryAutomation();
-  const { data: consultations } = useConsultations();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = usePrescriptionStats();
+  const {
+    stockAlerts,
+    isLoading: inventoryLoading,
+    alertsError: inventoryError,
+    refetchAlerts,
+  } = useInventoryAutomation();
+  const {
+    data: consultations,
+    isLoading: consultationsLoading,
+    isError: consultationsError,
+    refetch: refetchConsultations,
+  } = useConsultations();
 
+  // Counts are derived only from successful data. On error they are not used.
   const activeConsultationCount = (consultations ?? []).filter(
     (c) => c.status !== 'completed' && c.status !== 'cancelled'
   ).length;
   const inventoryAlertCount = (stockAlerts ?? []).filter(
     (a) => a.status !== 'resolved'
   ).length;
-  const analyticsSummary = useMemo(() => ({
-    pending: stats?.pending || 0,
-    dispensed: stats?.dispensed || 0,
-    activeConsultations: activeConsultationCount,
-    inventoryAlerts: inventoryAlertCount,
-  }), [stats?.pending, stats?.dispensed, activeConsultationCount, inventoryAlertCount]);
+
+  const anyError = statsError || consultationsError || inventoryError;
+  const retryAll = () => {
+    void refetchStats();
+    void refetchConsultations();
+    void refetchAlerts();
+  };
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -54,36 +72,53 @@ export default function PharmacistDashboard() {
     }
   }, [searchParams]);
 
+  // Each metric carries its own loading/error flags. A failed or pending query
+  // renders "—" or a skeleton, and the all-clear wording is only used on success.
   const metrics = [
     {
       title: 'Pending Prescriptions',
-      value: stats?.pending || 0,
+      resource: 'pending prescriptions',
+      value: stats?.pending ?? 0,
+      loading: statsLoading,
+      error: statsError,
       icon: <Clock className="h-4 w-4 text-yellow-500" />,
       description: 'Waiting for dispensing',
-      trend: stats?.pending ? `${stats.pending} awaiting` : 'Up to date',
+      okTrend: stats?.pending ? `${stats.pending} awaiting` : 'Up to date',
     },
     {
       title: 'Dispensed Today',
-      value: stats?.dispensed || 0,
+      resource: 'dispensed prescriptions',
+      value: stats?.dispensed ?? 0,
+      loading: statsLoading,
+      error: statsError,
       icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
       description: 'Completed orders',
-      trend: stats?.dispensed ? `${stats.dispensed} total today` : 'None today',
+      okTrend: stats?.dispensed ? `${stats.dispensed} total today` : 'None today',
     },
     {
       title: 'Active Consultations',
+      resource: 'active consultations',
       value: activeConsultationCount,
+      loading: consultationsLoading,
+      error: consultationsError,
       icon: <Zap className="h-4 w-4 text-blue-500" />,
       description: 'Requiring pharmacy review',
-      trend: activeConsultationCount > 0 ? `${activeConsultationCount} open` : 'None pending',
+      okTrend: activeConsultationCount > 0 ? `${activeConsultationCount} open` : 'None pending',
     },
     {
       title: 'Inventory Alerts',
+      resource: 'inventory alerts',
       value: inventoryAlertCount,
+      loading: inventoryLoading,
+      error: inventoryError,
       icon: <AlertCircle className="h-4 w-4 text-red-500" />,
       description: 'Items below threshold',
-      trend: inventoryAlertCount > 0 ? `${inventoryAlertCount} unresolved` : 'Stock levels OK',
+      okTrend: inventoryAlertCount > 0 ? `${inventoryAlertCount} unresolved` : 'Stock levels OK',
     },
-  ];
+  ].map((m) => ({
+    ...m,
+    trend: m.error ? 'Could not load' : m.loading ? '' : m.okTrend,
+  }));
 
   return (
     <div className="space-y-6 container mx-auto px-4 py-6">
@@ -95,6 +130,9 @@ export default function PharmacistDashboard() {
       </div>
 
       {/* Metrics Section */}
+      {anyError && (
+        <DataError resource="pharmacy figures" onRetry={retryAll} />
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((metric) => (
           <Card key={metric.title}>
@@ -103,7 +141,14 @@ export default function PharmacistDashboard() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
                   {/* div instead of p: Skeleton renders a <div> which cannot be a descendant of <p> */}
-                  <div className="text-2xl font-bold">{statsLoading ? <Skeleton className="h-8 w-16" /> : metric.value}</div>
+                  <div className="text-2xl font-bold">
+                    <StatValue
+                      isLoading={metric.loading}
+                      isError={metric.error}
+                      value={metric.value}
+                      resource={metric.resource}
+                    />
+                  </div>
                 </div>
                 <div className="p-2 bg-muted rounded-full">
                   {metric.icon}
@@ -111,7 +156,9 @@ export default function PharmacistDashboard() {
               </div>
               <div className="mt-4 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{metric.description}</span>
-                <span className="text-green-600 font-medium">{metric.trend}</span>
+                <span className={cn('font-medium', metric.error ? 'text-destructive' : 'text-green-600')}>
+                  {metric.trend}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -181,22 +228,19 @@ export default function PharmacistDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg border bg-muted/20">
-                  <p className="text-sm text-muted-foreground">Pending Prescriptions</p>
-                  <p className="text-2xl font-bold">{analyticsSummary.pending}</p>
-                </div>
-                <div className="p-4 rounded-lg border bg-muted/20">
-                  <p className="text-sm text-muted-foreground">Dispensed Today</p>
-                  <p className="text-2xl font-bold">{analyticsSummary.dispensed}</p>
-                </div>
-                <div className="p-4 rounded-lg border bg-muted/20">
-                  <p className="text-sm text-muted-foreground">Active Consultations</p>
-                  <p className="text-2xl font-bold">{analyticsSummary.activeConsultations}</p>
-                </div>
-                <div className="p-4 rounded-lg border bg-muted/20">
-                  <p className="text-sm text-muted-foreground">Inventory Alerts</p>
-                  <p className="text-2xl font-bold">{analyticsSummary.inventoryAlerts}</p>
-                </div>
+                {metrics.map((metric) => (
+                  <div key={metric.title} className="p-4 rounded-lg border bg-muted/20">
+                    <p className="text-sm text-muted-foreground">{metric.title}</p>
+                    <div className="text-2xl font-bold">
+                      <StatValue
+                        isLoading={metric.loading}
+                        isError={metric.error}
+                        value={metric.value}
+                        resource={metric.resource}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
