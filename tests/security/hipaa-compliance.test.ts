@@ -71,13 +71,13 @@ describe('HIPAA Compliance Tests', () => {
     });
 
     it('enforces 30-minute inactivity timeout configuration', () => {
-      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/hooks/useSessionTimeout.ts'), 'utf8');
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/hooks/auth/useSessionTimeout.ts'), 'utf8');
       expect(source).toMatch(/SESSION_TIMEOUT\s*=\s*30\s*\*\s*60\s*\*\s*1000/);
       expect(source).toMatch(/WARNING_TIME\s*=\s*5\s*\*\s*60\s*\s*\*\s*1000|WARNING_TIME\s*=\s*5\s*\*\s*60\s*\*\s*1000/);
     });
 
     it('keeps audit logging mapped to activity_logs with required metadata', () => {
-      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/utils/auditLogger.ts'), 'utf8');
+      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/hooks/useActivityLog.ts'), 'utf8');
       expect(source).toContain(".from('activity_logs')");
       expect(source).toContain('hospital_id');
       expect(source).toContain('user_id');
