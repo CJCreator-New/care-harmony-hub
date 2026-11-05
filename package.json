@@ -15,6 +15,8 @@
     "migrate:rls": "node scripts/apply-rls-migration.mjs",
     "validate:rls": "tsx scripts/validate-rls.ts",
     "test:security": "vitest run tests/security",
+    "security:client-secrets": "node scripts/security/check-client-secrets.mjs",
+    "security:bundle-secrets": "node scripts/security/check-client-secrets.mjs --bundle",
     "test:accessibility": "vitest run tests/accessibility",
     "test:integration": "vitest run --config vitest.integration.config.ts tests/integration",
     "test:api": "vitest run tests/api",

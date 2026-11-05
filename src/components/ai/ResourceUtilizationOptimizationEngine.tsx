@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useAI } from '@/hooks/useAI';
+import { useAI, AIUnavailableError } from '@/hooks/useAI';
 import { usePermissions } from '@/lib/hooks';
 import { usePatients } from '@/lib/hooks/patients';
 import { useAppointments } from '@/lib/hooks/appointments';
@@ -155,7 +155,7 @@ export const ResourceUtilizationOptimizationEngine: React.FC = () => {
       setOptimization(mockOptimization);
       toast.success('Resource optimization analysis completed');
     } catch (error) {
-      toast.error('Failed to generate optimization analysis');
+      toast.error(error instanceof AIUnavailableError ? error.message : 'Failed to generate optimization analysis');
       console.error('Optimization error:', error);
     }
   };

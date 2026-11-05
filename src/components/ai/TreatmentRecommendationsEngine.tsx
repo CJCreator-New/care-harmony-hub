@@ -20,7 +20,7 @@ import {
   Shield,
   TrendingUp
 } from 'lucide-react';
-import { useAI } from '@/hooks/useAI';
+import { useAI, AIUnavailableError } from '@/hooks/useAI';
 import { useToast } from '@/hooks/use-toast';
 
 interface TreatmentRecommendation {
@@ -110,7 +110,7 @@ export default function TreatmentRecommendationsEngine() {
       console.error('Treatment recommendation error:', error);
       toast({
         title: "Generation Failed",
-        description: "Failed to generate treatment recommendations. Please try again.",
+        description: error instanceof AIUnavailableError ? error.message : "Failed to generate treatment recommendations. Please try again.",
         variant: "destructive"
       });
     }

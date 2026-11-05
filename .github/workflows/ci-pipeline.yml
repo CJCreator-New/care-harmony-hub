@@ -95,6 +95,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check source for client-side secrets (SECF-03)
+        run: npm run security:client-secrets
+
       - name: Run npm audit (dependencies)
         run: npm audit --json > npm-audit.json || true
 
@@ -185,6 +188,27 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+
+      # SECF-03: build once with canary values in every former provider-secret
+      # VITE_* var and fail if any canary reaches the public bundle. Values are
+      # fixed dummies, not secrets; the stub Supabase values only satisfy the build.
+      - name: Canary build - provider secrets must not reach the bundle (SECF-03)
+        run: |
+          npx vite build --outDir dist-canary
+          npm run security:bundle-secrets -- dist-canary
+          rm -rf dist-canary
+        env:
+          VITE_SUPABASE_URL: https://stub.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: stub
+          VITE_OPENAI_API_KEY: AUDITCANARY_OPENAI
+          VITE_ANTHROPIC_API_KEY: AUDITCANARY_ANTHROPIC
+          VITE_TWILIO_ACCOUNT_SID: AUDITCANARY_TWILIO_SID
+          VITE_TWILIO_AUTH_TOKEN: AUDITCANARY_TWILIO_TOKEN
+          VITE_LOVABLE_API_KEY: AUDITCANARY_LOVABLE
+          VITE_API_KEY: AUDITCANARY_API_KEY
+          VITE_E2E_MOCK_PASSWORD: AUDITCANARY_E2E_MOCK_PASSWORD
+          OPENAI_API_KEY: AUDITCANARY_RAW_OPENAI
+          ANTHROPIC_API_KEY: AUDITCANARY_RAW_ANTHROPIC
 
       - name: Verify bundle size
         run: |

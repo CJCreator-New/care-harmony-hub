@@ -66,8 +66,6 @@ VITE_SUPABASE_PROJECT_ID="your-project-id"
 VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-publishable-key"
 VITE_SUPABASE_URL="https://your-project-id.supabase.co"
 VITE_E2E_MOCK_AUTH="false"
-VITE_CLINICAL_SERVICE_URL="http://localhost:8000/api/clinical"
-VITE_API_KEY=""
 ```
 
 ### Production Deployment (Vercel / Cloudflare / Netlify)
@@ -77,6 +75,8 @@ In your production hosting environment, configure environment variables:
 - `VITE_E2E_MOCK_AUTH`: `"false"`
 
 **NEVER set `SUPABASE_SERVICE_ROLE_KEY` in client frontend hosting environments.**
+
+**NEVER set provider credentials (OpenAI, Anthropic, Twilio, Lovable, `VITE_API_KEY`, ...) as `VITE_*` variables.** Vite inlines every `VITE_*` value into the public bundle (SECF-03). Provider keys belong in Supabase edge-function secrets. `npm run security:client-secrets` enforces this on `src/`.
 
 ---
 

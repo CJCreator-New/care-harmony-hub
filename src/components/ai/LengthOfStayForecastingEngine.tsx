@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useAI } from '@/hooks/useAI';
+import { useAI, AIUnavailableError } from '@/hooks/useAI';
 import { usePermissions } from '@/lib/hooks';
 import { usePatients, type Patient } from '@/lib/hooks/patients';
 import { AlertTriangle, TrendingUp, Clock, Users, Activity, BarChart3, Target, Zap } from 'lucide-react';
@@ -112,7 +112,7 @@ export const LengthOfStayForecastingEngine: React.FC = () => {
         toast.error('Failed to generate prediction');
       }
     } catch (error) {
-      toast.error('Failed to generate prediction');
+      toast.error(error instanceof AIUnavailableError ? error.message : 'Failed to generate prediction');
       console.error('Prediction error:', error);
     }
   };

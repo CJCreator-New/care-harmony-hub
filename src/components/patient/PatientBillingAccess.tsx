@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import { usePatientBillingQuery } from '@/hooks/usePatientPortalQueries';
 import { paymentService } from '@/utils/paymentService';
-import { smsService } from '@/utils/smsService';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -116,22 +115,9 @@ export function PatientBillingAccess({ patientId }: PatientBillingAccessProps) {
       // For now, we'll simulate a successful payment
       toast.success(`Payment of $${amount.toFixed(2)} processed successfully!`);
 
-      // Send SMS notification if enabled
-      if (billingPreferences.smsNotifications && smsService.isConfigured()) {
-        try {
-          // Note: In a real implementation, you'd get the patient's phone number from their profile
-          // For now, we'll skip SMS as we don't have the phone number in this context
-          console.log('SMS notification would be sent for payment confirmation');
-          /*
-          await smsService.sendSMS(
-            patientPhoneNumber, // Would need to fetch from patient profile
-            `Payment of $${amount.toFixed(2)} for invoice ${invoiceId} has been processed successfully.`
-          );
-          */
-        } catch (smsError) {
-          console.warn('SMS notification failed:', smsError);
-        }
-      }
+      // SMS payment confirmations are not sent from the browser: provider
+      // credentials must live in edge-function secrets (SECF-03), and no
+      // server-side SMS path exists yet.
 
       setPaymentDialogOpen(false);
       refetch(); // Refresh billing data
