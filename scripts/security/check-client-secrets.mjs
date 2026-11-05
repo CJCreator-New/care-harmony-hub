@@ -11,14 +11,17 @@
  *       Source scan (default dir: src). Fails if any env var name that looks like
  *       a secret (contains KEY, TOKEN, SECRET or PASSWORD) is referenced as a
  *       VITE_* name or via import.meta.env, unless it is in ALLOWLIST below.
+ *       Also fails on any literal provider-key shape (PROVIDER_KEY_PATTERN).
  *
  *   node scripts/security/check-client-secrets.mjs --bundle <dir> [--canary <str>]...
  *       Built-bundle scan (e.g. dist). Fails if any file contains a canary
  *       marker (default: anything matching /AUDITCANARY[A-Z0-9_]*\/), any extra
- *       --canary string, or the value (8+ chars) of any secret-looking env var
- *       set in the current process environment that is not allowlisted.
+ *       --canary string, the value (8+ chars) of any secret-looking env var
+ *       set in the current process environment that is not allowlisted, or a
+ *       literal provider-key shape (PROVIDER_KEY_PATTERN).
  *       Typical use: build with canary values in the provider env vars, then scan.
  *
+ * Findings print file and line only. A matched key value is never printed.
  * Exit codes: 0 = clean, 1 = findings, 2 = usage error.
  */
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
@@ -49,6 +52,10 @@ const ALLOWLIST = new Map([
 
 const SECRET_WORD = /(KEY|TOKEN|SECRET|PASSWORD)/;
 const DEFAULT_CANARY = /AUDITCANARY[A-Z0-9_]*/g;
+// Literal provider-key shapes: OpenAI-style sk-, sk-proj-, and Anthropic-style sk-ant-.
+// Matched in source and in built bundles. No allowlist: a real key must never ship,
+// and no placeholder in this tree uses this shape.
+const PROVIDER_KEY_PATTERN = /\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}/g;
 const SCANNED_EXT = /\.(c|m)?(j|t)sx?$|\.(json|md|mdx|html|css|svg|txt|map|webmanifest)$/i;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
 
@@ -106,13 +113,17 @@ function scanSource(dir) {
         findings.push(`${relative(process.cwd(), file)}:${lineOf(text, m.index)}  ${name}`);
       }
     }
+    for (const m of text.matchAll(PROVIDER_KEY_PATTERN)) {
+      findings.push(`${relative(process.cwd(), file)}:${lineOf(text, m.index)}  literal provider key (sk- shape); value not printed`);
+    }
   }
   const unique = [...new Set(findings)];
   if (unique.length) {
-    console.error(`FAIL: ${unique.length} secret-looking env reference(s) in ${dir}/ (SECF-03).`);
-    console.error('Provider credentials must be edge-function secrets, not VITE_* vars:');
+    console.error(`FAIL: ${unique.length} secret finding(s) in ${dir}/ (SECF-03).`);
+    console.error('Provider credentials must be edge-function secrets, not VITE_* vars, and must never be literals in source:');
     for (const f of unique) console.error(`  ${f}`);
-    console.error('If a variable is genuinely public, add it to ALLOWLIST in scripts/security/check-client-secrets.mjs with a justification.');
+    console.error('For a VITE_* name: if the variable is genuinely public, add it to ALLOWLIST in scripts/security/check-client-secrets.mjs with a justification.');
+    console.error('For a literal key: remove it, rotate it, and read it from an edge-function secret.');
     return 1;
   }
   console.log(`OK: no non-allowlisted secret env references in ${dir}/.`);
@@ -137,6 +148,9 @@ function scanBundle(dir, extraCanaries) {
     for (const m of text.matchAll(DEFAULT_CANARY)) findings.push(`${rel}: ${m[0]}`);
     for (const { label, value } of literal) {
       if (text.includes(value)) findings.push(`${rel}: ${label}`);
+    }
+    for (const m of text.matchAll(PROVIDER_KEY_PATTERN)) {
+      findings.push(`${rel}:${lineOf(text, m.index)}  literal provider key (sk- shape); value not printed`);
     }
   }
   const unique = [...new Set(findings)];

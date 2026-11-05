@@ -28,6 +28,15 @@ description = "Supabase secret API key (sb_secret_...)"
 regex = '''\bsb_secret_[A-Za-z0-9_-]{20,}'''
 keywords = ["sb_secret_"]
 
+# Literal provider API keys: OpenAI-style sk-, sk-proj-, and Anthropic-style sk-ant-.
+# Same shape as PROVIDER_KEY_PATTERN in scripts/security/check-client-secrets.mjs, which
+# checks source and built bundles. No allowlist entry covers this shape.
+[[rules]]
+id = "provider-api-key-literal"
+description = "Literal provider API key (sk-, sk-proj-, sk-ant-)"
+regex = '''\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-"]
+
 # Legacy Supabase JWT keys whose payload carries role=service_role. The three
 # alternatives are the base64url encodings of "service_role" at each byte offset.
 [[rules]]

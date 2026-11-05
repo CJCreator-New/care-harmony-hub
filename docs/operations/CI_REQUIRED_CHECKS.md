@@ -4,6 +4,8 @@ Owner: repository admin. Audit: S1-07, OPS-01, OPS-03, SECF-27, OPS-02, TEST-01,
 
 The workflows in `.github/workflows/` no longer contain `continue-on-error: true` or `|| true` in any gating step. A failing gate fails the job.
 
+**OPS-03 status:** the literal provider-key gate is in place. A literal `sk-`, `sk-proj-` or `sk-ant-` key (`\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}`) fails the source scan (`npm run security:client-secrets`), the built-bundle scan (`npm run security:bundle-secrets`, which runs `--bundle`), and gitleaks (rule `provider-api-key-literal` in `.gitleaks.toml`). Findings print file and line only. The gitleaks rule was not run in the change that added it, because the gitleaks binary and container were unavailable there. A gitleaks run in CI is still needed to confirm the rule.
+
 Branch protection is not configured by the repository. An operator must enable it in GitHub. The existing ruleset `protection` (id 17399861) has an empty `include` list, so it applies to no branch. Target `main` (`~DEFAULT_BRANCH`), then require the checks below.
 
 ## 1. Checks to require on `main`
