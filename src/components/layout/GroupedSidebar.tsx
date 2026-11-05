@@ -124,6 +124,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
                     <TooltipTrigger asChild>
                       <Link to={firstItem.href} aria-label={firstItem.label}>
                         <Button
+                          variant="ghost"
                           className={cn(
                             'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
                             isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_12px_hsl(var(--sidebar-ring)/0.15)]'
@@ -151,6 +152,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          variant="ghost"
                           className={cn(
                             'relative w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
                             groupActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
@@ -203,6 +205,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
         >
           <CollapsibleTrigger asChild>
             <Button
+              variant="ghost"
               className="w-full justify-between h-auto p-3 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none"
             >
               <div className="flex items-center gap-3">
@@ -220,12 +223,15 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
             {accessibleItems.map((item) => (
               <Link key={item.href} to={item.href}>
                 <Button
+                  variant="ghost"
                   className={cn(
-                    "w-full justify-start h-auto p-2 text-sm text-sidebar-foreground bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none",
-                    isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground border-l-2 border-l-[hsl(var(--sidebar-ring))] rounded-l-none shadow-[inset_0_0_16px_hsl(var(--sidebar-ring)/0.12)]"
+                    "w-full justify-start h-auto p-2 text-sm text-sidebar-foreground bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 border-l-[3px] border-l-transparent rounded-l-none shadow-none",
+                    // Active page: a 3px accent bar, bold label and a tinted fill. Shape and weight carry the state, not colour alone.
+                    isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-[hsl(var(--sidebar-ring))] shadow-[inset_0_0_16px_hsl(var(--sidebar-ring)/0.12)]"
                   )}
                   size="sm"
                   title={item.label}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
                 >
                   <item.icon className="h-4 w-4 mr-3" />
                   <span className="truncate">{item.label}</span>

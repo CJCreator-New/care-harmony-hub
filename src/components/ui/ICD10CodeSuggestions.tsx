@@ -81,9 +81,9 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600';
-    if (confidence >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
+    if (confidence >= 0.8) return 'text-success';
+    if (confidence >= 0.6) return 'text-warning';
+    return 'text-destructive';
   };
 
   const getConfidenceBadgeVariant = (confidence: number) => {
@@ -137,7 +137,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
     <Card className={cn('w-full', className)}>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <CheckCircle className="h-5 w-5 text-green-600" />
+          <CheckCircle className="h-5 w-5 text-success" />
           <span>ICD-10 Code Suggestions</span>
         </CardTitle>
       </CardHeader>
@@ -173,7 +173,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
         {analysis.primaryCode && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Primary Code Recommendation:</h4>
-            <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-950/20">
+            <div className="border rounded-lg p-3 bg-success/10 ">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">

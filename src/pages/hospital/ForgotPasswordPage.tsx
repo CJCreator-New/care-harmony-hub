@@ -4,9 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { describeAuthError } from '@/lib/auth/authErrors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Form,
   FormControl,
@@ -22,6 +24,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   KeyRound,
+  AlertCircle,
 } from 'lucide-react';
 
 const emailSchema = z.object({
@@ -31,8 +34,8 @@ const emailSchema = z.object({
 type EmailFormData = z.infer<typeof emailSchema>;
 
 export default function ForgotPasswordPage() {
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
 
@@ -45,6 +48,7 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: EmailFormData) => {
     setIsSubmitting(true);
+    setResetError(null);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
@@ -56,17 +60,13 @@ export default function ForgotPasswordPage() {
       setSentEmail(data.email);
       setEmailSent(true);
       
-      toast({
-        title: 'Reset link sent',
-        description: 'Check your email for a password reset link',
+      toast.success('Reset link sent', {
+        description: 'Check your email for a password reset link.',
       });
     } catch (error) {
       console.error('Reset password error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send reset link. Please try again.',
-        variant: 'destructive',
-      });
+      // Inline and persistent: it stays until the user edits the field or retries.
+      setResetError(describeAuthError(error, 'password-reset'));
     } finally {
       setIsSubmitting(false);
     }
@@ -125,6 +125,12 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              {resetError && (
+                <Alert variant="destructive" role="alert">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{resetError}</AlertDescription>
+                </Alert>
+              )}
               <div className="lg:hidden flex items-center justify-center mb-6">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <KeyRound className="h-6 w-6 text-primary" />
@@ -139,7 +145,11 @@ export default function ForgotPasswordPage() {
               </div>
 
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  onChange={() => resetError && setResetError(null)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={form.control}
                     name="email"
