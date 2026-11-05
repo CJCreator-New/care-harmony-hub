@@ -52,6 +52,7 @@
     "test:e2e:cross-browser": "playwright test --project=chromium --project=firefox --project=webkit",
     "test:e2e:ci": "playwright test --reporter=junit,html,json",
     "test:e2e:parallel": "playwright test --workers=8",
+    "test:e2e:staging:clinical": "playwright test --config=playwright.staging.config.ts",
     "test:e2e:roles:auth": "playwright test --config=playwright.roles.config.ts --project=setup-roles",
     "test:e2e:roles:rbac": "playwright test --config=playwright.roles.config.ts",
     "test:e2e:roles": "npm run test:e2e:roles:auth && npm run test:e2e:roles:rbac",
