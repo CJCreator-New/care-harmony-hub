@@ -65,23 +65,33 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
       'utf8'
     );
 
-    it('inserts alerts into lab_alert_escalations queue table', () => {
-      expect(labFnSource).toContain(".from(\"lab_alert_escalations\").insert");
+    // S0-08 (EDGE-03): the previous assertions here pinned the defects themselves
+    // (status "escalated", severity "unverified_review_required", writes to the
+    // non-existent critical_lab_alerts table). Behaviour is now covered by
+    // tests/critical-lab/*.test.ts; these checks only guard against regressions.
+    it('queues the ladder idempotently in lab_alert_escalations', () => {
+      expect(labFnSource).toContain('.from("lab_alert_escalations")');
+      expect(labFnSource).toContain('onConflict: "alert_id,escalation_level"');
     });
 
-    it('provides an acknowledge action to halt escalation', () => {
-      expect(labFnSource).toContain('rawBody.action === "acknowledge"');
-      expect(labFnSource).toContain('status: "acknowledged"');
+    it('acknowledges on lab_critical_alerts, never the non-existent critical_lab_alerts', () => {
+      expect(labFnSource).toContain('request.action === "acknowledge"');
+      expect(labFnSource).not.toContain('"critical_lab_alerts"');
+      expect(labFnSource).toContain('.is("acknowledged_at", null)');
     });
 
-    it('provides a process_escalations action to run timed-out queue items', () => {
-      expect(labFnSource).toContain('rawBody.action === "process_escalations"');
-      expect(labFnSource).toContain('status: "escalated"');
+    it('worker path requires service credentials, checked before any user JWT', () => {
+      const workerIdx = labFnSource.indexOf('request.action === "process_escalations"');
+      const userAuthIdx = labFnSource.indexOf('getAuthorizedActor(req');
+      expect(workerIdx).toBeGreaterThan(-1);
+      expect(labFnSource).toContain('isWorkerAuthorized(');
+      expect(workerIdx).toBeLessThan(userAuthIdx);
     });
 
-    it('fails closed when ranges are missing or query errors', () => {
-      expect(labFnSource).toContain('unverified_review_required');
-      expect(labFnSource).toContain('isCritical: true');
+    it('uses only status/severity values allowed by the CHECK constraints', () => {
+      expect(labFnSource).not.toContain('"escalated"');
+      expect(labFnSource).not.toContain('unverified_review_required');
+      expect(labFnSource).not.toContain('processed_at');
     });
   });
 

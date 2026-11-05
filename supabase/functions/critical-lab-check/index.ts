@@ -1,38 +1,70 @@
 // ===================================================================
-// TIER 4.4: Critical Lab Alert Escalation Edge Function
+// critical-lab-check: Critical Lab Escalation Queue (roadmap S0-08)
 // ===================================================================
-// Trigger: When lab_results inserted with critical values
-// Purpose: Create escalation chain (primary → on-call → ER)
-// File: supabase/functions/critical-lab-check/index.ts
+// Actions (POST JSON):
+//   { action: "create_alert" (default), lab_order_id, analytes: [{code, name?, value, unit?}],
+//     manual_critical?, notes? }
+//       User JWT; roles admin | lab_technician | doctor | nurse; order must be in the
+//       caller's hospital. Grades every analyte on the server (fail closed), creates ONE
+//       open alert per lab order (idempotent), queues the ladder primary(0) / on_call(5) /
+//       er(10 min) and dispatches the primary level immediately.
+//   { action: "acknowledge", alert_id? | lab_order_id?, notes?, read_back? }
+//       User JWT; roles admin | doctor | nurse | lab_technician (lab staff record the
+//       clinician's verbal read-back). Idempotent. Cancels pending escalation rows.
+//   { action: "process_escalations", limit? }
+//       SERVICE ONLY (pg_cron via pg_net). Requires header x-critical-lab-worker-secret ==
+//       CRITICAL_LAB_WORKER_SECRET, or Bearer == the service-role key. A user JWT is
+//       rejected. Processes due rows across all hospitals.
+//
+// Pure logic (grading, ladder, retry policy, worker auth) lives in
+// ../_shared/criticalLabEscalation.ts and is unit-tested in tests/critical-lab/.
+// Schema: supabase/pending-migrations/20261105000001_critical_lab_escalation_queue.sql
 // ===================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  type AcknowledgeRequest,
+  type AlertSeverity,
+  type ChannelResult,
+  type CreateAlertRequest,
+  type EscalationLevel,
+  type HospitalRangeRow,
+  NOTIFIED_AT_COLUMN,
+  PROCESSING_LEASE_MINUTES,
+  ageGroupFromDob,
+  buildLadderSchedule,
+  decideDispatchOutcome,
+  decideResult,
+  gradeAnalyte,
+  inAppMessage,
+  isWorkerAuthorized,
+  lookupCodesFor,
+  pagerMessage,
+  parseCriticalLabRequest,
+  resolveRange,
+} from "../_shared/criticalLabEscalation.ts";
 
-// Constants
-const ESCALATION_DELAYS = {
-  to_on_call_minutes: 5,
-  to_er_minutes: 10,
-};
+const CREATE_ROLES = ["admin", "lab_technician", "doctor", "nurse"];
+const ACK_ROLES = ["admin", "doctor", "nurse", "lab_technician"];
 
-// Roles permitted to record lab results / trigger critical-value escalation.
-const ALLOWED_ROLES = ["admin", "lab_technician", "doctor", "nurse"];
+// deno-lint-ignore no-explicit-any
+type Db = any;
 
-const labCheckSchema = z.object({
-  labResultId: z.string().uuid(),
-  labResult: z.object({
-    hospital_id: z.string().uuid(),
-    patient_id: z.string().uuid(),
-    test_code: z.string().min(1),
-    test_name: z.string().optional(),
-    result_value: z.union([z.string(), z.number()]),
-    unit: z.string().optional(),
-    ordering_doctor_id: z.string().uuid(),
-  }).passthrough(),
-});
+interface ActorContext {
+  userId: string;
+  hospitalId: string;
+  profileId: string;
+}
+
+interface Recipient {
+  profile_id: string;
+  user_id: string;
+  phone: string | null;
+  source: "ordering_doctor" | "assigned" | "on_call_schedule" | "er_schedule" | "fallback_admin";
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -42,435 +74,510 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
   try {
-    // ── AuthZ: verify caller + hospital scope ──
-    const { actor, response: authErr } = await getAuthorizedActor(req, ALLOWED_ROLES);
-    if (authErr) {
-      return new Response(await authErr.text(), {
-        status: authErr.status,
+    const parsed = parseCriticalLabRequest(await req.json().catch(() => null));
+    if (!parsed.ok) return json(400, { error: "Validation failed", details: parsed.error });
+    const request = parsed.value;
+
+    const db: Db = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+
+    // ── Worker: service credentials only, never a user JWT ──
+    if (request.action === "process_escalations") {
+      const authorized = isWorkerAuthorized((name) => req.headers.get(name), {
+        workerSecret: Deno.env.get("CRITICAL_LAB_WORKER_SECRET"),
+        serviceRoleKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+      });
+      if (!authorized) return json(401, { error: "Worker credentials required" });
+      const summary = await processDueEscalations(db, request.limit, new Date());
+      return json(200, { success: true, ...summary });
+    }
+
+    // ── User actions: user JWT + role + hospital scope ──
+    const roles = request.action === "acknowledge" ? ACK_ROLES : CREATE_ROLES;
+    const { actor, response: authErr } = await getAuthorizedActor(req, roles);
+    if (authErr || !actor) {
+      return new Response(await authErr!.text(), {
+        status: authErr!.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (!actor.hospitalId) return json(403, { error: "Forbidden - caller has no hospital" });
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const rawBody = await req.json().catch(() => null);
-    if (!rawBody) {
-      return json(400, { error: "Missing request body" });
-    }
-
-    // ── Action: Doctor Acknowledgment (Halts Escalation) ──
-    if (rawBody.action === "acknowledge") {
-      const alertId = rawBody.alertId;
-      if (!alertId) return json(400, { error: "Missing alertId for acknowledgment" });
-
-      const now = new Date().toISOString();
-      const { data: updated, error: ackErr } = await supabase
-        .from("lab_alert_escalations")
-        .update({ status: "acknowledged", acknowledged_at: now, acknowledged_by: actor!.userId })
-        .eq("alert_id", alertId)
-        .eq("hospital_id", actor!.hospitalId)
-        .select();
-
-      if (ackErr) {
-        return json(500, { error: "Failed to acknowledge escalation queue", details: ackErr.message });
-      }
-
-      await supabase
-        .from("critical_lab_alerts")
-        .update({ status: "acknowledged", acknowledged_by: actor!.userId, acknowledged_at: now })
-        .eq("id", alertId)
-        .eq("hospital_id", actor!.hospitalId);
-
-      return json(200, {
-        success: true,
-        message: "Alert acknowledged, escalations halted",
-        count: updated?.length || 0,
-      });
-    }
-
-    // ── Action: Process Due Escalations (Worker Runner) ──
-    if (rawBody.action === "process_escalations") {
-      const now = new Date().toISOString();
-      const { data: pendingEscalations, error: fetchErr } = await supabase
-        .from("lab_alert_escalations")
-        .select("*")
-        .eq("hospital_id", actor!.hospitalId)
-        .eq("status", "pending")
-        .lte("scheduled_for", now);
-
-      if (fetchErr) {
-        return json(500, { error: "Failed to fetch pending escalations", details: fetchErr.message });
-      }
-
-      const processed = [];
-      for (const esc of (pendingEscalations || [])) {
-        await supabase
-          .from("lab_alert_escalations")
-          .update({ status: "escalated", processed_at: now })
-          .eq("id", esc.id);
-
-        if (esc.escalation_level === "on_call") {
-          await scheduleEscalation(
-            supabase,
-            esc.alert_id,
-            esc.hospital_id,
-            null,
-            "er",
-            5 * 60 * 1000
-          );
-        }
-        processed.push({ id: esc.id, alert_id: esc.alert_id, level: esc.escalation_level });
-      }
-
-      return json(200, { success: true, processedCount: processed.length, processed });
-    }
-
-    const parsed = labCheckSchema.safeParse(rawBody);
-    if (!parsed.success) {
-      return json(400, {
-        error: "Validation failed",
-        details: parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", "),
-      });
-    }
-    const { labResultId, labResult } = parsed.data;
-
-    // Prevent cross-hospital access: the lab result must belong to the caller's hospital.
-    if (labResult.hospital_id !== actor!.hospitalId) {
-      return json(403, { error: "Forbidden - hospital scope mismatch" });
-    }
-
-    // Check if this is a critical value
-    const { severity, isCritical } = await checkCriticalValue(supabase, labResult);
-    
-    if (!isCritical) {
-      return new Response(
-        JSON.stringify({ success: true, critical: false }),
-        { status: 200, headers: corsHeaders }
-      );
-    }
-
-    // Get primary doctor
-    const { data: primaryDoctor, error: doctorError } = await supabase
+    const { data: profile, error: profileErr } = await db
       .from("profiles")
-      .select("id, full_name, email, phone_number, hospital_id")
-      .eq("id", labResult.ordering_doctor_id)
-      .single();
+      .select("id, hospital_id")
+      .eq("user_id", actor.userId)
+      .maybeSingle();
+    if (profileErr || !profile) return json(403, { error: "Forbidden - caller profile not found" });
 
-    if (doctorError || !primaryDoctor) {
-      console.error("Primary doctor lookup failed:", doctorError);
-      return new Response(
-        JSON.stringify({ error: "Primary doctor not found" }),
-        { status: 404, headers: corsHeaders }
-      );
-    }
+    const ctx: ActorContext = { userId: actor.userId, hospitalId: actor.hospitalId, profileId: profile.id };
 
-    // Find on-call doctor for escalation
-    const { data: onCallDoctor } = await findOnCallDoctor(
-      supabase,
-      primaryDoctor.hospital_id,
-      primaryDoctor.id
-    );
-
-    // Create critical alert record
-    const { data: alert, error: alertError } = await supabase
-      .from("lab_critical_alerts")
-      .insert({
-        hospital_id: primaryDoctor.hospital_id,
-        lab_result_id: labResultId,
-        patient_id: labResult.patient_id,
-        test_code: labResult.test_code,
-        test_name: labResult.test_name,
-        result_value: labResult.result_value,
-        severity: severity,
-        primary_doctor_id: primaryDoctor.id,
-        on_call_id: onCallDoctor?.id || null,
-        primary_notified_at: new Date().toISOString(),
-        metadata: {
-          escalation_chain: [
-            primaryDoctor.id,
-            onCallDoctor?.id || null,
-            "er_staff", // Generic ER escalation
-          ].filter(Boolean),
-          critical_range_log: {
-            value: labResult.result_value,
-            unit: labResult.unit,
-            severity,
-          },
-        },
-      })
-      .select()
-      .single();
-
-    if (alertError) {
-      console.error("Alert creation failed:", alertError);
-      throw alertError;
-    }
-
-    // Send primary doctor notification
-    await notifyDoctor(supabase, alert, primaryDoctor, "primary");
-
-    // Schedule on-call escalation (5 min timeout) via durable queue
-    await scheduleEscalation(
-      supabase,
-      alert.id,
-      primaryDoctor.hospital_id,
-      onCallDoctor?.id || null,
-      "on_call",
-      ESCALATION_DELAYS.to_on_call_minutes * 60 * 1000
-    );
-
-    // Schedule ER escalation (10 min timeout) via durable queue
-    await scheduleEscalation(
-      supabase,
-      alert.id,
-      primaryDoctor.hospital_id,
-      null,
-      "er",
-      ESCALATION_DELAYS.to_er_minutes * 60 * 1000
-    );
-
-    // Log activity
-    await supabase.from("activity_logs").insert({
-      hospital_id: primaryDoctor.hospital_id,
-      user_id: null, // System generated
-      action_type: "critical_lab_alert_created",
-      resource_type: "lab_result",
-      resource_id: labResultId,
-      metadata: {
-        alert_id: alert.id,
-        severity,
-        primary_doctor_id: primaryDoctor.id,
-        on_call_doctor_id: onCallDoctor?.id || null,
-      },
-    });
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        alert_id: alert.id,
-        severity,
-        primary_notified: true,
-        escalation_scheduled: true,
-      }),
-      { status: 200, headers: corsHeaders }
-    );
-
+    if (request.action === "acknowledge") return await acknowledge(db, ctx, request, json);
+    return await createAlert(db, ctx, request, json);
   } catch (error) {
-    console.error("Critical lab alert error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: corsHeaders }
-    );
+    // Never log request bodies: they carry PHI.
+    console.error("[critical-lab-check] unhandled error:", error instanceof Error ? error.message : String(error));
+    return json(500, { error: "Internal error in critical-lab-check" });
   }
 });
 
 // ===================================================================
-// Helper Functions
+// create_alert
 // ===================================================================
 
-async function checkCriticalValue(
-  supabase: any,
-  labResult: any
-): Promise<{ severity: string; isCritical: boolean; reason?: string }> {
-  try {
-    // 1. Resolve age group from patient demographics or direct parameter
-    let ageGroup = labResult.age_group || "adult";
-    if (!labResult.age_group && labResult.patient_id) {
-      const { data: patient } = await supabase
-        .from("patients")
-        .select("date_of_birth")
-        .eq("id", labResult.patient_id)
-        .maybeSingle();
+async function createAlert(
+  db: Db,
+  ctx: ActorContext,
+  req: CreateAlertRequest,
+  json: (s: number, p: Record<string, unknown>) => Response,
+): Promise<Response> {
+  const now = new Date();
 
-      if (patient?.date_of_birth) {
-        const birthDate = new Date(patient.date_of_birth);
-        const ageMs = Date.now() - birthDate.getTime();
-        const ageDays = ageMs / (24 * 60 * 60 * 1000);
-        const ageYears = ageDays / 365.25;
+  const { data: order, error: orderErr } = await db
+    .from("lab_orders")
+    .select("id, hospital_id, patient_id, ordered_by, test_name, test_code")
+    .eq("id", req.lab_order_id)
+    .maybeSingle();
+  if (orderErr) return json(500, { error: "Failed to load lab order" });
+  if (!order) return json(404, { error: "Lab order not found" });
+  if (order.hospital_id !== ctx.hospitalId) return json(403, { error: "Forbidden - hospital scope mismatch" });
 
-        if (ageDays < 28) ageGroup = "neonate";
-        else if (ageYears < 1) ageGroup = "infant";
-        else if (ageYears < 12) ageGroup = "pediatric";
-        else if (ageYears < 18) ageGroup = "adolescent";
-        else if (ageYears >= 65) ageGroup = "geriatric";
-        else ageGroup = "adult";
-      }
-    }
+  // Ordering clinician: lab_orders.ordered_by normally holds profiles.id, but some
+  // call sites store the auth user id. Accept either, same hospital only.
+  const primary = await findProfile(db, order.ordered_by, order.hospital_id);
 
-    // 2. Query critical ranges for resolved age group, falling back to pediatric then adult
-    let { data: ranges } = await supabase
+  const { data: patient } = await db
+    .from("patients")
+    .select("date_of_birth")
+    .eq("id", order.patient_id)
+    .maybeSingle();
+  const ageGroup = ageGroupFromDob(patient?.date_of_birth ?? null, now);
+
+  const codes = [...new Set(req.analytes.flatMap((a) => lookupCodesFor(a.code)))];
+  let hospitalRows: HospitalRangeRow[] = [];
+  let rangesWarning: string | null = null;
+  if (codes.length) {
+    const { data: rows, error: rangesErr } = await db
       .from("lab_critical_ranges")
-      .select("critical_low, critical_high, warning_low, warning_high")
-      .eq("hospital_id", labResult.hospital_id)
-      .eq("test_code", labResult.test_code)
+      .select("test_code, age_group, critical_low, critical_high, warning_low, warning_high, unit_of_measure")
+      .eq("hospital_id", order.hospital_id)
       .eq("is_active", true)
-      .eq("age_group", ageGroup)
+      .in("test_code", codes);
+    if (rangesErr) rangesWarning = "hospital_ranges_unavailable_used_defaults";
+    else hospitalRows = rows ?? [];
+  }
+
+  const graded = req.analytes.map((a) => gradeAnalyte(a, resolveRange(a.code, hospitalRows, ageGroup)));
+  const decision = decideResult(graded, req.manual_critical);
+
+  if (!decision.requiresAlert) {
+    return json(200, {
+      success: true,
+      critical: false,
+      analytes: graded.map(({ code, grade }) => ({ code, grade })),
+    });
+  }
+
+  const headline = decision.headline;
+  const alertRow = {
+    hospital_id: order.hospital_id,
+    lab_order_id: order.id,
+    lab_result_id: null,
+    patient_id: order.patient_id,
+    test_code: headline?.code ?? order.test_code ?? "MANUAL",
+    test_name: headline ? `${order.test_name} — ${headline.name}` : order.test_name,
+    result_value: headline?.value ?? null,
+    result_text: headline?.raw || null,
+    unit: headline?.unit ?? null,
+    severity: decision.severity as AlertSeverity,
+    primary_doctor_id: primary?.profile_id ?? null,
+    created_by: ctx.profileId,
+    metadata: {
+      analytes: graded,
+      reasons: decision.reasons,
+      manual_critical: req.manual_critical,
+      notes: req.notes ?? null,
+      age_group: ageGroup,
+      ordering_clinician_resolved: !!primary,
+      ranges_warning: rangesWarning,
+    },
+  };
+
+  let duplicate = false;
+  let alert: Record<string, unknown> | null = null;
+  const inserted = await db.from("lab_critical_alerts").insert(alertRow).select("*").single();
+  if (inserted.error) {
+    if (inserted.error.code !== "23505") {
+      console.error("[critical-lab-check] alert insert failed:", inserted.error.code, inserted.error.message);
+      return json(500, { error: "Failed to record critical alert" });
+    }
+    // Unique open alert per lab order: this submission is a retry or a re-entry.
+    duplicate = true;
+    const existing = await db
+      .from("lab_critical_alerts")
+      .select("*")
+      .eq("lab_order_id", order.id)
+      .eq("is_resolved", false)
+      .is("acknowledged_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
-
-    if (!ranges && (ageGroup === "neonate" || ageGroup === "infant")) {
-      const { data: pedRanges } = await supabase
-        .from("lab_critical_ranges")
-        .select("critical_low, critical_high, warning_low, warning_high")
-        .eq("hospital_id", labResult.hospital_id)
-        .eq("test_code", labResult.test_code)
-        .eq("is_active", true)
-        .eq("age_group", "pediatric")
-        .maybeSingle();
-      if (pedRanges) ranges = pedRanges;
-    }
-
-    if (!ranges && ageGroup !== "adult") {
-      const { data: fallbackRanges } = await supabase
-        .from("lab_critical_ranges")
-        .select("critical_low, critical_high, warning_low, warning_high")
-        .eq("hospital_id", labResult.hospital_id)
-        .eq("test_code", labResult.test_code)
-        .eq("is_active", true)
-        .eq("age_group", "adult")
-        .maybeSingle();
-      ranges = fallbackRanges;
-    }
-
-    if (!ranges) {
-      console.warn("No critical ranges configured for test:", labResult.test_code, "— failing closed for physician verification");
-      return { severity: "unverified_review_required", isCritical: true, reason: "Missing reference range - requires immediate manual review" };
-    }
-
-    const value = parseFloat(labResult.result_value);
-
-    // Check critical thresholds first (highest priority)
-    if (ranges.critical_low && value < ranges.critical_low) {
-      return { severity: "critical_low", isCritical: true };
-    }
-    if (ranges.critical_high && value > ranges.critical_high) {
-      return { severity: "critical_high", isCritical: true };
-    }
-
-    // Check warning thresholds
-    if (ranges.warning_low && value < ranges.warning_low) {
-      return { severity: "warning", isCritical: false };
-    }
-    if (ranges.warning_high && value > ranges.warning_high) {
-      return { severity: "warning", isCritical: false };
-    }
-
-    return { severity: "normal", isCritical: false };
-  } catch (e) {
-    console.error("Critical value check failed, failing closed:", e);
-    return { severity: "error_review_required", isCritical: true, reason: "Error during range evaluation - requires clinician review" };
+    if (existing.error || !existing.data) return json(500, { error: "Failed to load existing critical alert" });
+    alert = existing.data;
+  } else {
+    alert = inserted.data;
   }
+  const alertId = alert!.id as string;
+
+  // Ladder: one row per level; re-inserting is a no-op (unique alert_id, escalation_level).
+  const ladder = buildLadderSchedule(new Date(alert!.created_at as string)).map((r) => ({
+    ...r,
+    alert_id: alertId,
+    hospital_id: order.hospital_id,
+    target_user_id: r.escalation_level === "primary" ? (alert!.primary_doctor_id ?? null) : null,
+    status: "pending",
+  }));
+  const ladderRes = await db
+    .from("lab_alert_escalations")
+    .upsert(ladder, { onConflict: "alert_id,escalation_level", ignoreDuplicates: true });
+  if (ladderRes.error) {
+    console.error("[critical-lab-check] ladder insert failed:", ladderRes.error.code, ladderRes.error.message);
+    return json(500, { error: "Critical alert recorded but escalation queue could not be created", alert_id: alertId });
+  }
+
+  // Primary level at 0 minutes: dispatch now instead of waiting for the next cron tick.
+  const { data: primaryRow } = await db
+    .from("lab_alert_escalations")
+    .select("*")
+    .eq("alert_id", alertId)
+    .eq("escalation_level", "primary")
+    .maybeSingle();
+  const primaryDispatch = primaryRow && primaryRow.status === "pending"
+    ? await claimAndDispatch(db, primaryRow, now)
+    : { outcome: primaryRow?.status ?? "missing" };
+
+  return json(200, {
+    success: true,
+    critical: true,
+    alert_id: alertId,
+    severity: alert!.severity,
+    duplicate,
+    escalation_scheduled: true,
+    primary_dispatch: primaryDispatch,
+    analytes: graded.map(({ code, grade, reason }) => ({ code, grade, reason })),
+  });
 }
 
-async function findOnCallDoctor(
-  supabase: any,
-  hospitalId: string,
-  primaryDoctorId: string
-): Promise<{ data: any | null }> {
-  try {
-    // Get on-call schedule for today
-    const today = new Date().toISOString().split("T")[0];
-    
-    const { data: schedule } = await supabase
-      .from("on_call_schedule")
-      .select("doctor_id")
-      .eq("hospital_id", hospitalId)
-      .eq("date", today)
-      .eq("specialty", "general") // Or based on lab test specialty
-      .eq("is_active", true)
-      .neq("doctor_id", primaryDoctorId) // Don't escalate to self
-      .single();
+// ===================================================================
+// acknowledge (idempotent)
+// ===================================================================
 
-    if (!schedule) {
-      console.log("No on-call doctor found");
-      return { data: null };
+async function acknowledge(
+  db: Db,
+  ctx: ActorContext,
+  req: AcknowledgeRequest,
+  json: (s: number, p: Record<string, unknown>) => Response,
+): Promise<Response> {
+  let query = db.from("lab_critical_alerts").select("*");
+  query = req.alert_id
+    ? query.eq("id", req.alert_id)
+    : query.eq("lab_order_id", req.lab_order_id).eq("is_resolved", false).order("created_at", { ascending: false }).limit(1);
+  const { data: alert, error } = await query.maybeSingle();
+  if (error) return json(500, { error: "Failed to load critical alert" });
+  if (!alert) return json(404, { error: "No open critical alert", code: "no_open_alert" });
+  if (alert.hospital_id !== ctx.hospitalId) return json(403, { error: "Forbidden - hospital scope mismatch" });
+
+  const now = new Date().toISOString();
+  let alreadyAcknowledged = !!alert.acknowledged_at;
+
+  if (!alreadyAcknowledged) {
+    const update: Record<string, unknown> = {
+      acknowledged_at: now,
+      acknowledged_by: ctx.profileId,
+      acknowledgment_notes: req.notes ?? null,
+      acknowledgment_channel: req.read_back?.channel ?? "in_app",
+      acknowledgment_details: req.read_back ? { read_back: req.read_back } : {},
+    };
+    if (alert.primary_doctor_id === ctx.profileId) update.primary_acknowledged_at = now;
+    else if (alert.on_call_id === ctx.profileId) update.on_call_acknowledged_at = now;
+
+    const { data: updated, error: ackErr } = await db
+      .from("lab_critical_alerts")
+      .update(update)
+      .eq("id", alert.id)
+      .is("acknowledged_at", null)
+      .select("id");
+    if (ackErr) {
+      console.error("[critical-lab-check] acknowledge failed:", ackErr.code, ackErr.message);
+      return json(500, { error: "Failed to acknowledge critical alert" });
     }
-
-    // Get doctor details
-    const { data: doctor } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, phone_number")
-      .eq("id", schedule.doctor_id)
-      .single();
-
-    return { data: doctor };
-  } catch (e) {
-    console.error("On-call lookup failed:", e);
-    return { data: null };
+    if (!updated?.length) alreadyAcknowledged = true; // lost a race with another acknowledger
   }
+
+  // The DB trigger also cancels the queue; doing it here too keeps this path correct
+  // even before the migration's trigger is installed. Both are idempotent.
+  const { data: cancelled, error: cancelErr } = await db
+    .from("lab_alert_escalations")
+    .update({ status: "cancelled", error_message: "alert acknowledged" })
+    .eq("alert_id", alert.id)
+    .eq("status", "pending")
+    .select("id");
+  if (cancelErr) {
+    return json(500, { error: "Alert acknowledged but pending escalations could not be cancelled", alert_id: alert.id });
+  }
+
+  return json(200, {
+    success: true,
+    acknowledged: true,
+    already_acknowledged: alreadyAcknowledged,
+    alert_id: alert.id,
+    cancelled_escalations: cancelled?.length ?? 0,
+  });
 }
 
-async function notifyDoctor(
-  supabase: any,
-  alert: any,
-  doctor: any,
-  level: "primary" | "on_call" | "er"
-): Promise<void> {
-  try {
-    const urgency = alert.severity === "critical_high" || alert.severity === "critical_low"
-      ? "🚨 CRITICAL"
-      : "⚠️ WARNING";
+// ===================================================================
+// Worker
+// ===================================================================
 
-    const message = `${urgency} Lab Alert: ${alert.test_name} = ${alert.result_value}. Severity: ${alert.severity}. Requires immediate review.`;
+async function processDueEscalations(db: Db, limit: number, now: Date) {
+  const nowIso = now.toISOString();
+  const leaseIso = new Date(now.getTime() - PROCESSING_LEASE_MINUTES * 60_000).toISOString();
+  const { data: due, error } = await db
+    .from("lab_alert_escalations")
+    .select("*")
+    .or(`and(status.eq.pending,scheduled_for.lte."${nowIso}"),and(status.eq.processing,last_attempt_at.lt."${leaseIso}")`)
+    .order("scheduled_for", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`fetch due escalations failed: ${error.code ?? ""} ${error.message}`);
 
-    // Send in-app notification
-    await supabase.realtime.getSubscription(`doctor:${doctor.id}:alerts`)?.send({
-      type: "broadcast",
-      event: "critical_lab_alert",
-      payload: {
-        alert_id: alert.id,
+  const results: Array<Record<string, unknown>> = [];
+  for (const row of due ?? []) {
+    results.push({ id: row.id, level: row.escalation_level, ...(await claimAndDispatch(db, row, now)) });
+  }
+  const count = (o: string) => results.filter((r) => r.outcome === o).length;
+  return {
+    examined: results.length,
+    dispatched: count("dispatched"),
+    retrying: count("pending"),
+    failed: count("failed"),
+    cancelled: count("cancelled"),
+    skipped: count("skipped"),
+    results,
+  };
+}
+
+/**
+ * Claims one escalation row (optimistic: status + attempt_count must be unchanged),
+ * re-checks the alert, resolves recipients, dispatches and records the honest outcome.
+ */
+async function claimAndDispatch(db: Db, row: Record<string, any>, now: Date): Promise<Record<string, unknown>> {
+  const attempt = (row.attempt_count ?? 0) + 1;
+  const { data: claimed, error: claimErr } = await db
+    .from("lab_alert_escalations")
+    .update({ status: "processing", attempt_count: attempt, last_attempt_at: now.toISOString() })
+    .eq("id", row.id)
+    .eq("status", row.status)
+    .eq("attempt_count", row.attempt_count ?? 0)
+    .select("id");
+  if (claimErr) return { outcome: "skipped", reason: `claim_failed:${claimErr.code ?? ""}` };
+  if (!claimed?.length) return { outcome: "skipped", reason: "claimed_elsewhere" };
+
+  const level = row.escalation_level as EscalationLevel;
+  const { data: alert } = await db.from("lab_critical_alerts").select("*").eq("id", row.alert_id).maybeSingle();
+  if (!alert || alert.acknowledged_at || alert.is_resolved) {
+    await db
+      .from("lab_alert_escalations")
+      .update({ status: "cancelled", error_message: alert ? "alert acknowledged or resolved" : "alert missing" })
+      .eq("id", row.id);
+    return { outcome: "cancelled" };
+  }
+
+  const recipients = await resolveRecipients(db, alert, row, level, now);
+  const results: ChannelResult[] = [];
+
+  if (recipients.length) {
+    const { title, message } = inAppMessage({
+      level,
+      testName: alert.test_name,
+      severity: alert.severity,
+      value: alert.result_text ?? (alert.result_value !== null ? String(alert.result_value) : null),
+      unit: alert.unit ?? null,
+    });
+    const { error: notifErr } = await db.from("notifications").insert(
+      recipients.map((r) => ({
+        hospital_id: alert.hospital_id,
+        recipient_id: r.user_id, // notifications.recipient_id references profiles.user_id
+        type: "alert",
+        category: "clinical",
+        priority: "urgent",
+        title,
         message,
-        severity: alert.severity,
-        level,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // Send SMS for critical values
-    if (alert.severity.startsWith("critical")) {
-      console.log(`SMS notification queued for doctor ${doctor.id} (alert ${alert.id})`);
-      // Twilio SMS dispatch placeholder
+        action_url: "/laboratory",
+        metadata: {
+          kind: "critical_lab_escalation",
+          alert_id: alert.id,
+          escalation_id: row.id,
+          escalation_level: level,
+          lab_order_id: alert.lab_order_id,
+          recipient_source: r.source,
+        },
+      })),
+    );
+    for (const r of recipients) {
+      results.push({
+        channel: "in_app",
+        recipient_profile_id: r.profile_id,
+        status: notifErr ? "failed" : "delivered",
+        detail: notifErr ? `db:${notifErr.code ?? "error"}` : r.source,
+      });
     }
-
-    // Send email
-    console.log(`Email notification queued for doctor ${doctor.id} (alert ${alert.id})`);
-  } catch (e) {
-    console.error(`Failed to notify doctor at ${level}:`, e);
+    const text = pagerMessage(level, alert.id);
+    for (const r of recipients) results.push(await pagerProviderHook(r, text, alert.id));
   }
+
+  const outcome = decideDispatchOutcome(results, attempt, now);
+  const update: Record<string, unknown> = {
+    status: outcome.status,
+    error_message: outcome.error_message,
+    delivery_log: results,
+  };
+  if (outcome.status === "dispatched") update.dispatched_at = now.toISOString();
+  if (outcome.retry_at) update.scheduled_for = outcome.retry_at;
+  // Record who was reached; not pinned before success so a retry re-resolves the roster.
+  if (outcome.status === "dispatched" && !row.target_user_id && recipients[0]) {
+    update.target_user_id = recipients[0].profile_id;
+  }
+
+  const { error: saveErr } = await db.from("lab_alert_escalations").update(update).eq("id", row.id);
+  if (saveErr) console.error("[critical-lab-check] escalation status save failed:", row.id, saveErr.code);
+
+  if (outcome.status === "dispatched") {
+    const col = NOTIFIED_AT_COLUMN[level];
+    const alertUpdate: Record<string, unknown> = { [col]: now.toISOString() };
+    if (level === "on_call" && !alert.on_call_id && recipients[0]?.source === "on_call_schedule") {
+      alertUpdate.on_call_id = recipients[0].profile_id;
+    }
+    await db.from("lab_critical_alerts").update(alertUpdate).eq("id", alert.id).is(col, null);
+  }
+
+  return {
+    outcome: outcome.status,
+    delivered_count: outcome.delivered_count,
+    recipients: recipients.length,
+    error_message: outcome.error_message,
+  };
 }
 
-async function scheduleEscalation(
-  supabase: any,
-  alertId: string,
-  hospitalId: string,
-  targetUserId: string | null,
-  escalateTo: "on_call" | "er",
-  delayMs: number
-): Promise<void> {
-  const scheduledFor = new Date(Date.now() + delayMs).toISOString();
-  try {
-    const { error } = await supabase.from("lab_alert_escalations").insert({
-      alert_id: alertId,
-      hospital_id: hospitalId,
-      escalation_level: escalateTo,
-      target_user_id: targetUserId,
-      scheduled_for: scheduledFor,
-      status: "pending",
-    });
+async function findProfile(db: Db, idOrUserId: string | null, hospitalId: string): Promise<Recipient | null> {
+  if (!idOrUserId) return null;
+  for (const column of ["id", "user_id"]) {
+    const { data } = await db
+      .from("profiles")
+      .select("id, user_id, phone, hospital_id")
+      .eq(column, idOrUserId)
+      .eq("hospital_id", hospitalId)
+      .maybeSingle();
+    if (data) return { profile_id: data.id, user_id: data.user_id, phone: data.phone ?? null, source: "ordering_doctor" };
+  }
+  return null;
+}
 
-    if (error) {
-      console.error(`[Escalation Queue] Insert failed for alert ${alertId}:`, error);
-    } else {
-      console.log(`[Escalation Queue] Scheduled ${escalateTo} escalation for alert ${alertId} at ${scheduledFor}`);
-    }
-  } catch (err) {
-    console.error(`[Escalation Queue] Exception scheduling ${escalateTo}:`, err);
+async function profilesByIds(db: Db, ids: string[], hospitalId: string, source: Recipient["source"]): Promise<Recipient[]> {
+  if (!ids.length) return [];
+  const { data } = await db
+    .from("profiles")
+    .select("id, user_id, phone, hospital_id")
+    .in("id", ids)
+    .eq("hospital_id", hospitalId);
+  return (data ?? []).map((p: Record<string, any>) => ({ profile_id: p.id, user_id: p.user_id, phone: p.phone ?? null, source }));
+}
+
+async function resolveRecipients(
+  db: Db,
+  alert: Record<string, any>,
+  row: Record<string, any>,
+  level: EscalationLevel,
+  now: Date,
+): Promise<Recipient[]> {
+  const hospitalId = alert.hospital_id as string;
+  let recipients: Recipient[] = [];
+
+  if (row.target_user_id) {
+    recipients = await profilesByIds(db, [row.target_user_id], hospitalId, level === "primary" ? "ordering_doctor" : "assigned");
+  } else if (level === "primary" && alert.primary_doctor_id) {
+    recipients = await profilesByIds(db, [alert.primary_doctor_id], hospitalId, "ordering_doctor");
+  } else if (level === "on_call" || level === "er") {
+    const nowIso = now.toISOString();
+    const { data: shifts, error } = await db
+      .from("on_call_schedule")
+      .select("profile_id")
+      .eq("hospital_id", hospitalId)
+      .eq("tier", level)
+      .eq("is_active", true)
+      .lte("starts_at", nowIso)
+      .gt("ends_at", nowIso);
+    if (error) console.error("[critical-lab-check] on_call_schedule lookup failed:", error.code);
+    const ids = [...new Set((shifts ?? []).map((s: { profile_id: string }) => s.profile_id))]
+      .filter((id) => level === "er" || id !== alert.primary_doctor_id) as string[];
+    recipients = await profilesByIds(db, ids, hospitalId, level === "on_call" ? "on_call_schedule" : "er_schedule");
+  }
+
+  if (recipients.length) return recipients;
+
+  // Nobody scheduled or resolvable: fail safe to the hospital's administrators
+  // rather than letting the level pass silently. The fallback is recorded.
+  const { data: admins } = await db
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin")
+    .eq("hospital_id", hospitalId);
+  const adminUserIds = (admins ?? []).map((a: { user_id: string }) => a.user_id);
+  if (!adminUserIds.length) return [];
+  const { data: adminProfiles } = await db
+    .from("profiles")
+    .select("id, user_id, phone, hospital_id")
+    .in("user_id", adminUserIds)
+    .eq("hospital_id", hospitalId);
+  return (adminProfiles ?? []).map((p: Record<string, any>) => ({
+    profile_id: p.id,
+    user_id: p.user_id,
+    phone: p.phone ?? null,
+    source: "fallback_admin" as const,
+  }));
+}
+
+/**
+ * SMS/pager provider hook. A NO-OP returning 'not_configured' unless BOTH
+ * CRITICAL_LAB_PAGER_WEBHOOK_URL and CRITICAL_LAB_PAGER_WEBHOOK_TOKEN are set.
+ * Point it at a provider (or a thin relay) covered by a BAA. The payload carries
+ * no PHI: pagerMessage() contains only a short alert reference.
+ * 'delivered' here means the provider accepted the message (HTTP 2xx);
+ * handset delivery receipts are not tracked yet.
+ */
+async function pagerProviderHook(recipient: Recipient, text: string, alertId: string): Promise<ChannelResult> {
+  const url = Deno.env.get("CRITICAL_LAB_PAGER_WEBHOOK_URL");
+  const token = Deno.env.get("CRITICAL_LAB_PAGER_WEBHOOK_TOKEN");
+  const base = { channel: "pager" as const, recipient_profile_id: recipient.profile_id };
+  if (!url || !token) return { ...base, status: "not_configured" };
+  if (!recipient.phone) return { ...base, status: "no_contact", detail: "no phone on profile" };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ to: recipient.phone, message: text, reference: alertId }),
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok
+      ? { ...base, status: "delivered", detail: `provider_accepted:${res.status}` }
+      : { ...base, status: "failed", detail: `provider_http_${res.status}` };
+  } catch (e) {
+    return { ...base, status: "failed", detail: e instanceof Error ? e.name : "error" };
   }
 }
