@@ -3,15 +3,15 @@
 -- Migration  : 20261105000004_role_aware_rls.sql
 -- Task       : S0-04 (DB-02, DB-07, DB-09, DB-13, DB-16)
 -- What it does: Role-aware helper functions; user_belongs_to_hospital redefined as active-staff membership; owned tables re-policied per role; RLS enabled on every public table; a guard policy on the rest.
--- GATE: Sweep mode (the default) drops every permissive policy on the owned tables that is not in the spec, and it turns RLS on for every public table. Do not run parts 04-06 against a live database until the abort-mode dry run and the S0-01 capture review in 20261105000004.README.md (steps 2-3) are done. README.md, known risks.
--- Source lines: 471-1151
+-- GATE: Abort is the default mode. Part 04 starts with a read-only preflight (below the header) that lists every permissive policy the file would drop, with its status against the reviewed list. If any policy is not on that list, part 04 raises and rolls back, and nothing else in the migration runs. The bundle never sets sweep mode. Do not run parts 04-06 against a live database until the abort dry run on a restored copy and the review in 20261105000004.README.md (steps 2-4) are done. README.md, known risks.
+-- Source lines: 561-1196
 -- Part 2 of 3 of this migration.
 -- Transaction: none (the migration spans parts; BEGIN/COMMIT is not used)
 -- Re-running: NOT a no-op. A second run adds RESTRICTIVE policy s004_active_principal_guard on lab_qc_results and lab_trends (it only narrows access to active staff). See README.md, known risks.
 -- Check after this part: Not the end of S0-04. Do not stop here and do not open the app between parts: the next part completes the migration.
 -- Next: part-06-0004-role-aware-rls-3of3.sql. Do not skip it.
 -- =============================================================================
--- session prelude: verbatim copy of source lines 449-464. It defines a pg_temp helper that this part calls.
+-- session prelude: verbatim copy of source lines 539-554. It defines a pg_temp helper that this part calls.
 -- Parts run in separate sessions and pg_temp objects do not survive between them.
 
 
@@ -30,7 +30,7 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $$
          ELSE 'ARRAY[' || (SELECT string_agg(quote_literal(btrim(x)), ', ')
                              FROM unnest(string_to_array(p_roles, ',')) x) || ']::text[]' END)
 $$;
--- session prelude: verbatim copy of source lines 465-468. It defines a pg_temp helper that this part calls.
+-- session prelude: verbatim copy of source lines 555-558. It defines a pg_temp helper that this part calls.
 -- Parts run in separate sessions and pg_temp objects do not survive between them.
 
 CREATE OR REPLACE FUNCTION pg_temp.s004_self(p_col text)
@@ -373,52 +373,7 @@ SELECT t, p, c, u, k FROM (VALUES
   ('prescription_queue', 's004_prescription_queue_admin_delete', 'DELETE', pg_temp.s004_staff('hospital_id', 'admin'), NULL)
 ) AS v(t, p, c, u, k);
 
--- Policy names on the owned tables found in supabase/migrations (any folder).
-DELETE FROM rls_migration_audit.s004_repo_policy_names;
-INSERT INTO rls_migration_audit.s004_repo_policy_names (tablename, policyname)
-SELECT t, unnest(names) FROM (VALUES
-  ('appointment_requests', ARRAY['Patients can create appointment requests','Patients can view their appointment requests','Staff can update appointment requests','Staff can view appointment requests']),
-  ('appointments', ARRAY['Patients can view their own appointments','Receptionists can insert appointments','Receptionists can update appointments','Staff can manage appointments','Staff can view appointments in their hospital','Users can view appointments','appointments_hospital_isolation','appointments_patient_view']),
-  ('consultations', ARRAY['Doctors and nurses can manage consultations','Involved staff can view consultations','Patients can view their own consultations','Staff can view consultations in their hospital','lab_technician_view_consultations','pharmacist_view_consultations']),
-  ('departments', ARRAY['Admins can manage departments','Departments hospital scoped','Staff can view departments in their hospital']),
-  ('doctor_availability', ARRAY['Doctor availability hospital scoped','Doctors can manage their own availability','Staff can view doctor availability']),
-  ('documents', ARRAY['Clinical staff can manage documents','Documents hospital scoped','Staff can view documents in their hospital']),
-  ('hospital_resources', ARRAY['Admins and nurses can manage resources','Hospital resources hospital scoped','Staff can view resources in their hospital']),
-  ('icd10_codes', ARRAY['ICD-10 codes are viewable by authenticated users','ICD-10 codes viewable by hospital users']),
-  ('insurance_claims', ARRAY['Billing staff can create claims','Billing staff can manage insurance claims','Billing staff can view claims','Insurance claims hospital scoped','Staff can view insurance claims']),
-  ('invoice_items', ARRAY['Staff can create invoice items','Staff can update invoice items','Staff can view invoice items']),
-  ('invoices', ARRAY['Patients can view their own invoices','Staff can create invoices','Staff can update invoices','Staff can view invoices in their hospital','invoices_hospital_billing_read','invoices_hospital_staff_policy']),
-  ('lab_orders', ARRAY['Clinical staff can create lab orders','Lab techs and clinical staff can update lab orders','Patients can view their own lab orders','Staff can view lab orders in their hospital','patient_view_own_lab_orders']),
-  ('medical_records', ARRAY['Clinical staff can create medical records','Clinical staff can update medical records','Clinical staff can view medical records','Staff can view medical records in their hospital']),
-  ('medication_administrations', ARRAY['Nurses can record medication administrations','Staff can view medication administrations']),
-  ('medications', ARRAY['Medications hospital scoped','Pharmacists and admins can manage medications','Staff can view medications in their hospital']),
-  ('messages', ARRAY['Messages hospital scoped','Recipients can update messages','Users can send messages','Users can view their messages','messages_hospital_access','messages_user_access']),
-  ('notifications', ARRAY['Notifications recipient access','Staff can create notifications','Users can update own notifications','Users can update their own notifications','Users can view own notifications','Users can view their own notifications']),
-  ('patient_consents', ARRAY['Patients can insert own consents','Patients can update own consents','Patients can view their own consents','Staff can insert consents','Staff can manage consents','Staff can update consents']),
-  ('patient_prep_checklists', ARRAY['Nurses can manage checklists','Patient prep checklists hospital scoped','Staff can view checklists in their hospital']),
-  ('patient_queue', ARRAY['Patient queue hospital scoped','Staff can manage queue','Staff can view queue in their hospital']),
-  ('patients', ARRAY['Patients can update their own contact info','Patients can view their own patient record','Staff can insert patients','Staff can update patients','Staff can view patients in their hospital','lab_technician_view_patients']),
-  ('payment_plans', ARRAY['Billing staff can manage payment plans','Patients can view their payment plans','Payment plans hospital scoped','Staff can view payment plans']),
-  ('payments', ARRAY['Patients can view their own payments','Staff can create payments','Staff can view payments in their hospital']),
-  ('prescription_items', ARRAY['Doctors can create prescription items','Patients can view their own prescription items','Pharmacists can update prescription items','Staff can view prescription items','prescription_items_hospital_isolation']),
-  ('prescription_refill_requests', ARRAY['Patients can create refill requests','Patients can view own refill requests','Patients can view their refill requests','Pharmacists and doctors can update refill requests','Pharmacists can update refill requests','Staff can view refill requests']),
-  ('prescriptions', ARRAY['Clinical staff can view prescriptions','Doctors can create prescriptions','Patients can view their own prescriptions','Pharmacists can insert prescriptions','Pharmacists can update prescriptions','Pharmacists can view prescriptions']),
-  ('purchase_order_items', ARRAY['Pharmacists and admins can manage purchase order items','Purchase order items hospital scoped','Staff can view purchase order items']),
-  ('purchase_orders', ARRAY['Pharmacists and admins can manage purchase orders','Purchase orders hospital scoped','Staff can view purchase orders']),
-  ('reorder_rules', ARRAY['Pharmacists and admins can manage reorder rules','Reorder rules hospital scoped','Staff can view reorder rules']),
-  ('shift_handovers', ARRAY['Nurses can create handovers','Nurses can update handovers','Nurses can view handovers in their hospital','Shift handovers hospital scoped']),
-  ('shift_schedules', ARRAY['Admins can manage shift schedules','Shift schedules hospital scoped','Staff can view shift schedules in their hospital']),
-  ('stock_alerts', ARRAY['Pharmacists and admins can manage stock alerts','Staff can view stock alerts','Stock alerts hospital scoped']),
-  ('suppliers', ARRAY['Pharmacists and admins can manage suppliers','Staff can view suppliers','Suppliers hospital scoped']),
-  ('system_config', ARRAY['Admins can manage config','Staff can view non-sensitive config','System config hospital scoped']),
-  ('task_assignments', ARRAY['Staff can create task assignments','Staff can update task assignments','Staff can view task assignments in their hospital','Task assignments hospital scoped','Users can create tasks','Users can update their tasks','Users can view their tasks']),
-  ('telemedicine_sessions', ARRAY['Clinical staff can manage telemedicine sessions','Staff can view telemedicine sessions','Telemedicine sessions hospital scoped','Users can view their telemedicine sessions']),
-  ('time_slots', ARRAY['Staff can manage time slots','Staff can view time slots','Time slots hospital scoped']),
-  ('vital_signs', ARRAY['Clinical staff can manage vital signs','Healthcare staff can insert patient vital signs','Healthcare staff can view patient vital signs','Nurses can insert vital signs','Nurses can view vital signs for their patients','Patients can view their own vital signs']),
-  ('lab_queue', ARRAY['Hospital staff can view lab queue','Hospital staff can insert into lab queue','Lab techs can update lab queue','lab_queue_hospital_access','lab_queue_lab_tech_write']),
-  ('prescription_queue', ARRAY['Hospital staff can view prescription queue','Hospital staff can insert into prescription queue','Pharmacist can update prescription queue status','hospital_staff_prescription_queue_access'])
-) AS v(t, names)
-ON CONFLICT DO NOTHING;
+-- Reviewed policy names: now in section 0a (temp table) and 0c (bookkeeping), before any change.
 
 -- Apply the spec, one table at a time. Each table runs in a subtransaction: if
 -- any of its new policies fails to compile (a column the live table lacks),
@@ -426,7 +381,7 @@ ON CONFLICT DO NOTHING;
 -- table is left for the guard in section E.
 DO $$
 DECLARE
-  v_mode constant text := coalesce(nullif(current_setting('s0_04.unknown_policy_mode', true), ''), 'sweep');
+  v_mode constant text := coalesce(nullif(current_setting('s0_04.unknown_policy_mode', true), ''), 'abort');
   t text;
   pol record;
   sp record;

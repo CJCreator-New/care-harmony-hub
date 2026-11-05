@@ -151,6 +151,10 @@ SELECT 'OBJ-0003-F-accept_staff_invitation' AS check_id, '0003: function public.
        CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = 'public' AND p.proname = 'accept_staff_invitation')) THEN 'ok' ELSE 'MISSING' END AS result
 UNION ALL
+SELECT 'OBJ-0003-F-patient_dob_as_date' AS check_id, '0003: function public.patient_dob_as_date exists' AS check_name, ('public.patient_dob_as_date')::text AS detail,
+       CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public' AND p.proname = 'patient_dob_as_date')) THEN 'ok' ELSE 'MISSING' END AS result
+UNION ALL
 SELECT 'OBJ-0003-F-patient_claim_candidates' AS check_id, '0003: function public.patient_claim_candidates exists' AS check_name, ('public.patient_claim_candidates')::text AS detail,
        CASE WHEN (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = 'public' AND p.proname = 'patient_claim_candidates')) THEN 'ok' ELSE 'MISSING' END AS result

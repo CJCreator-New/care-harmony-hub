@@ -3,15 +3,15 @@
 -- Migration  : 20261105000004_role_aware_rls.sql
 -- Task       : S0-04 (DB-02, DB-07, DB-09, DB-13, DB-16)
 -- What it does: Role-aware helper functions; user_belongs_to_hospital redefined as active-staff membership; owned tables re-policied per role; RLS enabled on every public table; a guard policy on the rest.
--- GATE: Sweep mode (the default) drops every permissive policy on the owned tables that is not in the spec, and it turns RLS on for every public table. Do not run parts 04-06 against a live database until the abort-mode dry run and the S0-01 capture review in 20261105000004.README.md (steps 2-3) are done. README.md, known risks.
--- Source lines: 1152-1253
+-- GATE: Abort is the default mode. Part 04 starts with a read-only preflight (below the header) that lists every permissive policy the file would drop, with its status against the reviewed list. If any policy is not on that list, part 04 raises and rolls back, and nothing else in the migration runs. The bundle never sets sweep mode. Do not run parts 04-06 against a live database until the abort dry run on a restored copy and the review in 20261105000004.README.md (steps 2-4) are done. README.md, known risks.
+-- Source lines: 1197-1298
 -- Part 3 of 3 of this migration.
 -- Transaction: none (the migration spans parts; BEGIN/COMMIT is not used)
 -- Re-running: NOT a no-op. A second run adds RESTRICTIVE policy s004_active_principal_guard on lab_qc_results and lab_trends (it only narrows access to active staff). See README.md, known risks.
 -- Check after this part: Completes S0-04. Read its audit before going further: select section, action, tablename, detail from rls_migration_audit.s004_run_log order by id; and select tablename, policyname, cmd, in_repo_history from rls_migration_audit.s004_dropped_policies order by id; (20261105000004.README.md, step 4). A failed_kept_old_policies row means that table still has its old policies; a closed_unclassified row means it is now deny-all and needs a policy for the clients that use it.
 -- Last part of this migration. The next part is the next migration.
 -- =============================================================================
--- session prelude: verbatim copy of source lines 449-464. It defines a pg_temp helper that this part calls.
+-- session prelude: verbatim copy of source lines 539-554. It defines a pg_temp helper that this part calls.
 -- Parts run in separate sessions and pg_temp objects do not survive between them.
 
 
@@ -30,7 +30,7 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $$
          ELSE 'ARRAY[' || (SELECT string_agg(quote_literal(btrim(x)), ', ')
                              FROM unnest(string_to_array(p_roles, ',')) x) || ']::text[]' END)
 $$;
--- session prelude: verbatim copy of source lines 465-468. It defines a pg_temp helper that this part calls.
+-- session prelude: verbatim copy of source lines 555-558. It defines a pg_temp helper that this part calls.
 -- Parts run in separate sessions and pg_temp objects do not survive between them.
 
 CREATE OR REPLACE FUNCTION pg_temp.s004_self(p_col text)

@@ -511,6 +511,41 @@ ALTER TABLE public.patient_claim_attempts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.patient_claim_attempts FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.patient_claim_attempts TO service_role;
 
+-- S0-03 type fix: the RPC parameters are date, and patients.date_of_birth must
+-- be compared as a date. When the column is text (as a text-typed fixture
+-- assumes; types.ts shows string for text, date and timestamptz alike), this
+-- converts the stored value. Returns NULL (no match, no error) for NULL, for
+-- anything that is not YYYY-MM-DD, and for impossible dates such as 1980-02-30,
+-- so one bad row cannot make every claim fail. Immutable, no table access, not
+-- callable by clients. A DATE overload follows for a date-typed column.
+CREATE OR REPLACE FUNCTION public.patient_dob_as_date(p_text TEXT)
+RETURNS DATE
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF p_text IS NULL OR p_text !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+    RETURN NULL;
+  END IF;
+  RETURN p_text::date;
+EXCEPTION WHEN datetime_field_overflow OR invalid_datetime_format THEN
+  RETURN NULL;
+END
+$$;
+REVOKE ALL ON FUNCTION public.patient_dob_as_date(TEXT) FROM PUBLIC, anon, authenticated;
+
+-- The same comparison also works when the live column is DATE (the repository
+-- migrations declare it DATE; types.ts shows string for both). The overload
+-- resolves by the column's own type, so no cast is applied to a DATE value.
+CREATE OR REPLACE FUNCTION public.patient_dob_as_date(p_value DATE)
+RETURNS DATE
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$ SELECT p_value $$;
+REVOKE ALL ON FUNCTION public.patient_dob_as_date(DATE) FROM PUBLIC, anon, authenticated;
+
 -- Matching rule shared by both RPCs. Not SECURITY DEFINER: it runs with the
 -- privileges of the definer functions that call it.
 CREATE OR REPLACE FUNCTION public.patient_claim_candidates(
@@ -526,7 +561,7 @@ AS $$
    WHERE nullif(btrim(p_hospital_code), '') IS NOT NULL
      AND lower(btrim(h.license_number)) = lower(btrim(p_hospital_code))
      AND upper(regexp_replace(p.mrn, '\s', '', 'g')) = upper(regexp_replace(coalesce(p_mrn, ''), '\s', '', 'g'))
-     AND p.date_of_birth = p_date_of_birth
+     AND public.patient_dob_as_date(p.date_of_birth) = p_date_of_birth
      AND lower(btrim(p.last_name)) = lower(btrim(coalesce(p_last_name, '')))
      AND p.email IS NOT NULL
      AND lower(btrim(p.email)) = lower(btrim(coalesce(p_email, '')))
