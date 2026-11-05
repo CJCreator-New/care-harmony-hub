@@ -72,13 +72,13 @@ npm install
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`. The former Kong/microservices stack is archived in [archive/](archive/README.md) and is not needed to run the app.
+The app will be available at `http://localhost:5173`. The former Kong/microservices stack has been removed from the tree (see git history) and is not needed to run the app.
 
 ### Environment Setup
 
 The project uses Lovable Cloud for backend services. Environment variables are automatically configured.
 
-The former microservices stack and Kong gateway are archived in [archive/](archive/README.md) and are not part of the runtime (ADR-0001).
+The former microservices stack and Kong gateway have been removed from the tree (see git history) and are not part of the runtime (ADR-0001).
 
 ### Pre-Deployment Validation
 
@@ -196,7 +196,6 @@ caresync/
 | [Security](docs/SECURITY.md) | Security & compliance |
 | [Deployment](docs/DEPLOYMENT.md) | Deployment guide |
 | [Development standards](docs/DEVELOPMENT_STANDARDS.md) | Coding and contribution standards |
-| [Archive](archive/README.md) | Non-runtime infrastructure per ADR-0001 (microservices, Kong, compose, k8s, mobile skeleton) |
 
 ---
 

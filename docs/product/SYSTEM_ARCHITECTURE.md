@@ -624,7 +624,7 @@ npm install
 # 2. Start frontend dev server
 npm run dev
 # → http://localhost:5173
-# (Kong and the microservices are archived under archive/ per ADR-0001.)
+# (Kong and the microservices were removed from the tree per ADR-0001; see git history.)
 
 # 5. Run tests during development
 npm run test:unit --watch

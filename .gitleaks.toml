@@ -66,7 +66,7 @@ path = '''(?i)(?:docker-compose[^/]*\.ya?ml|(?:^|/)\.env(?:\.[a-z0-9_-]+)*)$'''
 keywords = ["postgres"]
 
 # Kong declarative config: consumer key-auth credentials and plugin keys (loggly) must be
-# ${VAR} placeholders that archive/scripts/render-kong-config.sh fills in at deploy time.
+# ${VAR} placeholders that a deploy-time render step (former Kong stack, removed from the tree) fills in.
 [[rules]]
 id = "kong-declarative-literal-key"
 description = "Literal key in a Kong declarative config"

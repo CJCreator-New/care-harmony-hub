@@ -62,7 +62,7 @@ Required environment variables:
 
 ## Docker Deployment
 
-The Kong/microservices compose stack is archived under `archive/` (ADR-0001) and is not deployed. Production runs the Supabase-native SPA.
+The Kong/microservices compose stack was removed from the tree (ADR-0001; see git history) and is not deployed. Production runs the Supabase-native SPA.
 
 ## Monitoring
 

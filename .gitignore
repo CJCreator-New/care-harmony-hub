@@ -8,7 +8,6 @@ yarn-error.log*
 dist/
 build/
 **/dist/
-archive/services/**/dist/
 
 # Environment variables (S0-11: real env files are never committed)
 # Every .env / .env.* file is ignored except the credential-free templates
@@ -24,7 +23,7 @@ archive/services/**/dist/
 .env.development.local
 .env.test.local
 .env.production.local
-# Rendered Kong config with real consumer keys (archive/scripts/render-kong-config.sh)
+# Rendered Kong config with real consumer keys (former Kong stack, removed from the tree)
 kong.rendered.yml
 # Local secret-scan reports may echo matched secrets
 gitleaks-report*.json

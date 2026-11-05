@@ -172,16 +172,15 @@ Background: before `supabase/functions/phi-crypto` existed, the client encrypted
 
 ### 4.3 Kong, Loggly and the microservice stack (C4 to C14)
 
-These belong to the archived Kong/microservice stack (`archive/docker-compose*.yml`, `archive/kong.yml`, `archive/services/*`). The audit recommends deleting that stack (OPS-05).
+These belong to the former Kong/microservice stack, which has been removed from the tree (OPS-05; see git history).
 
-1. Find out where it ever ran: any host that used `archive/docker-compose.prod.yml` or `archive/.deployment/kubernetes`. **If it never ran anywhere reachable, deleting the stack is enough.** The values only need purging (section 6).
+1. Find out where it ever ran: any host that used the former `docker-compose.prod.yml` or Kubernetes manifests. **If it never ran anywhere reachable, deleting the stack is enough.** The values only need purging (section 6).
 2. If it did run:
    - **Loggly (C7):** Loggly → Source Setup → Customer Tokens: create a new token and **delete the old one**.
-   - **Kong consumer keys (C4, C6, C8):** generate new keys with `openssl rand -base64 32 | tr -d '/+=' | cut -c1-40`. Set `KONG_FRONTEND_API_KEY`, `KONG_MOBILE_API_KEY`, `KONG_ADMIN_API_KEY` and `LOGGLY_TOKEN` in the deploy environment. Run `archive/scripts/render-kong-config.sh` to produce the untracked `kong.rendered.yml`, then reload Kong. The old keys disappear when the declarative config is replaced. Confirm with `curl -H "apikey: <old>" … → 401`.
+   - **Kong consumer keys (C4, C6, C8):** generate new keys with `openssl rand -base64 32 | tr -d '/+=' | cut -c1-40`. Set `KONG_FRONTEND_API_KEY`, `KONG_MOBILE_API_KEY`, `KONG_ADMIN_API_KEY` and `LOGGLY_TOKEN` in the deploy environment. The old keys disappear when the declarative config is replaced. Confirm with `curl -H "apikey: <old>" … → 401`.
    - **Databases (C5, C10, C13, C14):** `ALTER ROLE … PASSWORD …` on each database, then update `KONG_DB_PASSWORD`, `DB_PASSWORD`, `PATIENT_DB_PASSWORD` and `APPOINTMENT_DB_PASSWORD`.
    - **JWT and encryption secrets (C9, C13):** rotate `JWT_SECRET`, which invalidates the service's tokens. Treat `ENCRYPTION_KEY` like 4.2 if any service stored ciphertext.
    - **Grafana (C11) and the Kong GUI session secret (C12):** set new values through `GRAFANA_PASSWORD` and `KONG_ADMIN_GUI_SESSION_SECRET`.
-3. The compose files now fail to start unless every one of these variables is set (`${VAR:?…}`). The admin ports are published on `127.0.0.1` only.
 
 ### 4.4 AI and Twilio provider keys (S0-09 overlap: OPS-16, SECF-03)
 
@@ -320,7 +319,6 @@ Acceptance criteria (from S0-11, SECF-19/20/21, OPS-06/16/17):
 - [ ] `PHI_ENCRYPTION_KEY` is rotated, 0 rows remain below the new key version, and the previous key is unset.
 - [ ] Production has 0 `@testgeneral.com`, `test-*@caresync.local` and `550e8400-…` users, and no test tenant.
 - [ ] Seed and test scripts abort on the production ref. Try it: `SUPABASE_URL=https://<prod-ref>.supabase.co node scripts/seed-e2e-data.mjs` must exit 1 with "REFUSING TO RUN".
-- [ ] `grep -rE "PASSWORD=[^$]|SECRET=[^$]" archive/docker-compose*.yml` returns nothing, and no admin port is bound to 0.0.0.0.
 - [ ] Push protection is on, and `Secret Scan` is a required check.
 
 Rotation record. Keep it here or in your secrets manager. **No values.**
@@ -342,9 +340,7 @@ Rotation record. Keep it here or in your secrets manager. **No values.**
 ## 9. What the repository change did (S0-11, repository part)
 
 - **Current tree has no literal credentials.**
-  - The compose files use `${VAR:?…}` and fail closed. Their admin, DB and Redis ports bind to `127.0.0.1`.
-  - `archive/kong.yml` is a template rendered by `archive/scripts/render-kong-config.sh` or `archive/scripts/init-kong.sh`. Compose mounts the untracked `kong.rendered.yml`. The credentialed CORS lists have no `*.vercel.app` wildcard.
-  - The test scripts read `KONG_API_KEY` and do not print it. Docs and `.env.example` files are redacted.
+  - Docs and `.env.example` files are redacted.
   - `.gitignore` ignores every `.env` / `.env.*` except `*.example` and `.env.test`.
 - **No shared test password.**
   - `.env.test` holds only a self-describing mock-auth value. It is honoured only by DEV builds with `VITE_E2E_MOCK_AUTH=true`.
@@ -364,4 +360,4 @@ Rotation record. Keep it here or in your secrets manager. **No values.**
 - `tests/security/authentication.test.ts` and `tests/api/*` call whatever project `.env` points to. In CI they hit `stub.supabase.co` (TEST-04). Locally they need the test project or `supabase start`.
 - The vitest setup (`src/test/setup.ts`) has no production guard yet.
 - `scripts/apply-rls-migration.mjs` and `scripts/validate-rls*.mjs` intentionally target a configured project with the service-role key. Run them against production only through the migration process.
-- Image digest pinning and the deletion of the archived microservice stack (OPS-05, OPS-06).
+- Image digest pinning (OPS-05, OPS-06).

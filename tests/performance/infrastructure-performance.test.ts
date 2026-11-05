@@ -72,16 +72,6 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
       }
     });
 
-    it('INFRA-K8S-004: Service exposed with LoadBalancer or Ingress', () => {
-      // External access to backend properly configured
-      
-      const k8sPath = path.join(process.cwd(), 'archive', 'docker', 'kubernetes');
-      const serviceExists = fs.existsSync(path.join(k8sPath, 'service.yaml')) ||
-                           fs.existsSync(path.join(k8sPath, 'ingress.yaml'));
-      
-      expect(serviceExists).toBe(true);
-    });
-
     it('INFRA-K8S-005: Network policies restrict inter-pod traffic', () => {
       // Security: only necessary pods communicate
       
@@ -307,29 +297,6 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
   // ============================================================================
 
   describe('Monitoring & SLO Configuration', () => {
-    it('INFRA-MON-001: Prometheus scrape endpoints configured for all services', () => {
-      // Metrics collection from backend, database, cache, etc.
-      
-      const promConfig = path.join(process.cwd(), 'archive', 'monitoring', 'prometheus.yml');
-      expect(fs.existsSync(promConfig)).toBe(true);
-      
-      const promContent = fs.readFileSync(promConfig, 'utf-8');
-      
-      // Should have multiple scrape configs
-      expect(promContent).toContain('scrape_configs:');
-    });
-
-    it('INFRA-MON-002: Alert rules defined for SLO violations', () => {
-      // CPU >80%, P95 latency >1000ms, error rate >1%, database connections near pool limit
-      
-      const alertsPath = path.join(process.cwd(), 'archive', 'monitoring', 'alert_rules.yml');
-      expect(fs.existsSync(alertsPath)).toBe(true);
-      
-      const alertsContent = fs.readFileSync(alertsPath, 'utf-8');
-      
-      expect(alertsContent).toContain('alert:');
-    });
-
     it('INFRA-MON-003: Grafana dashboards for backend metrics', () => {
       // Query latency, error rate, resource usage by service
       
@@ -339,13 +306,6 @@ describe('Phase 4: Infrastructure Performance Tests', () => {
         const files = fs.readdirSync(grafanaPath);
         expect(files.length).toBeGreaterThan(0);
       }
-    });
-
-    it('INFRA-MON-004: Application Performance Monitoring (APM) enabled', () => {
-      // OpenTelemetry or equivalent
-      
-      const otelConfig = path.join(process.cwd(), 'archive', 'monitoring', 'otel-collector-config.yaml');
-      expect(fs.existsSync(otelConfig)).toBe(true);
     });
 
     it('INFRA-MON-005: Log aggregation configured (centralized logging)', () => {

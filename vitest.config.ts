@@ -12,7 +12,6 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/.git/**',
-      'archive/**',
       // Playwright spec files must not be picked up by Vitest — they use the
       // Playwright test() API which conflicts with Vitest globals.
       'tests/e2e/**',
