@@ -27,7 +27,6 @@ import { MedicationAdministrationModal } from '@/components/nurse/MedicationAdmi
 import { OfflineIndicator } from '@/components/nurse/OfflineIndicator';
 import { OfflineVitalsCaptureModal } from '@/components/nurse/OfflineVitalsCaptureModal';
 import { OfflineVitalsHistory } from '@/components/nurse/OfflineVitalsHistory';
-import { OfflineDataImportExport } from '@/components/nurse/OfflineDataImportExport';
 import { SyncProgressPanel } from '@/components/nurse/SyncProgressPanel';
 import { MobileLandscapeVitalsForm } from '@/components/nurse/MobileLandscapeVitalsForm';
 import { NursePatientQueue } from '@/components/nurse/NursePatientQueue';
@@ -46,7 +45,7 @@ export function NurseDashboard() {
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
   const [isOfflineVitalsOpen, setIsOfflineVitalsOpen] = useState(false);
   const [isMobileLandscapeOpen, setIsMobileLandscapeOpen] = useState(false);
-  const [offlineTab, setOfflineTab] = useState<'history' | 'sync' | 'import'>(
+  const [offlineTab, setOfflineTab] = useState<'history' | 'sync'>(
     'history'
   );
   
@@ -228,11 +227,10 @@ export function NurseDashboard() {
         <TabsContent value="offline" className="space-y-6">
           <div className="space-y-6">
             {/* Offline Data Sub-Tabs */}
-            <Tabs value={offlineTab} onValueChange={(val) => setOfflineTab(val as 'history' | 'sync' | 'import')} className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3">
+            <Tabs value={offlineTab} onValueChange={(val) => setOfflineTab(val as 'history' | 'sync')} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="history">History</TabsTrigger>
                 <TabsTrigger value="sync">Sync</TabsTrigger>
-                <TabsTrigger value="import">Import/Export</TabsTrigger>
               </TabsList>
 
               <TabsContent value="history">
@@ -241,10 +239,6 @@ export function NurseDashboard() {
 
               <TabsContent value="sync">
                 <SyncProgressPanel />
-              </TabsContent>
-
-              <TabsContent value="import">
-                <OfflineDataImportExport />
               </TabsContent>
             </Tabs>
           </div>
