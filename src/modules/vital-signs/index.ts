@@ -21,6 +21,8 @@ export {
 export {
   celsiusToFahrenheit,
   fahrenheitToCelsius,
+  kgToLb,
+  lbToKg,
   calculateBmi,
   roundToOneDecimal,
 } from './core/conversions';

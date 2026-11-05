@@ -17,6 +17,8 @@ import {
   buildNurseVitalsPatch,
   heightNeedsUnit,
   isTemperatureUnit,
+  switchTemperatureUnit,
+  switchWeightUnit,
   weightNeedsUnit,
 } from "./consultationVitals";
 
@@ -143,7 +145,7 @@ export function ChiefComplaintStep({
                   name="Temperature"
                   value={statedTemperatureUnit ?? inferredTemperatureUnit}
                   options={TEMPERATURE_UNITS}
-                  onChange={(unit) => handleVitalsChange("temperature_unit", unit)}
+                  onChange={(unit) => onUpdate("vitals", { ...vitals, ...switchTemperatureUnit(vitals, unit) })}
                 />
               </div>
               <Input
@@ -213,7 +215,7 @@ export function ChiefComplaintStep({
                   name="Weight"
                   value={vitals.weight_unit}
                   options={WEIGHT_UNITS}
-                  onChange={(unit) => handleVitalsChange("weight_unit", unit)}
+                  onChange={(unit) => onUpdate("vitals", { ...vitals, ...switchWeightUnit(vitals, unit) })}
                 />
               </div>
               <Input

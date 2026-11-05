@@ -8,7 +8,14 @@
  * unit keys; their weight and height are treated as unit-unknown.
  */
 
-import { inferTemperatureUnit, type TemperatureUnit } from '@/modules/vital-signs';
+import {
+  celsiusToFahrenheit,
+  fahrenheitToCelsius,
+  inferTemperatureUnit,
+  kgToLb,
+  lbToKg,
+  type TemperatureUnit,
+} from '@/modules/vital-signs';
 
 export type WeightUnit = 'kg' | 'lb';
 export type HeightUnit = 'cm' | 'in';
@@ -52,6 +59,37 @@ export function isHeightUnit(v: unknown): v is HeightUnit {
 }
 export function isTemperatureUnit(v: unknown): v is TemperatureUnit {
   return v === 'celsius' || v === 'fahrenheit';
+}
+
+const toOneDecimal = (n: number) => n.toFixed(1);
+
+/**
+ * Patch for switching the temperature unit. The entered value is converted so
+ * it keeps its physical meaning (37.0 °C becomes 98.6 °F). An unstated unit is
+ * read from the value first, as the form displays it (CLIN-09).
+ */
+export function switchTemperatureUnit(vitals: VitalsForm | null | undefined, unit: TemperatureUnit): VitalsForm {
+  const current = vitals ?? {};
+  const patch: VitalsForm = { temperature_unit: unit };
+  const value = parseFloat(String(current.temperature ?? ''));
+  if (!Number.isFinite(value)) return patch;
+  const from = isTemperatureUnit(current.temperature_unit) ? current.temperature_unit : inferTemperatureUnit(value);
+  if (!from || from === unit) return patch;
+  patch.temperature = toOneDecimal(from === 'celsius' ? celsiusToFahrenheit(value) : fahrenheitToCelsius(value));
+  return patch;
+}
+
+/**
+ * Patch for switching the weight unit. A weight whose unit was never stated is
+ * not converted: the doctor is stating what the number means (CLIN-09).
+ */
+export function switchWeightUnit(vitals: VitalsForm | null | undefined, unit: WeightUnit): VitalsForm {
+  const current = vitals ?? {};
+  const patch: VitalsForm = { weight_unit: unit };
+  const value = parseFloat(String(current.weight ?? ''));
+  if (!Number.isFinite(value) || !isWeightUnit(current.weight_unit) || current.weight_unit === unit) return patch;
+  patch.weight = toOneDecimal(current.weight_unit === 'kg' ? kgToLb(value) : lbToKg(value));
+  return patch;
 }
 
 /** True when a weight is entered but its unit is not stated (it will not be used for dose checks). */
