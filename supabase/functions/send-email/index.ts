@@ -1,96 +1,120 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
+import {
+  DEFAULT_FROM_ADDRESS,
+  buildFromHeader,
+  escapeHtml,
+  normalizeRecipients,
+  recipientsOutsideAllowlist,
+} from "../_shared/emailSafety.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
+// S0-06 / EDGE-16: no longer an open relay.
+//   - Recipients must be staff of the caller's hospital (profiles.email), max 10.
+//   - The body is plain text; the server escapes it into HTML. Caller-supplied
+//     `html`, `from` and `replyTo` are not used.
+//   - The From address is fixed (NOTIFICATION_FROM_ADDRESS, else the Resend
+//     sandbox sender); the display name is the caller's hospital name.
+//   - Every send is written to activity_logs.
+
 const emailSchema = z.object({
-  to: z.union([z.string().email(), z.array(z.string().email())]),
-  subject: z.string().min(1),
-  html: z.string().min(1),
+  to: z.union([z.string(), z.array(z.string())]),
+  subject: z.string().min(1).max(200),
+  text: z.string().min(1).max(100_000),
+  // Accepted for backward compatibility with older clients, ignored.
+  html: z.string().optional(),
   from: z.string().optional(),
-  replyTo: z.string().email().optional(),
+  replyTo: z.string().optional(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  const json = (status: number, payload: Record<string, unknown>) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician']);
-  if (authError) return authError;
+  const { actor, response: authError } = await getAuthorizedActor(req, ["admin", "doctor", "nurse", "receptionist"]);
+  if (authError || !actor) return authError ?? json(401, { error: "Unauthorized" });
 
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY not configured");
-    return new Response(
-      JSON.stringify({ error: "Email service not configured. Please add RESEND_API_KEY." }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return json(500, { error: "Email service not configured" });
   }
 
   try {
     const validation = await validateRequest(req, emailSchema);
     if (!validation.success) {
-      return new Response(
-        JSON.stringify({ error: "Validation failed", details: validation.error }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return json(400, { error: "Validation failed", details: validation.error });
     }
-    const { to, subject, html, from, replyTo } = validation.data;
+    const { to, subject, text } = validation.data;
 
-    // Using fetch to call Resend API directly
+    const recipients = normalizeRecipients(to);
+    if (!recipients.ok) return json(recipients.status, { error: recipients.error });
+
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const [{ data: staff, error: staffError }, { data: hospital }] = await Promise.all([
+      supabase.from("profiles").select("email").eq("hospital_id", actor.hospitalId).in("email", recipients.value),
+      supabase.from("hospitals").select("name").eq("id", actor.hospitalId).maybeSingle(),
+    ]);
+    if (staffError) throw staffError;
+
+    const outside = recipientsOutsideAllowlist(recipients.value, (staff ?? []).map((s) => s.email as string));
+    if (outside.length > 0) {
+      return json(403, { error: "Recipients must be staff of your hospital", rejected: outside.length });
+    }
+
+    const html = `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${escapeHtml(text)
+      .replace(/\n/g, "<br>")
+      .replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;")}</div>`;
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: from || "CareSync <onboarding@resend.dev>",
-        to: Array.isArray(to) ? to : [to],
+        from: buildFromHeader(hospital?.name, Deno.env.get("NOTIFICATION_FROM_ADDRESS") || DEFAULT_FROM_ADDRESS),
+        to: recipients.value,
         subject,
         html,
-        reply_to: replyTo,
+        text,
       }),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
+
+    await supabase.from("activity_logs").insert({
+      hospital_id: actor.hospitalId,
+      user_id: actor.userId,
+      action_type: "email_sent",
+      entity_type: "email",
+      entity_id: typeof result?.id === "string" ? result.id : null,
+      severity: "info",
+      details: { recipient_count: recipients.value.length, subject, delivered: response.ok },
+    });
 
     if (!response.ok) {
-      console.error("Resend API error:", result);
-      return new Response(
-        JSON.stringify({ error: result.message || "Failed to send email" }),
-        {
-          status: response.status,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      console.error("Resend API error:", response.status);
+      return json(502, { error: "Failed to send email" });
     }
 
-    console.log("Email sent successfully:", result);
-
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return json(200, { id: result?.id ?? null });
   } catch (error: unknown) {
     console.error("Error in send-email function:", error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return json(500, { error: "Internal server error" });
   }
 };
 
 serve((req) => withRateLimit(req, handler));
-

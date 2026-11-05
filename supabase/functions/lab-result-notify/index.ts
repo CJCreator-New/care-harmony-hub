@@ -129,9 +129,9 @@ serve(async (req) => {
       hospital_id: actor.hospitalId,
       user_id: actor.userId,
       action_type: "lab_result_notification_sent",
-      resource_type: "lab_result",
-      resource_id: labResultId,
-      metadata: {
+      entity_type: "lab_result",
+      entity_id: labResultId,
+      details: {
         critical: isCritical,
         notification_id: notification.id,
         ordering_doctor_id: doctor.id,
