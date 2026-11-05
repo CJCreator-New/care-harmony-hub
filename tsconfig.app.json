@@ -43,9 +43,7 @@
     "src/**/__tests__/**",
     "src/test/**",
     "src/__tests__/**",
-    "src/hooks/useBreakGlassOverride.ts",
     "src/integrations/supabase/client.ts",
-    "src/hooks/useConsolidatedSubscription.ts",
     "src/utils/clinicalNoteService.ts"
   ]
 }
