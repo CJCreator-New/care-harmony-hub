@@ -137,7 +137,15 @@ class IndexedDBCache {
           if (!db.objectStoreNames.contains('metadata')) {
             db.createObjectStore('metadata', { keyPath: 'key' });
           }
-        }
+        },
+        // SECF-05: logout deletes this database (purgeClientState). Close our
+        // connection when asked so the deletion is not blocked; the next call
+        // re-opens a fresh, empty database.
+        blocking: () => {
+          this.db?.close();
+          this.db = null;
+          this.initPromise = null;
+        },
       });
 
       // Clean up old cache entries on init

@@ -5,6 +5,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { initSentry } from "./lib/monitoring/sentry";
 import { initWebVitals } from "./lib/performance/web-vitals";
+import { deleteLegacySupabaseCaches } from "./lib/security/purgeClientState";
 
 
 // ─── Root-level error boundary ────────────────────────────────────────────────
@@ -143,6 +144,17 @@ if ('serviceWorker' in navigator) {
         }
       }
     }).catch(() => undefined);
+  });
+}
+
+// SECF-04: service workers built before the fix cached Supabase API/storage
+// responses (PHI) in `supabase-*` caches. Delete them on every start, and again
+// when the updated service worker takes control (the old one may have written
+// to them during this page load).
+void deleteLegacySupabaseCaches();
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    void deleteLegacySupabaseCaches();
   });
 }
 

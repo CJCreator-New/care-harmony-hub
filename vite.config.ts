@@ -1,8 +1,32 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import { componentTagger } from "lovable-tagger";
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+
+/**
+ * SECF-04: Supabase responses carry PHI and must never reach Cache Storage.
+ * These routes are registered as NetworkOnly so no future catch-all runtime
+ * cache can pick them up. Covers the configured project origin (which may be a
+ * custom domain), any *.supabase.co / *.supabase.in host, and the Supabase API
+ * path prefixes on any origin (self-hosted / proxied deployments).
+ */
+const supabaseNetworkOnlyPatterns = (supabaseUrl: string | undefined): RegExp[] => {
+  const patterns: RegExp[] = [
+    /^https:\/\/[^/]+\.supabase\.(co|in)\//i,
+    /^https?:\/\/[^/]+\/(auth|rest|storage|functions|realtime|graphql)\/v1\//i,
+  ];
+  try {
+    if (supabaseUrl) {
+      patterns.unshift(new RegExp(`^${escapeRegExp(new URL(supabaseUrl).origin)}/`, 'i'));
+    }
+  } catch {
+    // Invalid URL: the generic patterns above still apply.
+  }
+  return patterns;
+};
 
 export default defineConfig(({ mode }) => ({
   plugins: [
@@ -39,30 +63,14 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'supabase-storage',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-              }
-            }
-          }
-        ],
+        // SECF-04: never cache Supabase (PHI) responses. Static assets are
+        // still precached via globPatterns above.
+        runtimeCaching: supabaseNetworkOnlyPatterns(
+          process.env.VITE_SUPABASE_URL ?? loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL,
+        ).map((urlPattern) => ({
+          urlPattern,
+          handler: 'NetworkOnly' as const,
+        })),
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//]
       },

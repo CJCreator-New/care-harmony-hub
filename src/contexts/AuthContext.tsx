@@ -17,6 +17,7 @@ import { biometricAuthManager } from '@/utils/biometricAuth';
 import { useSessionTimeout } from '@/lib/hooks/auth';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
+import { purgeClientState } from '@/lib/security/purgeClientState';
 
 interface Profile {
   id: string;
@@ -293,59 +294,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const resetAuthState = useCallback(() => {
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setHospital(null);
+    setRoles([]);
+    setPreferredRole(null);
+    setIsProfileReady(false);
+    setPendingRoleSelection(false);
+  }, []);
+
+  // SECF-05: every logout path (manual, idle auto-logoff) ends with a full
+  // client-state purge, and nothing in here may throw or block the logout.
   const logout = useCallback(async () => {
     if (isE2EMockAuthEnabled) {
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      setHospital(null);
-      setRoles([]);
-      setPreferredRole(null);
-      setIsProfileReady(false);
-      try {
-        window.localStorage.removeItem(E2E_MOCK_AUTH_STORAGE_KEY);
-        window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
-        window.localStorage.removeItem('testRole');
-      } catch {
-        // Ignore storage errors
-      }
-      setPendingRoleSelection(false);
+      resetAuthState();
+      await purgeClientState();
       clearSentryUser();
       return;
     }
 
-    try {
-      if (user) {
-        // Log logout event
+    const userId = user?.id ?? null;
+
+    // Hide PHI immediately; the network calls below can take a while offline.
+    resetAuthState();
+    clearSentryUser();
+
+    if (userId) {
+      try {
         await supabase.rpc('log_security_event', {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_event_type: 'logout',
           p_user_agent: navigator.userAgent,
           p_details: {},
           p_severity: 'info',
         });
+      } catch (error) {
+        console.warn(
+          'Logout audit event failed:',
+          sanitizeLogMessage(error instanceof Error ? error.message : String(error))
+        );
       }
-
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      setHospital(null);
-      setRoles([]);
-      setPreferredRole(null);
-      setIsProfileReady(false);
-      setPendingRoleSelection(false);
-      try {
-        window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
-        window.localStorage.removeItem('testRole');
-      } catch {
-        // Ignore storage errors
-      }
-      clearSentryUser();
-    } catch (error) {
-      console.error('Error during logout:', error);
     }
-  }, [isE2EMockAuthEnabled, user]);
+
+    // A global sign-out needs the network. If it fails (offline, 5xx), auth-js
+    // keeps the session in storage, so fall back to a local-only sign-out so a
+    // reload shows the login page instead of restoring the session.
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.warn(
+        'Sign-out failed, clearing local session only:',
+        sanitizeLogMessage(error instanceof Error ? error.message : String(error))
+      );
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // purgeClientState() below removes the stored session regardless.
+      }
+    }
+
+    await purgeClientState();
+  }, [isE2EMockAuthEnabled, resetAuthState, user]);
 
   // Initialize session timeout
   useSessionTimeout({ logout, isAuthenticated: !!session });
@@ -449,6 +461,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (event === 'SIGNED_OUT') {
+        // SECF-05: covers sign-outs that bypass logout() (token refresh
+        // failure, LoginPage/2FA cancellation, explicit signOut calls).
+        void purgeClientState();
+      }
       if (!isMounted) return;
 
       setSession(currentSession);
