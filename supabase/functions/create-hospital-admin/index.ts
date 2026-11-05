@@ -84,6 +84,28 @@ const handler = async (req: Request): Promise<Response> => {
       auth: { persistSession: false },
     });
 
+    // Defence in depth (S0-03): enforce "new accounts only" here as well, so
+    // this function is safe even if it is deployed before migration
+    // 20261105000003 (whose RPC enforces the same rule). Without this, the old
+    // RPC would let an existing member create a hospital and move tenants.
+    const [{ data: existingProfile, error: profileErr }, { count: roleCount, error: rolesErr }] =
+      await Promise.all([
+        supabaseAdmin.from("profiles").select("hospital_id").eq("user_id", authData.user.id).maybeSingle(),
+        supabaseAdmin.from("user_roles").select("id", { count: "exact", head: true }).eq("user_id", authData.user.id),
+      ]);
+    if (profileErr || rolesErr) {
+      return new Response(
+        JSON.stringify({ error: "Could not verify account state" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+      );
+    }
+    if (existingProfile?.hospital_id || (roleCount ?? 0) > 0) {
+      return new Response(
+        JSON.stringify({ error: "This account already belongs to a hospital. Ask an administrator for access." }),
+        { status: 409, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
+      );
+    }
+
     const { name, address, city, state, zip, phone, email, license_number } = validation.data;
 
     const { data: hospitalId, error: rpcError } = await supabaseAdmin.rpc(
