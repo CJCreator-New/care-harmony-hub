@@ -114,6 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
         })
         .eq('id', item.id)
+        .eq('hospital_id', hospital_id)
     }
 
     // 5. Log Execution

@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { authorize } from '../_shared/authorize.ts';
+import { getAuthorizedActor } from '../_shared/authorize.ts';
+import { assertPatientInHospital } from '../_shared/tenantScope.ts';
 import { withRateLimit } from '../_shared/rateLimit.ts';
 import { validateRequest } from '../_shared/validation.ts';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
@@ -262,27 +263,20 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse']);
-  if (authError) return authError;
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse']);
+  if (authError || !actor) {
+    return authError ?? new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
-    const { data: profile } = user
-      ? await supabaseClient.from('profiles').select('hospital_id').eq('user_id', user.id).maybeSingle()
-      : { data: null };
+    const profile = { hospital_id: actor.hospitalId };
 
     // Validate and parse the request body
     const validation = await validateRequest(req, symptomAnalysisRequestSchema);
@@ -293,6 +287,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     const { symptoms, patient_id, patient_age, patient_gender } = validation.data;
+
+    // S0-06 / EDGE-13: the patient must belong to the caller's hospital.
+    if (!(await assertPatientInHospital(supabaseClient as never, patient_id, actor.hospitalId))) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - patient not found in caller hospital' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Determine urgency level
     const urgency_level = determineUrgencyLevel(symptoms);

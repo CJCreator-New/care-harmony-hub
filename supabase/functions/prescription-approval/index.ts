@@ -111,13 +111,15 @@ function getNextState(
  */
 async function performDURCheck(
   supabase: any,
-  prescriptionId: string
+  prescriptionId: string,
+  hospitalId: string
 ): Promise<{ passed: boolean; warnings: string[] }> {
   try {
     const { data: prescription, error } = await supabase
       .from("prescriptions")
       .select("*, items:prescription_items(*), patient:patients(*)")
       .eq("id", prescriptionId)
+      .eq("hospital_id", hospitalId)
       .single();
 
     if (error || !prescription) {
@@ -247,25 +249,18 @@ serve(async (req: Request) => {
     const { workflowId, action, reason, durWarnings, notes } = parsed.data;
 
     // Fetch workflow
+    // S0-06 / EDGE-14: the workflow is looked up inside the caller's hospital
+    // (getAuthorizedActor guarantees a hospital), so another tenant's id is a 404.
+    const hospitalId = actor!.hospitalId;
     const { data: workflow, error: workflowError } = await supabase
       .from("prescription_approval_workflows")
       .select("*")
       .eq("id", workflowId)
-      .single();
+      .eq("hospital_id", hospitalId)
+      .maybeSingle();
 
-    if (workflowError || !workflow) {
+    if (workflowError || !workflow || workflow.hospital_id !== hospitalId) {
       return json(404, { error: "Workflow not found" });
-    }
-
-    // ✅ Extract hospital_id from workflow for all subsequent queries
-    const hospitalId = workflow.hospital_id;
-    if (!hospitalId) {
-      return json(400, { error: "Hospital context required for prescription workflow" });
-    }
-
-    // Prevent cross-hospital actions: caller's hospital must match the workflow's.
-    if (actor!.hospitalId && actor!.hospitalId !== hospitalId) {
-      return json(403, { error: "Forbidden - hospital scope mismatch" });
     }
 
     // ─── RBAC Check (per-action) ──────────────────────────────────────────────────
@@ -281,13 +276,8 @@ serve(async (req: Request) => {
       });
     }
 
-    // Resolve the caller's profile id for columns that FK to profiles(id).
-    const { data: callerProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", actorId)
-      .maybeSingle();
-    const profileId = callerProfile?.id ?? null;
+    // The caller's profile id for columns that FK to profiles(id).
+    const profileId = actor!.profileId;
 
     // ─── State Transition Validation ──────────────────────────────────────────────
 
@@ -307,7 +297,7 @@ serve(async (req: Request) => {
 
     // DUR check on approve
     if (action === "approve") {
-      const durResult = await performDURCheck(supabase, workflow.prescription_id);
+      const durResult = await performDURCheck(supabase, workflow.prescription_id, hospitalId);
       updateData.dur_check_passed = durResult.passed;
       updateData.dur_warnings = durResult.warnings;
 
@@ -340,6 +330,7 @@ serve(async (req: Request) => {
       .from("prescription_approval_workflows")
       .update(updateData)
       .eq("id", workflowId)
+      .eq("hospital_id", hospitalId)
       .select()
       .single();
 

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize, getAuthorizedActor } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
@@ -90,9 +90,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
-  if (authError) return authError;
-
   try {
     const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
     if (response || !actor) {
@@ -140,11 +137,9 @@ const handler = async (req: Request): Promise<Response> => {
         ordering_physician:profiles!lab_orders_ordered_by_fkey(user_id, first_name, last_name)
       `)
       .eq('status', 'completed')
-      .eq('is_critical', false);
-
-    if (actor.hospitalId) {
-      query = query.eq('hospital_id', actor.hospitalId);
-    }
+      .eq('is_critical', false)
+      // S0-06 / EDGE-14: always scoped; getAuthorizedActor refuses a caller without a hospital.
+      .eq('hospital_id', actor.hospitalId);
 
     if (labOrderId) {
       query = query.eq('id', labOrderId);
@@ -263,7 +258,8 @@ const handler = async (req: Request): Promise<Response> => {
           critical_notified: true,
           critical_notified_at: new Date().toISOString()
         })
-        .in('id', criticalOrders);
+        .in('id', criticalOrders)
+        .eq('hospital_id', actor.hospitalId);
 
       if (updateError) {
         console.error("Error updating lab orders:", updateError);

@@ -17,6 +17,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { getAuthorizedActor } from '../_shared/authorize.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { assertPatientInHospital } from '../_shared/tenantScope.ts';
 
 const RXNORM_API = 'https://rxnav.nlm.nih.gov/REST';
 const TIMEOUT_MS = 5000; // RxNorm API timeout
@@ -204,6 +205,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     );
 
+    // S0-06 / EDGE-13: a patient id must belong to the caller's hospital before its
+    // cache or active prescriptions are read (no cross-tenant inference oracle).
+    if (patientId && !(await assertPatientInHospital(supabase as never, patientId, hospitalId))) {
+      return json(403, { error: 'Forbidden - patient not found in caller hospital' });
+    }
+
     // ========================================================================
     // 1. CHECK CACHE FIRST (30-day TTL)
     // ========================================================================
@@ -237,6 +244,7 @@ serve(async (req) => {
         .from('prescriptions')
         .select('drug_rxcui, drug_name')
         .eq('patient_id', patientId)
+        .eq('hospital_id', hospitalId)
         .eq('status', 'active')
         .neq('drug_rxcui', newDrugRxcui);
 

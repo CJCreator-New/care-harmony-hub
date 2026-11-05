@@ -3,6 +3,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
 import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
+import { assertPatientInHospital } from "../_shared/tenantScope.ts";
+
+// S0-06 / EDGE-13: body patient ids must belong to actor.hospitalId.
+function foreignPatient() {
+  return new Response(JSON.stringify({ error: "Forbidden - patient not found in caller hospital" }), {
+    status: 403,
+    headers: { "Content-Type": "application/json", ...defaultCorsHeaders },
+  });
+}
 import { validateRequest } from "../_shared/validation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -65,6 +74,8 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function verifyInsuranceEligibility(supabase: any, { patient_id, policy_number }: any, actor: any) {
+  if (!(await assertPatientInHospital(supabase, patient_id, actor.hospitalId))) return foreignPatient();
+
   // Mock insurance verification - in production, integrate with actual insurance APIs
   const eligibilityResponse = {
     eligible: true,
@@ -98,6 +109,8 @@ async function verifyInsuranceEligibility(supabase: any, { patient_id, policy_nu
 }
 
 async function submitInsuranceClaim(supabase: any, claim: InsuranceClaim, actor: any) {
+  if (!(await assertPatientInHospital(supabase, claim?.patient_id, actor.hospitalId))) return foreignPatient();
+
   const claimId = crypto.randomUUID();
   
   // Generate EDI 837 format (simplified)
@@ -236,7 +249,8 @@ async function processInsurancePayment(supabase: any, { claim_id, payment_amount
       status: 'partially_paid',
       updated_at: new Date().toISOString(),
     })
-    .eq('claim_id', claim_id);
+    .eq('claim_id', claim_id)
+    .eq('hospital_id', actor.hospitalId);
 
   return new Response(
     JSON.stringify({

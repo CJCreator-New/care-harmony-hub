@@ -34,6 +34,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     const { patient_id } = validation.data;
+    if (validation.data.hospital_id && validation.data.hospital_id !== actor!.hospitalId) {
+      return new Response(JSON.stringify({ error: "Forbidden - hospital scope mismatch" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Verify patient belongs strictly to caller's hospital
     const { data: patient, error: patientErr } = await supabaseClient
@@ -113,9 +119,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // 5. Auto-log if critical
-    if (risk_level === 'critical' && hospital_id) {
+    // S0-06 / EDGE-13: the alert is written to the caller's hospital (the old code
+    // referenced an undefined `hospital_id`, so every critical result threw a 500).
+    if (risk_level === 'critical') {
       await supabaseClient.from('critical_value_alerts').insert({
-        hospital_id,
+        hospital_id: actor!.hospitalId,
         patient_id,
         alert_type: 'deterioration_warning',
         severity: 'high',

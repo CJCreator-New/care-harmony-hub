@@ -9,45 +9,70 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
+import { findInHospital, findProfileInHospital, isUuid } from "../_shared/tenantScope.ts";
+
+// S0-06 / EDGE-13: the lab result, its order, patient and ordering doctor are
+// read from the database in the caller's hospital. The body's `labResult`
+// object is ignored (it used to choose the doctor, hospital and values).
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  const json = (status: number, payload: Record<string, unknown>) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
-  const authError = await authorize(req, ['admin', 'doctor', 'lab_technician', 'nurse']);
-  if (authError) return authError;
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor', 'lab_technician', 'nurse']);
+  if (authError || !actor) return authError ?? json(401, { error: "Unauthorized" });
 
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    const db = supabase as never;
 
-    const { labResultId, labResult } = await req.json();
-
-    if (!labResultId || !labResult) {
-      return new Response(
-        JSON.stringify({ error: "Missing labResultId or labResult data" }),
-        { status: 400, headers: corsHeaders }
-      );
+    const body = await req.json().catch(() => ({}));
+    const labResultId = body?.labResultId;
+    if (!isUuid(labResultId)) {
+      return json(400, { error: "labResultId must be a UUID" });
     }
 
-    // Get ordering doctor details
-    const { data: doctor, error: doctorError } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, phone_number, hospital_id")
-      .eq("id", labResult.ordering_doctor_id)
-      .single();
+    const result = await findInHospital(db, "lab_results", labResultId, actor.hospitalId, {
+      select: "id, lab_order_id, result_value, result_unit, created_at, hospital_id",
+    });
+    if (!result) return json(404, { error: "Lab result not found" });
 
-    if (doctorError || !doctor) {
-      console.error("Doctor lookup failed:", doctorError);
-      return new Response(
-        JSON.stringify({ error: "Doctor not found" }),
-        { status: 404, headers: corsHeaders }
-      );
+    const order = await findInHospital(db, "lab_orders", result.lab_order_id, actor.hospitalId, {
+      select: "id, patient_id, ordered_by, test_name, test_code, hospital_id",
+    });
+    if (!order) return json(404, { error: "Lab order not found" });
+
+    const labResult = {
+      id: result.id,
+      hospital_id: actor.hospitalId,
+      patient_id: order.patient_id,
+      test_name: order.test_name,
+      test_code: order.test_code,
+      result_value: result.result_value,
+      unit: result.result_unit,
+      created_at: result.created_at,
+    };
+
+    // Ordering doctor: same hospital only (ordered_by may hold profiles.id or user_id).
+    const doctor = await findProfileInHospital<Record<string, any>>(
+      db,
+      order.ordered_by,
+      actor.hospitalId,
+      "id, user_id, email, phone, hospital_id",
+    );
+    if (!doctor) {
+      return json(404, { error: "Doctor not found" });
     }
 
     // Determine if critical based on lab test type
@@ -80,7 +105,7 @@ serve(async (req) => {
     // Send notifications
     const results = {
       in_app: await sendInAppNotification(supabase, notification, doctor, labResult),
-      sms: isCritical ? await sendSmsNotification(doctor.phone_number, labResult) : null,
+      sms: isCritical ? await sendSmsNotification(doctor.phone, labResult) : null,
       email: await sendEmailNotification(doctor.email, labResult, isCritical),
     };
 
@@ -96,36 +121,32 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
         },
       })
-      .eq("id", notification.id);
+      .eq("id", notification.id)
+      .eq("hospital_id", actor.hospitalId);
 
-    // Log activity
+    // Log activity: attributed to the caller who triggered it, not the doctor (EDGE-13).
     await supabase.from("activity_logs").insert({
-      hospital_id: doctor.hospital_id,
-      user_id: doctor.id,
+      hospital_id: actor.hospitalId,
+      user_id: actor.userId,
       action_type: "lab_result_notification_sent",
       resource_type: "lab_result",
       resource_id: labResultId,
       metadata: {
         critical: isCritical,
         notification_id: notification.id,
+        ordering_doctor_id: doctor.id,
       },
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        notification_id: notification.id,
-        delivery_status: results,
-      }),
-      { status: 200, headers: corsHeaders }
-    );
+    return json(200, {
+      success: true,
+      notification_id: notification.id,
+      delivery_status: results,
+    });
 
   } catch (error) {
     console.error("Lab notification error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: corsHeaders }
-    );
+    return json(500, { error: "Internal server error" });
   }
 });
 

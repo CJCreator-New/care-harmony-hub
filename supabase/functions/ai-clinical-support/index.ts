@@ -2,8 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
 import { validateAIClinicalRequest } from "../_shared/validation.ts";
-import { authorize } from "../_shared/authorize.ts";
-import { getCorsHeaders } from "../_shared/cors.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
+// Module-level `corsHeaders` is used by the action helpers below (they referenced
+// an undefined identifier before); the handler shadows it with the per-request value.
+import { corsHeaders, getCorsHeaders } from "../_shared/cors.ts";
 
 interface ClinicalData {
   symptoms: string[];
@@ -33,21 +35,16 @@ const handler = async (req: Request): Promise<Response> => {
   if (rateLimitResponse) return rateLimitResponse;
 
   // Check authorization
-  const authResponse = await authorize(req, ["doctor", "admin"]);
-  if (authResponse) return authResponse;
+  const { actor, response: authResponse } = await getAuthorizedActor(req, ["doctor", "admin"]);
+  if (authResponse || !actor) return authResponse!;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Resolve caller's hospital_id from their profile
-    const token = req.headers.get("Authorization")!.replace("Bearer ", "");
-    const { data: { user } } = await supabase.auth.getUser(token);
-    const { data: callerProfile } = user
-      ? await supabase.from("profiles").select("hospital_id").eq("user_id", user.id).maybeSingle()
-      : { data: null };
-    const callerHospitalId: string | null = callerProfile?.hospital_id ?? null;
+    // S0-06: hospital comes from the verified actor (never null).
+    const callerHospitalId: string = actor.hospitalId;
 
     const body = await req.json();
     
@@ -68,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
       case 'drug_interaction_check':
         return await checkDrugInteractions(supabase, data);
       case 'risk_assessment':
-        return await assessPatientRisk(supabase, data);
+        return await assessPatientRisk(supabase, data, callerHospitalId);
       case 'treatment_recommendations':
         return await getTreatmentRecommendations(supabase, data);
       default:
@@ -180,8 +177,8 @@ async function checkDrugInteractions(supabase: any, { medications }: { medicatio
   );
 }
 
-async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: string }) {
-  // Get patient data
+async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: string }, hospitalId: string) {
+  // S0-06 / EDGE-13: the patient (and the embedded rows) must be in the caller's hospital.
   const { data: patient } = await supabase
     .from('patients')
     .select(`
@@ -191,9 +188,15 @@ async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: st
       prescriptions(*)
     `)
     .eq('id', patient_id)
-    .single();
+    .eq('hospital_id', hospitalId)
+    .maybeSingle();
 
-  if (!patient) throw new Error('Patient not found');
+  if (!patient || patient.hospital_id !== hospitalId) {
+    return new Response(
+      JSON.stringify({ error: 'Patient not found' }),
+      { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
 
   // Calculate risk scores
   const riskFactors = {
