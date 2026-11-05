@@ -1,6 +1,8 @@
+import { logEdge } from './sanitizeLog.ts';
+
 /**
  * OpenTelemetry Instrumentation for Deno Edge Functions
- * 
+ *
  * Provides:
  * - Request/response span tracking
  * - Correlation ID propagation
@@ -52,19 +54,19 @@ class MockSpan implements Span {
   ) {}
 
   setStatus(code: 'OK' | 'UNSET' | 'ERROR', message?: string): void {
-    console.log(`[${this.traceId}] Span ${this.operationName} status: ${code}`);
+    logEdge('info', 'span', { trace_id: this.traceId, operation: this.operationName, status: code });
   }
 
   setAttribute(key: string, value: any): void {
-    console.log(`[${this.traceId}] ${key}=${value}`);
+    logEdge('debug', 'span.attribute', { trace_id: this.traceId, [key]: value });
   }
 
   addEvent(name: string, attributes?: Record<string, any>): void {
-    console.log(`[${this.traceId}] Event: ${name}`, attributes);
+    logEdge('info', 'span.event', { trace_id: this.traceId, event: name, attributes });
   }
 
   recordException(error: Error): void {
-    console.error(`[${this.traceId}] Exception:`, error.message);
+    logEdge('error', 'span.exception', { trace_id: this.traceId, error: { name: error.name, message: error.message } });
   }
 
   end(): void {
@@ -217,7 +219,7 @@ function logMetric(
   // In production, send to OpenTelemetry Collector
   // For now, just log
   if (Deno.env.get('DEBUG_TRACING') === 'true') {
-    console.log(`[Metric] ${metricName}=${value}`, attributes);
+    logEdge('info', 'Metric', { metric: metricName, value, attributes });
   }
 }
 
@@ -229,10 +231,13 @@ function logError(
   error: any,
   attributes: Record<string, any> = {}
 ): void {
-  const errorMessage =
-    error instanceof Error ? error.message : String(error);
+  // Only the error name and scrubbed message are logged; stacks and raw bodies are not.
+  const errorInfo =
+    error instanceof Error
+      ? { name: error.name, message: error.message }
+      : { message: String(error) };
 
-  console.error(`[Error in ${context}] ${errorMessage}`, attributes);
+  logEdge('error', `Error in ${context}`, { error: errorInfo, attributes });
 
   // Could send to Sentry/Glitchtip here for error tracking
   // Never log PHI (patient names, UHIDs, diagnoses)

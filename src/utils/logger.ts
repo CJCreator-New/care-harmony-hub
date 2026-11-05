@@ -1,21 +1,111 @@
-// @ts-nocheck
 /**
- * Structured Logging System
- * JSON logging with correlation IDs, PHI masking, and lifecycle events
- * HIPAA-compliant: No patient names, UHIDs, diagnoses in logs
+ * The single client-side logger for CareSync HIMS.
+ *
+ * Every client log line, breadcrumb and telemetry event goes through this module.
+ * Nothing it emits contains PHI or contact data:
+ *   - structured context is passed through `redactForLog` (key-based, recursive)
+ *   - free text is passed through `scrubLogString` (e-mail, phone, SSN, card, MRN, DOB patterns)
+ *
+ * Sinks
+ *   - development: browser console, redacted
+ *   - production: Sentry breadcrumbs (scrubbed by `beforeBreadcrumb` in lib/monitoring/sentry.ts).
+ *     The former `fetch('/api/logs')` batch was removed: nginx served the SPA for that path,
+ *     so those logs were always dropped.
+ *
+ * Edge functions use the mirror helper `supabase/functions/_shared/sanitizeLog.ts`.
+ * `REDACTED_KEY_WORDS` must stay identical there; a parity test enforces it.
  */
+import { addBreadcrumb } from '@sentry/react';
 
-// Simple UUID v4 generator without external dependency
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
+/** Words that mark an object key as PHI or contact data. Keep in sync with the edge helper. */
+export const REDACTED_KEY_WORDS: readonly string[] = [
+  'name',
+  'mrn',
+  'uhid',
+  'dob',
+  'birth',
+  'medication',
+  'medications',
+  'notes',
+  'diagnosis',
+  'diagnoses',
+  'email',
+  'phone',
+  'mobile',
+  'address',
+  'ssn',
+  'allergies',
+  'allergy',
+];
+
+export const REDACTED_VALUE = '[redacted]';
+
+const MAX_DEPTH = 6;
+const MAX_STRING_LENGTH = 2000;
+
+/** Split a key into lower-case words: `patientName`, `patient_name`, `patient-name` -> [patient, name]. */
+function keyWords(key: string): string[] {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .split(/[^A-Za-z0-9]+|_/)
+    .filter(Boolean)
+    .map((w) => w.toLowerCase());
+}
+
+export function isSensitiveKey(key: string): boolean {
+  return keyWords(key).some((w) => REDACTED_KEY_WORDS.includes(w));
+}
+
+/**
+ * Scrub free text. Replaces SSNs, card numbers, e-mail addresses, phone numbers,
+ * MRN and DOB labels, and caps the length.
+ */
+export function scrubLogString(value: string): string {
+  return value
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]')
+    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD]')
+    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]')
+    .replace(/\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b/g, '[PHONE]')
+    .replace(/\bMRN\s*[:#]?\s*[\w-]{4,12}\b/gi, '[MRN]')
+    .replace(/\bDOB\s*[:#]?\s*[\d/-]{8,10}\b/gi, '[DOB]')
+    .substring(0, MAX_STRING_LENGTH);
+}
+
+/**
+ * Recursively redact a value for logging. Returns a new value; the input is not mutated.
+ * Error objects are reduced to name and scrubbed message (no stack, no extra fields).
+ */
+export function redactForLog(value: unknown, depth = 0): unknown {
+  if (value === null || value === undefined) return value;
+
+  if (typeof value === 'string') return scrubLogString(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'function' || typeof value === 'symbol') return undefined;
+
+  if (depth >= MAX_DEPTH) return '[truncated]';
+
+  if (value instanceof Error) {
+    return { name: value.name, message: scrubLogString(value.message) };
   }
-  // Fallback for environments without crypto.randomUUID
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactForLog(item, depth + 1));
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = isSensitiveKey(key) ? REDACTED_VALUE : redactForLog(inner, depth + 1);
+    }
+    return out;
+  }
+
+  return undefined;
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -76,11 +166,17 @@ export interface StructuredLog {
   entity_type?: string;
   entity_id?: string;
   event_type?: EventType;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   error?: {
     message: string;
-    stack?: string;
+    name?: string;
   };
+}
+
+export interface LoggerMetadata {
+  module?: string;
+  version?: string;
+  environment?: string;
 }
 
 class Logger {
@@ -90,129 +186,69 @@ class Logger {
   private userRole?: string;
   private context: Record<string, string>;
 
-  constructor(
-    context: string,
-    metadata?: {
-      module?: string;
-      version?: string;
-      environment?: string;
-    }
-  ) {
-    this.correlationId = generateUUID();
-    this.context = {
-      context,
-      ...metadata,
-    };
+  constructor(context: string, metadata?: LoggerMetadata) {
+    this.correlationId = newId();
+    this.context = { context, ...(metadata as Record<string, string>) };
   }
 
-  /**
-   * Set user context for correlation
-   */
+  /** Set user context for correlation. IDs and role only; never names or e-mail. */
   setUserContext(userId: string, role: string, hospitalId?: string) {
     this.userId = userId;
     this.userRole = role;
     this.hospitalId = hospitalId;
   }
 
-  /**
-   * Create a new correlation ID for tracing
-   */
+  /** Create a new correlation ID for tracing */
   newCorrelationId() {
-    this.correlationId = generateUUID();
+    this.correlationId = newId();
     return this.correlationId;
   }
 
-  /**
-   * Log generic message
-   */
-  private log(level: LogLevel, message: string, extra?: Record<string, any>) {
-    const logEntry: StructuredLog = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      correlation_id: this.correlationId,
-      hospital_id: this.hospitalId,
-      user_id: this.userId,
-      user_role: this.userRole,
-      context: { ...this.context, ...extra },
-    };
-
-    this.emitLog(logEntry);
+  debug(message: string, extra?: Record<string, unknown>) {
+    this.emit('debug', message, extra);
   }
 
-  debug(message: string, extra?: Record<string, any>) {
-    this.log('debug', message, extra);
+  info(message: string, extra?: Record<string, unknown>) {
+    this.emit('info', message, extra);
   }
 
-  info(message: string, extra?: Record<string, any>) {
-    this.log('info', message, extra);
+  warn(message: string, extra?: Record<string, unknown>) {
+    this.emit('warn', message, extra);
   }
 
-  warn(message: string, extra?: Record<string, any>) {
-    this.log('warn', message, extra);
+  error(message: string, error?: unknown, extra?: Record<string, unknown>) {
+    const errorInfo =
+      error instanceof Error
+        ? { message: scrubLogString(error.message), name: error.name }
+        : error !== undefined
+          ? { message: scrubLogString(String(error)) }
+          : undefined;
+    this.emit('error', message, extra, errorInfo);
   }
 
-  error(message: string, error?: Error, extra?: Record<string, any>) {
-    const logEntry: StructuredLog = {
-      timestamp: new Date().toISOString(),
-      level: 'error',
-      message,
-      correlation_id: this.correlationId,
-      hospital_id: this.hospitalId,
-      user_id: this.userId,
-      user_role: this.userRole,
-      context: { ...this.context, ...extra },
-      error: error
-        ? {
-            message: error.message,
-            stack: error.stack,
-          }
-        : undefined,
-    };
-
-    this.emitLog(logEntry);
-  }
-
-  /**
-   * Log lifecycle event (prescription created, lab ordered, etc.)
-   */
-  logLifecycleEvent(
-    eventType: EventType,
-    details: LifecycleEventDetails
-  ) {
-    const sanitized = this.sanitizeLifecycleDetails(details);
-    const logEntry: StructuredLog = {
+  /** Lifecycle event (prescription created, lab ordered, etc.). Patient fields are always redacted. */
+  logLifecycleEvent(eventType: EventType, details: LifecycleEventDetails) {
+    this.emitEntry({
       timestamp: new Date().toISOString(),
       level: details.status === 'success' ? 'info' : 'warn',
       message: `Lifecycle event: ${eventType}`,
       correlation_id: this.correlationId,
-      hospital_id: sanitized.hospital_id || this.hospitalId,
-      user_id: sanitized.actor_id,
-      user_role: sanitized.actor_role,
-      entity_type: sanitized.entity_type,
-      entity_id: sanitized.entity_id,
+      hospital_id: details.hospital_id || this.hospitalId,
+      user_id: details.actor_id,
+      user_role: details.actor_role,
+      entity_type: details.entity_type,
+      entity_id: details.entity_id,
       event_type: eventType,
-      context: {
-        ...this.context,
-        ...sanitized,
-      },
-    };
-
-    this.emitLog(logEntry);
+      context: { ...this.context, ...(redactForLog(details) as Record<string, unknown>) },
+    });
   }
 
-  /**
-   * Log performance event (query latency, cache hits, etc.)
-   */
+  /** Performance event (query latency, cache hits, etc.) */
   logPerformanceEvent(details: PerformanceEventDetails) {
-    const level =
-      details.duration_ms > 1000
-        ? 'warn'
-        : details.duration_ms > 500
-          ? 'info'
-          : 'debug';
+    const level: LogLevel =
+      details.duration_ms > 1000 ? 'warn' : details.duration_ms > 500 ? 'info' : 'debug';
 
-    const logEntry: StructuredLog = {
+    this.emitEntry({
       timestamp: new Date().toISOString(),
       level,
       message: `Performance: ${details.operation} took ${details.duration_ms.toFixed(2)}ms`,
@@ -220,199 +256,109 @@ class Logger {
       hospital_id: this.hospitalId,
       user_id: this.userId,
       user_role: this.userRole,
-      context: {
-        ...this.context,
-        operation: details.operation,
-        duration_ms: details.duration_ms,
-        success: details.success,
-        ...details,
-      },
-    };
-
-    this.emitLog(logEntry);
+      context: { ...this.context, ...(redactForLog(details) as Record<string, unknown>) },
+    });
   }
 
-  /**
-   * Log safety/security event (medication conflicts, lab delays, etc.)
-   */
+  /** Safety/security event (medication conflicts, lab delays, etc.) */
   logSafetyEvent(details: SafetyEventDetails) {
-    const logEntry: StructuredLog = {
+    this.emitEntry({
       timestamp: new Date().toISOString(),
       level: details.impact_level === 'high' ? 'error' : 'warn',
-      message: `Safety event: ${details.event_type} - ${details.reason}`,
+      message: `Safety event: ${details.event_type} - ${scrubLogString(details.reason)}`,
       correlation_id: this.correlationId,
       hospital_id: details.hospital_id || this.hospitalId,
       user_id: details.actor_id,
       user_role: details.actor_role,
+      context: { ...this.context, ...(redactForLog(details) as Record<string, unknown>) },
+    });
+  }
+
+  private emit(
+    level: LogLevel,
+    message: string,
+    extra?: Record<string, unknown>,
+    error?: StructuredLog['error']
+  ) {
+    this.emitEntry({
+      timestamp: new Date().toISOString(),
+      level,
+      message: scrubLogString(message),
+      correlation_id: this.correlationId,
+      hospital_id: this.hospitalId,
+      user_id: this.userId,
+      user_role: this.userRole,
       context: {
         ...this.context,
-        ...details,
+        ...(redactForLog(extra) as Record<string, unknown> | undefined),
       },
-    };
-
-    this.emitLog(logEntry);
+      error,
+    });
   }
 
-  /**
-   * Sanitize lifecycle event details to remove PHI
-   */
-  private sanitizeLifecycleDetails(
-    details: LifecycleEventDetails
-  ): LifecycleEventDetails {
-    return {
-      ...details,
-      // Mask any potential PHI fields
-      entity_id: this.maskPHI(details.entity_id),
-      patient_name: '[REDACTED]',
-      patient_uhid: '[REDACTED]',
-      diagnosis: '[REDACTED]',
-      medication_name: '[REDACTED]',
-    };
-  }
+  private emitEntry(entry: StructuredLog) {
+    // Defence in depth: the entry is redacted once more before it leaves this module.
+    const safe = redactForLog(entry) as StructuredLog;
 
-  /**
-   * Mask PHI in log output
-   * @param value String that might contain PHI
-   * @returns Masked value if it looks like PHI, otherwise original
-   */
-  maskPHI(value: string | number | undefined): string {
-    if (!value) return '';
-
-    const strValue = String(value);
-
-    // Mask UHIDs (typically numeric or alphanumeric patterns)
-    if (/^\d{4,}$/.test(strValue) || /^[A-Z]{2,}\d{4,}$/.test(strValue)) {
-      return '[UHID_REDACTED]';
+    if (import.meta.env.DEV && typeof console !== 'undefined') {
+      const method =
+        safe.level === 'error' ? console.error : safe.level === 'warn' ? console.warn : console.log;
+      method(JSON.stringify(safe, null, 2));
     }
 
-    // Mask email-like patterns (patient contact info)
-    if (/@/.test(strValue)) {
-      return '[EMAIL_REDACTED]';
-    }
-
-    // Mask phone numbers
-    if (/^\d{7,}$/.test(strValue.replace(/[-\s]/g, ''))) {
-      return '[PHONE_REDACTED]';
-    }
-
-    return strValue;
-  }
-
-  /**
-   * Internal method to emit logs to console/server
-   * In production, integrate with log aggregation service
-   */
-  private emitLog(logEntry: StructuredLog) {
-    // In development, log to console
-    if (import.meta.env.DEV) {
-      const level = logEntry.level;
-      const consoleMethod = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
-      if (typeof console !== 'undefined') {
-        const fn = console[consoleMethod as keyof typeof console] as any;
-        if (typeof fn === 'function') {
-          fn(JSON.stringify(logEntry, null, 2));
-        }
-      }
-    }
-
-    // In production, send to log aggregation endpoint
     if (import.meta.env.PROD) {
-      // Queue for batch sending
-      this.queueLog(logEntry);
-    }
-  }
-
-  /**
-   * Queue logs for batch sending to server
-   */
-  private logQueue: StructuredLog[] = [];
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
-
-  private queueLog(entry: StructuredLog) {
-    this.logQueue.push(entry);
-
-    // Flush every 10 logs or 5 seconds
-    if (this.logQueue.length >= 10) {
-      this.flushLogs();
-    } else if (!this.flushTimer) {
-      this.flushTimer = setTimeout(() => this.flushLogs(), 5000);
-    }
-  }
-
-  private async flushLogs() {
-    if (this.logQueue.length === 0) return;
-
-    const logsToSend = [...this.logQueue];
-    this.logQueue = [];
-
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-
-    try {
-      // Send to logging endpoint
-      await fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logs: logsToSend }),
-      }).catch(() => {
-        // Silently fail if logging endpoint is unavailable
-        // Don't crash the app for logging failures
-      });
-    } catch (error) {
-      // Ignore logging failures
+      try {
+        addBreadcrumb({
+          category: 'app.log',
+          level: safe.level === 'warn' ? 'warning' : safe.level,
+          message: safe.message,
+          data: { ...safe.context, correlation_id: safe.correlation_id, error: safe.error },
+        });
+      } catch {
+        // Logging must never throw into the app.
+      }
     }
   }
 }
 
-/**
- * Create a new logger instance
- * @param context String identifying the context (e.g., 'prescription-service', 'appointment-hook')
- * @param metadata Optional metadata to include in all logs from this logger
- */
-export function createLogger(
-  context: string,
-  metadata?: {
-    module?: string;
-    version?: string;
-    environment?: string;
+function newId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
   }
-): Logger {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Create a new logger instance.
+ * @param context Identifies the caller, e.g. 'appointment-hook'. Keep it PHI-free.
+ */
+export function createLogger(context: string, metadata?: LoggerMetadata): Logger {
   return new Logger(context, metadata);
 }
 
 /**
- * Utility function to mask PHI in any value
- * @param value The value to mask
- * @returns Masked value if PHI detected, otherwise original
+ * Mask a single value that may be PHI. Returns '[REDACTED]' for identifiers,
+ * e-mail addresses, phone numbers and name-shaped strings; otherwise the value unchanged.
  */
 export function maskPHI(value: string | number | undefined): string {
   if (!value) return '';
 
   const strValue = String(value);
 
-  // Patient identifiers
   if (/^\d{4,}$/.test(strValue) || /^[A-Z]{2,}\d{4,}$/.test(strValue)) {
     return '[REDACTED]';
   }
-
-  // Email
   if (/@/.test(strValue)) {
     return '[REDACTED]';
   }
-
-  // Phone
   if (/^\d{7,}$/.test(strValue.replace(/[-\s]/g, ''))) {
     return '[REDACTED]';
   }
-
-  // Common patient name patterns
-  if (
-    /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(strValue) &&
-    strValue.length > 5 &&
-    strValue.length < 50
-  ) {
+  if (/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(strValue) && strValue.length > 5 && strValue.length < 50) {
     return '[REDACTED]';
   }
 
@@ -420,16 +366,18 @@ export function maskPHI(value: string | number | undefined): string {
 }
 
 /**
- * Utility to safely log a message without PHI exposure
+ * Serialise any value for a log line with PHI redaction applied.
+ * Objects go through `redactForLog`; strings through `maskPHI`.
  */
-export function sanitizeForLog(value: any): string {
-  if (!value) return '';
+export function sanitizeForLog(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
 
   if (typeof value === 'object') {
-    // Remove known PHI fields from objects
-    const { patient_name, patient_uhid, diagnosis, medication_name, email, phone, ...safe } =
-      value;
-    return JSON.stringify(safe);
+    try {
+      return JSON.stringify(redactForLog(value));
+    } catch {
+      return '[UNABLE_TO_SANITIZE]';
+    }
   }
 
   return maskPHI(String(value));

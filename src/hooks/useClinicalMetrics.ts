@@ -14,7 +14,6 @@ import {
   getTracer,
   getMeter,
   createClinicalSpan,
-  createAPISpan,
   recordClinicalMetric,
   recordEvent,
 } from '@/utils/telemetry';
@@ -23,10 +22,7 @@ import {
   getTraceContext,
   logClinicalEvent,
 } from '@/utils/correlationId';
-import {
-  captureException,
-  captureMessage,
-} from '@/utils/errorTracking';
+import { captureException } from '@/lib/monitoring/sentry';
 
 interface ClinicalMetricsOptions {
   workflowType?: 'prescription' | 'lab' | 'appointment' | 'vital' | 'consultation' | 'billing';

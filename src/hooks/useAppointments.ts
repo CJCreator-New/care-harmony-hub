@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { APPOINTMENT_COLUMNS } from '@/lib/queryColumns';
 import { createClinicalSpan, recordClinicalMetric } from '@/utils/telemetry';
 import { getCorrelationId } from '@/utils/correlationId';
-import { captureException } from '@/utils/errorTracking';
+import { captureException } from '@/lib/monitoring/sentry';
 
 export type AppointmentStatus = 'scheduled' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
 export type PriorityLevel = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';

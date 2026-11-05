@@ -1,60 +1,50 @@
 /**
  * Application Bootstrap Orchestrator
- * Initializes all services in correct sequence to prevent startup race conditions
+ * Initializes the client observability path in a fixed order.
+ *
+ * Sentry is NOT initialised here: `initSentry()` in src/lib/monitoring/sentry.ts runs
+ * synchronously from main.tsx before the first render and is the only `Sentry.init`.
  */
 
 import { setupTelemetry, teardownTelemetry, TelemetryConfig } from './telemetry';
-import { setupErrorTracking, ErrorTrackingConfig } from './error-tracking';
 import { setupRequestInterceptors, getTraceId } from './correlation-id';
 import { setupLogger, LoggerConfig } from './logger';
 import { setupMetrics } from './metrics';
 
 export interface BootstrapConfig {
   telemetry: TelemetryConfig;
-  errorTracking: ErrorTrackingConfig;
   logger: LoggerConfig;
 }
 
 /**
  * Initialize application in strict order:
  * 1. Logger (needed for diagnostics in other modules)
- * 2. Telemetry (observability foundation)
- * 3. Error Tracking (catch startup errors)
- * 4. Metrics (performance tracking)
- * 5. Request Interceptors (trace all requests)
+ * 2. Telemetry (routed through the logger)
+ * 3. Metrics
+ * 4. Request interceptors (trace all requests)
  */
 export function bootstrap(config: BootstrapConfig): {
   getLogger: () => ReturnType<typeof setupLogger>;
   getTraceId: () => string;
   shutdown: () => Promise<void>;
 } {
-  // Step 1: Initialize logger first
   const logger = setupLogger(config.logger);
 
-  // Step 2: Setup telemetry for observability
   setupTelemetry(config.telemetry);
-  logger.info('✓ Telemetry initialized', {
+  logger.info('Telemetry initialized', {
     serviceName: config.telemetry.serviceName,
     environment: config.telemetry.environment,
   });
 
-  // Step 3: Setup error tracking
-  setupErrorTracking(config.errorTracking);
-  logger.info('✓ Error tracking initialized', {
-    environment: config.errorTracking.environment,
-  });
-
-  // Step 4: Initialize metrics
   setupMetrics();
-  logger.info('✓ Metrics initialized');
+  logger.info('Metrics initialized');
 
-  // Step 5: Register request interceptors
   setupRequestInterceptors();
-  logger.info('✓ Request interceptors registered', {
+  logger.info('Request interceptors registered', {
     traceId: getTraceId(),
   });
 
-  logger.info('🚀 Application bootstrap complete');
+  logger.info('Application bootstrap complete');
 
   return {
     getLogger: () => logger,
@@ -64,7 +54,6 @@ export function bootstrap(config: BootstrapConfig): {
 }
 
 export { setupTelemetry, teardownTelemetry };
-export { setupErrorTracking };
 export { setupRequestInterceptors, getTraceId };
 export { setupLogger };
 export { setupMetrics };

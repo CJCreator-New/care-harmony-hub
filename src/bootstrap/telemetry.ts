@@ -4,6 +4,9 @@
  */
 
 import { initializeTelemetry, shutdownTelemetry } from '@/utils/telemetry';
+import { createLogger } from '@/utils/logger';
+
+const log = createLogger('telemetry-shutdown');
 
 export interface TelemetryConfig {
   serviceName: string;
@@ -23,5 +26,5 @@ export function setupTelemetry(config: TelemetryConfig): void {
 }
 
 export function teardownTelemetry(): Promise<void> {
-  return shutdownTelemetry().catch((err) => console.error('[Telemetry Shutdown]', err));
+  return shutdownTelemetry().catch((err) => log.error('Telemetry shutdown failed', err));
 }

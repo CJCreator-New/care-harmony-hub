@@ -12,6 +12,10 @@
  * Enables end-to-end request tracing across frontend → backend layers
  */
 
+import { createLogger, redactForLog } from '@/utils/logger';
+
+const log = createLogger('correlation');
+
 export interface TraceContext {
   traceId: string;
   spanId: string;
@@ -315,12 +319,13 @@ export function logClinicalEvent(
   const correlationId = getCorrelationId();
   const traceContext = getTraceContext();
 
+  // Details are redacted before they are sent or logged (no names, MRN, DOB, notes, contact data).
   const logEntry = {
     timestamp: new Date().toISOString(),
     eventType,
     correlationId,
     traceContext,
-    ...details,
+    ...(redactForLog(details) as Record<string, any>),
   };
 
   // Send to structured logging endpoint
@@ -334,7 +339,7 @@ export function logClinicalEvent(
       body: JSON.stringify(logEntry),
     }).catch(() => {
       // Silently fail if logging endpoint unavailable
-      console.debug(`[Clinical Event] ${eventType}:`, logEntry);
+      log.debug(`clinical event not delivered: ${eventType}`, logEntry);
     });
   }
 }

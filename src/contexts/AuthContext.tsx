@@ -919,9 +919,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
+      // Sentry gets the user ID, role and hospital only. E-mail is never sent.
       setSentryUser({
         id: user.id,
-        email: user.email || profile?.email || undefined,
         role: primaryRole || undefined,
         hospitalId: profile?.hospital_id || hospital?.id || undefined,
       });

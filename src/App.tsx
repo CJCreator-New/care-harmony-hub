@@ -47,11 +47,6 @@ const App = () => {
         otlpEndpoint: otelEndpoint,
         environment: appEnv,
       },
-      errorTracking: {
-        dsn: import.meta.env.VITE_GLITCHTIP_DSN || import.meta.env.VITE_SENTRY_DSN,
-        environment: appEnv,
-        mode: import.meta.env.MODE,
-      },
       logger: {
         version: appVersion,
         environment: appEnv,

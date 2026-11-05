@@ -1,3 +1,7 @@
+import { createLogger, redactForLog } from '@/utils/logger';
+
+const log = createLogger('analytics');
+
 interface AnalyticsEvent {
   name: string;
   properties?: Record<string, any>;
@@ -15,9 +19,10 @@ class Analytics {
   }
 
   trackEvent(name: string, properties?: Record<string, any>) {
+    // Properties are redacted before they are stored or sent: callers may pass record data.
     const event: AnalyticsEvent = {
       name,
-      properties,
+      properties: properties ? (redactForLog(properties) as Record<string, any>) : undefined,
       timestamp: Date.now(),
       userId: this.userId,
     };
@@ -46,11 +51,12 @@ class Analytics {
   }
 
   private sendToAnalytics(event: AnalyticsEvent) {
+    // No analytics vendor is integrated. Events are recorded through the shared logger
+    // (PHI-redacted; Sentry breadcrumb in production).
     try {
-      // Send to analytics service (e.g., Google Analytics, Mixpanel)
-      console.debug('Analytics event:', event);
-    } catch (e) {
-      console.error('Failed to send analytics:', e);
+      log.debug('analytics event', { event: event.name, properties: event.properties });
+    } catch {
+      // Analytics must never break the UI.
     }
   }
 

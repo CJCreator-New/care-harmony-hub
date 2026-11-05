@@ -1,16 +1,86 @@
+/**
+ * The single error-tracking facade for the client. `initSentry()` is the only
+ * place that calls `Sentry.init`. Every event, breadcrumb and extra value is
+ * scrubbed before it leaves the browser:
+ *   - breadcrumbs: console crumbs dropped; URL query strings and request bodies removed
+ *   - events: user reduced to id/role/hospital_id (no e-mail, no IP); `extra`, `contexts`,
+ *     request query strings and free-text messages run through the shared redactor
+ *   - `sendDefaultPii` is false
+ */
 import * as Sentry from '@sentry/react';
+import { redactForLog, scrubLogString, createLogger } from '@/utils/logger';
+
+const log = createLogger('sentry');
+
+function stripQuery(url: unknown): unknown {
+  if (typeof url !== 'string') return url;
+  const q = url.indexOf('?');
+  return q === -1 ? url : url.slice(0, q);
+}
+
+/** Exported for tests. Drops console crumbs and strips query strings and bodies from request crumbs. */
+export function scrubBreadcrumb(crumb: Sentry.Breadcrumb): Sentry.Breadcrumb | null {
+  if (crumb.category === 'console') return null;
+  if (crumb.category === 'ui.input') return null;
+
+  const data = (crumb.data ?? {}) as Record<string, unknown>;
+  if (crumb.category === 'fetch' || crumb.category === 'xhr' || crumb.category === 'http') {
+    // PostgREST query strings carry patient names in `or=(first_name.ilike...)`. Drop them.
+    delete data.body;
+    delete data.request_body;
+    delete data.response_body;
+    if (typeof data.url === 'string') data.url = stripQuery(data.url);
+    if (typeof data.to === 'string') data.to = stripQuery(data.to);
+    if (typeof data.from === 'string') data.from = stripQuery(data.from);
+  }
+
+  return {
+    ...crumb,
+    message: typeof crumb.message === 'string' ? scrubLogString(crumb.message) : crumb.message,
+    data: redactForLog(data) as Record<string, unknown>,
+  };
+}
+
+/** Exported for tests. Keeps only user id, role and hospital; scrubs extra, contexts, messages and URLs. */
+export function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
+  if (event.user) {
+    const u = event.user as Record<string, unknown>;
+    event.user = {
+      id: u.id as string | undefined,
+      role: u.role as string | undefined,
+      hospital_id: u.hospital_id as string | undefined,
+    };
+  }
+  if (event.extra) event.extra = redactForLog(event.extra) as Record<string, unknown>;
+  if (event.contexts) event.contexts = redactForLog(event.contexts) as typeof event.contexts;
+  if (event.message) event.message = scrubLogString(event.message);
+  if (event.request) {
+    delete event.request.query_string;
+    if (event.request.url) event.request.url = stripQuery(event.request.url) as string;
+    delete event.request.data;
+  }
+  event.exception?.values?.forEach((v) => {
+    if (v.value) v.value = scrubLogString(v.value);
+  });
+  if (event.breadcrumbs) {
+    event.breadcrumbs = event.breadcrumbs
+      .map(scrubBreadcrumb)
+      .filter((b): b is Sentry.Breadcrumb => b !== null);
+  }
+  return event;
+}
 
 export const initSentry = () => {
   if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
       environment: import.meta.env.MODE,
+      sendDefaultPii: false,
 
-      // Performance monitoring
-      tracesSampleRate: 0.2, // Increased for better visibility
+      tracesSampleRate: 0.2,
       integrations: [
         Sentry.browserTracingIntegration({
-          // tracePropagationTargets may not be available in all versions
+          // Option is accepted at runtime but missing from the installed SDK's types.
           ...(({
             tracePropagationTargets: [
               'localhost',
@@ -19,73 +89,50 @@ export const initSentry = () => {
             ],
           }) as any),
         }),
-        // Note: Replay integration may not be available in this Sentry version
-        // Commenting out for now to avoid build errors
-        // new Sentry.Replay({
-        //   maskAllText: true, // HIPAA compliance - mask all text
-        //   blockAllMedia: true, // Block images/videos for privacy
-        // }),
       ],
 
-      // Session replay for error debugging
-      replaysSessionSampleRate: 0.1,
-      replaysOnErrorSampleRate: 1.0,
+      // Session replay is not registered, so these rates have no effect. Kept at 0 to be explicit.
+      replaysSessionSampleRate: 0,
+      replaysOnErrorSampleRate: 0,
 
-      // Healthcare-specific error filtering
-      beforeSend(event, hint) {
-        // Log error for internal monitoring
-        console.error('Error captured by Sentry:', {
-          error: hint.originalException || hint.syntheticException,
-          user: event.user,
-          tags: event.tags,
-        });
-
-        // Filter out non-critical errors in development
-        if (import.meta.env.DEV && event.level === 'warning') {
-          return null;
-        }
-
-        // Add healthcare context
-        if (event.tags) {
-          event.tags.healthcare_app = 'caresync-hms';
-          event.tags.hipaa_compliant = 'true';
-        }
-
-        return event;
+      beforeBreadcrumb(crumb) {
+        return scrubBreadcrumb(crumb);
       },
 
-      // Performance monitoring
+      beforeSend(event) {
+        const scrubbed = scrubEvent(event);
+        scrubbed.tags = {
+          ...scrubbed.tags,
+          healthcare_app: 'caresync-hms',
+          hipaa_compliant: 'true',
+        };
+        return scrubbed;
+      },
+
       beforeSendTransaction(event) {
-        // Filter out very fast transactions
         if (event.spans) {
-          event.spans = event.spans.filter(span => {
+          event.spans = event.spans.filter((span) => {
             const end = (span as any).endTimestamp ?? (span as any).timestamp ?? 0;
             const start = (span as any).startTimestamp ?? (span as any).start_timestamp ?? 0;
-            return end - start > 0.1; // > 100ms
+            return end - start > 0.1;
           });
         }
         return event;
       },
     });
 
-    // Set application context
     Sentry.setContext('application', {
       name: 'AROCORD-HIMS',
       version: import.meta.env.VITE_APP_VERSION || '1.0.0',
       environment: import.meta.env.MODE,
-      healthcare_compliant: true,
     });
-
-    // Set initial tags
     Sentry.setTag('application', 'caresync-hms');
-    Sentry.setTag('healthcare', 'true');
-    Sentry.setTag('hipaa_compliant', 'true');
   }
 };
 
 export const captureError = (error: Error, context?: Record<string, unknown>) => {
   Sentry.captureException(error, {
-    extra: context,
+    extra: redactForLog(context) as Record<string, unknown> | undefined,
     tags: {
       error_type: 'application_error',
       healthcare_context: String(context?.healthcareContext || 'general'),
@@ -93,10 +140,36 @@ export const captureError = (error: Error, context?: Record<string, unknown>) =>
   });
 };
 
-export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'info', context?: Record<string, unknown>) => {
-  Sentry.captureMessage(message, {
+/**
+ * Capture with the options shape used by the former errorTracking facade:
+ * `context` (operation name), `severity`, `attributes`, `fingerprint`.
+ */
+export const captureException = (
+  error: unknown,
+  options: {
+    context?: string;
+    severity?: Sentry.SeverityLevel;
+    attributes?: Record<string, unknown>;
+    fingerprint?: string[];
+  } = {}
+) => {
+  const err = error instanceof Error ? error : new Error(scrubLogString(String(error)));
+  Sentry.captureException(err, {
+    level: options.severity ?? 'error',
+    fingerprint: options.fingerprint,
+    extra: redactForLog(options.attributes) as Record<string, unknown> | undefined,
+    tags: { error_type: 'application_error', operation: options.context ?? 'unknown' },
+  });
+};
+
+export const captureMessage = (
+  message: string,
+  level: Sentry.SeverityLevel = 'info',
+  context?: Record<string, unknown>
+) => {
+  Sentry.captureMessage(scrubLogString(message), {
     level,
-    extra: context,
+    extra: redactForLog(context) as Record<string, unknown> | undefined,
     tags: {
       message_type: 'application_message',
       healthcare_context: String(context?.healthcareContext || 'general'),
@@ -104,19 +177,16 @@ export const captureMessage = (message: string, level: Sentry.SeverityLevel = 'i
   });
 };
 
-export const setUser = (user: { id: string; email?: string; role?: string; hospitalId?: string }) => {
+/** Set the Sentry user by ID, role and hospital only. E-mail is never sent. */
+export const setUser = (user: { id: string; role?: string; hospitalId?: string }) => {
   Sentry.setUser({
     id: user.id,
-    email: user.email,
     role: user.role,
     hospital_id: user.hospitalId,
   });
-
-  // Set user context for healthcare operations
   Sentry.setContext('healthcare_user', {
     role: user.role,
     hospital_id: user.hospitalId,
-    hipaa_authorized: true,
   });
 };
 
@@ -125,17 +195,19 @@ export const clearUser = () => {
   Sentry.setContext('healthcare_user', null);
 };
 
-// Healthcare-specific error tracking
-export const captureClinicalError = (error: Error, context: {
-  patientId?: string;
-  operation: string;
-  severity?: 'low' | 'medium' | 'high' | 'critical';
-  phiInvolved?: boolean;
-  [key: string]: any;
-}) => {
+export const captureClinicalError = (
+  error: Error,
+  context: {
+    patientId?: string;
+    operation: string;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    phiInvolved?: boolean;
+    [key: string]: any;
+  }
+) => {
   Sentry.captureException(error, {
     level: context.severity === 'critical' ? 'fatal' : 'error',
-    extra: context,
+    extra: redactForLog(context) as Record<string, unknown>,
     tags: {
       error_type: 'clinical_error',
       operation: context.operation,
@@ -146,26 +218,26 @@ export const captureClinicalError = (error: Error, context: {
   });
 };
 
-// Performance monitoring - using Sentry's built-in tracing
 export const startPerformanceTransaction = (name: string, op: string) => {
-  // Sentry automatically handles performance monitoring with BrowserTracing
-  console.log(`Starting performance monitoring for ${name} (${op})`);
+  log.debug('Performance transaction started', { name, op });
   return null;
 };
 
-// AI operation tracking
-export const trackAIOperation = (operation: string | Record<string, any>, metrics?: {
-  duration: number;
-  tokensUsed?: number;
-  cost?: number;
-  success: boolean;
-  provider: string;
-}) => {
+export const trackAIOperation = (
+  operation: string | Record<string, any>,
+  metrics?: {
+    duration: number;
+    tokensUsed?: number;
+    cost?: number;
+    success: boolean;
+    provider: string;
+  }
+) => {
   const opName = typeof operation === 'string' ? operation : (operation as any).operation || 'unknown';
-  const m = typeof operation === 'string' ? metrics! : operation as any;
+  const m = typeof operation === 'string' ? metrics! : (operation as any);
   Sentry.captureMessage(`AI Operation: ${opName}`, {
     level: 'info',
-    extra: m,
+    extra: redactForLog(m) as Record<string, unknown>,
     tags: {
       operation_type: 'ai_operation',
       ai_provider: m?.provider || 'unknown',
@@ -175,17 +247,19 @@ export const trackAIOperation = (operation: string | Record<string, any>, metric
   });
 };
 
-// Database operation monitoring
-export const trackDatabaseOperation = (operation: string, metrics: {
-  duration: number;
-  table: string;
-  recordsAffected?: number;
-  success: boolean;
-}) => {
-  if (metrics.duration > 1000) { // Log slow queries > 1 second
+export const trackDatabaseOperation = (
+  operation: string,
+  metrics: {
+    duration: number;
+    table: string;
+    recordsAffected?: number;
+    success: boolean;
+  }
+) => {
+  if (metrics.duration > 1000) {
     Sentry.captureMessage(`Slow Database Operation: ${operation}`, {
       level: 'warning',
-      extra: metrics,
+      extra: redactForLog(metrics) as Record<string, unknown>,
       tags: {
         operation_type: 'database_operation',
         table: metrics.table,

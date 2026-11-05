@@ -2,8 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { sanitizeLogMessage } from '@/utils/sanitize';
-import { captureError } from '@/lib/monitoring/sentry';
-import { captureException } from '@/utils/errorTracking';
+import { captureError, captureException } from '@/lib/monitoring/sentry';
 import { getCorrelationId } from '@/utils/correlationId';
 
 interface Props {

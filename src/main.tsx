@@ -6,6 +6,9 @@ import "./index.css";
 import { initSentry } from "./lib/monitoring/sentry";
 import { initWebVitals } from "./lib/performance/web-vitals";
 import { deleteLegacySupabaseCaches } from "./lib/security/purgeClientState";
+import { createLogger } from "./utils/logger";
+
+const rootLog = createLogger('root');
 
 
 // ─── Root-level error boundary ────────────────────────────────────────────────
@@ -27,10 +30,10 @@ class RootErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Always log – even when the in-app Sentry handler is not yet mounted.
-    console.error('[RootErrorBoundary] Unrecoverable render error:', error.message);
+    // Logged through the shared logger (PHI-redacted, Sentry breadcrumb) even before the in-app handler mounts.
+    rootLog.error('Unrecoverable render error', error);
     if (import.meta.env.DEV) {
-      console.error('Component stack:', info.componentStack);
+      rootLog.debug('Component stack', { componentStack: info.componentStack });
     }
   }
 
@@ -95,17 +98,9 @@ window.addEventListener('unhandledrejection', (event) => {
     return;
   }
 
-  // For real errors: always log so the developer can see them
-  console.error('Unhandled Promise Rejection:', event.reason);
-
-  // Send to Sentry if available
-  if (typeof window !== 'undefined' && (window as any).Sentry) {
-    try {
-      (window as any).Sentry.captureException(event.reason);
-    } catch (e) {
-      // Ignore Sentry errors
-    }
-  }
+  // For real errors: always log so the developer can see them.
+  // Sentry's global handlers capture the rejection itself; no window.Sentry bridge is needed.
+  rootLog.error('Unhandled promise rejection', event.reason);
 
   // DO NOT call event.preventDefault() here — that silences real errors from
   // the browser console and makes blank-page debugging impossible.
@@ -113,16 +108,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // Global error handler for runtime errors
 window.addEventListener('error', (event) => {
-  console.error('Global Error:', event.error);
-  
-  // Send to Sentry if available
-  if (typeof window !== 'undefined' && (window as any).Sentry) {
-    try {
-      (window as any).Sentry.captureException(event.error);
-    } catch (e) {
-      // Ignore Sentry errors
-    }
-  }
+  rootLog.error('Global error', event.error);
 });
 
 // Service-worker cleanup

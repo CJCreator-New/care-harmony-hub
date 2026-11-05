@@ -33,8 +33,8 @@ export const usePermissionAudit = () => {
 
       // Log to console in development
       if (import.meta.env.DEV) {
+        // User ID only: staff e-mail addresses are not logged.
         console.error('[Permission Audit]', auditRecord, {
-          userEmail: user?.email,
           userId: user?.id,
         });
       }
