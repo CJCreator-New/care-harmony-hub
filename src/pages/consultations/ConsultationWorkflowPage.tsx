@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,7 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { mapToCanonicalLabPriority, mapToWorkflowPriority } from '@/utils/labPriority';
 import { ChiefComplaintStep } from '@/components/consultations/steps/ChiefComplaintStep';
+import { shouldHydrateConsultationForm } from '@/components/consultations/consultationFormState';
 import { PhysicalExamStep } from '@/components/consultations/steps/PhysicalExamStep';
 import { DiagnosisStepEnhanced } from '@/components/consultations/steps/DiagnosisStepEnhanced';
 import { TreatmentPlanStep } from '@/components/consultations/steps/TreatmentPlanStep';
@@ -216,33 +217,36 @@ export default function ConsultationWorkflowPage() {
     return 'Not documented';
   };
 
+  // CLIN-06: hydrate the local form once per consultation. Autosave refetches the record, and
+  // re-hydrating on every refetch reset the step, diagnoses and in-progress text.
+  const hydratedConsultationIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (consultation) {
-      setActiveStep(consultation.current_step);
-      setFormData({
-        chief_complaint: consultation.chief_complaint || '',
-        history_of_present_illness: consultation.history_of_present_illness || '',
-        vitals: consultation.vitals || {},
-        physical_examination: consultation.physical_examination || {},
-        symptoms: consultation.symptoms || [],
-        diagnoses: (consultation as any).diagnoses || [],
-        provisional_diagnosis: consultation.provisional_diagnosis || [],
-        final_diagnosis: consultation.final_diagnosis?.length
-          ? consultation.final_diagnosis
-          : normalizeDiagnosisDescriptions((consultation as any).diagnoses),
-        treatment_plan: consultation.treatment_plan || '',
-        prescriptions: normalizePrescriptionDrafts(consultation.prescriptions || []),
-        lab_orders: consultation.lab_orders || [],
-        referrals: consultation.referrals || [],
-        clinical_notes: consultation.clinical_notes || '',
-        follow_up_date: consultation.follow_up_date || '',
-        follow_up_notes: consultation.follow_up_notes || '',
-        handoff_notes: consultation.handoff_notes || '',
-        pharmacy_notified: consultation.pharmacy_notified || false,
-        lab_notified: consultation.lab_notified || false,
-        billing_notified: consultation.billing_notified || false,
-      });
-    }
+    if (!consultation || !shouldHydrateConsultationForm(hydratedConsultationIdRef.current, consultation.id)) return;
+    hydratedConsultationIdRef.current = consultation.id;
+    setActiveStep(consultation.current_step);
+    setFormData({
+      chief_complaint: consultation.chief_complaint || '',
+      history_of_present_illness: consultation.history_of_present_illness || '',
+      vitals: consultation.vitals || {},
+      physical_examination: consultation.physical_examination || {},
+      symptoms: consultation.symptoms || [],
+      diagnoses: (consultation as any).diagnoses || [],
+      provisional_diagnosis: consultation.provisional_diagnosis || [],
+      final_diagnosis: consultation.final_diagnosis?.length
+        ? consultation.final_diagnosis
+        : normalizeDiagnosisDescriptions((consultation as any).diagnoses),
+      treatment_plan: consultation.treatment_plan || '',
+      prescriptions: normalizePrescriptionDrafts(consultation.prescriptions || []),
+      lab_orders: consultation.lab_orders || [],
+      referrals: consultation.referrals || [],
+      clinical_notes: consultation.clinical_notes || '',
+      follow_up_date: consultation.follow_up_date || '',
+      follow_up_notes: consultation.follow_up_notes || '',
+      handoff_notes: consultation.handoff_notes || '',
+      pharmacy_notified: consultation.pharmacy_notified || false,
+      lab_notified: consultation.lab_notified || false,
+      billing_notified: consultation.billing_notified || false,
+    });
   }, [consultation]);
 
   // Keyboard shortcuts for consultation workflow
