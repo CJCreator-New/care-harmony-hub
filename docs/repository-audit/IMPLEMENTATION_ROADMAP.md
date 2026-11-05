@@ -122,6 +122,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-03: Lock the tenant key and onboarding paths (profiles.hospital_id, is_active, role-bearing columns)
 
+- **Status (2026-11-05): code complete; migration pending S0-01. Server-side patient claim (`register-patient`) and hospital sign-up; profile privileged columns, security answers and legacy 2FA secrets locked down; self-granted roles removed. Migration `supabase/pending-migrations/20261105000003_lock_tenant_key.sql` (needs 000002 first).**
 - **Priority:** P0. Covers 5 issue(s), of which 1 are P0 and 1 are P1.
 - **Related issues:** DB-01, SECF-10, SECF-09, DB-22, SECF-11
 - **Dependencies:** S0-01
@@ -132,6 +133,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-04: Make RLS role-aware: separate staff, patient and inactive principals; close tables without RLS
 
+- **Status (2026-11-05): migration written and tested locally (576/576 checks), pending S0-01. `supabase/pending-migrations/20261105000004_role_aware_rls.sql`: role- and hospital-scoped policies on 41 tables, RLS on every table, inactive/other-tenant principals see nothing. Known client breakages listed in its README.**
 - **Priority:** P0. Covers 5 issue(s), of which 1 are P0 and 3 are P1.
 - **Related issues:** DB-02, DB-09, DB-13, DB-07, DB-16
 - **Dependencies:** S0-01, S0-03
@@ -142,6 +144,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-05: Remove or neutralize destructive and data-exfiltrating endpoints
 
+- **Status (2026-11-05): code complete; migration pending. `backup-manager` returns 410, Test Data tab removed, `fhir-integration` hospital-scoped, audit-purge and test RPCs dropped by `20261105000005` (no dependencies; can be applied now), destructive historical migrations neutralised.**
 - **Priority:** P0. Covers 5 issue(s), of which 4 are P0 and 1 are P1.
 - **Related issues:** EDGE-02, DB-04, FUNC-10, EDGE-01, DB-11
 - **Dependencies:** none
@@ -152,6 +155,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-06: Tenant-scope every edge function that uses the service-role key
 
+- **Status (2026-11-05): code complete (edge functions statically checked; not run under Deno). ~20 service-role functions derive actor and hospital from the JWT and ignore body ids; shared `_shared/tenantScope.ts`. Owner decisions open: telemedicine token signing, platform-monitoring role, DB-05 RPCs.**
 - **Priority:** P0. Covers 9 issue(s), of which 0 are P0 and 5 are P1.
 - **Related issues:** EDGE-06, EDGE-07, EDGE-08, EDGE-09, EDGE-13, EDGE-14, EDGE-16, EDGE-22, DB-05
 - **Dependencies:** none
@@ -206,6 +210,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-11: Rotate secrets, purge git history, remove shared test accounts from production
 
+- **Status (2026-11-05): repository part complete. No literal credentials in the tree, production guard on seed/test scripts, gitleaks workflow. Rotation, test-account deletion and history purge are operator steps in `docs/operations/SECRET_ROTATION_AND_HISTORY_PURGE.md`.**
 - **Priority:** P0. Covers 6 issue(s), of which 0 are P0 and 1 are P1.
 - **Related issues:** SECF-20, SECF-19, OPS-16, SECF-21, OPS-17, OPS-06
 - **Dependencies:** none
@@ -216,6 +221,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-12: Make the type gate real and fix the runtime defects it exposes
 
+- **Status (2026-11-05): complete. `npm run type-check` checks 919 app files and exits 0; CI fails if it checks 900 or fewer. Runtime defects CLIN-26/27/28/29 and FUNC-17 fixed with regression tests.**
 - **Priority:** P1. Covers 6 issue(s), of which 0 are P0 and 4 are P1.
 - **Related issues:** ARCH-01, CLIN-26, CLIN-27, CLIN-28, CLIN-29, FUNC-17
 - **Dependencies:** none
