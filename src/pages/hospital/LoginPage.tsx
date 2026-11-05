@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,8 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { TwoFactorVerifyModal } from '@/components/auth/TwoFactorVerifyModal';
-import { BackupCodeVerifyModal } from '@/components/auth/BackupCodeVerifyModal';
+import { MFA_REENROLL_LOGIN_STATE } from '@/lib/auth/mfa';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
 
 // â”€â”€ Validation schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -32,11 +31,10 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-
-  // 2FA state â€” separate from form state (flow concern, not input concern)
-  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
-  const [showBackupCodeModal, setShowBackupCodeModal] = useState(false);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const location = useLocation();
+  const mustReenrollMfa =
+    (location.state as { mfaReenroll?: boolean } | null)?.mfaReenroll ===
+    MFA_REENROLL_LOGIN_STATE.mfaReenroll;
 
   const { login } = useAuth();
   const isE2EMockAuthEnabled = import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
@@ -61,20 +59,6 @@ export default function LoginPage() {
       toast.info('Dev role override cleared â€” login flow uses authenticated roles only.');
     }
   }, []);
-
-  const checkTwoFactorRequired = async (userId: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('two_factor_enabled')
-        .eq('user_id', userId)
-        .single();
-      if (error) return false;
-      return data?.two_factor_enabled === true;
-    } catch {
-      return false;
-    }
-  };
 
   const onSubmit = async (data: LoginFormData) => {
     try {
@@ -107,13 +91,10 @@ export default function LoginPage() {
         return;
       }
 
-      const requires2FA = await checkTwoFactorRequired(user.id);
-      if (requires2FA) {
-        setPendingUserId(user.id);
-        setShowTwoFactorModal(true);
-        return;
-      }
-
+      // The second factor is enforced by the route guard (ProtectedRoute): a
+      // user with a verified Supabase MFA factor is held on the challenge page
+      // until the session is aal2, and admin/doctor without one are sent to
+      // enrol. Nothing here decides whether 2FA applies.
       logActivity({ actionType: 'login', details: { email: data.email } });
       clearDevTestRole();
       toast.success('Welcome back!', { description: 'You have successfully logged in.' });
@@ -123,26 +104,6 @@ export default function LoginPage() {
       form.setError('root', { message });
       toast.error('Login Failed', { description: message });
     }
-  };
-
-  const handleTwoFactorVerified = () => {
-    setShowTwoFactorModal(false);
-    setShowBackupCodeModal(false);
-    setPendingUserId(null);
-    logActivity({ actionType: 'login', details: { email: form.getValues('email'), twoFactorUsed: true } });
-    clearDevTestRole();
-    toast.success('Welcome back!', { description: 'You have successfully logged in with 2FA.' });
-    navigate('/dashboard');
-  };
-
-  const handleCancelTwoFactor = async () => {
-    await supabase.auth.signOut();
-    setShowTwoFactorModal(false);
-    setShowBackupCodeModal(false);
-    setPendingUserId(null);
-    toast.error('Login Cancelled', {
-      description: 'Two-factor authentication is required for this account.',
-    });
   };
 
   return (
@@ -216,6 +177,16 @@ export default function LoginPage() {
               Sign in to access your hospital dashboard
             </p>
           </div>
+
+          {mustReenrollMfa && (
+            <Alert role="status">
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                Your backup code was accepted and your old authenticator was removed. Sign in
+                again to set up a new one.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
@@ -367,31 +338,6 @@ export default function LoginPage() {
           )}
         </div>
       </div>
-
-      {/* 2FA Modals */}
-      {pendingUserId && (
-        <>
-          <TwoFactorVerifyModal
-            open={showTwoFactorModal}
-            onOpenChange={(open) => { if (!open) handleCancelTwoFactor(); }}
-            userId={pendingUserId}
-            onVerified={handleTwoFactorVerified}
-            onUseBackupCode={() => {
-              setShowTwoFactorModal(false);
-              setShowBackupCodeModal(true);
-            }}
-          />
-          <BackupCodeVerifyModal
-            open={showBackupCodeModal}
-            onOpenChange={(open) => { if (!open) handleCancelTwoFactor(); }}
-            onVerified={handleTwoFactorVerified}
-            onBack={() => {
-              setShowBackupCodeModal(false);
-              setShowTwoFactorModal(true);
-            }}
-          />
-        </>
-      )}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import type { Permission } from '@/lib/permissions';
 import type { UserRole } from '@/types/auth';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
+import { useMfaAssurance } from '@/lib/hooks/auth/useMfaAssurance';
+import { MFA_CHALLENGE_PATH, MFA_ENROLL_PATH, type MfaGateDecision } from '@/lib/auth/mfa';
 
 const LandingPage = lazy(() => import('../pages/hospital/LandingPage'));
 const LoginPage = lazy(() => import('../pages/hospital/LoginPage'));
@@ -22,6 +24,7 @@ const RoleSelectionPage = lazy(() => import('../pages/hospital/RoleSelectionPage
 const MandatoryTwoFactorSetupPage = lazy(
   () => import('../pages/hospital/MandatoryTwoFactorSetupPage')
 );
+const MfaChallengePage = lazy(() => import('../pages/hospital/MfaChallengePage'));
 const PatientRegisterPage = lazy(() => import('../pages/patient/PatientRegisterPage'));
 const PatientLoginPage = lazy(() => import('../pages/patient/PatientLoginPage'));
 const Dashboard = lazy(() => import('../pages/Dashboard'));
@@ -89,6 +92,41 @@ export type RouteDefinition = {
   element: React.ReactNode;
 };
 
+function FullScreenSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}
+
+/**
+ * Where the MFA gate sends a signed-in user, or null when the route may render.
+ * Loading renders a bare spinner (no DashboardLayout, so nothing app-level is
+ * fetched before the second factor is settled).
+ */
+function mfaGateElement(decision: MfaGateDecision): React.ReactElement | null {
+  switch (decision) {
+    case 'allow':
+      return null;
+    case 'loading':
+      return <FullScreenSpinner />;
+    case 'enroll':
+      return <Navigate to={MFA_ENROLL_PATH} replace />;
+    case 'challenge':
+    default:
+      // Fail closed: lookup errors land on the challenge page too.
+      return <Navigate to={MFA_CHALLENGE_PATH} replace />;
+  }
+}
+
+/**
+ * The single guard for every signed-in app route (SECF-01). Order:
+ * session -> profile loaded -> second factor (aal2 / mandatory enrolment)
+ * -> account setup -> roles -> role selection. `withRoleAccess` nests
+ * RoleProtectedRoute inside this guard, so role-protected PHI routes get the
+ * same checks as /dashboard.
+ */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const {
     isAuthenticated,
@@ -98,38 +136,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     hospital,
     roles,
     pendingRoleSelection,
-    pendingTwoFactor,
   } = useAuth();
+  const { decision } = useMfaAssurance();
   const persistedTestRole = getDevTestRole(roles);
   const effectiveRoleCount = persistedTestRole ? 1 : roles.length;
 
-  if (isLoading) {
-    if (isAuthenticated) {
-      return (
-        <DashboardLayout>
-          <div className="min-h-[70vh] flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        </DashboardLayout>
-      );
-    }
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <FullScreenSpinner />;
   if (!isAuthenticated) return <Navigate to="/hospital/login" replace />;
-  if (!isProfileReady) {
-    return (
-      <DashboardLayout>
-        <div className="min-h-[70vh] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  if (!isProfileReady) return <FullScreenSpinner />;
+
+  // SECURITY: second factor before anything else renders. A user with a
+  // verified TOTP factor must reach aal2; admin/doctor must have a factor.
+  const mfaRedirect = mfaGateElement(decision);
+  if (mfaRedirect) return mfaRedirect;
 
   const needsSetup = !profile || !hospital;
   if (needsSetup) return <Navigate to="/hospital/account-setup" replace />;
@@ -168,40 +187,46 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (pendingRoleSelection) return <Navigate to="/hospital/select-role" replace />;
 
-  // SECURITY: privileged roles (admin/doctor) must complete 2FA enrollment before
-  // any PHI access. See AuthContext.pendingTwoFactor.
-  if (pendingTwoFactor) return <Navigate to="/hospital/two-factor-setup" replace />;
+  return <>{children}</>;
+}
+
+/** Mandatory enrolment page: only for a signed-in user whose gate says `enroll`. */
+function TwoFactorSetupRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, isProfileReady } = useAuth();
+  const { decision } = useMfaAssurance();
+
+  if (isLoading) return <FullScreenSpinner />;
+  if (!isAuthenticated) return <Navigate to="/hospital/login" replace />;
+  if (!isProfileReady || decision === 'loading') return <FullScreenSpinner />;
+  if (decision === 'challenge') return <Navigate to={MFA_CHALLENGE_PATH} replace />;
+  if (decision === 'allow') return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 }
 
-function TwoFactorSetupRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isProfileReady, pendingTwoFactor } = useAuth();
+/** Login-time challenge page: only while the gate says `challenge`. */
+function MfaChallengeRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, isProfileReady } = useAuth();
+  const { decision } = useMfaAssurance();
 
-  if (isLoading || !isProfileReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  if (isLoading) return <FullScreenSpinner />;
   if (!isAuthenticated) return <Navigate to="/hospital/login" replace />;
-  if (!pendingTwoFactor) return <Navigate to="/dashboard" replace />;
+  if (!isProfileReady || decision === 'loading') return <FullScreenSpinner />;
+  if (decision === 'enroll') return <Navigate to={MFA_ENROLL_PATH} replace />;
+  if (decision === 'allow') return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 }
 
 function RoleSelectionRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isProfileReady, pendingRoleSelection } = useAuth();
+  const { decision } = useMfaAssurance();
 
-  if (isLoading || !isProfileReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  if (isLoading) return <FullScreenSpinner />;
   if (!isAuthenticated) return <Navigate to="/hospital/login" replace />;
+  if (!isProfileReady) return <FullScreenSpinner />;
+  const mfaRedirect = mfaGateElement(decision);
+  if (mfaRedirect) return mfaRedirect;
   if (!pendingRoleSelection) return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
@@ -251,10 +276,12 @@ function withRoleAccess(
     </RoleProtectedRoute>
   );
 
-  return featureFlag ? (
-    <FeatureFlagRoute flagName={featureFlag}>{content}</FeatureFlagRoute>
-  ) : (
-    content
+  // ProtectedRoute is outermost so the session, MFA and role-selection checks
+  // run before feature flags or role checks render anything (SECF-01).
+  return (
+    <ProtectedRoute>
+      {featureFlag ? <FeatureFlagRoute flagName={featureFlag}>{content}</FeatureFlagRoute> : content}
+    </ProtectedRoute>
   );
 }
 
@@ -348,11 +375,19 @@ export const publicRoutes: RouteDefinition[] = [
     ),
   },
   {
-    path: '/hospital/two-factor-setup',
+    path: MFA_ENROLL_PATH,
     element: (
       <TwoFactorSetupRoute>
         <MandatoryTwoFactorSetupPage />
       </TwoFactorSetupRoute>
+    ),
+  },
+  {
+    path: MFA_CHALLENGE_PATH,
+    element: (
+      <MfaChallengeRoute>
+        <MfaChallengePage />
+      </MfaChallengeRoute>
     ),
   },
   {

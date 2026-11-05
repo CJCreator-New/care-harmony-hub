@@ -64,7 +64,10 @@ interface AuthContextType {
   logout: () => Promise<void>;
   createHospitalAndProfile: (hospitalData: Partial<Hospital>) => Promise<{ error: Error | null }>;
   pendingRoleSelection: boolean;
-  /** True when a privileged role (admin/doctor) must enable 2FA before accessing PHI. */
+  /**
+   * @deprecated Derived from the retired custom-2FA flag `two_factor_enabled`.
+   * Route enforcement uses Supabase Auth MFA via `useMfaAssurance` instead.
+   */
   pendingTwoFactor: boolean;
   /** Re-fetch profile/roles for the current user (e.g. after enabling 2FA). */
   reloadProfile: () => Promise<void>;
