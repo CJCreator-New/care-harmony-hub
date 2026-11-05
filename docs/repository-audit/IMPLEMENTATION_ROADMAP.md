@@ -194,6 +194,7 @@ The 7 open `.scratch/e2e-testing` tickets are subsumed by TEST-01 and S1-07.
 
 #### S0-10: Make 2FA real: CSPRNG secrets, server-side AAL2 enforcement, correct TOTP encoding
 
+- **Status (2026-11-05): client and functions complete on branch `ccr-2602d823-jeymkf`; database enforcement pending S0-01/S0-04.** Client uses Supabase Auth MFA (enrol requires a verified code; aal1 sessions with a factor are held on a challenge page; one guard on every protected route; Math.random hooks deleted). Custom TOTP functions return 410; backup codes are server-generated, peppered, hashed and single-use (`verify-backup-code` unenrols the factor), `generate-backup-codes` requires aal2. Migration `supabase/pending-migrations/20261105000002_mfa_backup_codes_and_aal2.sql` adds backup-code tables, a profile privileged-column guard and RESTRICTIVE aal2 policies on PHI tables. Operator steps in `docs/security/MFA_MIGRATION.md` and the pending-migrations README.
 - **Priority:** P0. Covers 6 issue(s), of which 0 are P0 and 4 are P1.
 - **Related issues:** ARCH-06, EDGE-05, SECF-01, SECF-02, EDGE-12, EDGE-25
 - **Dependencies:** S0-04
