@@ -1,9 +1,24 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "./cors.ts";
+import { decideActorAccess, type RoleRow } from "./tenantScope.ts";
 
+/**
+ * The caller of an edge function, derived from the verified JWT and the database.
+ * Never build one from the request body.
+ *
+ * S0-06 / EDGE-14 changes (backward compatible for existing callers):
+ *   - hospitalId is never null: an actor without a hospital gets 403.
+ *   - assignedRoles/matchedRoles only contain roles granted for the actor's
+ *     hospital (plus legacy rows with a NULL hospital_id, see tenantScope.ts).
+ *   - The 403 body no longer echoes the caller's roles.
+ *   - profileId (profiles.id) is returned for columns that reference profiles.
+ *   - Error responses carry CORS headers so browsers can read them.
+ */
 export type AuthorizedActor = {
   userId: string;
+  profileId: string | null;
   email: string | null;
-  hospitalId: string | null;
+  hospitalId: string;
   assignedRoles: string[];
   matchedRoles: string[];
   correlationId: string | null;
@@ -14,10 +29,10 @@ type AuthorizationResult = {
   response: Response | null;
 };
 
-function jsonResponse(status: number, payload: Record<string, unknown>) {
+function jsonResponse(req: Request, status: number, payload: Record<string, unknown>) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
   });
 }
 
@@ -29,7 +44,7 @@ export async function getAuthorizedActor(
   if (!authHeader) {
     return {
       actor: null,
-      response: jsonResponse(401, { error: "Missing authorization header" }),
+      response: jsonResponse(req, 401, { error: "Missing authorization header" }),
     };
   }
 
@@ -46,18 +61,18 @@ export async function getAuthorizedActor(
   if (authError || !user) {
     return {
       actor: null,
-      response: jsonResponse(401, { error: "Unauthorized" }),
+      response: jsonResponse(req, 401, { error: "Unauthorized" }),
     };
   }
 
   const [{ data: roleRows, error: roleError }, { data: profile, error: profileError }] = await Promise.all([
     adminClient
       .from("user_roles")
-      .select("role")
+      .select("role, hospital_id")
       .eq("user_id", user.id),
     adminClient
       .from("profiles")
-      .select("hospital_id")
+      .select("id, hospital_id")
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -65,30 +80,32 @@ export async function getAuthorizedActor(
   if (roleError || profileError) {
     return {
       actor: null,
-      response: jsonResponse(500, { error: "Failed to load authorization context" }),
+      response: jsonResponse(req, 500, { error: "Failed to load authorization context" }),
     };
   }
 
-  const assignedRoles = (roleRows ?? []).map((row) => row.role as string);
-  const matchedRoles = assignedRoles.filter((role) => allowedRoles.includes(role));
+  const hospitalId = (profile?.hospital_id as string | null | undefined) ?? null;
+  const decision = decideActorAccess({
+    profileHospitalId: hospitalId,
+    roleRows: (roleRows ?? []) as RoleRow[],
+    allowedRoles,
+  });
 
-  if (matchedRoles.length === 0) {
+  if (!decision.ok) {
     return {
       actor: null,
-      response: jsonResponse(403, {
-        error: "Forbidden - insufficient permissions",
-        assignedRoles,
-      }),
+      response: jsonResponse(req, decision.status, { error: decision.error }),
     };
   }
 
   return {
     actor: {
       userId: user.id,
+      profileId: (profile?.id as string | null | undefined) ?? null,
       email: user.email ?? null,
-      hospitalId: (profile?.hospital_id as string | null | undefined) ?? null,
-      assignedRoles,
-      matchedRoles,
+      hospitalId: hospitalId as string,
+      assignedRoles: decision.assignedRoles,
+      matchedRoles: decision.matchedRoles,
       correlationId: req.headers.get("X-Correlation-Id"),
     },
     response: null,
