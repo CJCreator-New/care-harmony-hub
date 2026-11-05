@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useStaffInvitations } from '@/hooks/useStaffInvitations';
+import { useStaffInvitations, mapInvitationInsertError } from '@/hooks/useStaffInvitations';
 
 const mockInvoke = vi.fn();
 const mockFrom = vi.fn();
@@ -181,5 +181,62 @@ describe('useStaffInvitations.createInvitation (FUNC-21)', () => {
 
     expect(builder.insert).not.toHaveBeenCalled();
     expect(outcome?.data).toMatchObject({ id: 'mock-invitation-id' });
+  });
+});
+
+describe('mapInvitationInsertError (FUNC-21)', () => {
+  it('maps the unique-invitation violation (23505) to a readable message, not the raw database text', () => {
+    expect(
+      mapInvitationInsertError({
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "unique_pending_invitation"',
+      })
+    ).toBe('An invitation for this email already exists for this hospital.');
+  });
+
+  it('keeps other database messages and falls back when there is none', () => {
+    expect(mapInvitationInsertError({ code: '42501', message: 'permission denied' })).toBe('permission denied');
+    expect(mapInvitationInsertError(null)).toBe('Failed to create invitation');
+  });
+});
+
+describe('useStaffInvitations.getInvitationByToken (EDGE-23 / FUNC-21)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows the server reason for a non-2xx response instead of the generic supabase text', async () => {
+    mockInvoke.mockResolvedValue({
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: new Response(JSON.stringify({ error: 'Too many attempts. Please try again later.' }), {
+          status: 429,
+        }),
+      },
+    });
+
+    const { result } = renderHook(() => useStaffInvitations());
+
+    let outcome: Awaited<ReturnType<typeof result.current.getInvitationByToken>> | undefined;
+    await act(async () => {
+      outcome = await result.current.getInvitationByToken('token-123');
+    });
+
+    expect(outcome?.data).toBeNull();
+    expect(outcome?.error).toBe('Too many attempts. Please try again later.');
+  });
+
+  it('reports an invalid token (valid:false) without throwing on an empty body', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: null });
+
+    const { result } = renderHook(() => useStaffInvitations());
+
+    let outcome: Awaited<ReturnType<typeof result.current.getInvitationByToken>> | undefined;
+    await act(async () => {
+      outcome = await result.current.getInvitationByToken('token-123');
+    });
+
+    expect(outcome).toEqual({ data: null, error: 'Invalid or expired invitation' });
   });
 });

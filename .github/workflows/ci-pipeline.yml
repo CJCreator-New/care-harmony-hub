@@ -21,7 +21,9 @@ permissions:
 
 concurrency:
   group: ci-pipeline-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR runs only. A push to main or develop always finishes,
+  # so the gate result for that commit is never left unevaluated.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: '20'
@@ -43,9 +45,11 @@ jobs:
       - name: Type-check app and node configs
         run: npm run type-check
       # ARCH-01: fail if the app config stops compiling real source (vacuous gate).
+      # `wc -l` (not `grep -c`) so an empty match is a count of 0, not a grep exit code.
       - name: Guard against a vacuous type gate
         run: |
-          FILES=$(npx tsc -p tsconfig.app.json --listFilesOnly | grep -v node_modules | grep -c '/src/')
+          set -o pipefail
+          FILES=$(npx tsc -p tsconfig.app.json --listFilesOnly | grep -v node_modules | grep '/src/' | wc -l)
           echo "tsc checked $FILES app source files"
           test "$FILES" -gt 900
 
@@ -79,8 +83,8 @@ jobs:
     name: Unit tests (vitest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # TEST-02 / TEST-10: run the whole default vitest suite (every non-E2E file),
-    # not the `src/test` subset. Playwright specs are excluded by vitest.config.ts.
+    # TEST-02 / TEST-10: `npm run test:unit:all` is the whole default vitest suite (every
+    # non-E2E file), not the old `src/test` subset. Playwright specs are excluded by vitest.config.ts.
     services:
       postgres:
         image: postgres:15-alpine
@@ -104,7 +108,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
-      - run: npx vitest run
+      - run: npm run test:unit:all
 
   # Runs on every PR (not path-filtered) so it can be a required check. It validates
   # every migration in supabase/migrations, not only changed files.
@@ -239,8 +243,12 @@ jobs:
         run: npx playwright install --with-deps chromium
       # TEST-01: the Playwright config and every spec must load. A broken import
       # makes this fail instead of silently running zero tests.
+      # A list with zero tests exits 0, so the count is checked explicitly.
       - name: Playwright config and specs must load
-        run: npx playwright test --list --project=chromium
+        run: |
+          set -o pipefail
+          npx playwright test --list --project=chromium | tee playwright-list.txt
+          grep -E '^Total: [1-9][0-9]* tests?' playwright-list.txt
       # playwright.config.ts sets headless: false, so run under a virtual display.
       # The webServer block in that config starts Vite on port 8080.
       - name: Run @smoke tests

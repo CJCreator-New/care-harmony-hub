@@ -164,8 +164,8 @@ export default function AdminRoleSetupPage() {
       }
 
       toast({
-        title: 'Invitations Sent!',
-        description: `${pendingStaff.length} invitation(s) have been created.`,
+        title: 'Invitations created',
+        description: `${pendingStaff.length} invitation(s) created. No email is sent yet; share each join link from Staff Management.`,
       });
 
       navigate('/hospital/profile-setup');
@@ -379,7 +379,7 @@ export default function AdminRoleSetupPage() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground">
-            Staff members will receive an email invitation to create their account and join your hospital.
+            No email is sent yet. Share each invitation's join link from Staff Management so staff can create their account.
           </p>
         </div>
       </div>

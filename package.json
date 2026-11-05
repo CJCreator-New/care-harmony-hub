@@ -70,6 +70,7 @@
     "test:e2e:codegen": "playwright codegen localhost:8080",
     "test:e2e:install": "playwright install --with-deps",
     "test:unit": "vitest run src/test",
+    "test:unit:all": "vitest run",
     "test:unit:watch": "vitest src/test",
     "test:coverage": "vitest run --coverage src/test",
     "type-check": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",

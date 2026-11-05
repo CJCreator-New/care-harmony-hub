@@ -23,6 +23,8 @@
 --            duplicates exist, nothing is changed and a WARNING is raised.
 -- Section D  DB-12 CHECK constraints, added NOT VALID. New and updated rows are
 --            checked. Existing rows are not scanned, so this cannot fail on them.
+--            A check is added only when its columns have the expected type (the
+--            validation fixture stores some times as text).
 -- Section E  DB-20 indexes. CREATE INDEX IF NOT EXISTS on the hot columns
 --            (hospital_id, patient_id, status, created_at) of the clinical
 --            tables, and on single-column foreign keys that point at hospitals,
@@ -164,50 +166,50 @@ $s209c$;
 
 -- -----------------------------------------------------------------------------
 -- D. CHECK constraints, NOT VALID (new and updated rows only).
+--    Each check runs only when every column it reads exists with an expected
+--    type (type_name lists the acceptable data_type values, separated by |).
+--    The validation fixture stores appointment times and queue times as text,
+--    and the schema allows date_of_birth as text, so those checks are skipped
+--    there rather than failing or comparing text.
 -- -----------------------------------------------------------------------------
 DO $s209d$
 DECLARE
   k record;
-  v_has_cols boolean;
+  v_ok boolean;
 BEGIN
-  -- need_type: the column type the expression depends on (NULL = any). The DOB
-  -- check is skipped when date_of_birth is text, which the schema allows.
   FOR k IN SELECT * FROM (VALUES
       ('appointments', 'appointments_duration_positive',
        'duration_minutes IS NULL OR duration_minutes > 0',
-       ARRAY['duration_minutes'], NULL::text, NULL::text),
+       ARRAY['duration_minutes'], 'integer|numeric|bigint|smallint'),
       ('appointments', 'appointments_end_after_start',
        'start_time IS NULL OR end_time IS NULL OR end_time >= start_time',
-       ARRAY['start_time', 'end_time'], NULL::text, NULL::text),
+       ARRAY['start_time', 'end_time'], 'timestamp with time zone'),
       ('patients', 'patients_dob_not_future',
        'date_of_birth <= CURRENT_DATE',
-       ARRAY['date_of_birth'], 'date_of_birth', 'date'),
+       ARRAY['date_of_birth'], 'date'),
       ('patient_queue', 'patient_queue_service_order',
        'service_start_time IS NULL OR service_end_time IS NULL OR service_end_time >= service_start_time',
-       ARRAY['service_start_time', 'service_end_time'], NULL::text, NULL::text)
-    ) AS v(tbl, conname, expr, cols, type_col, type_name)
+       ARRAY['service_start_time', 'service_end_time'], 'timestamp with time zone')
+    ) AS v(tbl, conname, expr, cols, type_name)
   LOOP
     IF to_regclass('public.' || k.tbl) IS NULL THEN
       RAISE NOTICE '20261105000009: public.% is absent, % skipped', k.tbl, k.conname;
       CONTINUE;
     END IF;
-    SELECT bool_and(EXISTS (SELECT 1 FROM information_schema.columns
-                             WHERE table_schema = 'public' AND table_name = k.tbl AND column_name = c))
-      INTO v_has_cols
-      FROM unnest(k.cols) AS c;
-    IF NOT v_has_cols THEN
-      RAISE NOTICE '20261105000009: % lacks columns, % skipped', k.tbl, k.conname;
-      CONTINUE;
-    END IF;
-    IF k.type_col IS NOT NULL AND NOT EXISTS (
-         SELECT 1 FROM information_schema.columns
-          WHERE table_schema = 'public' AND table_name = k.tbl
-            AND column_name = k.type_col AND data_type = k.type_name) THEN
-      RAISE NOTICE '20261105000009: %.% is not %, % skipped', k.tbl, k.type_col, k.type_name, k.conname;
-      CONTINUE;
-    END IF;
     IF EXISTS (SELECT 1 FROM pg_constraint
                 WHERE conname = k.conname AND conrelid = to_regclass('public.' || k.tbl)) THEN
+      CONTINUE;
+    END IF;
+    SELECT bool_and(EXISTS (
+             SELECT 1 FROM information_schema.columns ic
+              WHERE ic.table_schema = 'public' AND ic.table_name = k.tbl
+                AND ic.column_name = c
+                AND ic.data_type = ANY (string_to_array(k.type_name, '|'))))
+      INTO v_ok
+      FROM unnest(k.cols) AS c;
+    IF NOT coalesce(v_ok, false) THEN
+      RAISE NOTICE '20261105000009: %.% columns are not all of type %; % skipped',
+                   k.tbl, k.cols, k.type_name, k.conname;
       CONTINUE;
     END IF;
     EXECUTE format('ALTER TABLE public.%I ADD CONSTRAINT %I CHECK (%s) NOT VALID',

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -84,7 +83,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
     lastName: '',
     email: '',
     roles: [] as Role[],
-    sendInvite: true,
     customMessage: '',
   });
 
@@ -184,7 +182,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
         lastName: '',
         email: '',
         roles: [],
-        sendInvite: true,
         customMessage: '',
       });
       setStep(1);
@@ -272,7 +269,7 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
                 placeholder="john.doe@hospital.com"
               />
               <p className="text-xs text-muted-foreground">
-                An invitation will be sent to this email address.
+                No email is sent yet. You will share a join link with this person from Staff Management.
               </p>
             </div>
           </div>
@@ -371,16 +368,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
               </CardContent>
             </Card>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="sendInvite"
-                checked={formData.sendInvite}
-                onCheckedChange={(checked) => setFormData(p => ({ ...p, sendInvite: checked as boolean }))}
-              />
-              <Label htmlFor="sendInvite" className="text-sm">
-                Send email invitation immediately
-              </Label>
-            </div>
           </div>
         )}
 

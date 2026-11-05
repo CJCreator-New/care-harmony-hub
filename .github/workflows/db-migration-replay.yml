@@ -61,10 +61,10 @@ jobs:
         run: node scripts/db/replay-migrations.mjs --stop-on-error --out migration-replay-report
 
       # Diagnostic only: runs after the gate above has already failed, to list
-      # every failing file. Its own exit code is irrelevant, hence "|| true".
+      # every failing file. The job is already red here, so this step can fail too.
       - name: Full diagnostic replay (all failures)
         if: failure()
-        run: node scripts/db/replay-migrations.mjs --out migration-replay-report-full || true
+        run: node scripts/db/replay-migrations.mjs --out migration-replay-report-full
 
       - name: Job summary
         if: always()

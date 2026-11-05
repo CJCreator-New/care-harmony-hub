@@ -13,19 +13,20 @@
 --            trigger and a BEFORE TRUNCATE statement trigger. These fire for
 --            every role, including service_role, which bypasses RLS. UPDATE,
 --            DELETE and TRUNCATE are also revoked from PUBLIC, anon and
---            authenticated. RLS is enabled on partitions, so direct reads of a
---            partition by a client role are denied.
--- Section B  tamper-resistant write path. The open inserts go: activity_logs
---            "System can insert logs" (WITH CHECK (true)), the audit_logs
---            inserts that accept user_id IS NULL or any actor, and the audit_log
---            insert that checks only the hospital. A client may write only rows
---            where it is the actor and the hospital is its own.
--- Section C  scoped reads. Cross-tenant admin reads go: the audit_logs policies
---            that check only the role, and the policy whose hospital comparison
---            resolved to the inner table (always true). activity_logs readable
---            by any hospital staff member goes too. audit_log_summary runs with
---            security_invoker, so it no longer reads audit_log as the view owner.
--- Section D  audit helper functions that accept a caller-supplied actor
+--            authenticated. RLS is enabled on the table and on each partition.
+-- Section B  writes. Every INSERT and FOR ALL policy on activity_logs, audit_logs
+--            and audit_log is dropped, whatever its name or predicate (the live
+--            set has WITH CHECK (true) on activity_logs and audit_logs). Each
+--            table then gets one policy that binds the actor to auth.uid() and
+--            the hospital to the caller's own. A table whose columns cannot bind
+--            an actor gets no client INSERT policy, so only the service role
+--            writes to it.
+-- Section C  reads. Every SELECT and FOR ALL policy on activity_logs and
+--            audit_logs is dropped (the live set has USING (true) on several,
+--            and role-only admin policies that read across hospitals). Each table
+--            gets admin reads limited to the admin's own hospital and self reads.
+--            audit_log_summary gets security_invoker, so it reads as the caller.
+-- Section D  audit helper functions that take a caller-supplied actor
 --            (log_audit_event, create_amendment_audit, set_audit_context) are not
 --            executable by PUBLIC, anon or authenticated. No migration or src/
 --            file calls them (checked on 2026-11-05).
@@ -113,155 +114,177 @@ END
 $s105a$;
 
 -- -----------------------------------------------------------------------------
--- B. Remove the open insert policies and replace them with self-only inserts.
+-- Helper: does the table exist with all of these columns? Each policy below is
+-- created only where its predicate can be written, so the file does not fail on
+-- schema drift. Dropped at the end of this file.
 -- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.s105_table_has_columns(p_table text, p_cols text[])
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT to_regclass('public.' || p_table) IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM unnest(p_cols) AS c
+        WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns ic
+                           WHERE ic.table_schema = 'public'
+                             AND ic.table_name = p_table
+                             AND ic.column_name = c))
+$$;
 
--- B.1 activity_logs: "System can insert logs" is WITH CHECK (true), so any
---     signed-in user could write a row with any user_id and hospital_id.
---     "Staff can insert activity logs" (user_id = auth.uid(), hospital check)
---     and "activity_logs_self_insert" remain. Both are self-only.
-DO $s105b1$
+-- -----------------------------------------------------------------------------
+-- B. Writes. Every INSERT and FOR ALL policy on the audit tables is dropped,
+--    whatever its name or predicate. Each table then gets one self-bound INSERT
+--    policy if its columns allow it. A table whose columns cannot bind an actor
+--    gets no client INSERT policy, so only the service role writes to it.
+--    Edge functions and triggers running as the owner are not affected.
+-- -----------------------------------------------------------------------------
+DO $s105b$
+DECLARE
+  p record;
+BEGIN
+  -- activity_logs: WITH CHECK (true) in the live policy set lets any signed-in
+  -- user write a row for any user and hospital.
+  IF to_regclass('public.activity_logs') IS NOT NULL THEN
+    FOR p IN SELECT policyname FROM pg_policies
+              WHERE schemaname = 'public' AND tablename = 'activity_logs'
+                AND cmd IN ('INSERT', 'ALL') LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.activity_logs', p.policyname);
+    END LOOP;
+    IF public.s105_table_has_columns('activity_logs', ARRAY['user_id', 'hospital_id']) THEN
+      CREATE POLICY "activity_logs_self_insert" ON public.activity_logs
+        FOR INSERT TO authenticated
+        WITH CHECK (
+          user_id = auth.uid()
+          AND (hospital_id IS NULL OR EXISTS (
+                SELECT 1 FROM public.profiles pr
+                 WHERE pr.user_id = auth.uid()
+                   AND pr.hospital_id = activity_logs.hospital_id))
+        );
+    ELSE
+      RAISE NOTICE '20261105000008: activity_logs lacks user_id or hospital_id; no client insert policy';
+    END IF;
+  END IF;
+
+  -- audit_logs: WITH CHECK (true) and user_id IS NULL both let a client write
+  -- arbitrary rows.
+  IF to_regclass('public.audit_logs') IS NOT NULL THEN
+    FOR p IN SELECT policyname FROM pg_policies
+              WHERE schemaname = 'public' AND tablename = 'audit_logs'
+                AND cmd IN ('INSERT', 'ALL') LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.audit_logs', p.policyname);
+    END LOOP;
+    IF public.s105_table_has_columns('audit_logs', ARRAY['user_id', 'hospital_id']) THEN
+      CREATE POLICY "audit_logs_self_insert" ON public.audit_logs
+        FOR INSERT TO authenticated
+        WITH CHECK (
+          user_id = auth.uid()
+          AND hospital_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM public.profiles pr
+                       WHERE pr.user_id = auth.uid()
+                         AND pr.hospital_id = audit_logs.hospital_id)
+        );
+    ELSE
+      RAISE NOTICE '20261105000008: audit_logs lacks user_id or hospital_id; no client insert policy';
+    END IF;
+  END IF;
+
+  -- audit_log (core table): the insert policy checks only the hospital, so a
+  -- staff member could name any actor. The write must name the caller.
+  IF to_regclass('public.audit_log') IS NOT NULL THEN
+    FOR p IN SELECT policyname FROM pg_policies
+              WHERE schemaname = 'public' AND tablename = 'audit_log'
+                AND cmd IN ('INSERT', 'ALL') LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.audit_log', p.policyname);
+    END LOOP;
+    IF public.s105_table_has_columns('audit_log', ARRAY['actor_user_id', 'hospital_id']) THEN
+      CREATE POLICY "audit_log_insert_as_actor" ON public.audit_log
+        FOR INSERT TO authenticated
+        WITH CHECK (
+          EXISTS (SELECT 1 FROM public.profiles pr
+                   WHERE pr.user_id = auth.uid()
+                     AND pr.id = audit_log.actor_user_id
+                     AND pr.hospital_id = audit_log.hospital_id)
+        );
+    ELSE
+      RAISE NOTICE '20261105000008: audit_log lacks actor_user_id or hospital_id; no client insert policy';
+    END IF;
+  END IF;
+END
+$s105b$;
+
+-- -----------------------------------------------------------------------------
+-- C. Reads. Every SELECT and FOR ALL policy on activity_logs and audit_logs is
+--    dropped, because the live set contains USING (true) and role-only policies
+--    (cross-tenant). Each table gets admin-in-own-hospital reads and self reads
+--    where the columns allow them. audit_log keeps its hospital-scoped read.
+-- -----------------------------------------------------------------------------
+DO $s105c$
+DECLARE
+  p record;
 BEGIN
   IF to_regclass('public.activity_logs') IS NOT NULL THEN
-    DROP POLICY IF EXISTS "System can insert logs" ON public.activity_logs;
+    FOR p IN SELECT policyname FROM pg_policies
+              WHERE schemaname = 'public' AND tablename = 'activity_logs'
+                AND cmd IN ('SELECT', 'ALL') LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.activity_logs', p.policyname);
+    END LOOP;
+    IF public.s105_table_has_columns('activity_logs', ARRAY['hospital_id']) THEN
+      CREATE POLICY "activity_logs_admin_hospital_read" ON public.activity_logs
+        FOR SELECT TO authenticated
+        USING (
+          activity_logs.hospital_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+              FROM public.user_roles ur
+              JOIN public.profiles pr ON pr.user_id = ur.user_id
+             WHERE ur.user_id = auth.uid()
+               AND ur.role::text = 'admin'
+               AND ur.hospital_id = activity_logs.hospital_id
+               AND coalesce((to_jsonb(pr) ->> 'is_active')::boolean, true)
+          )
+        );
+    END IF;
+    IF public.s105_table_has_columns('activity_logs', ARRAY['user_id']) THEN
+      CREATE POLICY "activity_logs_self_read" ON public.activity_logs
+        FOR SELECT TO authenticated
+        USING (user_id = auth.uid());
+    END IF;
+  END IF;
+
+  IF to_regclass('public.audit_logs') IS NOT NULL THEN
+    FOR p IN SELECT policyname FROM pg_policies
+              WHERE schemaname = 'public' AND tablename = 'audit_logs'
+                AND cmd IN ('SELECT', 'ALL') LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.audit_logs', p.policyname);
+    END LOOP;
+    IF public.s105_table_has_columns('audit_logs', ARRAY['hospital_id']) THEN
+      CREATE POLICY "audit_logs_admin_hospital_read" ON public.audit_logs
+        FOR SELECT TO authenticated
+        USING (
+          audit_logs.hospital_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+              FROM public.user_roles ur
+              JOIN public.profiles pr ON pr.user_id = ur.user_id
+             WHERE ur.user_id = auth.uid()
+               AND ur.role::text = 'admin'
+               AND ur.hospital_id = audit_logs.hospital_id
+               AND coalesce((to_jsonb(pr) ->> 'is_active')::boolean, true)
+          )
+        );
+    ELSE
+      RAISE NOTICE '20261105000008: audit_logs lacks hospital_id; no admin read policy';
+    END IF;
+    IF public.s105_table_has_columns('audit_logs', ARRAY['user_id']) THEN
+      CREATE POLICY "audit_logs_self_read" ON public.audit_logs
+        FOR SELECT TO authenticated
+        USING (user_id = auth.uid());
+    END IF;
   END IF;
 END
-$s105b1$;
-
--- B.2 audit_logs: drop every insert policy and recreate one. Writes must carry
---     the caller's own user_id and a hospital the caller belongs to. Rows with
---     no user (system or pre-auth events) are written by the service role only.
-DO $s105b2$
-BEGIN
-  IF to_regclass('public.audit_logs') IS NULL THEN
-    RAISE NOTICE '20261105000008: public.audit_logs is absent, B.2 skipped';
-    RETURN;
-  END IF;
-  IF NOT (
-    EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = 'audit_logs' AND column_name = 'user_id')
-    AND EXISTS (SELECT 1 FROM information_schema.columns
-                 WHERE table_schema = 'public' AND table_name = 'audit_logs' AND column_name = 'hospital_id')
-  ) THEN
-    RAISE NOTICE '20261105000008: audit_logs lacks user_id or hospital_id, B.2 and C.2 skipped';
-    RETURN;
-  END IF;
-
-  DROP POLICY IF EXISTS "Hospital-scoped audit log creation" ON public.audit_logs;
-  DROP POLICY IF EXISTS "Admins can insert audit logs" ON public.audit_logs;
-  DROP POLICY IF EXISTS "audit_logs_authenticated_insert" ON public.audit_logs;
-  DROP POLICY IF EXISTS "audit_logs_self_insert" ON public.audit_logs;
-
-  CREATE POLICY "audit_logs_self_insert" ON public.audit_logs
-    FOR INSERT TO authenticated
-    WITH CHECK (
-      user_id = auth.uid()
-      AND hospital_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.profiles p
-         WHERE p.user_id = auth.uid()
-           AND p.hospital_id = audit_logs.hospital_id
-      )
-    );
-END
-$s105b2$;
-
--- B.3 audit_log (core table, 20260313000001): the insert policy checks only
---     the hospital, so a staff member could write a row for any actor.
---     Writes must name the caller as actor and the caller's hospital.
-DO $s105b3$
-BEGIN
-  IF to_regclass('public.audit_log') IS NULL THEN
-    RETURN;
-  END IF;
-  IF NOT (
-    EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = 'audit_log' AND column_name = 'actor_user_id')
-    AND EXISTS (SELECT 1 FROM information_schema.columns
-                 WHERE table_schema = 'public' AND table_name = 'audit_log' AND column_name = 'hospital_id')
-  ) THEN
-    RAISE NOTICE '20261105000008: audit_log lacks actor_user_id or hospital_id, B.3 skipped';
-    RETURN;
-  END IF;
-  DROP POLICY IF EXISTS "System can insert audit logs" ON public.audit_log;
-  DROP POLICY IF EXISTS "audit_log_insert_as_actor" ON public.audit_log;
-  CREATE POLICY "audit_log_insert_as_actor" ON public.audit_log
-    FOR INSERT TO authenticated
-    WITH CHECK (
-      EXISTS (
-        SELECT 1 FROM public.profiles p
-         WHERE p.user_id = auth.uid()
-           AND p.id = audit_log.actor_user_id
-           AND p.hospital_id = audit_log.hospital_id
-      )
-    );
-END
-$s105b3$;
-
--- -----------------------------------------------------------------------------
--- C. Scoped reads.
--- -----------------------------------------------------------------------------
-
--- C.1 activity_logs: hospital-wide read for any staff member bypassed the
---     admin-only policy from 20260617000001 (policies are OR-ed). Keep the
---     admin-in-hospital read, the admin read from 20260617000001, and own-row
---     reads. Drop the hospital-wide read.
-DO $s105c1$
-BEGIN
-  IF to_regclass('public.activity_logs') IS NULL THEN
-    RETURN;
-  END IF;
-  DROP POLICY IF EXISTS "activity_logs_hospital_read" ON public.activity_logs;
-  DROP POLICY IF EXISTS "Hospital staff can read own hospital logs" ON public.activity_logs;
-  DROP POLICY IF EXISTS "Hospital staff can view activity logs" ON public.activity_logs;
-END
-$s105c1$;
-
--- C.2 audit_logs: admin reads are scoped to the admin's own hospital. The
---     20260909000001 policy compared ur.hospital_id to itself, which is always
---     true, so it was a cross-tenant read. The role-only policies are dropped.
-DO $s105c2$
-BEGIN
-  IF to_regclass('public.audit_logs') IS NULL THEN
-    RETURN;
-  END IF;
-  IF NOT (
-    EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = 'audit_logs' AND column_name = 'user_id')
-    AND EXISTS (SELECT 1 FROM information_schema.columns
-                 WHERE table_schema = 'public' AND table_name = 'audit_logs' AND column_name = 'hospital_id')
-  ) THEN
-    RETURN;
-  END IF;
-
-  DROP POLICY IF EXISTS "Admin can view all audit logs" ON public.audit_logs;
-  DROP POLICY IF EXISTS "Admins can view audit logs" ON public.audit_logs;
-  DROP POLICY IF EXISTS "Admins can view all audit logs in their hospital" ON public.audit_logs;
-  DROP POLICY IF EXISTS "Hospital-scoped audit log access" ON public.audit_logs;
-  DROP POLICY IF EXISTS "audit_logs_hospital_admin_read" ON public.audit_logs;
-  DROP POLICY IF EXISTS "Users can view their own audit logs" ON public.audit_logs;
-  DROP POLICY IF EXISTS "audit_logs_admin_hospital_read" ON public.audit_logs;
-  DROP POLICY IF EXISTS "audit_logs_self_read" ON public.audit_logs;
-
-  CREATE POLICY "audit_logs_admin_hospital_read" ON public.audit_logs
-    FOR SELECT TO authenticated
-    USING (
-      EXISTS (
-        SELECT 1
-          FROM public.user_roles ur
-          JOIN public.profiles p ON p.user_id = ur.user_id
-         WHERE ur.user_id = auth.uid()
-           AND ur.role::text = 'admin'
-           AND ur.hospital_id = audit_logs.hospital_id
-           AND coalesce((to_jsonb(p) ->> 'is_active')::boolean, true)
-      )
-    );
-
-  CREATE POLICY "audit_logs_self_read" ON public.audit_logs
-    FOR SELECT TO authenticated
-    USING (user_id = auth.uid());
-END
-$s105c2$;
+$s105c$;
 
 -- C.3 audit_log_summary: a view runs as its owner unless security_invoker is
 --     set, so it read every hospital's audit_log rows for any signed-in user.
@@ -338,3 +361,8 @@ BEGIN
   END LOOP;
 END
 $s105e$;
+
+-- -----------------------------------------------------------------------------
+-- Clean up the helper this file used.
+-- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.s105_table_has_columns(text, text[]);

@@ -26,6 +26,21 @@ interface CreateInvitationParams {
   role: UserRole;
 }
 
+/**
+ * Turns a PostgREST error from an invitation insert into a message for the
+ * admin. `staff_invitations` has UNIQUE (hospital_id, email, status), so any
+ * earlier invitation for the same email and status blocks a new one (23505).
+ * The raw database text is not shown.
+ */
+export function mapInvitationInsertError(
+  err: { code?: string | null; message?: string | null } | null | undefined
+): string {
+  if (err?.code === '23505') {
+    return 'An invitation for this email already exists for this hospital.';
+  }
+  return err?.message || 'Failed to create invitation';
+}
+
 interface AcceptInvitationParams {
   token: string;
   password: string;
@@ -123,7 +138,7 @@ export function useStaffInvitations() {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) throw new Error(mapInvitationInsertError(insertError));
 
       return { data, error: null };
     } catch (err) {
@@ -201,15 +216,21 @@ export function useStaffInvitations() {
         body: { token }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Non-2xx (rate limit, origin, server error): show the function's own text.
+        return {
+          data: null,
+          error: await getEdgeFunctionErrorMessage(error, 'Invalid or expired invitation'),
+        };
+      }
 
-      if (!data.valid) {
-        return { data: null, error: data.error || 'Invalid invitation' };
+      if (!data?.valid) {
+        return { data: null, error: data?.error || 'Invalid or expired invitation' };
       }
 
       return { data: data.invitation, error: null };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid or expired invitation';
+      const message = await getEdgeFunctionErrorMessage(err, 'Invalid or expired invitation');
       return { data: null, error: message };
     }
   }, []);
