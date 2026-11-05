@@ -4,21 +4,30 @@ name: DB migration replay
 # an empty database in Supabase CLI order. This job executes the SQL (it does
 # not pattern-match it) on the runner's preinstalled PostgreSQL 16.
 #
-# EXPECTED TO FAIL until the live-schema baseline replaces the current history
-# (supabase/baseline/README.md, step 5). The report artifact lists every failing
-# file. Do not add continue-on-error: a red result here is the true state.
+# Runs only when migration files change (supabase/migrations, supabase/pending-migrations).
+#
+# EXPECTED TO FAIL on the historical migration history until the live-schema baseline
+# replaces it (supabase/baseline/README.md, step 5); the replay has confirmed DB-03 by
+# execution. This job is therefore NOT in the required-checks list yet
+# (docs/operations/CI_REQUIRED_CHECKS.md). Add it once the baseline lands.
+# The report artifact lists every failing file. Do not add continue-on-error: a red
+# result here is the true state.
 
 on:
   pull_request:
     paths:
       - 'supabase/migrations/**'
+      - 'supabase/pending-migrations/**'
       - 'scripts/db/**'
+      - 'scripts/validate-migrations.mjs'
       - '.github/workflows/db-migration-replay.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/**'
+      - 'supabase/pending-migrations/**'
       - 'scripts/db/**'
+      - 'scripts/validate-migrations.mjs'
       - '.github/workflows/db-migration-replay.yml'
   workflow_dispatch:
 
