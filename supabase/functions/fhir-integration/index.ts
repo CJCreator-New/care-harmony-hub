@@ -107,7 +107,6 @@ interface ActionAuthorization {
   action: FhirAction;
   requestAuth: RequestAuthContext;
   patientScoped: boolean;
-  systemScoped: boolean;
   grantSource: "smart-scope" | "role-fallback";
 }
 
@@ -426,38 +425,6 @@ function extractBearerToken(req: Request): string {
   return match[1].trim();
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const tokenParts = token.split(".");
-  if (tokenParts.length < 2) {
-    throw new HttpError({
-      status: 401,
-      code: "login",
-      diagnostics: "Malformed JWT.",
-      headers: {
-        "WWW-Authenticate": 'Bearer realm="fhir", error="invalid_token", error_description="Malformed JWT"',
-      },
-    });
-  }
-
-  const payloadSegment = tokenParts[1].replace(/-/g, "+").replace(/_/g, "/");
-  const padding = payloadSegment.length % 4 === 0 ? "" : "=".repeat(4 - (payloadSegment.length % 4));
-  const decoded = atob(payloadSegment + padding);
-  const parsed = JSON.parse(decoded);
-
-  if (!parsed || typeof parsed !== "object") {
-    throw new HttpError({
-      status: 401,
-      code: "login",
-      diagnostics: "JWT payload is invalid.",
-      headers: {
-        "WWW-Authenticate": 'Bearer realm="fhir", error="invalid_token", error_description="Invalid JWT payload"',
-      },
-    });
-  }
-
-  return parsed as Record<string, unknown>;
-}
-
 function parseScopeField(value: unknown): string[] {
   if (typeof value === "string") {
     return value.split(/\s+/).map((scope) => scope.trim()).filter(Boolean);
@@ -472,21 +439,16 @@ function parseScopeField(value: unknown): string[] {
   return [];
 }
 
-function extractSmartScopes(token: string, user: any): Set<string> {
-  const jwtPayload = decodeJwtPayload(token);
+// EDGE-01 (S0-05): SMART scopes come ONLY from app_metadata, which only the
+// service role can write. user_metadata is editable by the user through
+// supabase.auth.updateUser(), and arbitrary JWT claims are not a SMART token, so
+// neither is ever read here.
+function extractSmartScopes(user: any): Set<string> {
   const candidates: unknown[] = [
-    jwtPayload.scope,
-    jwtPayload.scp,
-    jwtPayload.smart_scope,
-    jwtPayload.smart_scopes,
     user?.app_metadata?.scope,
     user?.app_metadata?.scopes,
     user?.app_metadata?.smart_scope,
     user?.app_metadata?.smart_scopes,
-    user?.user_metadata?.scope,
-    user?.user_metadata?.scopes,
-    user?.user_metadata?.smart_scope,
-    user?.user_metadata?.smart_scopes,
   ];
 
   const scopes = new Set<string>();
@@ -532,7 +494,6 @@ function permissionGrantsAccess(permissions: string, requiredAccess: ScopeAccess
 function evaluateSmartScopeGrant(scopes: Set<string>, requirement: ActionScopeRequirement) {
   let grantedByPatientScope = false;
   let grantedByNonPatientScope = false;
-  let grantedBySystemScope = false;
 
   for (const scope of scopes) {
     const parsed = parseSmartScope(scope);
@@ -547,23 +508,22 @@ function evaluateSmartScopeGrant(scopes: Set<string>, requirement: ActionScopeRe
       grantedByPatientScope = true;
       continue;
     }
-    if (parsed.context === "system") {
-      grantedBySystemScope = true;
-      grantedByNonPatientScope = true;
-      continue;
-    }
+    // EDGE-01 (S0-05): system/* scopes belong to backend service clients, never
+    // to an interactive user session. They grant nothing here and can never
+    // bypass the hospital check.
+    if (parsed.context === "system") continue;
     if (parsed.context === "user") {
       grantedByNonPatientScope = true;
     }
   }
 
   if (grantedByNonPatientScope) {
-    return { granted: true, patientScoped: false, systemScoped: grantedBySystemScope };
+    return { granted: true, patientScoped: false };
   }
   if (grantedByPatientScope) {
-    return { granted: true, patientScoped: true, systemScoped: false };
+    return { granted: true, patientScoped: true };
   }
-  return { granted: false, patientScoped: false, systemScoped: false };
+  return { granted: false, patientScoped: false };
 }
 
 async function authorizeFhirAction(
@@ -647,7 +607,7 @@ async function authorizeFhirAction(
   const metadataRole = asString((user as any)?.app_metadata?.role) ?? asString((user as any)?.role);
   if (metadataRole) effectiveRoles.add(metadataRole);
 
-  const scopes = extractSmartScopes(token, user);
+  const scopes = extractSmartScopes(user);
   const smartScopeGrant = evaluateSmartScopeGrant(scopes, requirement);
 
   const requestAuth: RequestAuthContext = {
@@ -663,7 +623,6 @@ async function authorizeFhirAction(
       action,
       requestAuth,
       patientScoped: smartScopeGrant.patientScoped,
-      systemScoped: smartScopeGrant.systemScoped,
       grantSource: "smart-scope",
     };
   }
@@ -674,7 +633,6 @@ async function authorizeFhirAction(
       action,
       requestAuth,
       patientScoped: false,
-      systemScoped: false,
       grantSource: "role-fallback",
     };
   }
@@ -694,8 +652,7 @@ function enforceHospitalAccess(
   resourceHospitalId: string | null | undefined,
   resourceLabel: string,
 ) {
-  if (authorization.systemScoped) return;
-
+  // No bypass: every action is confined to the caller's own hospital (EDGE-01).
   const callerHospitalId = authorization.requestAuth.hospitalId;
   if (!callerHospitalId) {
     throw new HttpError({
@@ -730,7 +687,6 @@ async function logFhirAccess(
     metadata: {
       grant_source: authorization.grantSource,
       patient_scoped: authorization.patientScoped,
-      system_scoped: authorization.systemScoped,
     },
   });
 }
@@ -960,15 +916,14 @@ async function importPatientFromFHIR(
       diagnostics: "hospital_id is required for importing a new patient.",
     });
   }
-  if (!authorization.systemScoped) {
-    const callerHospitalId = authorization.requestAuth.hospitalId;
-    if (!callerHospitalId || hospitalId !== callerHospitalId) {
-      throw new HttpError({
-        status: 403,
-        code: "forbidden",
-        diagnostics: `Import to hospital '${hospitalId}' is forbidden for this caller.`,
-      });
-    }
+  // EDGE-01 (S0-05): imports only ever land in the caller's own hospital.
+  const callerHospitalId = authorization.requestAuth.hospitalId;
+  if (!callerHospitalId || hospitalId !== callerHospitalId) {
+    throw new HttpError({
+      status: 403,
+      code: "forbidden",
+      diagnostics: "Import to another hospital is forbidden for this caller.",
+    });
   }
 
   const providedMrn = asString(explicitMrn) ?? getPatientMrn(patient) ?? existingPatient?.mrn ?? undefined;
@@ -1223,6 +1178,33 @@ async function exportEncounter(
   });
 }
 
+// EDGE-01 (S0-05): the bundle exports below used to query by patient_id alone,
+// so a role-authorized caller could read any tenant's records. Load the patient
+// first, require it to belong to the caller's hospital, and filter the rows by
+// that hospital as well.
+async function loadPatientInCallerHospital(
+  supabase: any,
+  authorization: ActionAuthorization,
+  patientId: string,
+  resourceLabel: string,
+): Promise<{ id: string; hospital_id: string }> {
+  const { data: patient, error } = await supabase
+    .from("patients")
+    .select("id, hospital_id")
+    .eq("id", patientId)
+    .maybeSingle();
+  if (error) {
+    throw new HttpError({ status: 500, code: "exception", diagnostics: "Failed to load patient." });
+  }
+  if (!patient) {
+    throw new HttpError({ status: 404, code: "not-found", diagnostics: `Patient/${patientId} not found.` });
+  }
+  enforceHospitalAccess(authorization, patient.hospital_id, resourceLabel);
+  enforcePatientScopeAccess(authorization, patient.id, resourceLabel);
+  await logFhirAccess(supabase, authorization, "Patient", patient.id, patient.hospital_id);
+  return patient;
+}
+
 async function exportMedicationRequests(
   supabase: any,
   authorization: ActionAuthorization,
@@ -1232,12 +1214,18 @@ async function exportMedicationRequests(
   if (!patientId) {
     throw new HttpError({ status: 422, code: "required", diagnostics: "patient_id is required." });
   }
-  enforcePatientScopeAccess(authorization, patientId, `MedicationRequest?patient=${patientId}`);
+  const patient = await loadPatientInCallerHospital(
+    supabase,
+    authorization,
+    patientId,
+    `MedicationRequest?patient=${patientId}`,
+  );
 
   const { data: prescriptions, error } = await supabase
     .from("prescriptions")
     .select("id, patient_id, doctor_id, hospital_id, drug_name, dosage, frequency, status, prescribed_at, created_at, updated_at, rxcui")
-    .eq("patient_id", patientId);
+    .eq("patient_id", patient.id)
+    .eq("hospital_id", patient.hospital_id);
 
   if (error) {
     throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load prescriptions: ${error.message}` });
@@ -1280,12 +1268,18 @@ async function exportConditions(
   if (!patientId) {
     throw new HttpError({ status: 422, code: "required", diagnostics: "patient_id is required." });
   }
-  enforcePatientScopeAccess(authorization, patientId, `Condition?patient=${patientId}`);
+  const patient = await loadPatientInCallerHospital(
+    supabase,
+    authorization,
+    patientId,
+    `Condition?patient=${patientId}`,
+  );
 
   const { data: consultations, error } = await supabase
     .from("consultations")
     .select("id, patient_id, hospital_id, final_diagnosis, diagnoses, created_at, updated_at, status")
-    .eq("patient_id", patientId)
+    .eq("patient_id", patient.id)
+    .eq("hospital_id", patient.hospital_id)
     .not("final_diagnosis", "is", null);
 
   if (error) {
@@ -1327,12 +1321,18 @@ async function exportDiagnosticReports(
   if (!patientId) {
     throw new HttpError({ status: 422, code: "required", diagnostics: "patient_id is required." });
   }
-  enforcePatientScopeAccess(authorization, patientId, `DiagnosticReport?patient=${patientId}`);
+  const patient = await loadPatientInCallerHospital(
+    supabase,
+    authorization,
+    patientId,
+    `DiagnosticReport?patient=${patientId}`,
+  );
 
   const { data: labResults, error } = await supabase
     .from("lab_results")
     .select("id, patient_id, hospital_id, test_name, result_value, result_unit, reference_range, status, collected_at, resulted_at, created_at, updated_at, ordering_doctor_id")
-    .eq("patient_id", patientId);
+    .eq("patient_id", patient.id)
+    .eq("hospital_id", patient.hospital_id);
 
   if (error) {
     throw new HttpError({ status: 500, code: "exception", diagnostics: `Failed to load lab results: ${error.message}` });
