@@ -26,7 +26,7 @@ interface DischargeWorkflowCardProps {
 }
 
 const STEP_NUMBER: Record<DischargeWorkflowStep, number> = {
-  doctor: 2, nurse: 3, pharmacist: 4, billing: 5, completed: 7, cancelled: 0,
+  doctor: 2, nurse: 3, pharmacist: 4, billing: 5, completed: 7, completed_ama: 7, cancelled: 0,
 };
 
 /**

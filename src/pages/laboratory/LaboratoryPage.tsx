@@ -127,6 +127,35 @@ const LAB_CATEGORY_BY_TEST: Record<string, string> = {
   ultrasound: 'Radiology',
 };
 
+/** Workflow metadata the lab page stores inside the `lab_orders.results` JSON column. */
+interface LabAccessionMeta {
+  barcode?: string;
+  containerType?: string;
+}
+interface LabAcknowledgmentMeta {
+  clinicianName?: string;
+  clinicianRole?: string;
+  verbalReadBackConfirmed?: boolean;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/** Reads accession/acknowledgment from `results`, which may be any JSON value (or null). */
+function getLabWorkflowMeta(results: LabOrder['results'] | null | undefined): {
+  accession?: LabAccessionMeta;
+  acknowledgment?: LabAcknowledgmentMeta;
+} {
+  const record = asRecord(results);
+  return {
+    accession: asRecord(record?.accession) as LabAccessionMeta | undefined,
+    acknowledgment: asRecord(record?.acknowledgment) as LabAcknowledgmentMeta | undefined,
+  };
+}
+
 function getLabCategory(order: Pick<LabOrder, 'test_name' | 'test_category'>) {
   const category = order.test_category?.trim();
   if (category && category.toLowerCase() !== order.test_name?.trim().toLowerCase()) return category;
@@ -231,6 +260,9 @@ export default function LaboratoryPage() {
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const queryClient = useQueryClient();
   const typedOrders: LabOrder[] = (orders as unknown as LabOrder[]) || [];
+  const { accession: viewAccession, acknowledgment: viewAcknowledgment } = getLabWorkflowMeta(
+    viewOrder?.results
+  );
 
   // ==========================================
   // SPECIMEN ACCESSIONING & COLLECTION
@@ -794,10 +826,9 @@ export default function LaboratoryPage() {
                   </TableHeader>
                   <TableBody>
                     {typedOrders.map((order) => {
-                      const accession = order.results?.accession;
+                      const { accession, acknowledgment } = getLabWorkflowMeta(order.results);
                       const isUnreadAck =
-                        order.is_critical &&
-                        !order.results?.acknowledgment?.verbalReadBackConfirmed;
+                        order.is_critical && !acknowledgment?.verbalReadBackConfirmed;
 
                       return (
                         <TableRow
@@ -1085,19 +1116,18 @@ export default function LaboratoryPage() {
                     {statusConfig[viewOrder?.status || '']?.label || viewOrder?.status}
                   </Badge>
                 </div>
-                {viewOrder?.results?.accession && (
+                {viewAccession && (
                   <div>
                     <span className="text-muted-foreground block">Accession Barcode:</span>
-                    <span className="font-mono">{viewOrder.results.accession.barcode}</span>
+                    <span className="font-mono">{viewAccession.barcode}</span>
                   </div>
                 )}
-                {viewOrder?.results?.acknowledgment && (
+                {viewAcknowledgment && (
                   <div>
                     <span className="text-muted-foreground block">Verbal Read-Back Clinician:</span>
                     <strong className="text-emerald-700 flex items-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                      {viewOrder.results.acknowledgment.clinicianName} (
-                      {viewOrder.results.acknowledgment.clinicianRole})
+                      {viewAcknowledgment.clinicianName} ({viewAcknowledgment.clinicianRole})
                     </strong>
                   </div>
                 )}

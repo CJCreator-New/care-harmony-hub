@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
+import { useClinicalActor } from '@/hooks/useClinicalActor';
 import { supabase } from '@/integrations/supabase/client';
 import { LabCriticalAlert, LabEscalationActor } from './types';
 import {
@@ -41,7 +41,6 @@ export function useCriticalLabEscalation(
   options: UseCriticalLabEscalationOptions = {}
 ): UseCriticalLabEscalationReturn {
   const { doctorId: overrideDoctorId, engine: customEngine } = options;
-  const { user, profile } = useAuth();
 
   const engine = useMemo(() => customEngine || createCriticalLabEscalationEngine(), [customEngine]);
 
@@ -49,25 +48,25 @@ export function useCriticalLabEscalation(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const actor: LabEscalationActor = useMemo(() => {
-    const role = (profile?.role || (user as any)?.role || 'doctor') as string;
-    const hospitalId = profile?.hospital_id || (user as any)?.hospital_id || 'default-hospital';
-    return {
-      id: user?.id || 'anonymous-doctor',
-      hospitalId,
-      role,
-    };
-  }, [user, profile]);
+  // CLIN-27: actor from the roles the user holds and their own tenant; no
+  // 'authenticated' role or 'default-hospital' fallback. Fails closed when unknown.
+  const { actor: clinicalActor, error: actorError } = useClinicalActor({ actingRole: 'doctor' });
+  const actor: LabEscalationActor | null = clinicalActor;
+  const hospitalId = actor?.hospitalId ?? null;
 
-  const targetDoctorId = overrideDoctorId ?? (actor.role === 'doctor' ? actor.id : undefined);
+  const targetDoctorId = overrideDoctorId ?? (actor?.role === 'doctor' ? actor.id : undefined);
 
   const fetchAlerts = useCallback(async () => {
-    if (!actor.hospitalId) return;
+    if (!hospitalId) {
+      setAlerts([]);
+      setError(actorError);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
     try {
-      const data = await engine.getActiveAlerts(actor.hospitalId, targetDoctorId);
+      const data = await engine.getActiveAlerts(hospitalId, targetDoctorId);
       setAlerts(data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -76,7 +75,7 @@ export function useCriticalLabEscalation(
     } finally {
       setIsLoading(false);
     }
-  }, [actor.hospitalId, targetDoctorId, engine]);
+  }, [hospitalId, actorError, targetDoctorId, engine]);
 
   useEffect(() => {
     fetchAlerts();
@@ -84,9 +83,9 @@ export function useCriticalLabEscalation(
 
   // Realtime subscription for critical alerts broadcast
   useEffect(() => {
-    if (!actor.hospitalId) return;
+    if (!hospitalId) return;
 
-    const channel = supabase.channel(`hospital-lab-alerts:${actor.hospitalId}`);
+    const channel = supabase.channel(`hospital-lab-alerts:${hospitalId}`);
     channel
       .on('broadcast', { event: 'critical_lab_escalation' }, (payload: any) => {
         toast.error(
@@ -102,10 +101,15 @@ export function useCriticalLabEscalation(
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [actor.hospitalId, fetchAlerts]);
+  }, [hospitalId, fetchAlerts]);
 
   const acknowledgeAlert = useCallback(
     async (alertId: string, notes?: string): Promise<{ success: boolean; error?: string }> => {
+      if (!actor) {
+        const msg = actorError || 'Your clinical identity could not be determined.';
+        toast.error(`Acknowledgment failed: ${msg}`);
+        return { success: false, error: msg };
+      }
       try {
         const res = await engine.acknowledgeAlert(actor, { alertId, notes });
         if (!res.success) {
@@ -120,11 +124,16 @@ export function useCriticalLabEscalation(
         return { success: false, error: msg };
       }
     },
-    [actor, engine, fetchAlerts]
+    [actor, actorError, engine, fetchAlerts]
   );
 
   const resolveAlert = useCallback(
     async (alertId: string, notes: string): Promise<{ success: boolean; error?: string }> => {
+      if (!actor) {
+        const msg = actorError || 'Your clinical identity could not be determined.';
+        toast.error(`Resolution failed: ${msg}`);
+        return { success: false, error: msg };
+      }
       try {
         const res = await engine.resolveAlert(actor, { alertId, notes });
         if (!res.success) {
@@ -139,7 +148,7 @@ export function useCriticalLabEscalation(
         return { success: false, error: msg };
       }
     },
-    [actor, engine, fetchAlerts]
+    [actor, actorError, engine, fetchAlerts]
   );
 
   const unacknowledgedCount = useMemo(() => {

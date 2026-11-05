@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { ShiftHandoverModal } from '@/components/nurse/ShiftHandoverModal';
-import { MedicationAdministrationModal } from '@/components/nurse/MedicationAdministrationModal';
 import { OfflineIndicator } from '@/components/nurse/OfflineIndicator';
 import { OfflineVitalsCaptureModal } from '@/components/nurse/OfflineVitalsCaptureModal';
 import { OfflineVitalsHistory } from '@/components/nurse/OfflineVitalsHistory';
@@ -42,7 +41,6 @@ export function NurseDashboard() {
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [handoverMode, setHandoverMode] = useState<'create' | 'view' | null>(null);
-  const [isMedModalOpen, setIsMedModalOpen] = useState(false);
   const [isOfflineVitalsOpen, setIsOfflineVitalsOpen] = useState(false);
   const [isMobileLandscapeOpen, setIsMobileLandscapeOpen] = useState(false);
   const [offlineTab, setOfflineTab] = useState<'history' | 'sync'>(
@@ -99,9 +97,13 @@ export function NurseDashboard() {
           <Smartphone className="h-4 w-4 mr-2" />
           Mobile Entry
         </Button>
-        <Button variant="outline" onClick={() => setIsMedModalOpen(true)}>
-          <Pill className="h-4 w-4 mr-2" />
-          Administer Medication
+        {/* CLIN-29: administration needs a selected due dose (prescription + patient),
+            so the shortcut opens the eMAR page instead of an empty modal. */}
+        <Button variant="outline" asChild>
+          <Link to="/hospital/nurse/medications">
+            <Pill className="h-4 w-4 mr-2" />
+            Administer Medication
+          </Link>
         </Button>
         <Button variant="outline" asChild>
           <Link to="/nurse/protocols">
@@ -271,10 +273,6 @@ export function NurseDashboard() {
         open={handoverMode !== null}
         onOpenChange={(open) => !open && setHandoverMode(null)}
         mode={handoverMode || 'create'}
-      />
-      <MedicationAdministrationModal
-        open={isMedModalOpen}
-        onOpenChange={setIsMedModalOpen}
       />
     </DashboardPageTransition>
   );

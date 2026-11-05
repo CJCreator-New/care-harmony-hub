@@ -65,7 +65,9 @@ export default function NurseMedicationsPage() {
 
   // Data fetching
   const { data: prescriptions, isLoading: isLoadingPrescriptions } = usePrescriptions();
-  const { data: patientsList } = usePatients();
+  const { data: patientsData } = usePatients();
+  // usePatients returns a paginated result ({ patients, total, ... }), not an array.
+  const patientsList = patientsData?.patients ?? [];
 
   // Fetch real medication administrations log
   const { data: administrations, isLoading: isLoadingAdmins } = useQuery({
@@ -213,7 +215,7 @@ export default function NurseMedicationsPage() {
     setTargetItem(item);
     setTargetPatient(
       item.patient ||
-        (patientsList || []).find((p) => p.id === item.patient_id) || {
+        patientsList.find((p) => p.id === item.patient_id) || {
           id: item.patient_id,
           first_name: 'Patient',
           last_name: item.patient_id.slice(0, 6),
@@ -243,7 +245,7 @@ export default function NurseMedicationsPage() {
     setTargetItem(item);
     setTargetPatient(
       item.patient ||
-        (patientsList || []).find((p) => p.id === item.patient_id) || {
+        patientsList.find((p) => p.id === item.patient_id) || {
           id: item.patient_id,
           first_name: 'Patient',
           last_name: item.patient_id.slice(0, 6),
@@ -267,7 +269,7 @@ export default function NurseMedicationsPage() {
     setTargetItem(item);
     setTargetPatient(
       item.patient ||
-        (patientsList || []).find((p) => p.id === item.patient_id) || {
+        patientsList.find((p) => p.id === item.patient_id) || {
           id: item.patient_id,
           first_name: 'Patient',
           last_name: item.patient_id.slice(0, 6),
@@ -291,7 +293,7 @@ export default function NurseMedicationsPage() {
   const handleOpenOutcomeModal = (adminRecord: any) => {
     setSelectedAdminRecord(adminRecord);
     setTargetPatient(
-      (patientsList || []).find((p) => p.id === adminRecord.patient_id) || {
+      patientsList.find((p) => p.id === adminRecord.patient_id) || {
         id: adminRecord.patient_id,
         first_name: 'Patient',
         last_name: adminRecord.patient_id.slice(0, 6),
@@ -407,7 +409,7 @@ export default function NurseMedicationsPage() {
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <option value="all">All Inpatients</option>
-                  {(patientsList || []).map((p) => (
+                  {patientsList.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.first_name} {p.last_name} ({p.mrn || 'N/A'})
                     </option>

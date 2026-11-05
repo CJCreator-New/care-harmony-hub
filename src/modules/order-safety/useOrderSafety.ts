@@ -23,7 +23,7 @@ import {
 } from './types';
 import { createOrderSafetyEngine } from './OrderSafetyEngine';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
+import { useClinicalActor } from '@/hooks/useClinicalActor';
 
 export interface UseOrderSafetyOptions {
   /**
@@ -97,21 +97,15 @@ const CLINICAL_ROLES: readonly ClinicalRole[] = [
  * is one the user actually holds (Supabase's `user.role` is always
  * 'authenticated', which made every doctor override fail).
  */
-function useClinicalActor(actingRole?: ClinicalRole): ClinicalActor {
-  const { user, profile, roles, primaryRole } = useAuth();
-  return useMemo(() => {
-    const held = (roles || []).filter((r): r is ClinicalRole => CLINICAL_ROLES.includes(r as ClinicalRole));
-    const role: ClinicalRole =
-      actingRole && held.includes(actingRole)
-        ? actingRole
-        : (CLINICAL_ROLES.includes(primaryRole as ClinicalRole) ? (primaryRole as ClinicalRole) : held[0]) ||
-          'patient';
-    return {
-      userId: user?.id || '',
-      hospitalId: profile?.hospital_id || '',
-      role,
-    };
-  }, [user?.id, profile?.hospital_id, roles, primaryRole, actingRole]);
+function useOrderSafetyActor(actingRole?: ClinicalRole): ClinicalActor {
+  const { userId, hospitalId, role } = useClinicalActor<ClinicalRole>({
+    actingRole,
+    allowedRoles: CLINICAL_ROLES,
+  });
+  return useMemo(
+    () => ({ userId: userId || '', hospitalId: hospitalId || '', role: role || 'patient' }),
+    [userId, hospitalId, role]
+  );
 }
 
 /** Stable fingerprint of everything that affects the assessment. */
@@ -148,7 +142,7 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
   } = options;
 
   const engine = useMemo(() => customEngine || createOrderSafetyEngine(), [customEngine]);
-  const actor = useClinicalActor(actingRole);
+  const actor = useOrderSafetyActor(actingRole);
 
   const [assessment, setAssessment] = useState<SafetyAssessment | null>(null);
   const [assessedFingerprint, setAssessedFingerprint] = useState<string>('');

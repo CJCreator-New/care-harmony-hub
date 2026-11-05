@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -28,7 +27,7 @@ export function usePermissions() {
   const can = (permission: Permission) => hasPermissionForAnyRole(effectiveRoles, permission);
   const canAny = (permissions: Permission[]) => permissions.some((permission) => can(permission));
   const canAll = (permissions: Permission[]) => permissions.every((permission) => can(permission));
-  const canInPrimaryRole = (permission: Permission) => hasPermission(persistedTestRole || primaryRole, permission);
+  const canInPrimaryRole = (permission: Permission) => hasPermission(persistedTestRole || primaryRole || undefined, permission);
   const canInAnyRole = (permission: Permission) => hasPermissionForAnyRole(effectiveRoles, permission);
 
   return {

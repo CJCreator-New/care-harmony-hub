@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
+import { useClinicalActor } from '@/hooks/useClinicalActor';
 import { supabase } from '@/integrations/supabase/client';
 import {
   PrescriptionActor,
@@ -61,7 +61,6 @@ export function usePrescriptionDispensing(
   }, [workflowIdOrOptions]);
 
   const { workflowId, prescriptionId, engine: customEngine } = options;
-  const { user, profile } = useAuth();
 
   const engine = useMemo(
     () => customEngine || createPrescriptionDispensingEngine(),
@@ -72,15 +71,14 @@ export function usePrescriptionDispensing(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const actor: PrescriptionActor = useMemo(() => {
-    const role = (profile?.role || (user as any)?.role || 'pharmacist') as string;
-    const hospitalId = profile?.hospital_id || (user as any)?.hospital_id || 'default-hospital';
-    return {
-      id: user?.id || 'anonymous-actor',
-      hospitalId,
-      role,
-    };
-  }, [user, profile]);
+  // CLIN-27: actor from the roles the user holds and their own tenant; no
+  // 'authenticated' role or 'default-hospital' fallback. Fails closed when unknown.
+  const {
+    actor: clinicalActor,
+    role: actorRole,
+    error: actorError,
+  } = useClinicalActor({ actingRole: 'pharmacist' });
+  const actor: PrescriptionActor | null = clinicalActor;
 
   const fetchWorkflow = useCallback(async () => {
     if (!workflowId && !prescriptionId) {
@@ -145,6 +143,11 @@ export function usePrescriptionDispensing(
       action: PrescriptionWorkflowAction,
       stepOptions: Omit<TransitionPrescriptionStepParams, 'workflowId'> = {}
     ): Promise<{ success: boolean; workflow?: PrescriptionWorkflow; error?: string }> => {
+      if (!actor) {
+        const msg = actorError || 'Your clinical identity could not be determined.';
+        setError(msg);
+        return { success: false, error: msg };
+      }
       const targetWorkflowId = workflowId || workflow?.id;
       if (!targetWorkflowId) {
         return {
@@ -219,32 +222,32 @@ export function usePrescriptionDispensing(
         setIsLoading(false);
       }
     },
-    [workflowId, workflow?.id, actor, engine]
+    [workflowId, workflow?.id, actor, actorError, engine]
   );
 
   const canApprove = useCallback((): boolean => {
-    const role = actor.role.toLowerCase();
+    const role = (actorRole ?? '').toLowerCase();
     const isPharmacist = role === 'pharmacist' || role === 'admin';
     return (
       isPharmacist &&
       (workflow?.status === 'pending_approval' || workflow?.status === 'pending_clarification')
     );
-  }, [workflow?.status, actor.role]);
+  }, [workflow?.status, actorRole]);
 
   const canReject = useCallback((): boolean => {
-    const role = actor.role.toLowerCase();
+    const role = (actorRole ?? '').toLowerCase();
     const isPharmacist = role === 'pharmacist' || role === 'admin';
     return (
       isPharmacist &&
       (workflow?.status === 'pending_approval' || workflow?.status === 'pending_clarification')
     );
-  }, [workflow?.status, actor.role]);
+  }, [workflow?.status, actorRole]);
 
   const canClarify = useCallback((): boolean => {
-    const role = actor.role.toLowerCase();
+    const role = (actorRole ?? '').toLowerCase();
     const isPharmacist = role === 'pharmacist' || role === 'admin';
     return isPharmacist && workflow?.status === 'pending_approval';
-  }, [workflow?.status, actor.role]);
+  }, [workflow?.status, actorRole]);
 
   const canDispense = useCallback((): boolean => {
     // Non-negotiable ADR-0004 invariant: Only approved prescriptions may be dispensed

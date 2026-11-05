@@ -68,7 +68,9 @@ export function InitiateDischargeModal({
   const [informedRefusalNotes, setInformedRefusalNotes] = useState('');
   const [waiverSigned, setWaiverSigned] = useState(false);
 
-  const { data: patients, isLoading: isLoadingPatients } = usePatients();
+  const { data: patientsData, isLoading: isLoadingPatients } = usePatients();
+  // usePatients returns a paginated result ({ patients, total, ... }), not an array.
+  const patients = patientsData?.patients ?? [];
 
   // Reset form on open
   useEffect(() => {
@@ -90,7 +92,7 @@ export function InitiateDischargeModal({
   }, [open]);
 
   // Filter patients by search term
-  const filteredPatients = (patients || []).filter((p) => {
+  const filteredPatients = patients.filter((p) => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     const fullName = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
@@ -98,7 +100,7 @@ export function InitiateDischargeModal({
     return fullName.includes(term) || mrn.includes(term);
   });
 
-  const selectedPatient = (patients || []).find((p) => p.id === selectedPatientId);
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId);
 
   const handleSubmit = async () => {
     if (!selectedPatientId) {

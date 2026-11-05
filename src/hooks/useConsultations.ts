@@ -576,6 +576,7 @@ export function useUpdateConsultation() {
 }
 
 export function useAdvanceConsultationStep() {
+  const queryClient = useQueryClient();
   const updateConsultation = useUpdateConsultation();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { primaryRole } = useAuth();
