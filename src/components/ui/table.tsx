@@ -2,9 +2,20 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+export interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+  /** Accessible name for the horizontally scrollable region around the table. */
+  scrollLabel?: string;
+}
+
+// A11Y-14: the wrapper scrolls on narrow screens, so it must be reachable by keyboard and named.
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, scrollLabel = "Scrollable table", ...props }, ref) => (
+    <div
+      role="region"
+      aria-label={scrollLabel}
+      tabIndex={0}
+      className="relative w-full overflow-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   ),
@@ -75,4 +86,46 @@ const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTMLAttribu
 );
 TableCaption.displayName = "TableCaption";
 
-export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption };
+export interface TableCardField {
+  label: string;
+  value: React.ReactNode;
+}
+
+export interface TableCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+  /** Primary text of the card, such as the record name. Wraps instead of overflowing. */
+  title: React.ReactNode;
+  /** Label/value pairs shown in a definition list. */
+  fields: TableCardField[];
+  /** Optional row actions, rendered at the bottom of the card. */
+  actions?: React.ReactNode;
+}
+
+/**
+ * Card view of one table row for small screens (UX-07). Use inside `TableCardList`,
+ * and render the matching `Table` in `hidden md:block`, so only one view shows at a time.
+ */
+const TableCard = React.forwardRef<HTMLDivElement, TableCardProps>(
+  ({ title, fields, actions, className, ...props }, ref) => (
+    <div ref={ref} className={cn("min-w-0 rounded-lg border bg-card p-4 space-y-3 text-sm", className)} {...props}>
+      <div className="font-medium break-words">{title}</div>
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+        {fields.map((field) => (
+          <div key={field.label} className="min-w-0">
+            <dt className="text-xs text-muted-foreground">{field.label}</dt>
+            <dd className="break-words">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {actions && <div className="flex flex-wrap justify-end gap-2">{actions}</div>}
+    </div>
+  ),
+);
+TableCard.displayName = "TableCard";
+
+/** Stacked list of `TableCard`s, shown below the md breakpoint (768px). */
+const TableCardList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => <div ref={ref} className={cn("grid gap-3 md:hidden", className)} {...props} />,
+);
+TableCardList.displayName = "TableCardList";
+
+export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption, TableCard, TableCardList };

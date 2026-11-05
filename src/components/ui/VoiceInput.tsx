@@ -330,7 +330,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             <Mic className="h-5 w-5" />
             Real-Time Voice Input
             {isListening && (
-              <Badge variant="destructive" className="animate-pulse">
+              <Badge variant="destructive" className="motion-safe:animate-pulse">
                 Recording
               </Badge>
             )}
@@ -342,7 +342,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
               {connectionStatus === 'connected' ? (
                 <Wifi className="h-4 w-4 text-success" />
               ) : connectionStatus === 'connecting' ? (
-                <Zap className="h-4 w-4 text-warning animate-pulse" />
+                <Zap className="h-4 w-4 text-warning motion-safe:animate-pulse" />
               ) : (
                 <WifiOff className="h-4 w-4 text-destructive" />
               )}

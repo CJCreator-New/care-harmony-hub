@@ -12,6 +12,7 @@ import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
 import { bootstrap } from "@/bootstrap";
 import { RouteFallback } from "@/components/common/RouteFallback";
+import { SkipNavigation } from "@/components/accessibility/SkipNavigation";
 import { SessionTimeoutDialog } from "@/components/common/SessionTimeoutDialog";
 import {
   fallbackRoute,
@@ -75,6 +76,8 @@ const App = () => {
         <AuthProvider>
           <TestingProvider>
             <TooltipProvider>
+              {/* A11Y-12: one skip link for the whole app, before any chrome. Targets the page <main id="main-content">. */}
+              <SkipNavigation targetId="main-content" />
               <Sonner position="top-right" />
               <SessionTimeoutDialog />
               <BrowserRouter

@@ -122,19 +122,21 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
                 <React.Fragment key={group.label}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link to={firstItem.href} aria-label={firstItem.label}>
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
-                            isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_12px_hsl(var(--sidebar-ring)/0.15)]'
-                          )}
-                          size="icon"
-                          aria-current={isActive(firstItem.href) ? 'page' : undefined}
-                        >
+                      {/* A11Y-05: the link itself carries the button styling, so there is one tab stop. */}
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className={cn(
+                          'w-10 h-10 p-0 bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 shadow-none',
+                          isActive(firstItem.href) && 'bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_12px_hsl(var(--sidebar-ring)/0.15)]'
+                        )}
+                        size="icon"
+                        aria-current={isActive(firstItem.href) ? 'page' : undefined}
+                      >
+                        <Link to={firstItem.href} aria-label={firstItem.label}>
                           <firstItem.icon className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right" className="font-medium">
                       {firstItem.label}
@@ -221,18 +223,21 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-1 pl-4">
             {accessibleItems.map((item) => (
-              <Link key={item.href} to={item.href}>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start h-auto p-2 text-sm text-sidebar-foreground bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 border-l-[3px] border-l-transparent rounded-l-none shadow-none",
-                    // Active page: a 3px accent bar, bold label and a tinted fill. Shape and weight carry the state, not colour alone.
-                    isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-[hsl(var(--sidebar-ring))] shadow-[inset_0_0_16px_hsl(var(--sidebar-ring)/0.12)]"
-                  )}
-                  size="sm"
-                  title={item.label}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
-                >
+              // A11Y-05: one element per item (the link is styled as a button), so one tab stop per item.
+              <Button
+                key={item.href}
+                asChild
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start h-auto p-2 text-sm text-sidebar-foreground bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 border-l-[3px] border-l-transparent rounded-l-none shadow-none",
+                  // Active page: a 3px accent bar, bold label and a tinted fill. Shape and weight carry the state, not colour alone.
+                  isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-l-[hsl(var(--sidebar-ring))] shadow-[inset_0_0_16px_hsl(var(--sidebar-ring)/0.12)]"
+                )}
+                size="sm"
+                title={item.label}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+              >
+                <Link to={item.href}>
                   <item.icon className="h-4 w-4 mr-3" />
                   <span className="truncate">{item.label}</span>
                   {item.badge && (
@@ -240,8 +245,8 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
                       {item.badge}
                     </Badge>
                   )}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             ))}
           </CollapsibleContent>
         </Collapsible>
@@ -263,7 +268,7 @@ export function GroupedSidebar({ userRole, testRole, collapsed = false, classNam
   }
 
   return (
-    <nav className={cn("space-y-2", className)}>
+    <nav className={cn("space-y-2", className)} aria-label="Main navigation">
       {accessibleGroups}
     </nav>
   );

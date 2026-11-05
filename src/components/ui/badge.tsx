@@ -15,7 +15,8 @@ const badgeVariants = cva(
         success: "border-transparent bg-success/10 text-success dark:bg-success/20",
         warning: "border-transparent bg-warning/10 text-warning dark:bg-warning/20",
         info: "border-transparent bg-info/10 text-info dark:bg-info/20",
-        emergency: "border-transparent bg-destructive/10 text-destructive dark:bg-destructive/20 animate-pulse",
+        // A11Y-15: the infinite pulse only runs when the user has not asked for reduced motion.
+        emergency: "border-transparent bg-destructive/10 text-destructive dark:bg-destructive/20 motion-safe:animate-pulse",
         urgent: "border-transparent bg-warning/10 text-warning dark:bg-warning/20",
         normal: "border-transparent bg-info/10 text-info dark:bg-info/20",
         low: "border-transparent bg-muted text-muted-foreground",
