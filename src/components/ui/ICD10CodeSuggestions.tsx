@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useClinicalCodingService, ClinicalCodeMapping } from '@/lib/medical/ClinicalCodingService';
 import { ICD10Suggestion } from '@/lib/medical/ICD10Service';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -81,9 +81,9 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600';
-    if (confidence >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
+    if (confidence >= 0.8) return 'text-success';
+    if (confidence >= 0.6) return 'text-warning';
+    return 'text-destructive';
   };
 
   const getConfidenceBadgeVariant = (confidence: number) => {
@@ -137,7 +137,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
     <Card className={cn('w-full', className)}>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <CheckCircle className="h-5 w-5 text-green-600" />
+          <CheckCircle className="h-5 w-5 text-success" />
           <span>ICD-10 Code Suggestions</span>
         </CardTitle>
       </CardHeader>
@@ -173,7 +173,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
         {analysis.primaryCode && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Primary Code Recommendation:</h4>
-            <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-950/20">
+            <div className="border rounded-lg p-3 bg-success/10 ">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
@@ -197,6 +197,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                   size="sm"
                   variant={localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? "secondary" : "default"}
                   onClick={() => handleCodeToggle(analysis.primaryCode!)}
+                  aria-label={`${localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? 'Remove' : 'Add'} primary ICD-10 code ${analysis.primaryCode!.code}`}
                 >
                   {localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? (
                     <X className="h-3 w-3" />
@@ -243,6 +244,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                         size="sm"
                         variant={localSelectedCodes.some(c => c.code === code.code) ? "secondary" : "outline"}
                         onClick={() => handleCodeToggle(code)}
+                        aria-label={`${localSelectedCodes.some(c => c.code === code.code) ? 'Remove' : 'Add'} ICD-10 code ${code.code}`}
                       >
                         {localSelectedCodes.some(c => c.code === code.code) ? (
                           <X className="h-3 w-3" />
@@ -266,10 +268,20 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
               <h4 className="text-sm font-medium">Selected Codes ({localSelectedCodes.length}):</h4>
               <div className="flex flex-wrap gap-2">
                 {localSelectedCodes.map((code) => (
-                  <Badge key={code.code} variant="default" className="cursor-pointer" onClick={() => handleCodeToggle(code)}>
+                  // A11Y-08: a clickable badge is a real button, so it is keyboard-operable and named.
+                  <button
+                    key={code.code}
+                    type="button"
+                    aria-label={`Remove ICD-10 code ${code.code}`}
+                    className={cn(
+                      badgeVariants({ variant: 'default' }),
+                      'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    )}
+                    onClick={() => handleCodeToggle(code)}
+                  >
                     {code.code} - {code.description.slice(0, 30)}...
-                    <X className="h-3 w-3 ml-1" />
-                  </Badge>
+                    <X className="h-3 w-3 ml-1" aria-hidden="true" />
+                  </button>
                 ))}
               </div>
               <Button onClick={handleConfirmCodes} className="w-full" size="sm">

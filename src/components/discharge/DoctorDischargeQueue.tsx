@@ -73,9 +73,9 @@ export function DoctorDischargeQueue() {
   };
 
   const handleCancelWorkflow = async (workflowId: string, reason: string) => {
-    await cancelWorkflow({
-      workflowId,
-    });
+    // The reason is written to the discharge audit trail by the pipeline engine.
+    const payload = { workflowId, reason };
+    await cancelWorkflow(payload);
     setResubmissionModalOpen(false);
     setSelectedWorkflow(null);
     toast.info('Discharge workflow cancelled.');

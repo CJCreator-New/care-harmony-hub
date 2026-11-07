@@ -21,12 +21,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   Form,
-  FormControl,
-  FormField,
+  FormField as RHFFormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { FormField } from "@/components/common/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -213,7 +213,7 @@ export function ScheduleAppointmentModal({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Patient Selection */}
-            <FormField
+            <RHFFormField
               control={form.control}
               name="patient_id"
               render={() => (
@@ -297,232 +297,173 @@ export function ScheduleAppointmentModal({
 
             {/* Date and Time */}
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="scheduled_date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date *</FormLabel>
+              <FormField control={form.control} name="scheduled_date" label="Date" required className="flex flex-col">
+                {(field, controlProps) => (
                     <Popover>
                       <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
+                      <Button
+                        id={controlProps.id}
+                        aria-describedby={controlProps["aria-describedby"]}
+                        aria-invalid={controlProps["aria-invalid"]}
+                        variant="outline"
+                        className={cn(
+                          "pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
                       </PopoverContent>
                     </Popover>
-                    <FormMessage />
-                  </FormItem>
                 )}
-              />
+              </FormField>
 
-              <FormField
-                control={form.control}
-                name="scheduled_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Time *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="max-h-60">
-                        {(() => {
-                          const slots = TIME_SLOTS.filter(
-                            (t) => { const h = parseInt(t); return h >= 7 && h < 20; }
-                          );
-                          const morning = slots.filter(t => { const h = parseInt(t); return h >= 7 && h < 12; });
-                          const afternoon = slots.filter(t => { const h = parseInt(t); return h >= 12 && h < 17; });
-                          const evening = slots.filter(t => { const h = parseInt(t); return h >= 17 && h < 20; });
-                          const groups = [{ label: 'Morning', items: morning }, { label: 'Afternoon', items: afternoon }, { label: 'Evening', items: evening }];
-                          return groups.filter(g => g.items.length > 0).map(group => (
-                            <SelectGroup key={group.label}>
-                              <SelectLabel>{group.label}</SelectLabel>
-                              {group.items.map(time => (
-                                <SelectItem key={time} value={time}>{formatTime12h(time)}</SelectItem>
-                              ))}
-                            </SelectGroup>
-                          ));
-                        })()}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormField control={form.control} name="scheduled_time" label="Time" required>
+                {(field, controlProps) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger {...controlProps}>
+                        <SelectValue placeholder="Select time" />
+                      </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {(() => {
+                        const slots = TIME_SLOTS.filter(
+                          (t) => { const h = parseInt(t); return h >= 7 && h < 20; }
+                        );
+                        const morning = slots.filter(t => { const h = parseInt(t); return h >= 7 && h < 12; });
+                        const afternoon = slots.filter(t => { const h = parseInt(t); return h >= 12 && h < 17; });
+                        const evening = slots.filter(t => { const h = parseInt(t); return h >= 17 && h < 20; });
+                        const groups = [{ label: 'Morning', items: morning }, { label: 'Afternoon', items: afternoon }, { label: 'Evening', items: evening }];
+                        return groups.filter(g => g.items.length > 0).map(group => (
+                          <SelectGroup key={group.label}>
+                            <SelectLabel>{group.label}</SelectLabel>
+                            {group.items.map(time => (
+                              <SelectItem key={time} value={time}>{formatTime12h(time)}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
                 )}
-              />
+              </FormField>
             </div>
 
             {/* Appointment Type and Doctor */}
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="appointment_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Appointment Type *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {APPOINTMENT_TYPES.map((type) => (
-                          <SelectItem key={type} value={type.toLowerCase()}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormField control={form.control} name="appointment_type" label="Appointment Type" required>
+                {(field, controlProps) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger {...controlProps}>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    <SelectContent>
+                      {APPOINTMENT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type.toLowerCase()}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
-              />
+              </FormField>
 
-              <FormField
-                control={form.control}
-                name="doctor_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Doctor</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select doctor (optional)" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {doctors?.map((doctor) => (
-                          <SelectItem key={doctor.id} value={doctor.id}>
-                            Dr. {doctor.first_name} {doctor.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormField control={form.control} name="doctor_id" label="Doctor">
+                {(field, controlProps) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger {...controlProps}>
+                        <SelectValue placeholder="Select doctor (optional)" />
+                      </SelectTrigger>
+                    <SelectContent>
+                      {doctors?.map((doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          Dr. {doctor.first_name} {doctor.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
-              />
+              </FormField>
             </div>
 
             {/* Duration and Priority */}
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="duration_minutes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration (minutes)</FormLabel>
-                    <Select
-                      onValueChange={(v) => field.onChange(parseInt(v))}
-                      value={String(field.value)}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="15">15 minutes</SelectItem>
-                        <SelectItem value="30">30 minutes</SelectItem>
-                        <SelectItem value="45">45 minutes</SelectItem>
-                        <SelectItem value="60">1 hour</SelectItem>
-                        <SelectItem value="90">1.5 hours</SelectItem>
-                        <SelectItem value="120">2 hours</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormField control={form.control} name="duration_minutes" label="Duration (minutes)">
+                {(field, controlProps) => (
+                  <Select
+                    onValueChange={(v) => field.onChange(parseInt(v))}
+                    value={String(field.value)}
+                  >
+                      <SelectTrigger {...controlProps}>
+                        <SelectValue />
+                      </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="45">45 minutes</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                      <SelectItem value="90">1.5 hours</SelectItem>
+                      <SelectItem value="120">2 hours</SelectItem>
+                    </SelectContent>
+                  </Select>
                 )}
-              />
+              </FormField>
 
-              <FormField
-                control={form.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                        <SelectItem value="emergency">Emergency</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <FormField control={form.control} name="priority" label="Priority">
+                {(field, controlProps) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger {...controlProps}>
+                        <SelectValue />
+                      </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="emergency">Emergency</SelectItem>
+                    </SelectContent>
+                  </Select>
                 )}
-              />
+              </FormField>
             </div>
 
             {/* Reason for Visit */}
-            <FormField
-              control={form.control}
-              name="reason_for_visit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Reason for Visit</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Brief description of the reason for this appointment..."
-                      className="min-h-20"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <FormField control={form.control} name="reason_for_visit" label="Reason for Visit">
+              {(field, controlProps) => (
+                <Textarea
+                  placeholder="Brief description of the reason for this appointment..."
+                  className="min-h-20"
+                  {...field}
+                  {...controlProps}
+                />
               )}
-            />
+            </FormField>
 
             {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Additional Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Any additional notes for this appointment..."
-                      className="min-h-20"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <FormField control={form.control} name="notes" label="Additional Notes">
+              {(field, controlProps) => (
+                <Textarea
+                  placeholder="Any additional notes for this appointment..."
+                  className="min-h-20"
+                  {...field}
+                  {...controlProps}
+                />
               )}
-            />
+            </FormField>
 
             {/* Submit */}
             <div className="flex justify-end gap-2">

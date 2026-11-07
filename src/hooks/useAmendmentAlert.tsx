@@ -130,7 +130,7 @@ export function useAmendmentAlert(options: UseAmendmentAlertOptions = {}) {
               label: 'Review',
               onClick: () => {
                 // Navigate to prescription detail
-                window.location.href = `/pharmacy/prescriptions/${alert.prescription_id}`;
+                window.location.href = '/pharmacy';
               },
             },
           });

@@ -15,14 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -321,371 +315,214 @@ export function PatientRegistrationModal({
 
               <TabsContent value="personal" className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="first_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <FormField control={form.control} name="first_name" label="First Name" required>
+                    {(field, controlProps) => (
+                      <Input placeholder="John" {...field} {...controlProps} />
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="last_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  </FormField>
+                  <FormField control={form.control} name="last_name" label="Last Name" required>
+                    {(field, controlProps) => (
+                      <Input placeholder="Doe" {...field} {...controlProps} />
                     )}
-                  />
+                  </FormField>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="date_of_birth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Birth *</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <FormField control={form.control} name="date_of_birth" label="Date of Birth" required>
+                    {(field, controlProps) => (
+                      <Input type="date" {...field} {...controlProps} />
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Gender *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select gender" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                            <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  </FormField>
+                  <FormField control={form.control} name="gender" label="Gender" required>
+                    {(field, controlProps) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger {...controlProps}>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
-                  />
+                  </FormField>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input type="tel" placeholder="+91 98765 43210" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <FormField control={form.control} name="phone" label="Phone Number">
+                    {(field, controlProps) => (
+                      <Input type="tel" placeholder="+91 98765 43210" {...field} {...controlProps} />
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="patient@email.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  </FormField>
+                  <FormField control={form.control} name="email" label="Email">
+                    {(field, controlProps) => (
+                      <Input type="email" placeholder="patient@email.com" {...field} {...controlProps} />
                     )}
-                  />
+                  </FormField>
                 </div>
               </TabsContent>
 
               <TabsContent value="contact" className="space-y-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Street Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main Street" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <FormField control={form.control} name="address" label="Street Address">
+                  {(field, controlProps) => (
+                    <Input placeholder="123 Main Street" {...field} {...controlProps} />
                   )}
-                />
+                </FormField>
 
                 <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="City" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <FormField control={form.control} name="city" label="City">
+                    {(field, controlProps) => (
+                      <Input placeholder="City" {...field} {...controlProps} />
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select state" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
-                            <SelectItem value="Arunachal Pradesh">Arunachal Pradesh</SelectItem>
-                            <SelectItem value="Assam">Assam</SelectItem>
-                            <SelectItem value="Bihar">Bihar</SelectItem>
-                            <SelectItem value="Chhattisgarh">Chhattisgarh</SelectItem>
-                            <SelectItem value="Goa">Goa</SelectItem>
-                            <SelectItem value="Gujarat">Gujarat</SelectItem>
-                            <SelectItem value="Haryana">Haryana</SelectItem>
-                            <SelectItem value="Himachal Pradesh">Himachal Pradesh</SelectItem>
-                            <SelectItem value="Jharkhand">Jharkhand</SelectItem>
-                            <SelectItem value="Karnataka">Karnataka</SelectItem>
-                            <SelectItem value="Kerala">Kerala</SelectItem>
-                            <SelectItem value="Madhya Pradesh">Madhya Pradesh</SelectItem>
-                            <SelectItem value="Maharashtra">Maharashtra</SelectItem>
-                            <SelectItem value="Manipur">Manipur</SelectItem>
-                            <SelectItem value="Meghalaya">Meghalaya</SelectItem>
-                            <SelectItem value="Mizoram">Mizoram</SelectItem>
-                            <SelectItem value="Nagaland">Nagaland</SelectItem>
-                            <SelectItem value="Odisha">Odisha</SelectItem>
-                            <SelectItem value="Punjab">Punjab</SelectItem>
-                            <SelectItem value="Rajasthan">Rajasthan</SelectItem>
-                            <SelectItem value="Sikkim">Sikkim</SelectItem>
-                            <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
-                            <SelectItem value="Telangana">Telangana</SelectItem>
-                            <SelectItem value="Tripura">Tripura</SelectItem>
-                            <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
-                            <SelectItem value="Uttarakhand">Uttarakhand</SelectItem>
-                            <SelectItem value="West Bengal">West Bengal</SelectItem>
-                            <SelectItem value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</SelectItem>
-                            <SelectItem value="Chandigarh">Chandigarh</SelectItem>
-                            <SelectItem value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</SelectItem>
-                            <SelectItem value="Delhi">Delhi</SelectItem>
-                            <SelectItem value="Jammu and Kashmir">Jammu and Kashmir</SelectItem>
-                            <SelectItem value="Ladakh">Ladakh</SelectItem>
-                            <SelectItem value="Lakshadweep">Lakshadweep</SelectItem>
-                            <SelectItem value="Puducherry">Puducherry</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  </FormField>
+                  <FormField control={form.control} name="state" label="State">
+                    {(field, controlProps) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger {...controlProps}>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
+                          <SelectItem value="Arunachal Pradesh">Arunachal Pradesh</SelectItem>
+                          <SelectItem value="Assam">Assam</SelectItem>
+                          <SelectItem value="Bihar">Bihar</SelectItem>
+                          <SelectItem value="Chhattisgarh">Chhattisgarh</SelectItem>
+                          <SelectItem value="Goa">Goa</SelectItem>
+                          <SelectItem value="Gujarat">Gujarat</SelectItem>
+                          <SelectItem value="Haryana">Haryana</SelectItem>
+                          <SelectItem value="Himachal Pradesh">Himachal Pradesh</SelectItem>
+                          <SelectItem value="Jharkhand">Jharkhand</SelectItem>
+                          <SelectItem value="Karnataka">Karnataka</SelectItem>
+                          <SelectItem value="Kerala">Kerala</SelectItem>
+                          <SelectItem value="Madhya Pradesh">Madhya Pradesh</SelectItem>
+                          <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                          <SelectItem value="Manipur">Manipur</SelectItem>
+                          <SelectItem value="Meghalaya">Meghalaya</SelectItem>
+                          <SelectItem value="Mizoram">Mizoram</SelectItem>
+                          <SelectItem value="Nagaland">Nagaland</SelectItem>
+                          <SelectItem value="Odisha">Odisha</SelectItem>
+                          <SelectItem value="Punjab">Punjab</SelectItem>
+                          <SelectItem value="Rajasthan">Rajasthan</SelectItem>
+                          <SelectItem value="Sikkim">Sikkim</SelectItem>
+                          <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
+                          <SelectItem value="Telangana">Telangana</SelectItem>
+                          <SelectItem value="Tripura">Tripura</SelectItem>
+                          <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
+                          <SelectItem value="Uttarakhand">Uttarakhand</SelectItem>
+                          <SelectItem value="West Bengal">West Bengal</SelectItem>
+                          <SelectItem value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</SelectItem>
+                          <SelectItem value="Chandigarh">Chandigarh</SelectItem>
+                          <SelectItem value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</SelectItem>
+                          <SelectItem value="Delhi">Delhi</SelectItem>
+                          <SelectItem value="Jammu and Kashmir">Jammu and Kashmir</SelectItem>
+                          <SelectItem value="Ladakh">Ladakh</SelectItem>
+                          <SelectItem value="Lakshadweep">Lakshadweep</SelectItem>
+                          <SelectItem value="Puducherry">Puducherry</SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="zip"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PIN Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="110001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  </FormField>
+                  <FormField control={form.control} name="zip" label="PIN Code">
+                    {(field, controlProps) => (
+                      <Input placeholder="110001" {...field} {...controlProps} />
                     )}
-                  />
+                  </FormField>
                 </div>
 
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-4">Emergency Contact</h4>
                   <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="emergency_contact_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Jane Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    <FormField control={form.control} name="emergency_contact_name" label="Contact Name">
+                      {(field, controlProps) => (
+                        <Input placeholder="Jane Doe" {...field} {...controlProps} />
                       )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="emergency_contact_phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Phone</FormLabel>
-                          <FormControl>
-                            <Input type="tel" placeholder="+91 98765 43210" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    </FormField>
+                    <FormField control={form.control} name="emergency_contact_phone" label="Contact Phone">
+                      {(field, controlProps) => (
+                        <Input type="tel" placeholder="+91 98765 43210" {...field} {...controlProps} />
                       )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="emergency_contact_relationship"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Relationship</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Spouse, Parent, etc." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    </FormField>
+                    <FormField control={form.control} name="emergency_contact_relationship" label="Relationship">
+                      {(field, controlProps) => (
+                        <Input placeholder="Spouse, Parent, etc." {...field} {...controlProps} />
                       )}
-                    />
+                    </FormField>
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="medical" className="space-y-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="blood_type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Blood Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select blood type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="A+">A+</SelectItem>
-                          <SelectItem value="A-">A-</SelectItem>
-                          <SelectItem value="B+">B+</SelectItem>
-                          <SelectItem value="B-">B-</SelectItem>
-                          <SelectItem value="AB+">AB+</SelectItem>
-                          <SelectItem value="AB-">AB-</SelectItem>
-                          <SelectItem value="O+">O+</SelectItem>
-                          <SelectItem value="O-">O-</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+                <FormField control={form.control} name="blood_type" label="Blood Type">
+                  {(field, controlProps) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger {...controlProps}>
+                          <SelectValue placeholder="Select blood type" />
+                        </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A+">A+</SelectItem>
+                        <SelectItem value="A-">A-</SelectItem>
+                        <SelectItem value="B+">B+</SelectItem>
+                        <SelectItem value="B-">B-</SelectItem>
+                        <SelectItem value="AB+">AB+</SelectItem>
+                        <SelectItem value="AB-">AB-</SelectItem>
+                        <SelectItem value="O+">O+</SelectItem>
+                        <SelectItem value="O-">O-</SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
-                />
+                </FormField>
 
-                <FormField
-                  control={form.control}
-                  name="allergies"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Allergies</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter allergies separated by commas (e.g., Penicillin, Peanuts)"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <FormField control={form.control} name="allergies" label="Allergies">
+                  {(field, controlProps) => (
+                    <Textarea
+                      placeholder="Enter allergies separated by commas (e.g., Penicillin, Peanuts)"
+                      {...field}
+                      {...controlProps}
+                    />
                   )}
-                />
+                </FormField>
 
-                <FormField
-                  control={form.control}
-                  name="chronic_conditions"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Chronic Conditions</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter conditions separated by commas (e.g., Diabetes, Hypertension)"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <FormField control={form.control} name="chronic_conditions" label="Chronic Conditions">
+                  {(field, controlProps) => (
+                    <Textarea
+                      placeholder="Enter conditions separated by commas (e.g., Diabetes, Hypertension)"
+                      {...field}
+                      {...controlProps}
+                    />
                   )}
-                />
+                </FormField>
 
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Additional Notes</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Any additional medical notes..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <FormField control={form.control} name="notes" label="Additional Notes">
+                  {(field, controlProps) => (
+                    <Textarea
+                      placeholder="Any additional medical notes..."
+                      {...field}
+                      {...controlProps}
+                    />
                   )}
-                />
+                </FormField>
               </TabsContent>
 
               <TabsContent value="insurance" className="space-y-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="insurance_provider"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Insurance Provider</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Insurance Company Name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <FormField control={form.control} name="insurance_provider" label="Insurance Provider">
+                  {(field, controlProps) => (
+                    <Input placeholder="Insurance Company Name" {...field} {...controlProps} />
                   )}
-                />
+                </FormField>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="insurance_policy_number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Policy Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Policy #" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <FormField control={form.control} name="insurance_policy_number" label="Policy Number">
+                    {(field, controlProps) => (
+                      <Input placeholder="Policy #" {...field} {...controlProps} />
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="insurance_group_number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Group Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Group #" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  </FormField>
+                  <FormField control={form.control} name="insurance_group_number" label="Group Number">
+                    {(field, controlProps) => (
+                      <Input placeholder="Group #" {...field} {...controlProps} />
                     )}
-                  />
+                  </FormField>
                 </div>
               </TabsContent>
             </Tabs>

@@ -65,6 +65,7 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDestructiveAction } from "@/components/common/ConfirmDestructiveAction";
 
 // Local type for appointment data returned by usePaginatedQuery
 type Appointment = {
@@ -152,8 +153,13 @@ export default function AppointmentsPage() {
     checkIn.mutate(appointmentId);
   };
 
-  const handleCancel = (appointmentId: string) => {
-    updateAppointment.mutate({ id: appointmentId, status: "cancelled" });
+  // Rejects (keeping the confirmation open) when the update fails, so the reason is not lost.
+  const handleCancel = async (appointmentId: string, reason: string) => {
+    await updateAppointment.mutateAsync({
+      id: appointmentId,
+      status: "cancelled",
+      cancellationReason: reason,
+    });
   };
 
   const handleMarkNoShow = (appointmentId: string) => {
@@ -447,7 +453,7 @@ export default function AppointmentsPage() {
 interface AppointmentRowProps {
   appointment: Appointment;
   onCheckIn: (id: string) => void;
-  onCancel: (id: string) => void;
+  onCancel: (id: string, reason: string) => Promise<void>;
   onMarkNoShow: (id: string) => void;
   isCheckingIn: boolean;
   onViewAudit?: (appointment: Appointment) => void;
@@ -462,6 +468,9 @@ const AppointmentRow = memo(function AppointmentRow({
   onViewAudit,
 }: AppointmentRowProps) {
   const status = STATUS_CONFIG[appointment.status] || STATUS_CONFIG.scheduled;
+  // One dialog per row, opened from both the desktop button and the mobile menu item.
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const patientName = `${appointment.patient?.first_name ?? ""} ${appointment.patient?.last_name ?? ""}`.trim();
 
   return (
     <TableRow>
@@ -513,7 +522,7 @@ const AppointmentRow = memo(function AppointmentRow({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onCancel(appointment.id)}
+                onClick={() => setCancelOpen(true)}
               >
                 Cancel
               </Button>
@@ -552,7 +561,7 @@ const AppointmentRow = memo(function AppointmentRow({
                   <DropdownMenuItem onClick={() => onCheckIn(appointment.id)} disabled={isCheckingIn}>
                     Check In
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onCancel(appointment.id)}>
+                  <DropdownMenuItem onClick={() => setCancelOpen(true)}>
                     Cancel
                   </DropdownMenuItem>
                 </>
@@ -568,6 +577,22 @@ const AppointmentRow = memo(function AppointmentRow({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        <ConfirmDestructiveAction
+          open={cancelOpen}
+          onOpenChange={setCancelOpen}
+          title="Cancel this appointment?"
+          description={
+            <>
+              <p>
+                {patientName || "This patient"}'s appointment at {appointment.scheduled_time.slice(0, 5)}{" "}
+                will be marked as cancelled and removed from the queue.
+              </p>
+              <p>The reason is saved in the audit history.</p>
+            </>
+          }
+          confirmLabel="Cancel appointment"
+          onConfirm={(reason) => onCancel(appointment.id, reason)}
+        />
       </TableCell>
     </TableRow>
   );

@@ -1,5 +1,4 @@
 import { useEffect, Suspense } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -13,6 +12,8 @@ import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
 import { bootstrap } from "@/bootstrap";
 import { RouteFallback } from "@/components/common/RouteFallback";
+import { SkipNavigation } from "@/components/accessibility/SkipNavigation";
+import { SessionTimeoutDialog } from "@/components/common/SessionTimeoutDialog";
 import {
   fallbackRoute,
   publicRoutes,
@@ -75,8 +76,10 @@ const App = () => {
         <AuthProvider>
           <TestingProvider>
             <TooltipProvider>
-              <Toaster />
+              {/* A11Y-12: one skip link for the whole app, before any chrome. Targets the page <main id="main-content">. */}
+              <SkipNavigation targetId="main-content" />
               <Sonner position="top-right" />
+              <SessionTimeoutDialog />
               <BrowserRouter
                 future={{
                   v7_startTransition: true,

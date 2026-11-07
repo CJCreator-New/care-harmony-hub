@@ -6,6 +6,7 @@ import { useStaffInvitations, StaffInvitation } from '@/hooks/useStaffInvitation
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -88,6 +89,7 @@ function StaffManagementPageContent() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [inviteToCancel, setInviteToCancel] = useState<{ id: string; email: string } | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'staff' | 'invitations'>('staff');
@@ -181,21 +183,23 @@ function StaffManagementPageContent() {
     setInvitations(data);
   };
 
-  const handleCancelInvitation = async (id: string) => {
-    const result = await cancelInvitation(id);
+  // Throws on failure so the confirmation stays open and the reason is not lost.
+  const handleCancelInvitation = async (id: string, reason: string) => {
+    const result = await cancelInvitation(id, reason);
     if (result.error) {
       toast({
         title: 'Error',
         description: result.error,
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Invitation cancelled',
-        description: 'The invitation has been cancelled',
-      });
-      loadInvitations();
+      throw new Error(result.error);
     }
+    toast({
+      title: 'Invitation cancelled',
+      description: 'The invitation has been cancelled',
+    });
+    setInviteToCancel(null);
+    loadInvitations();
   };
 
   const handleResendInvitation = async (id: string) => {
@@ -469,7 +473,7 @@ function StaffManagementPageContent() {
                               Resend
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleCancelInvitation(invitation.id)}
+                              onClick={() => setInviteToCancel({ id: invitation.id, email: invitation.email })}
                               className="text-destructive"
                             >
                               <XCircle className="h-4 w-4 mr-2" />
@@ -498,6 +502,22 @@ function StaffManagementPageContent() {
         onOpenChange={setEditModalOpen}
         staff={selectedStaff}
         onSuccess={loadStaffMembers}
+      />
+
+      <ConfirmDestructiveAction
+        open={inviteToCancel !== null}
+        onOpenChange={(open) => {
+          if (!open) setInviteToCancel(null);
+        }}
+        title="Cancel this invitation?"
+        description={
+          <p>
+            The invitation sent to {inviteToCancel?.email} will stop working. You can send a new one later.
+            The reason is saved in the audit history.
+          </p>
+        }
+        confirmLabel="Cancel invitation"
+        onConfirm={(reason) => handleCancelInvitation(inviteToCancel?.id ?? '', reason)}
       />
 
       <DeactivateStaffDialog

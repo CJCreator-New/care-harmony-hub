@@ -16,8 +16,10 @@ import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield, AlertCircle } from '
 import { supabase } from '@/integrations/supabase/client';
 import { MFA_REENROLL_LOGIN_STATE } from '@/lib/auth/mfa';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
+import { describeAuthError } from '@/lib/auth/authErrors';
+import { consumeSignOutReason } from '@/lib/hooks/auth/useSessionTimeout';
 
-// â”€â”€ Validation schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Validation schema
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -27,10 +29,11 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Component
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [signedOutForInactivity, setSignedOutForInactivity] = useState(false);
   const location = useLocation();
   const mustReenrollMfa =
     (location.state as { mfaReenroll?: boolean } | null)?.mfaReenroll ===
@@ -49,6 +52,10 @@ export default function LoginPage() {
   const isLoading = form.formState.isSubmitting;
 
   useEffect(() => {
+    if (consumeSignOutReason() === 'inactivity') setSignedOutForInactivity(true);
+  }, []);
+
+  useEffect(() => {
     const hadDevOverride =
       import.meta.env.DEV &&
       typeof window !== 'undefined' &&
@@ -56,7 +63,7 @@ export default function LoginPage() {
     clearDevTestRole();
     if (typeof window !== 'undefined') window.localStorage.removeItem('preferredRole');
     if (hadDevOverride) {
-      toast.info('Dev role override cleared â€” login flow uses authenticated roles only.');
+      toast.info('Dev role override cleared. Login uses authenticated roles only.');
     }
   }, []);
 
@@ -65,10 +72,9 @@ export default function LoginPage() {
       const { error } = await login(data.email, data.password);
 
       if (error) {
-        form.setError('root', { message: error.message || 'Invalid email or password.' });
-        toast.error('Login Failed', {
-          description: error.message || 'Invalid email or password. Please try again.',
-        });
+        // Inline message only (role="alert" below). The toast title is kept for the e2e page object.
+        form.setError('root', { message: describeAuthError(error, 'login') });
+        toast.error('Login Failed');
         return;
       }
 
@@ -86,8 +92,8 @@ export default function LoginPage() {
       if (!user) {
         // Auth succeeded but session couldn't be read — sign out cleanly and ask user to retry
         await supabase.auth.signOut();
-        form.setError('root', { message: 'Session could not be established. Please try again.' });
-        toast.error('Login Failed', { description: 'Session could not be established. Please try again.' });
+        form.setError('root', { message: 'We could not start your session. Try again.' });
+        toast.error('Login Failed');
         return;
       }
 
@@ -100,14 +106,14 @@ export default function LoginPage() {
       toast.success('Welcome back!', { description: 'You have successfully logged in.' });
       navigate('/dashboard');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      form.setError('root', { message });
-      toast.error('Login Failed', { description: message });
+      console.error('Login error:', err);
+      form.setError('root', { message: describeAuthError(err, 'login') });
+      toast.error('Login Failed');
     }
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
         <title>Hospital Login | AROCORD-HIMS</title>
         <meta name="description" content="Sign in to your AROCORD-HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
@@ -188,6 +194,15 @@ export default function LoginPage() {
             </Alert>
           )}
 
+          {signedOutForInactivity && (
+            <Alert role="status">
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                You were signed out after 30 minutes without activity. Sign in again to continue.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
               {/* Email */}
@@ -233,7 +248,7 @@ export default function LoginPage() {
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                          placeholder="••••••••"
                           autoComplete="current-password"
                           className="h-12 pr-12"
                           aria-required="true"
