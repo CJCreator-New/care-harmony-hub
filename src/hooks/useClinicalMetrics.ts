@@ -1,10 +1,10 @@
 /**
  * useClinicalMetrics Hook
- * 
+ *
  * Provides convenient access to OpenTelemetry instrumentation for React components.
  * Automatically handles telemetry API initialization and provides typed interfaces
  * for common clinical workflows (prescription, lab, appointment, vital signs).
- * 
+ *
  * Phase 3B: Observability Integration
  */
 
@@ -17,11 +17,7 @@ import {
   recordClinicalMetric,
   recordEvent,
 } from '@/utils/telemetry';
-import {
-  getCorrelationId,
-  getTraceContext,
-  logClinicalEvent,
-} from '@/utils/correlationId';
+import { getCorrelationId, getTraceContext, logClinicalEvent } from '@/utils/correlationId';
 import { captureException } from '@/lib/monitoring/sentry';
 
 interface ClinicalMetricsOptions {
@@ -45,10 +41,7 @@ export function useClinicalMetrics() {
    * Automatically injects correlation ID and trace context
    */
   const recordOperation = useCallback(
-    async <T,>(
-      options: ClinicalMetricsOptions,
-      operation: () => Promise<T>
-    ): Promise<T> => {
+    async <T>(options: ClinicalMetricsOptions, operation: () => Promise<T>): Promise<T> => {
       const startTime = performance.now();
       const correlationId = getCorrelationId(hospital?.id);
       const traceContext = getTraceContext();
@@ -70,16 +63,20 @@ export function useClinicalMetrics() {
         recordClinicalMetric(`${options.operationName}_latency`, duration, {
           'workflow.type': options.workflowType || 'unknown',
           'hospital.id': hospital?.id || 'unknown',
-          'status': 'success',
+          status: 'success',
           ...options.attributes,
         });
 
         // Log clinical event
-        logClinicalEvent(`${options.workflowType || 'operation'}.completed`, {
-          operation: options.operationName,
-          duration,
-          attributes: options.attributes,
-        }, 'info');
+        logClinicalEvent(
+          `${options.workflowType || 'operation'}.completed`,
+          {
+            operation: options.operationName,
+            duration,
+            attributes: options.attributes,
+          },
+          'info'
+        );
 
         return result;
       } catch (error) {
@@ -89,16 +86,20 @@ export function useClinicalMetrics() {
         recordClinicalMetric(`${options.operationName}_latency`, duration, {
           'workflow.type': options.workflowType || 'unknown',
           'hospital.id': hospital?.id || 'unknown',
-          'status': 'error',
+          status: 'error',
           ...options.attributes,
         });
 
         // Log error event and capture to error tracking
-        logClinicalEvent(`${options.workflowType || 'operation'}.failed`, {
-          operation: options.operationName,
-          error: error instanceof Error ? error.message : String(error),
-          duration,
-        }, 'error');
+        logClinicalEvent(
+          `${options.workflowType || 'operation'}.failed`,
+          {
+            operation: options.operationName,
+            error: error instanceof Error ? error.message : String(error),
+            duration,
+          },
+          'error'
+        );
 
         captureException(error instanceof Error ? error : new Error(String(error)), {
           context: options.operationName,
@@ -152,9 +153,13 @@ export function useClinicalMetrics() {
    * Manually log an error with context
    */
   const recordError = useCallback(
-    (error: Error | string, context?: Record<string, any>, level: 'error' | 'warning' = 'error') => {
+    (
+      error: Error | string,
+      context?: Record<string, any>,
+      level: 'error' | 'warning' = 'error'
+    ) => {
       const errorObj = typeof error === 'string' ? new Error(error) : error;
-      
+
       captureException(errorObj, {
         context: 'clinical.metrics.recordError',
         severity: 'error',
@@ -166,11 +171,15 @@ export function useClinicalMetrics() {
         },
       });
 
-      logClinicalEvent('error.recorded', {
-        error: errorObj.message,
-        level,
-        ...context,
-      }, level === 'warning' ? 'warn' : 'error');
+      logClinicalEvent(
+        'error.recorded',
+        {
+          error: errorObj.message,
+          level,
+          ...context,
+        },
+        level === 'warning' ? 'warn' : 'error'
+      );
     },
     [hospital?.id, primaryRole]
   );
@@ -178,13 +187,16 @@ export function useClinicalMetrics() {
   /**
    * Get current correlation ID for propagation to external services
    */
-  const getCorrelation = useCallback(() => ({
-    id: getCorrelationId(hospital?.id),
-    context: getTraceContext(),
-    hospitalId: hospital?.id,
-    userId: profile?.id,
-    userRole: primaryRole,
-  }), [hospital?.id, profile?.id, primaryRole]);
+  const getCorrelation = useCallback(
+    () => ({
+      id: getCorrelationId(hospital?.id),
+      context: getTraceContext(),
+      hospitalId: hospital?.id,
+      userId: profile?.id,
+      userRole: primaryRole,
+    }),
+    [hospital?.id, profile?.id, primaryRole]
+  );
 
   return {
     recordOperation,
@@ -195,42 +207,4 @@ export function useClinicalMetrics() {
     tracer: getTracer('clinical-operations'),
     meter: getMeter('clinical-metrics'),
   };
-}
-
-/**
- * Hook variant: Wrap async operation with timing + error handling
- * Use this for simple operations that don't need detailed span info
- * 
- * Example:
- * ```tsx
- * const { withTiming } = useClinicalMetrics();
- * const prescriptions = await withTiming(
- *   'fetch_prescriptions',
- *   () => fetchPrescriptionsAPI()
- * );
- * ```
- */
-export function useTimedOperation() {
-  const { recordOperation, recordError } = useClinicalMetrics();
-  const { hospital } = useAuth();
-
-  const withTiming = useCallback(
-    async <T,>(operationName: string, fn: () => Promise<T>): Promise<T> => {
-      try {
-        return await recordOperation(
-          {
-            operationName,
-            workflowType: 'consultation',
-          },
-          fn
-        );
-      } catch (error) {
-        recordError(error instanceof Error ? error : new Error(String(error)));
-        throw error;
-      }
-    },
-    [recordOperation, recordError]
-  );
-
-  return { withTiming };
 }

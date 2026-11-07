@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { 
+
+import {
   HospitalResource,
   ResourceBooking,
   AppointmentWaitlist,
-  RecurringAppointment,
   InsuranceVerification,
-  MultiResourceBookingRequest,
-  SchedulingSlot
+  SchedulingSlot,
 } from '@/types/scheduling';
 
 // Multi-Resource Scheduling Hooks
@@ -27,9 +26,7 @@ export const useResourceBookings = (date?: string) => {
         .order('start_time', { ascending: true });
 
       if (date) {
-        query = query
-          .gte('start_time', `${date}T00:00:00`)
-          .lt('start_time', `${date}T23:59:59`);
+        query = query.gte('start_time', `${date}T00:00:00`).lt('start_time', `${date}T23:59:59`);
       }
 
       const { data: bookingData, error: bookingError } = await query;
@@ -61,7 +58,7 @@ export const useResourceBookings = (date?: string) => {
         .single();
 
       if (error) throw error;
-      setBookings(prev => [...prev, data]);
+      setBookings((prev) => [...prev, data]);
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create booking');
@@ -72,8 +69,8 @@ export const useResourceBookings = (date?: string) => {
   };
 
   const checkAvailability = async (
-    resourceIds: string[], 
-    startTime: string, 
+    resourceIds: string[],
+    startTime: string,
     endTime: string
   ): Promise<SchedulingSlot[]> => {
     try {
@@ -107,7 +104,7 @@ export const useResourceBookings = (date?: string) => {
     error,
     createBooking,
     checkAvailability,
-    refetch: loadBookings
+    refetch: loadBookings,
   };
 };
 
@@ -146,7 +143,7 @@ export const useWaitlistManagement = () => {
         .single();
 
       if (error) throw error;
-      setWaitlist(prev => [...prev, data]);
+      setWaitlist((prev) => [...prev, data]);
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add to waitlist');
@@ -167,7 +164,7 @@ export const useWaitlistManagement = () => {
         .single();
 
       if (error) throw error;
-      setWaitlist(prev => prev.map(entry => entry.id === id ? data : entry));
+      setWaitlist((prev) => prev.map((entry) => (entry.id === id ? data : entry)));
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update waitlist entry');
@@ -180,20 +177,17 @@ export const useWaitlistManagement = () => {
   const notifyPatient = async (id: string) => {
     return updateWaitlistEntry(id, {
       status: 'notified',
-      notified_at: new Date().toISOString()
+      notified_at: new Date().toISOString(),
     });
   };
 
   const removeFromWaitlist = async (id: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('appointment_waitlist')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('appointment_waitlist').delete().eq('id', id);
 
       if (error) throw error;
-      setWaitlist(prev => prev.filter(entry => entry.id !== id));
+      setWaitlist((prev) => prev.filter((entry) => entry.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove from waitlist');
       throw err;
@@ -214,91 +208,7 @@ export const useWaitlistManagement = () => {
     updateWaitlistEntry,
     notifyPatient,
     removeFromWaitlist,
-    refetch: loadWaitlist
-  };
-};
-
-// Recurring Appointments Hooks
-export const useRecurringAppointments = (patientId?: string) => {
-  const [recurringAppointments, setRecurringAppointments] = useState<RecurringAppointment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadRecurringAppointments = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase
-        .from('recurring_appointments')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (patientId) {
-        query = query.eq('patient_id', patientId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setRecurringAppointments(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load recurring appointments');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createRecurringAppointment = async (recurring: Partial<RecurringAppointment>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('recurring_appointments')
-        .insert([recurring])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setRecurringAppointments(prev => [data, ...prev]);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create recurring appointment');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateRecurringAppointment = async (id: string, updates: Partial<RecurringAppointment>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('recurring_appointments')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setRecurringAppointments(prev => prev.map(appt => appt.id === id ? data : appt));
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update recurring appointment');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadRecurringAppointments();
-  }, [patientId]);
-
-  return {
-    recurringAppointments,
-    loading,
-    error,
-    createRecurringAppointment,
-    updateRecurringAppointment,
-    refetch: loadRecurringAppointments
+    refetch: loadWaitlist,
   };
 };
 
@@ -378,8 +288,8 @@ export const useInsuranceVerification = (patientId: string) => {
     setLoading(true);
     try {
       // Simulate insurance verification API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Mock verification response
       const mockResponse = {
         verification_status: Math.random() > 0.2 ? 'verified' : 'failed',
@@ -387,7 +297,7 @@ export const useInsuranceVerification = (patientId: string) => {
         copay_amount: Math.random() > 0.3 ? 25 : 0,
         deductible_amount: Math.random() > 0.5 ? 1000 : 500,
         coverage_percentage: Math.random() > 0.3 ? 80 : 70,
-        requires_authorization: Math.random() > 0.7
+        requires_authorization: Math.random() > 0.7,
       };
 
       return mockResponse;
@@ -412,6 +322,6 @@ export const useInsuranceVerification = (patientId: string) => {
     createVerification,
     updateVerification,
     verifyInsurance,
-    refetch: loadVerification
+    refetch: loadVerification,
   };
 };

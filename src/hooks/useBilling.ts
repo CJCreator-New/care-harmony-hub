@@ -140,55 +140,6 @@ export function useInvoice(invoiceId: string | undefined) {
   });
 }
 
-export function useInvoiceItems(invoiceId: string | undefined) {
-  return useQuery({
-    queryKey: ['invoice-items', invoiceId],
-    queryFn: async () => {
-      if (!invoiceId) return [];
-
-      return withBillingRateLimit(async () => {
-        const { data, error } = await supabase
-          .from('invoice_items')
-          .select('*')
-          .eq('invoice_id', invoiceId)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        return data as InvoiceItem[];
-      });
-    },
-    enabled: !!invoiceId,
-    staleTime: 60 * 1000, // 1 minute
-  });
-}
-
-export function useInvoicePayments(invoiceId: string | undefined) {
-  return useQuery({
-    queryKey: ['invoice-payments', invoiceId],
-    queryFn: async () => {
-      if (!invoiceId) return [];
-
-      return withBillingRateLimit(async () => {
-        const { data, error } = await supabase
-          .from('payments')
-          .select(
-            `
-            *,
-            receiver:profiles!payments_received_by_fkey(first_name, last_name)
-          `
-          )
-          .eq('invoice_id', invoiceId)
-          .order('payment_date', { ascending: false });
-
-        if (error) throw error;
-        return data as Payment[];
-      });
-    },
-    enabled: !!invoiceId,
-    staleTime: 60 * 1000, // 1 minute
-  });
-}
-
 export function useInvoiceStats() {
   const { hospital } = useAuth();
 

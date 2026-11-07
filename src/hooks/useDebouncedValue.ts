@@ -25,22 +25,3 @@ export function useDebouncedValue<T>(value: T, delay = 300): T {
 
   return debouncedValue;
 }
-
-/**
- * Hook that provides both the current value and debounced value
- * Useful when you need immediate access to current value but debounced for expensive operations
- *
- * @param value - The value to debounce
- * @param delay - The delay in milliseconds (default: 300ms)
- * @returns Object with current and debounced values
- */
-export function useDebounceState<T>(value: T, delay = 300): { current: T; debounced: T } {
-  const [current, setCurrent] = useState<T>(value);
-  const debounced = useDebouncedValue(current, delay);
-
-  useEffect(() => {
-    setCurrent(value);
-  }, [value]);
-
-  return { current, debounced };
-}

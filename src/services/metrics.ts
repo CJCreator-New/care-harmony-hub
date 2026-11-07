@@ -67,7 +67,11 @@ export interface SystemMetrics {
 class MetricsCollector {
   private startTime: number;
   private sloMetrics: Map<string, number[]>;
-  private httpMetrics: { total: number; byMethod: Map<string, number>; byStatus: Map<string, number> };
+  private httpMetrics: {
+    total: number;
+    byMethod: Map<string, number>;
+    byStatus: Map<string, number>;
+  };
   private cacheMetrics: { hits: number; misses: number; evictions: number };
   private systemMetrics: SystemMetrics;
 
@@ -111,12 +115,7 @@ class MetricsCollector {
    */
   private initializePrometheus() {
     logger.info('Metrics collector initialized', {
-      collectors: [
-        'slo_latencies',
-        'http_requests',
-        'cache_metrics',
-        'system_metrics',
-      ],
+      collectors: ['slo_latencies', 'http_requests', 'cache_metrics', 'system_metrics'],
     });
   }
 
@@ -184,10 +183,7 @@ class MetricsCollector {
    * @param metricName The gauge name
    * @param value The value to set
    */
-  setGauge(
-    metricName: 'active_users' | 'concurrent_requests' | 'memory_usage_mb',
-    value: number
-  ) {
+  setGauge(metricName: 'active_users' | 'concurrent_requests' | 'memory_usage_mb', value: number) {
     const key = metricName as keyof SystemMetrics;
     if (key in this.systemMetrics) {
       (this.systemMetrics[key] as number) = value;
@@ -202,7 +198,10 @@ class MetricsCollector {
   recordHttpRequest(method: string, statusCode: number) {
     this.httpMetrics.total++;
     this.httpMetrics.byMethod.set(method, (this.httpMetrics.byMethod.get(method) || 0) + 1);
-    this.httpMetrics.byStatus.set(String(statusCode), (this.httpMetrics.byStatus.get(String(statusCode)) || 0) + 1);
+    this.httpMetrics.byStatus.set(
+      String(statusCode),
+      (this.httpMetrics.byStatus.get(String(statusCode)) || 0) + 1
+    );
   }
 
   /**
@@ -237,15 +236,9 @@ class MetricsCollector {
       version: import.meta.env.VITE_APP_VERSION || '1.0.0',
       uptime_seconds,
       slo_metrics: {
-        prescription_to_dispensing: this.calculateLatencyMetric(
-          'prescription_to_dispensing'
-        ),
-        registration_to_appointment: this.calculateLatencyMetric(
-          'registration_to_appointment'
-        ),
-        lab_order_to_critical_alert: this.calculateLatencyMetric(
-          'lab_order_to_critical_alert'
-        ),
+        prescription_to_dispensing: this.calculateLatencyMetric('prescription_to_dispensing'),
+        registration_to_appointment: this.calculateLatencyMetric('registration_to_appointment'),
+        lab_order_to_critical_alert: this.calculateLatencyMetric('lab_order_to_critical_alert'),
         appointment_confirmation_to_reminder: this.calculateLatencyMetric(
           'appointment_confirmation_to_reminder'
         ),
@@ -410,35 +403,4 @@ export function incrementMetricCounter(
 ) {
   const metrics = getMetrics();
   metrics.incrementCounter(counterName, amount);
-}
-
-/**
- * Convenience function to set gauge metrics
- */
-export function setMetricGauge(gaugeName: string, value: number) {
-  const metrics = getMetrics();
-  if (gaugeName === 'active_users' || gaugeName === 'concurrent_requests' || gaugeName === 'memory_usage_mb') {
-    metrics.setGauge(gaugeName, value);
-  }
-}
-
-/**
- * Convenience function to record HTTP requests
- */
-export function recordHttpRequestMetric(method: string, statusCode: number) {
-  const metrics = getMetrics();
-  metrics.recordHttpRequest(method, statusCode);
-}
-
-/**
- * Convenience function to record cache operations
- */
-export function recordCacheHit() {
-  const metrics = getMetrics();
-  metrics.recordCacheAccess(true);
-}
-
-export function recordCacheMiss() {
-  const metrics = getMetrics();
-  metrics.recordCacheAccess(false);
 }

@@ -81,13 +81,13 @@ export const initSentry = () => {
       integrations: [
         Sentry.browserTracingIntegration({
           // Option is accepted at runtime but missing from the installed SDK's types.
-          ...(({
+          ...({
             tracePropagationTargets: [
               'localhost',
               /^https:\/\/.*\.supabase\.co/,
               /^https:\/\/.*\.sentry\.io/,
             ],
-          }) as any),
+          } as any),
         }),
       ],
 
@@ -216,56 +216,4 @@ export const captureClinicalError = (
       healthcare_context: 'clinical_workflow',
     },
   });
-};
-
-export const startPerformanceTransaction = (name: string, op: string) => {
-  log.debug('Performance transaction started', { name, op });
-  return null;
-};
-
-export const trackAIOperation = (
-  operation: string | Record<string, any>,
-  metrics?: {
-    duration: number;
-    tokensUsed?: number;
-    cost?: number;
-    success: boolean;
-    provider: string;
-  }
-) => {
-  const opName = typeof operation === 'string' ? operation : (operation as any).operation || 'unknown';
-  const m = typeof operation === 'string' ? metrics! : (operation as any);
-  Sentry.captureMessage(`AI Operation: ${opName}`, {
-    level: 'info',
-    extra: redactForLog(m) as Record<string, unknown>,
-    tags: {
-      operation_type: 'ai_operation',
-      ai_provider: m?.provider || 'unknown',
-      success: String(m?.success ?? true),
-      healthcare_context: 'ai_integration',
-    },
-  });
-};
-
-export const trackDatabaseOperation = (
-  operation: string,
-  metrics: {
-    duration: number;
-    table: string;
-    recordsAffected?: number;
-    success: boolean;
-  }
-) => {
-  if (metrics.duration > 1000) {
-    Sentry.captureMessage(`Slow Database Operation: ${operation}`, {
-      level: 'warning',
-      extra: redactForLog(metrics) as Record<string, unknown>,
-      tags: {
-        operation_type: 'database_operation',
-        table: metrics.table,
-        slow_query: 'true',
-        healthcare_context: 'database_performance',
-      },
-    });
-  }
 };

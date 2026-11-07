@@ -63,11 +63,11 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
   }, [analyzeText]);
 
   const handleCodeToggle = (code: ICD10Suggestion) => {
-    const isSelected = localSelectedCodes.some(selected => selected.code === code.code);
+    const isSelected = localSelectedCodes.some((selected) => selected.code === code.code);
 
     let newSelectedCodes: ICD10Suggestion[];
     if (isSelected) {
-      newSelectedCodes = localSelectedCodes.filter(selected => selected.code !== code.code);
+      newSelectedCodes = localSelectedCodes.filter((selected) => selected.code !== code.code);
     } else {
       newSelectedCodes = [...localSelectedCodes, code];
     }
@@ -78,12 +78,6 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
 
   const handleConfirmCodes = () => {
     onCodesConfirmed?.(localSelectedCodes);
-  };
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-success';
-    if (confidence >= 0.6) return 'text-warning';
-    return 'text-destructive';
   };
 
   const getConfidenceBadgeVariant = (confidence: number) => {
@@ -97,8 +91,15 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
       <Card className={cn('w-full', className)}>
         <CardContent className="p-6">
           <div className="flex items-center justify-center space-x-2">
-            <div role="status" aria-label="Analyzing clinical text" className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" aria-hidden="true"></div>
+            <div
+              role="status"
+              aria-label="Analyzing clinical text"
+              className="flex items-center space-x-2"
+            >
+              <div
+                className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"
+                aria-hidden="true"
+              ></div>
               <span className="text-sm text-muted-foreground">Analyzing clinical text...</span>
             </div>
           </div>
@@ -178,11 +179,16 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
                     <span className="font-mono text-sm font-bold">{analysis.primaryCode.code}</span>
-                    <Badge variant={getConfidenceBadgeVariant(analysis.primaryCode.confidence)} className="text-xs">
+                    <Badge
+                      variant={getConfidenceBadgeVariant(analysis.primaryCode.confidence)}
+                      className="text-xs"
+                    >
                       {Math.round(analysis.primaryCode.confidence * 100)}% confidence
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{analysis.primaryCode.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {analysis.primaryCode.description}
+                  </p>
                   {analysis.primaryCode.matchedKeywords.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {analysis.primaryCode.matchedKeywords.map((keyword) => (
@@ -195,11 +201,15 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                 </div>
                 <Button
                   size="sm"
-                  variant={localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? "secondary" : "default"}
+                  variant={
+                    localSelectedCodes.some((c) => c.code === analysis.primaryCode!.code)
+                      ? 'secondary'
+                      : 'default'
+                  }
                   onClick={() => handleCodeToggle(analysis.primaryCode!)}
-                  aria-label={`${localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? 'Remove' : 'Add'} primary ICD-10 code ${analysis.primaryCode!.code}`}
+                  aria-label={`${localSelectedCodes.some((c) => c.code === analysis.primaryCode!.code) ? 'Remove' : 'Add'} primary ICD-10 code ${analysis.primaryCode!.code}`}
                 >
-                  {localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? (
+                  {localSelectedCodes.some((c) => c.code === analysis.primaryCode!.code) ? (
                     <X className="h-3 w-3" />
                   ) : (
                     <Plus className="h-3 w-3" />
@@ -217,12 +227,18 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
             <ScrollArea className="h-48">
               <div className="space-y-2">
                 {analysis.secondaryCodes.map((code, index) => (
-                  <div key={code.code} className="border rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                  <div
+                    key={code.code}
+                    className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <span className="font-mono text-sm font-bold">{code.code}</span>
-                          <Badge variant={getConfidenceBadgeVariant(code.confidence)} className="text-xs">
+                          <Badge
+                            variant={getConfidenceBadgeVariant(code.confidence)}
+                            className="text-xs"
+                          >
                             {Math.round(code.confidence * 100)}%
                           </Badge>
                           <Badge variant="outline" className="text-xs capitalize">
@@ -242,11 +258,15 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                       </div>
                       <Button
                         size="sm"
-                        variant={localSelectedCodes.some(c => c.code === code.code) ? "secondary" : "outline"}
+                        variant={
+                          localSelectedCodes.some((c) => c.code === code.code)
+                            ? 'secondary'
+                            : 'outline'
+                        }
                         onClick={() => handleCodeToggle(code)}
-                        aria-label={`${localSelectedCodes.some(c => c.code === code.code) ? 'Remove' : 'Add'} ICD-10 code ${code.code}`}
+                        aria-label={`${localSelectedCodes.some((c) => c.code === code.code) ? 'Remove' : 'Add'} ICD-10 code ${code.code}`}
                       >
-                        {localSelectedCodes.some(c => c.code === code.code) ? (
+                        {localSelectedCodes.some((c) => c.code === code.code) ? (
                           <X className="h-3 w-3" />
                         ) : (
                           <Plus className="h-3 w-3" />

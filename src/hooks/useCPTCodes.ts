@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { CPTCode, ClinicalTemplate } from '@/types/soap';
+
+import { CPTCode } from '@/types/soap';
 
 export const useCPTCodes = () => {
   const [cptCodes, setCptCodes] = useState<CPTCode[]>([]);
@@ -9,30 +10,33 @@ export const useCPTCodes = () => {
   const [error, setError] = useState<string | null>(null);
   const { hospital } = useAuth();
 
-  const loadCPTCodes = useCallback(async (category?: string) => {
-    if (!hospital?.id) return;
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase
-        .from('cpt_codes')
-        .select('*')
-        .eq('hospital_id', hospital.id)
-        .order('category', { ascending: true });
+  const loadCPTCodes = useCallback(
+    async (category?: string) => {
+      if (!hospital?.id) return;
+      setLoading(true);
+      setError(null);
+      try {
+        let query = supabase
+          .from('cpt_codes')
+          .select('*')
+          .eq('hospital_id', hospital.id)
+          .order('category', { ascending: true });
 
-      if (category) {
-        query = query.eq('category', category);
+        if (category) {
+          query = query.eq('category', category);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setCptCodes(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load CPT codes');
+      } finally {
+        setLoading(false);
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setCptCodes(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load CPT codes');
-    } finally {
-      setLoading(false);
-    }
-  }, [hospital?.id]);
+    },
+    [hospital?.id]
+  );
 
   const searchCPTCodes = async (searchTerm: string) => {
     if (!hospital?.id) return;
@@ -64,71 +68,6 @@ export const useCPTCodes = () => {
     loading,
     error,
     loadCPTCodes,
-    searchCPTCodes
-  };
-};
-
-export const useClinicalTemplates = () => {
-  const [templates, setTemplates] = useState<ClinicalTemplate[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadTemplates = useCallback(async (type?: string, specialty?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase
-        .from('clinical_templates')
-        .select('*')
-        .order('name');
-
-      if (type) {
-        query = query.eq('type', type);
-      }
-      if (specialty) {
-        query = query.eq('specialty', specialty);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setTemplates(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load templates');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const createTemplate = async (template: Omit<ClinicalTemplate, 'id' | 'created_at'>) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase
-        .from('clinical_templates')
-        .insert([template])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setTemplates(prev => [...prev, data]);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create template');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
-
-  return {
-    templates,
-    loading,
-    error,
-    loadTemplates,
-    createTemplate
+    searchCPTCodes,
   };
 };

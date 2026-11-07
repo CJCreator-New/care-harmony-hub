@@ -136,44 +136,6 @@ export const TERATOGENIC_DRUGS = {
   cautious: ['fluconazole', 'acyclovir', 'beta-blockers', 'certain antibiotics'],
 };
 
-/**
- * Check if drug is contraindicated in pregnancy/breastfeeding.
- */
-export function checkPregnancyContraindication(
-  drugName: string,
-  isPregnant: boolean,
-  isBreastfeeding: boolean
-): { safe: boolean; category?: string; recommendation?: string } {
-  const normalized = drugName.toLowerCase();
-
-  if (isPregnant) {
-    if (TERATOGENIC_DRUGS.contraindicated.some((d) => normalized.includes(d))) {
-      return {
-        safe: false,
-        category: 'X',
-        recommendation: `${drugName} is contraindicated in pregnancy. Consider alternative.`,
-      };
-    }
-    if (TERATOGENIC_DRUGS.cautious.some((d) => normalized.includes(d))) {
-      return {
-        safe: true,
-        category: 'C',
-        recommendation: `${drugName} has pregnancy concerns (Cat C). Weigh benefits vs. risks.`,
-      };
-    }
-  }
-
-  // Breastfeeding checks (subset of teratogenic)
-  if (isBreastfeeding && normalized.match(/warfarin|statins|isotretinoin/)) {
-    return {
-      safe: false,
-      recommendation: `${drugName} may pass into breastmilk. Consider alternative or express-and-discard.`,
-    };
-  }
-
-  return { safe: true };
-}
-
 // ─── Drug-Route Compatibility ────────────────────────────────────────────────
 
 export type Route = 'PO' | 'IV' | 'IV (slow)' | 'IM' | 'SC' | 'PR' | 'Inhaled' | 'Topical' | 'SL';
@@ -187,85 +149,6 @@ const ROUTE_RESTRICTIONS: Record<string, Route[]> = {
   potassium: ['IV (slow)', 'PO'], // Never rapid IV
   nitroglycerin: ['SL', 'PO', 'Topical'], // Rarely IV
 };
-
-/**
- * Validate drug-route combination.
- */
-export function validateDrugRoute(
-  drugName: string,
-  route: Route
-): { valid: boolean; warning?: string } {
-  const normalized = drugName.toLowerCase();
-  const allowedRoutes = Object.entries(ROUTE_RESTRICTIONS).find(([drug]) =>
-    normalized.includes(drug)
-  )?.[1];
-
-  if (allowedRoutes && !allowedRoutes.includes(route)) {
-    return {
-      valid: false,
-      warning: `${drugName} via ${route} not recommended. Allowed: ${allowedRoutes.join(', ')}`,
-    };
-  }
-
-  return { valid: true };
-}
-
-// ─── ICD-10 Format Validation ─────────────────────────────────────────────────
-
-/**
- * Validate ICD-10 code format (e.g., A00, B15.9, Z12.3).
- * Pattern: 1 letter, 2 digits, optional '.', optional 1 char
- */
-export function validateICD10Code(code: string): { valid: boolean; message?: string } {
-  const icd10Pattern = /^[A-Z]\d{2}(\.\d{1,2})?$/;
-  if (!icd10Pattern.test(code)) {
-    return {
-      valid: false,
-      message: `Invalid ICD-10 format: ${code}. Expected format: A99.99`,
-    };
-  }
-  return { valid: true };
-}
-
-// ─── Vital Signs Validation Helpers ──────────────────────────────────────────
-
-/**
- * Get appropriate vital range for age.
- */
-export function getVitalRangeForAge(vitalName: string, ageYears: number): VitalSignsRange | null {
-  const category = getAgeCategory(ageYears);
-  let ranges: Record<string, VitalSignsRange>;
-
-  if (category === 'neonatal' || category === 'infant' || category === 'child') {
-    ranges = PEDIATRIC_VITAL_RANGES;
-  } else if (category === 'geriatric') {
-    ranges = GERIATRIC_VITAL_RANGES;
-  } else {
-    ranges = ADULT_VITAL_RANGES;
-  }
-
-  return ranges[vitalName] || null;
-}
-
-/**
- * Check vital sign against age-appropriate range, classify as normal/warning/critical.
- */
-export function classifyVitalStatus(
-  vitalName: string,
-  value: number,
-  ageYears: number
-): 'normal' | 'warning' | 'critical' {
-  const range = getVitalRangeForAge(vitalName, ageYears);
-  if (!range) return 'normal';
-
-  if (value < range.criticalLow! || value > range.criticalHigh!) {
-    return 'critical';
-  }
-  if (value < range.min || value > range.max) {
-    return 'warning';
-  }
-  return 'normal';
-}
 
 // ─── Allergy & Contraindication Checks ────────────────────────────────────────
 
@@ -316,28 +199,4 @@ export function checkDrugAllergyConflict(
     conflictingAllergy: conflicts[0],
     conflicts,
   };
-}
-
-// ─── Clinical Invariant Guards ───────────────────────────────────────────────
-
-/**
- * Fail-fast clinical invariant checks.
- */
-export function validateClinicalInvariants(patient: {
-  ageYears?: number;
-  gender?: string;
-  isPregnant?: boolean;
-}): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (patient.ageYears !== undefined) {
-    if (patient.ageYears < 0) errors.push('Patient age cannot be negative');
-    if (patient.ageYears > 150) errors.push('Patient age unusually high; verify DOB');
-  }
-
-  if (patient.isPregnant && patient.gender === 'M') {
-    errors.push('Pregnancy flag set for male patient');
-  }
-
-  return { valid: errors.length === 0, errors };
 }

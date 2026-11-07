@@ -2,14 +2,6 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  TriageAssessment, 
-  MedicationReconciliation, 
-  MedicationSchedule, 
-  MARAdministration,
-  CarePlanItem,
-  CarePlanCompliance 
-} from '@/types/nursing';
 
 // Patient Prep Checklist Interface
 export interface PatientPrepChecklist {
@@ -46,343 +38,6 @@ export interface ShiftHandover {
   updated_at: string;
 }
 
-// Triage Assessment Hooks
-export const useTriageAssessments = (patientId?: string) => {
-  const [assessments, setAssessments] = useState<TriageAssessment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadAssessments = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase
-        .from('triage_assessments')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (patientId) {
-        query = query.eq('patient_id', patientId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setAssessments(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load assessments');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createAssessment = async (assessment: Partial<TriageAssessment>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('triage_assessments')
-        .insert([assessment])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setAssessments(prev => [data, ...prev]);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create assessment');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAssessments();
-  }, [patientId]);
-
-  return {
-    assessments,
-    loading,
-    error,
-    createAssessment,
-    refetch: loadAssessments
-  };
-};
-
-// Medication Reconciliation Hooks
-export const useMedicationReconciliation = (patientId: string) => {
-  const [reconciliation, setReconciliation] = useState<MedicationReconciliation | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadReconciliation = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase
-        .from('medication_reconciliation')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      setReconciliation(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reconciliation');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createReconciliation = async (reconciliation: Partial<MedicationReconciliation>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('medication_reconciliation')
-        .insert([reconciliation])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setReconciliation(data);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create reconciliation');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateReconciliation = async (id: string, updates: Partial<MedicationReconciliation>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('medication_reconciliation')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setReconciliation(data);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update reconciliation');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (patientId) {
-      loadReconciliation();
-    }
-  }, [patientId]);
-
-  return {
-    reconciliation,
-    loading,
-    error,
-    createReconciliation,
-    updateReconciliation,
-    refetch: loadReconciliation
-  };
-};
-
-// MAR (Medication Administration Record) Hooks
-export const useMedicationSchedules = (patientId: string, date: string) => {
-  const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
-  const [administrations, setAdministrations] = useState<MARAdministration[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadSchedules = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: scheduleData, error: scheduleError } = await supabase
-        .from('medication_schedules')
-        .select('*')
-        .eq('patient_id', patientId)
-        .eq('scheduled_date', date)
-        .eq('is_active', true);
-
-      if (scheduleError) throw scheduleError;
-
-      const { data: adminData, error: adminError } = await supabase
-        .from('mar_administrations')
-        .select('*')
-        .eq('patient_id', patientId)
-        .gte('scheduled_time', `${date}T00:00:00`)
-        .lt('scheduled_time', `${date}T23:59:59`);
-
-      if (adminError) throw adminError;
-
-      setSchedules(scheduleData || []);
-      setAdministrations(adminData || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load schedules');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const recordAdministration = async (administration: Partial<MARAdministration>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('mar_administrations')
-        .insert([administration])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setAdministrations(prev => [...prev, data]);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record administration');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateAdministration = async (id: string, updates: Partial<MARAdministration>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('mar_administrations')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setAdministrations(prev => prev.map(admin => admin.id === id ? data : admin));
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update administration');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (patientId && date) {
-      loadSchedules();
-    }
-  }, [patientId, date]);
-
-  return {
-    schedules,
-    administrations,
-    loading,
-    error,
-    recordAdministration,
-    updateAdministration,
-    refetch: loadSchedules
-  };
-};
-
-// Care Plan Compliance Hooks
-export const useCarePlanCompliance = (patientId: string) => {
-  const [carePlanItems, setCarePlanItems] = useState<CarePlanItem[]>([]);
-  const [compliance, setCompliance] = useState<CarePlanCompliance[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadCarePlan = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('care_plan_items')
-        .select('*')
-        .eq('patient_id', patientId)
-        .eq('status', 'active')
-        .order('priority', { ascending: false });
-
-      if (itemsError) throw itemsError;
-
-      const { data: complianceData, error: complianceError } = await supabase
-        .from('care_plan_compliance')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('due_time', { ascending: true });
-
-      if (complianceError) throw complianceError;
-
-      setCarePlanItems(itemsData || []);
-      setCompliance(complianceData || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load care plan');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const recordCompliance = async (compliance: Partial<CarePlanCompliance>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('care_plan_compliance')
-        .insert([compliance])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setCompliance(prev => [...prev, data]);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record compliance');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateCompliance = async (id: string, updates: Partial<CarePlanCompliance>) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('care_plan_compliance')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setCompliance(prev => prev.map(comp => comp.id === id ? data : comp));
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update compliance');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (patientId) {
-      loadCarePlan();
-    }
-  }, [patientId]);
-
-  return {
-    carePlanItems,
-    compliance,
-    loading,
-    error,
-    recordCompliance,
-    updateCompliance,
-    refetch: loadCarePlan
-  };
-};
-
 // Patient Checklist Hooks
 export const usePatientChecklist = (patientId: string) => {
   const [checklist, setChecklist] = useState<PatientPrepChecklist | null>(null);
@@ -391,7 +46,7 @@ export const usePatientChecklist = (patientId: string) => {
 
   const loadChecklist = async () => {
     if (!patientId) return;
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -420,7 +75,7 @@ export const usePatientChecklist = (patientId: string) => {
     data: checklist,
     isLoading: loading,
     error,
-    refetch: loadChecklist
+    refetch: loadChecklist,
   };
 };
 
@@ -450,7 +105,7 @@ export const useCreateChecklist = () => {
           medications_reviewed: false,
           chief_complaint_recorded: false,
           consent_obtained: false,
-          ready_for_doctor: false
+          ready_for_doctor: false,
         })
         .select()
         .single();
@@ -464,7 +119,7 @@ export const useCreateChecklist = () => {
 
   return {
     mutateAsync,
-    isPending: loading
+    isPending: loading,
   };
 };
 
@@ -501,7 +156,7 @@ export const useUpdateChecklist = () => {
 
   return {
     mutateAsync,
-    isPending: loading
+    isPending: loading,
   };
 };
 
@@ -541,7 +196,7 @@ export const usePatientChecklists = (hospitalId?: string) => {
     checklists,
     loading,
     error,
-    refetch: loadChecklists
+    refetch: loadChecklists,
   };
 };
 
@@ -566,7 +221,7 @@ export const useCreateHandover = () => {
 
   return {
     mutateAsync: mutation.mutateAsync,
-    isPending: mutation.isPending
+    isPending: mutation.isPending,
   };
 };
 
@@ -593,7 +248,7 @@ export const usePendingHandovers = (nurseId?: string) => {
     handovers: query.data || [],
     loading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
-    refetch: query.refetch
+    refetch: query.refetch,
   };
 };
 
@@ -606,7 +261,7 @@ export const useAcknowledgeHandover = () => {
         .from('shift_handovers')
         .update({
           status: 'acknowledged',
-          acknowledged_at: new Date().toISOString()
+          acknowledged_at: new Date().toISOString(),
         })
         .eq('id', handoverId)
         .select()
@@ -621,90 +276,21 @@ export const useAcknowledgeHandover = () => {
 
   return {
     mutateAsync: mutation.mutateAsync,
-    isPending: mutation.isPending
-  };
-};
-
-// Medication Administration Hooks
-export const useRecordMedicationAdministration = () => {
-  const { profile } = useAuth();
-  const [loading, setLoading] = useState(false);
-
-  const mutateAsync = async (data: Record<string, any>) => {
-    setLoading(true);
-    try {
-      const { data: result, error } = await supabase
-        .from('medication_administrations')
-        .insert({
-          ...data,
-          administered_by: profile?.id,
-          hospital_id: profile?.hospital_id,
-          administered_at: data.administered_at || new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return result;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return {
-    mutateAsync,
-    isPending: loading
-  };
-};
-
-export const useMedicationAdministrations = (patientId?: string) => {
-  const [administrations, setAdministrations] = useState<MARAdministration[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadAdministrations = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase
-        .from('medication_administrations')
-        .select('*')
-        .order('administered_at', { ascending: false });
-
-      if (patientId) {
-        query = query.eq('patient_id', patientId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setAdministrations(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load administrations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAdministrations();
-  }, [patientId]);
-
-  return {
-    administrations,
-    loading,
-    error,
-    refetch: loadAdministrations
+    isPending: mutation.isPending,
   };
 };
 
 // Unified Nurse Workflow Hook
 export function useNurseWorkflow() {
-  const markReadyForDoctor = async (queueId: string, data: {
-    chief_complaint?: string;
-    allergies?: string;
-    current_medications?: string;
-    triage_notes?: string;
-  }) => {
+  const markReadyForDoctor = async (
+    queueId: string,
+    data: {
+      chief_complaint?: string;
+      allergies?: string;
+      current_medications?: string;
+      triage_notes?: string;
+    }
+  ) => {
     try {
       // Update the patient prep checklist to mark as ready for doctor
       const { error } = await supabase
@@ -716,7 +302,7 @@ export function useNurseWorkflow() {
           allergies_verified: !!data.allergies,
           medications_reviewed: !!data.current_medications,
           notes: data.triage_notes,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('queue_entry_id', queueId);
 
@@ -738,6 +324,6 @@ export function useNurseWorkflow() {
   };
 
   return {
-    markReadyForDoctor
+    markReadyForDoctor,
   };
 }

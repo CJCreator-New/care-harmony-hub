@@ -86,10 +86,3 @@ export async function wipeOfflineStore(): Promise<void> {
   removeLegacyKeys(browserStorage());
   await createIndexedDbOfflineAdapter().destroy();
 }
-
-/** Test-only: forget the app-wide store. */
-export function __resetOfflineSyncStoreForTests(): void {
-  detachNetwork?.();
-  detachNetwork = null;
-  defaultStore = null;
-}
