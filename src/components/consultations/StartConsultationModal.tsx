@@ -11,26 +11,16 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Users, 
-  Clock, 
-  Play, 
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Search,
-  Loader2,
-  UserCheck,
-  AlertTriangle,
-  Zap,
-} from 'lucide-react';
+
+import { Users, Play, CheckCircle2, Search, Loader2, AlertTriangle } from 'lucide-react';
 import { useDoctorQueue } from '@/hooks/useDoctorStats';
 import { useTodayAppointments } from '@/lib/hooks/appointments';
 import { useGetOrCreateConsultation } from '@/hooks/useConsultations';
 import { usePatients, usePatientsReadyForDoctor } from '@/lib/hooks/patients';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { format, differenceInYears, differenceInMinutes } from 'date-fns';
+
+import { differenceInYears, differenceInMinutes } from 'date-fns';
 import { QuickConsultationModal } from './QuickConsultationModal';
 
 const getErrorMessage = (error: unknown) => {
@@ -93,53 +83,10 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
     }
   };
 
-  const handleQuickConsultation = async (patientId: string) => {
-    if (!profile?.id || !hospital?.id) return;
-
-    setStartingId(patientId);
-    try {
-      const result = await getOrCreateConsultation.mutateAsync(patientId);
-      setQuickConsultation(result);
-    } catch (error) {
-      const message = getErrorMessage(error);
-      console.error('Failed to start consultation:', message, error);
-      toast.error(`Failed to start consultation: ${message}`);
-    } finally {
-      setStartingId(null);
-    }
-  };
-
-  const getPriorityBadge = (priority: string | null) => {
-    switch (priority) {
-      case 'urgent':
-        return <Badge variant="destructive">Urgent</Badge>;
-      case 'high':
-        return <Badge className="bg-orange-500">High</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusBadge = (status: string | null) => {
-    switch (status) {
-      case 'waiting':
-        return <Badge variant="secondary">Waiting</Badge>;
-      case 'called':
-        return <Badge className="bg-blue-500 text-white">Called</Badge>;
-      case 'in_progress':
-        return <Badge className="bg-green-500 text-white">In Progress</Badge>;
-      case 'checked_in':
-        return <Badge variant="secondary">Checked In</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
   // Filter appointments for this doctor that are checked in but not yet in consultation
-  const readyAppointments = appointments?.filter(
-    apt => apt.doctor_id === profile?.id && 
-           apt.status === 'checked_in'
-  ) || [];
+  const readyAppointments =
+    appointments?.filter((apt) => apt.doctor_id === profile?.id && apt.status === 'checked_in') ||
+    [];
 
   // Create unified patient list with intelligent ranking
   const unifiedPatients = React.useMemo(() => {
@@ -148,9 +95,15 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
     // Add patients ready for doctor (highest priority)
     patientsReady.forEach((entry) => {
       if (entry.patient) {
-        const priority = entry.queue_entry?.priority === 'emergency' ? 100 :
-                        entry.queue_entry?.priority === 'urgent' ? 90 : 80;
-        const waitTime = entry.queue_entry ? differenceInMinutes(new Date(), new Date(entry.queue_entry.check_in_time)) : 0;
+        const priority =
+          entry.queue_entry?.priority === 'emergency'
+            ? 100
+            : entry.queue_entry?.priority === 'urgent'
+              ? 90
+              : 80;
+        const waitTime = entry.queue_entry
+          ? differenceInMinutes(new Date(), new Date(entry.queue_entry.check_in_time))
+          : 0;
         const score = priority + Math.min(waitTime / 10, 10); // Cap wait time bonus at 10 points
 
         patientMap.set(entry.patient.id, {
@@ -161,7 +114,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           waitTime,
           score,
           prepComplete: true,
-          allergies: entry.patient.allergies || []
+          allergies: entry.patient.allergies || [],
         });
       }
     });
@@ -169,8 +122,8 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
     // Add queue patients
     queuePatients?.forEach((entry) => {
       if (entry.patient && !patientMap.has(entry.patient.id)) {
-        const priority = entry.priority === 'emergency' ? 70 :
-                        entry.priority === 'urgent' ? 60 : 50;
+        const priority =
+          entry.priority === 'emergency' ? 70 : entry.priority === 'urgent' ? 60 : 50;
         const waitTime = differenceInMinutes(new Date(), new Date(entry.created_at));
         const score = priority + Math.min(waitTime / 10, 10);
 
@@ -182,7 +135,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           waitTime,
           score,
           prepComplete: false,
-          allergies: []
+          allergies: [],
         });
       }
     });
@@ -200,7 +153,7 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           waitTime,
           score,
           prepComplete: false,
-          allergies: []
+          allergies: [],
         });
       }
     });
@@ -215,25 +168,27 @@ export function StartConsultationModal({ open, onOpenChange }: StartConsultation
           waitTime: 0,
           score: 10,
           prepComplete: false,
-          allergies: patient.allergies || []
+          allergies: patient.allergies || [],
         });
       }
     });
 
     // Convert to array and sort by score (descending)
-    return Array.from(patientMap.values())
-      .sort((a, b) => b.score - a.score);
+    return Array.from(patientMap.values()).sort((a, b) => b.score - a.score);
   }, [patientsReady, queuePatients, readyAppointments, patientsList]);
 
   // Filter unified patients by search term
   const filteredUnifiedPatients = React.useMemo(() => {
     if (!searchTerm) return unifiedPatients.slice(0, 20); // Show top 20 when no search
 
-    return unifiedPatients.filter((patient) =>
-      patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.mrn.toLowerCase().includes(searchTerm.toLowerCase())
-    ).slice(0, 20); // Limit to 20 results
+    return unifiedPatients
+      .filter(
+        (patient) =>
+          patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          patient.mrn.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .slice(0, 20); // Limit to 20 results
   }, [unifiedPatients, searchTerm]);
 
   return (
@@ -322,7 +277,11 @@ function PatientCard({ patient, onStartConsultation, startingId }: PatientCardPr
   const getSourceBadge = () => {
     switch (patient.source) {
       case 'ready':
-        return <Badge variant="default" className="bg-success text-success-foreground">Ready</Badge>;
+        return (
+          <Badge variant="default" className="bg-success text-success-foreground">
+            Ready
+          </Badge>
+        );
       case 'queue':
         return <Badge variant="secondary">Queue</Badge>;
       case 'appointment':
@@ -334,10 +293,12 @@ function PatientCard({ patient, onStartConsultation, startingId }: PatientCardPr
 
   const getPriorityBadge = () => {
     if (patient.priority === 'emergency') {
-      return <Badge variant="destructive" className="flex items-center gap-1">
-        <AlertTriangle className="h-3 w-3" />
-        Emergency
-      </Badge>;
+      return (
+        <Badge variant="destructive" className="flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Emergency
+        </Badge>
+      );
     }
     if (patient.priority === 'urgent') {
       return <Badge variant="destructive">Urgent</Badge>;
@@ -346,11 +307,15 @@ function PatientCard({ patient, onStartConsultation, startingId }: PatientCardPr
   };
 
   return (
-    <div className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-      patient.source === 'ready' ? 'border-success/20 bg-success/5 hover:bg-success/10' :
-      patient.prepComplete ? 'border-success/20 bg-success/5 hover:bg-success/10' :
-      'bg-card hover:bg-accent/50'
-    }`}>
+    <div
+      className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+        patient.source === 'ready'
+          ? 'border-success/20 bg-success/5 hover:bg-success/10'
+          : patient.prepComplete
+            ? 'border-success/20 bg-success/5 hover:bg-success/10'
+            : 'bg-card hover:bg-accent/50'
+      }`}
+    >
       <div className="space-y-1 flex-1">
         <div className="flex items-center gap-2">
           {patient.queueNumber && (
@@ -373,13 +338,13 @@ function PatientCard({ patient, onStartConsultation, startingId }: PatientCardPr
           <span>{patient.date_of_birth ? getAge(patient.date_of_birth) : 'N/A'} yrs</span>
           <span className="capitalize">{patient.gender}</span>
           {patient.waitTime > 0 && (
-            <span>Wait: {Math.floor(patient.waitTime / 60)}h {patient.waitTime % 60}m</span>
+            <span>
+              Wait: {Math.floor(patient.waitTime / 60)}h {patient.waitTime % 60}m
+            </span>
           )}
         </div>
         {patient.allergies && patient.allergies.length > 0 && (
-          <p className="text-xs text-destructive">
-            ⚠️ Allergies: {patient.allergies.join(', ')}
-          </p>
+          <p className="text-xs text-destructive">⚠️ Allergies: {patient.allergies.join(', ')}</p>
         )}
       </div>
       <Button

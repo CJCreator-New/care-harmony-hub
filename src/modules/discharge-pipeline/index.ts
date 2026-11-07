@@ -41,4 +41,3 @@ export * from './ports';
 
 // Test Doubles & Adapters
 export { InMemoryDischargeAdapter } from './adapters/InMemoryDischargeAdapter';
-export { SupabaseDischargeAdapter } from './adapters/SupabaseDischargeAdapter';

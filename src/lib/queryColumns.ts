@@ -85,35 +85,3 @@ export const STAFF_COLUMNS = {
     'id, first_name, last_name, email, phone, role, department, license_number, specializations, hire_date, is_active, created_at',
   directory: 'id, first_name, last_name, email, phone, role, department',
 };
-
-// Utility function to build select queries with hospital scoping
-export function buildHospitalScopedSelect(
-  table: string,
-  columns: string,
-  hospitalId: string
-): string {
-  return `${columns}, hospital_id`;
-}
-
-// Utility function to get columns for a specific view
-export function getColumnsForView(
-  table: string,
-  view: 'list' | 'detail' | 'search' | 'minimal' = 'list'
-): string {
-  const columnSets = {
-    patients: PATIENT_COLUMNS,
-    appointments: APPOINTMENT_COLUMNS,
-    consultations: CONSULTATION_COLUMNS,
-    lab_orders: LAB_ORDER_COLUMNS,
-    medications: MEDICATION_COLUMNS,
-    prescriptions: PRESCRIPTION_COLUMNS,
-    activity_logs: ACTIVITY_LOG_COLUMNS,
-    workflow_tasks: WORKFLOW_TASK_COLUMNS,
-    billing_records: BILLING_COLUMNS,
-    inventory: INVENTORY_COLUMNS,
-    profiles: STAFF_COLUMNS,
-  };
-
-  const tableColumns = columnSets[table as keyof typeof columnSets];
-  return tableColumns?.[view] || '*';
-}

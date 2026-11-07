@@ -7,17 +7,6 @@ export interface IdentityContext {
   hospitalId: string | null;
 }
 
-export async function resolvePatientAuthUserId(patientId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('patients')
-    .select('user_id')
-    .eq('id', patientId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data?.user_id ?? null;
-}
-
 export async function resolvePatientIdByAuthUserId(userId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('patients')
@@ -39,4 +28,3 @@ export async function resolveAuthUserIdByProfileId(profileId: string): Promise<s
   if (error) throw error;
   return data?.user_id ?? null;
 }
-

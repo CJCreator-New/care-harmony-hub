@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
-import { useEffect, useCallback, useRef } from 'react';
 import { devLog } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +9,11 @@ import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 import { hasPermission } from '@/lib/permissions';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { useAudit } from '@/hooks/useAudit';
-import { decryptRecordFields, fieldEncryption, mergeEncryptionMetadata } from '@/utils/dataProtection';
+import {
+  decryptRecordFields,
+  fieldEncryption,
+  mergeEncryptionMetadata,
+} from '@/utils/dataProtection';
 
 export type ConsultationStatus =
   | 'scheduled'
@@ -36,14 +39,6 @@ export const LEGACY_CONSULTATION_STATUS_MAP: Record<string, ConsultationLifecycl
   'in-progress': 'in_progress',
   in_service: 'in_progress',
 };
-
-export function mapToLifecycleStatus(raw: string | null | undefined): ConsultationLifecycleStatus {
-  if (!raw) return 'scheduled';
-  if (['scheduled', 'in_progress', 'completed', 'cancelled'].includes(raw)) {
-    return raw as ConsultationLifecycleStatus;
-  }
-  return LEGACY_CONSULTATION_STATUS_MAP[raw] ?? 'scheduled';
-}
 
 export interface Consultation {
   id: string;
@@ -222,7 +217,10 @@ const stripUnsupportedConsultationFields = <T extends Record<string, any>>(
 // CLIN-05: the consultation row is the resource the ciphertext belongs to, so phi-crypto authorises against it.
 export async function decryptConsultationFields(consultation: any): Promise<any> {
   if (!consultation?.id) return consultation;
-  return decryptRecordFields(consultation, { resourceType: 'consultations', resourceId: consultation.id });
+  return decryptRecordFields(consultation, {
+    resourceType: 'consultations',
+    resourceId: consultation.id,
+  });
 }
 
 export function useConsultations() {
@@ -650,105 +648,5 @@ export function useAdvanceConsultationStep() {
       }
       toast.success('Moved to next step');
     },
-  });
-}
-
-export function useAutoSaveConsultation(consultationId: string | undefined) {
-  const updateConsultation = useUpdateConsultation();
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const currentConsultationId = useRef(consultationId);
-  currentConsultationId.current = consultationId;
-
-  const autoSave = useCallback(
-    (data: Record<string, any>) => {
-      const id = currentConsultationId.current;
-      if (!id) return;
-
-      // Debounce auto-save to every 30 seconds
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = setTimeout(() => {
-        if (!currentConsultationId.current) return;
-        updateConsultation.mutate({
-          id: currentConsultationId.current,
-          auto_save_data: data,
-          last_auto_save: new Date().toISOString(),
-        });
-      }, 30000);
-    },
-    [updateConsultation]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  return autoSave;
-}
-
-export function useConsultationsRealtime() {
-  const queryClient = useQueryClient();
-  const { hospital } = useAuth();
-
-  useEffect(() => {
-    if (!hospital?.id) return;
-
-    const channel = supabase
-      .channel('consultations-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'consultations',
-          filter: `hospital_id=eq.${hospital.id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['consultations'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [hospital?.id, queryClient]);
-}
-
-export function usePatientsReadyForConsultation() {
-  const { hospital } = useAuth();
-
-  return useQuery({
-    queryKey: ['ready-patients', hospital?.id],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      return withConsultationRateLimit(async () => {
-        const { data, error } = await supabase
-          .from('patient_prep_checklists')
-          .select(
-            `
-            *,
-            patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
-            queue_entry:patient_queue!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
-          `
-          )
-          .eq('hospital_id', hospital.id)
-          .eq('ready_for_doctor', true)
-          .in('queue_entry.status', ['waiting', 'called']);
-
-        if (error) throw error;
-        return data || [];
-      });
-    },
-    enabled: !!hospital?.id,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30000, // Refetch every 30 seconds
   });
 }

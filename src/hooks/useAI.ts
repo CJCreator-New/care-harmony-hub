@@ -4,7 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SanitizedPatientData } from '@/lib/ai/security';
 
-type AIRequest = { type: string; patientData: SanitizedPatientData; context: string; options?: any };
+type AIRequest = {
+  type: string;
+  patientData: SanitizedPatientData;
+  context: string;
+  options?: any;
+};
 type AIResponse = any;
 
 /**
@@ -44,7 +49,8 @@ async function fetchComplianceStatus(hospitalId: string): Promise<{
     }
 
     const status = row.compliance_status as 'compliant' | 'warning' | 'violation';
-    const issues = status === 'violation' ? ['Compliance violations detected in recent AI operations'] : [];
+    const issues =
+      status === 'violation' ? ['Compliance violations detected in recent AI operations'] : [];
     return { status, issues, lastAudit: row.timestamp ? new Date(row.timestamp) : null };
   } catch {
     return { status: 'warning', issues: ['Unable to retrieve compliance status'], lastAudit: null };
@@ -52,20 +58,56 @@ async function fetchComplianceStatus(hospitalId: string): Promise<{
 }
 
 export interface UseAIProps {
-  purpose: 'diagnosis' | 'treatment' | 'education' | 'research' | 'length_of_stay' | 'resource_optimization' | 'treatment_plan' | 'recommendations';
+  purpose:
+    | 'diagnosis'
+    | 'treatment'
+    | 'education'
+    | 'research'
+    | 'length_of_stay'
+    | 'resource_optimization'
+    | 'treatment_plan'
+    | 'recommendations';
   dataRetentionDays?: number;
 }
 
 export interface UseAIResult {
   // AI Operations
-  diagnosePatient: (patientData: Partial<SanitizedPatientData>, context?: string) => Promise<AIResponse>;
-  createTreatmentPlan: (patientData: Partial<SanitizedPatientData>, context?: string) => Promise<AIResponse>;
-  generateTreatmentRecommendations: (patientData: Partial<SanitizedPatientData>, diagnoses: string[], context?: string) => Promise<AIResponse>;
-  optimizeTreatmentPlan: (params: { patientData: Partial<SanitizedPatientData>, currentPlan: string, diagnoses: string[], criteria: any, context?: string }) => Promise<AIResponse>;
-  predictReadmissionRisk: (params: { patientData: Partial<SanitizedPatientData>, context?: string }) => Promise<AIResponse>;
-  predictLengthOfStay: (params: { patientData: Partial<SanitizedPatientData>, context?: string }) => Promise<AIResponse>;
-  optimizeResourceUtilization: (params: { operationalData: any, context?: string }) => Promise<AIResponse>;
-  reviewMedications: (patientData: Partial<SanitizedPatientData>, medications: string[]) => Promise<AIResponse>;
+  diagnosePatient: (
+    patientData: Partial<SanitizedPatientData>,
+    context?: string
+  ) => Promise<AIResponse>;
+  createTreatmentPlan: (
+    patientData: Partial<SanitizedPatientData>,
+    context?: string
+  ) => Promise<AIResponse>;
+  generateTreatmentRecommendations: (
+    patientData: Partial<SanitizedPatientData>,
+    diagnoses: string[],
+    context?: string
+  ) => Promise<AIResponse>;
+  optimizeTreatmentPlan: (params: {
+    patientData: Partial<SanitizedPatientData>;
+    currentPlan: string;
+    diagnoses: string[];
+    criteria: any;
+    context?: string;
+  }) => Promise<AIResponse>;
+  predictReadmissionRisk: (params: {
+    patientData: Partial<SanitizedPatientData>;
+    context?: string;
+  }) => Promise<AIResponse>;
+  predictLengthOfStay: (params: {
+    patientData: Partial<SanitizedPatientData>;
+    context?: string;
+  }) => Promise<AIResponse>;
+  optimizeResourceUtilization: (params: {
+    operationalData: any;
+    context?: string;
+  }) => Promise<AIResponse>;
+  reviewMedications: (
+    patientData: Partial<SanitizedPatientData>,
+    medications: string[]
+  ) => Promise<AIResponse>;
   summarizeClinicalData: (patientData: Partial<SanitizedPatientData>) => Promise<AIResponse>;
 
   // Status and Monitoring
@@ -108,97 +150,148 @@ export function useAI(_options: UseAIProps): UseAIResult {
   });
 
   // Generic AI operation handler
-  const executeAIOperation = useCallback(async (
-    type: AIRequest['type'],
-    patientData: Partial<SanitizedPatientData>,
-    context?: string,
-    additionalOptions?: any
-  ): Promise<AIResponse> => {
-    if (!hospital?.id || !profile?.id) {
-      const authError = 'Authentication required for AI operations';
-      setError(authError);
-      throw new Error(authError);
-    }
+  const executeAIOperation = useCallback(
+    async (
+      type: AIRequest['type'],
+      patientData: Partial<SanitizedPatientData>,
+      context?: string,
+      additionalOptions?: any
+    ): Promise<AIResponse> => {
+      if (!hospital?.id || !profile?.id) {
+        const authError = 'Authentication required for AI operations';
+        setError(authError);
+        throw new Error(authError);
+      }
 
-    // No browser-side AI provider path exists any more (SECF-03).
-    const unavailable = new AIUnavailableError();
-    setLastResponse(null);
-    setError(unavailable.message);
-    throw unavailable;
-  }, [hospital?.id, profile?.id]);
+      // No browser-side AI provider path exists any more (SECF-03).
+      const unavailable = new AIUnavailableError();
+      setLastResponse(null);
+      setError(unavailable.message);
+      throw unavailable;
+    },
+    [hospital?.id, profile?.id]
+  );
 
   // Specific AI operations
-  const diagnosePatient = useCallback(async (
-    patientData: Partial<SanitizedPatientData>,
-    context?: string
-  ): Promise<AIResponse> => {
-    return executeAIOperation('diagnosis', patientData, context);
-  }, [executeAIOperation]);
+  const diagnosePatient = useCallback(
+    async (patientData: Partial<SanitizedPatientData>, context?: string): Promise<AIResponse> => {
+      return executeAIOperation('diagnosis', patientData, context);
+    },
+    [executeAIOperation]
+  );
 
-  const createTreatmentPlan = useCallback(async (
-    patientData: Partial<SanitizedPatientData>,
-    context?: string
-  ): Promise<AIResponse> => {
-    return executeAIOperation('treatment_plan', patientData, context);
-  }, [executeAIOperation]);
+  const createTreatmentPlan = useCallback(
+    async (patientData: Partial<SanitizedPatientData>, context?: string): Promise<AIResponse> => {
+      return executeAIOperation('treatment_plan', patientData, context);
+    },
+    [executeAIOperation]
+  );
 
-  const generateTreatmentRecommendations = useCallback(async (
-    patientData: Partial<SanitizedPatientData>,
-    diagnoses: string[],
-    context?: string
-  ): Promise<AIResponse> => {
-    const diagnosesContext = diagnoses.join('\n');
-    return executeAIOperation('treatment_recommendations', patientData, diagnosesContext, context);
-  }, [executeAIOperation]);
+  const generateTreatmentRecommendations = useCallback(
+    async (
+      patientData: Partial<SanitizedPatientData>,
+      diagnoses: string[],
+      context?: string
+    ): Promise<AIResponse> => {
+      const diagnosesContext = diagnoses.join('\n');
+      return executeAIOperation(
+        'treatment_recommendations',
+        patientData,
+        diagnosesContext,
+        context
+      );
+    },
+    [executeAIOperation]
+  );
 
-  const optimizeTreatmentPlan = useCallback(async (
-    params: { patientData: Partial<SanitizedPatientData>, currentPlan: string, diagnoses: string[], criteria: any, context?: string }
-  ): Promise<AIResponse> => {
-    const { patientData, currentPlan, diagnoses, criteria, context } = params;
-    const optimizationContext = JSON.stringify({
-      currentPlan,
-      diagnoses,
-      criteria,
-      context: context || 'treatment plan optimization with outcome prediction'
-    });
-    return executeAIOperation('treatment_plan_optimization', patientData, optimizationContext, context);
-  }, [executeAIOperation]);
+  const optimizeTreatmentPlan = useCallback(
+    async (params: {
+      patientData: Partial<SanitizedPatientData>;
+      currentPlan: string;
+      diagnoses: string[];
+      criteria: any;
+      context?: string;
+    }): Promise<AIResponse> => {
+      const { patientData, currentPlan, diagnoses, criteria, context } = params;
+      const optimizationContext = JSON.stringify({
+        currentPlan,
+        diagnoses,
+        criteria,
+        context: context || 'treatment plan optimization with outcome prediction',
+      });
+      return executeAIOperation(
+        'treatment_plan_optimization',
+        patientData,
+        optimizationContext,
+        context
+      );
+    },
+    [executeAIOperation]
+  );
 
-  const predictReadmissionRisk = useCallback(async (
-    params: { patientData: Partial<SanitizedPatientData>, context?: string }
-  ): Promise<AIResponse> => {
-    const { patientData, context } = params;
-    return executeAIOperation('predict_readmission_risk', patientData, context || '30-day readmission risk prediction', context);
-  }, [executeAIOperation]);
+  const predictReadmissionRisk = useCallback(
+    async (params: {
+      patientData: Partial<SanitizedPatientData>;
+      context?: string;
+    }): Promise<AIResponse> => {
+      const { patientData, context } = params;
+      return executeAIOperation(
+        'predict_readmission_risk',
+        patientData,
+        context || '30-day readmission risk prediction',
+        context
+      );
+    },
+    [executeAIOperation]
+  );
 
-  const predictLengthOfStay = useCallback(async (
-    params: { patientData: Partial<SanitizedPatientData>, context?: string }
-  ): Promise<AIResponse> => {
-    const { patientData, context } = params;
-    return executeAIOperation('predict_length_of_stay', patientData, context || 'Length of stay forecasting', context);
-  }, [executeAIOperation]);
+  const predictLengthOfStay = useCallback(
+    async (params: {
+      patientData: Partial<SanitizedPatientData>;
+      context?: string;
+    }): Promise<AIResponse> => {
+      const { patientData, context } = params;
+      return executeAIOperation(
+        'predict_length_of_stay',
+        patientData,
+        context || 'Length of stay forecasting',
+        context
+      );
+    },
+    [executeAIOperation]
+  );
 
-  const optimizeResourceUtilization = useCallback(async (
-    params: { operationalData: any, context?: string }
-  ): Promise<AIResponse> => {
-    const { operationalData, context } = params;
-    const operationalContext = JSON.stringify(operationalData);
-    return executeAIOperation('resource_utilization_optimization', { id: 'resource_optimization' }, operationalContext, context);
-  }, [executeAIOperation]);
+  const optimizeResourceUtilization = useCallback(
+    async (params: { operationalData: any; context?: string }): Promise<AIResponse> => {
+      const { operationalData, context } = params;
+      const operationalContext = JSON.stringify(operationalData);
+      return executeAIOperation(
+        'resource_utilization_optimization',
+        { id: 'resource_optimization' },
+        operationalContext,
+        context
+      );
+    },
+    [executeAIOperation]
+  );
 
-  const reviewMedications = useCallback(async (
-    patientData: Partial<SanitizedPatientData>,
-    medications: string[]
-  ): Promise<AIResponse> => {
-    const context = `Current medications: ${medications.join(', ')}`;
-    return executeAIOperation('medication_review', patientData, context);
-  }, [executeAIOperation]);
+  const reviewMedications = useCallback(
+    async (
+      patientData: Partial<SanitizedPatientData>,
+      medications: string[]
+    ): Promise<AIResponse> => {
+      const context = `Current medications: ${medications.join(', ')}`;
+      return executeAIOperation('medication_review', patientData, context);
+    },
+    [executeAIOperation]
+  );
 
-  const summarizeClinicalData = useCallback(async (
-    patientData: Partial<SanitizedPatientData>
-  ): Promise<AIResponse> => {
-    return executeAIOperation('clinical_summary', patientData);
-  }, [executeAIOperation]);
+  const summarizeClinicalData = useCallback(
+    async (patientData: Partial<SanitizedPatientData>): Promise<AIResponse> => {
+      return executeAIOperation('clinical_summary', patientData);
+    },
+    [executeAIOperation]
+  );
 
   // Utility functions
   const clearError = useCallback(() => {
@@ -270,13 +363,15 @@ export function useAIAudit() {
       const { data, error } = await import('@/integrations/supabase/client').then(({ supabase }) =>
         supabase
           .from('ai_security_audit')
-          .select(`
+          .select(
+            `
             *,
             user:user_id (
               first_name,
               last_name
             )
-          `)
+          `
+          )
           .eq('hospital_id', hospital.id)
           .order('timestamp', { ascending: false })
           .limit(50)
@@ -290,35 +385,6 @@ export function useAIAudit() {
 
   return {
     auditHistory: auditHistory || [],
-    isLoading,
-  };
-}
-
-/**
- * Hook for AI data flow tracking
- */
-export function useAIDataFlow(sessionId?: string) {
-  const { hospital } = useAuth();
-
-  const { data: dataFlow, isLoading } = useQuery({
-    queryKey: ['ai-data-flow', hospital?.id, sessionId],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      const { data, error } = await supabase
-          .from('activity_logs')
-          .select('*')
-          .eq('hospital_id', hospital.id)
-          .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!hospital?.id,
-  });
-
-  return {
-    dataFlow: dataFlow || [],
     isLoading,
   };
 }

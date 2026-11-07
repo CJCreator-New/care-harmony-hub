@@ -13,16 +13,22 @@ interface Requirement {
 }
 
 export function PasswordStrengthMeter({ password, className }: PasswordStrengthMeterProps) {
-  const requirements = useMemo((): Requirement[] => [
-    { label: 'At least 8 characters', met: password.length >= 8 },
-    { label: 'At least one uppercase letter', met: /[A-Z]/.test(password) },
-    { label: 'At least one lowercase letter', met: /[a-z]/.test(password) },
-    { label: 'At least one number', met: /[0-9]/.test(password) },
-    { label: 'At least one special character (!@#$%^&*)', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-  ], [password]);
+  const requirements = useMemo(
+    (): Requirement[] => [
+      { label: 'At least 8 characters', met: password.length >= 8 },
+      { label: 'At least one uppercase letter', met: /[A-Z]/.test(password) },
+      { label: 'At least one lowercase letter', met: /[a-z]/.test(password) },
+      { label: 'At least one number', met: /[0-9]/.test(password) },
+      {
+        label: 'At least one special character (!@#$%^&*)',
+        met: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+      },
+    ],
+    [password]
+  );
 
   const strength = useMemo(() => {
-    const metCount = requirements.filter(r => r.met).length;
+    const metCount = requirements.filter((r) => r.met).length;
     if (metCount === 0) return { level: 0, label: '', color: '' };
     if (metCount <= 2) return { level: 1, label: 'Weak', color: 'bg-destructive' };
     if (metCount <= 3) return { level: 2, label: 'Fair', color: 'bg-warning' };
@@ -38,13 +44,15 @@ export function PasswordStrengthMeter({ password, className }: PasswordStrengthM
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">Password strength</span>
-          <span className={cn(
-            'font-medium',
-            strength.level <= 1 && 'text-destructive',
-          strength.level === 2 && 'text-warning',
-          strength.level === 3 && 'text-info',
-          strength.level === 4 && 'text-success',
-          )}>
+          <span
+            className={cn(
+              'font-medium',
+              strength.level <= 1 && 'text-destructive',
+              strength.level === 2 && 'text-warning',
+              strength.level === 3 && 'text-info',
+              strength.level === 4 && 'text-success'
+            )}
+          >
             {strength.label}
           </span>
         </div>
@@ -66,25 +74,11 @@ export function PasswordStrengthMeter({ password, className }: PasswordStrengthM
               req.met ? 'text-success' : 'text-muted-foreground'
             )}
           >
-            {req.met ? (
-              <Check className="h-3 w-3" />
-            ) : (
-              <X className="h-3 w-3" />
-            )}
+            {req.met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
             {req.label}
           </li>
         ))}
       </ul>
     </div>
-  );
-}
-
-export function isPasswordStrong(password: string): boolean {
-  return (
-    password.length >= 8 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password) &&
-    /[!@#$%^&*(),.?":{}|<>]/.test(password)
   );
 }

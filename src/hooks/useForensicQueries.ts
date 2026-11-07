@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 
 /**
  * Phase 2B: Forensic Amendment Chain Queries
- * 
+ *
  * Immutable queries for prescription, invoice, and lab result amendment chains.
  * All queries are read-only and hospital-scoped via RLS.
  */
@@ -57,7 +57,7 @@ export interface LabResultAmendmentRecord {
 /**
  * Query the amendment chain for a prescription (forensic investigation).
  * Shows: CREATE → APPROVE → AMEND (if any) → REVERSAL (if any)
- * 
+ *
  * @param prescriptionId - UUID of prescription
  * @returns Array of immutable audit records in chronological order
  */
@@ -69,12 +69,9 @@ export function usePrescriptionAmendmentChain(prescriptionId: string | null) {
     queryFn: async () => {
       if (!prescriptionId || !profile?.hospital_id) return [];
 
-      const { data, error } = await supabase.rpc(
-        'get_prescription_amendment_chain',
-        {
-          p_prescription_id: prescriptionId,
-        }
-      );
+      const { data, error } = await supabase.rpc('get_prescription_amendment_chain', {
+        p_prescription_id: prescriptionId,
+      });
 
       if (error) {
         console.error('Failed to fetch prescription amendment chain:', error);
@@ -88,75 +85,9 @@ export function usePrescriptionAmendmentChain(prescriptionId: string | null) {
 }
 
 /**
- * Query the audit trail for an invoice (billing forensics).
- * Shows: CHARGE_CREATED → DISCOUNT_APPLIED → PAYMENT_RECEIVED → ADJUSTMENT (if any)
- * 
- * @param invoiceId - UUID of invoice
- * @returns Array of immutable billing audit records
- */
-export function useInvoiceAuditTrail(invoiceId: string | null) {
-  const { profile } = useAuth();
-
-  return useQuery({
-    queryKey: ['invoice_audit_trail', invoiceId, profile?.hospital_id],
-    queryFn: async () => {
-      if (!invoiceId || !profile?.hospital_id) return [];
-
-      const { data, error } = await supabase.rpc(
-        'get_invoice_audit_trail',
-        {
-          p_invoice_id: invoiceId,
-        }
-      );
-
-      if (error) {
-        console.error('Failed to fetch invoice audit trail:', error);
-        throw new Error(`Invoice audit trail query failed: ${error.message}`);
-      }
-
-      return (data || []) as InvoiceAuditRecord[];
-    },
-    enabled: !!invoiceId && !!profile?.hospital_id,
-  });
-}
-
-/**
- * Query the amendment history for a lab result.
- * Shows: CREATED → CORRECTED (if error) → VERIFIED (if final)
- * 
- * @param labResultId - UUID of lab result
- * @returns Array of immutable lab result audit records
- */
-export function useLabResultAmendmentHistory(labResultId: string | null) {
-  const { profile } = useAuth();
-
-  return useQuery({
-    queryKey: ['lab_result_amendment_history', labResultId, profile?.hospital_id],
-    queryFn: async () => {
-      if (!labResultId || !profile?.hospital_id) return [];
-
-      const { data, error } = await supabase.rpc(
-        'get_lab_result_history',
-        {
-          p_lab_result_id: labResultId,
-        }
-      );
-
-      if (error) {
-        console.error('Failed to fetch lab result history:', error);
-        throw new Error(`Lab result history query failed: ${error.message}`);
-      }
-
-      return (data || []) as LabResultAmendmentRecord[];
-    },
-    enabled: !!labResultId && !!profile?.hospital_id,
-  });
-}
-
-/**
  * Query audit records for a specific entity with optional filters.
  * Used for forensic dashboard and compliance reporting.
- * 
+ *
  * @param options - Filter options
  * @returns Filtered audit records
  */
@@ -185,10 +116,7 @@ export function useAuditQuery(options: AuditQueryOptions) {
     queryFn: async () => {
       if (!profile?.hospital_id) return [];
 
-      let query = supabase
-        .from('audit_log')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id);
+      let query = supabase.from('audit_log').select('*').eq('hospital_id', profile.hospital_id);
 
       if (options.entityType) {
         query = query.eq('entity_type', options.entityType);
@@ -236,33 +164,6 @@ export interface AuditAnomaly {
   example_entity_id: string;
 }
 
-export function useAuditAnomalies(hoursSince: number = 24) {
-  const { profile } = useAuth();
-
-  return useQuery({
-    queryKey: ['audit_anomalies', profile?.hospital_id, hoursSince],
-    queryFn: async () => {
-      if (!profile?.hospital_id) return [];
-
-      const { data, error } = await supabase.rpc(
-        'find_audit_anomalies',
-        {
-          p_hospital_id: profile.hospital_id,
-          p_hours_since: hoursSince,
-        }
-      );
-
-      if (error) {
-        console.error('Failed to fetch audit anomalies:', error);
-        throw new Error(`Anomaly detection failed: ${error.message}`);
-      }
-
-      return (data || []) as AuditAnomaly[];
-    },
-    enabled: !!profile?.hospital_id,
-  });
-}
-
 /**
  * Manually refresh a specific amendment chain (e.g., after new amendment).
  * Usage:
@@ -301,5 +202,3 @@ export function useRefreshAmendmentChain() {
 
   return { refreshPrescriptionChain, refreshInvoiceTrail, refreshLabHistory };
 }
-
-

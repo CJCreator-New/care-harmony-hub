@@ -52,6 +52,3 @@ export const mockSupabaseClient = {
   }),
   removeChannel: vi.fn(),
 };
-
-// Mock factory function
-export const createMockSupabaseClient = () => mockSupabaseClient;

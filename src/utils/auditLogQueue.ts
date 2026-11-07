@@ -1,9 +1,9 @@
 /**
  * Async Audit Log Queue
- * 
+ *
  * Batches audit logs and flushes them asynchronously to prevent
  * blocking the main thread during user interactions.
- * 
+ *
  * @module auditLogQueue
  * @version 1.0.0
  */
@@ -35,7 +35,7 @@ class AuditLogQueue {
   private flushTimer: number | null = null;
   private isFlushing = false;
   private retryCount = new Map<string, number>();
-  
+
   private config: Required<AuditLogQueueConfig>;
 
   constructor(config: AuditLogQueueConfig = {}) {
@@ -43,12 +43,12 @@ class AuditLogQueue {
       maxBatchSize: config.maxBatchSize || 10,
       flushInterval: config.flushInterval || 5000, // 5 seconds
       maxRetries: config.maxRetries || 3,
-      retryDelay: config.retryDelay || 1000 // 1 second
+      retryDelay: config.retryDelay || 1000, // 1 second
     };
 
     // Setup periodic flush
     this.setupPeriodicFlush();
-    
+
     // Flush on page unload
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => {
@@ -64,7 +64,7 @@ class AuditLogQueue {
     const fullEntry: AuditLogEntry = {
       ...entry,
       id: this.generateId(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.queue.push(fullEntry);
@@ -110,19 +110,19 @@ class AuditLogQueue {
 
     try {
       await this.sendBatch(batch);
-      
+
       // Clear retry counts for successful entries
-      batch.forEach(entry => {
+      batch.forEach((entry) => {
         this.retryCount.delete(entry.id);
       });
     } catch (error) {
       console.error('Failed to flush audit logs:', error);
-      
+
       // Re-queue failed entries with retry tracking
-      const failedEntries = batch.filter(entry => {
+      const failedEntries = batch.filter((entry) => {
         const retries = (this.retryCount.get(entry.id) || 0) + 1;
         this.retryCount.set(entry.id, retries);
-        
+
         if (retries < this.config.maxRetries) {
           return true; // Will retry
         } else {
@@ -145,7 +145,7 @@ class AuditLogQueue {
     if (this.queue.length === 0) return;
 
     const batch = this.queue.splice(0, this.config.maxBatchSize);
-    
+
     // Use sendBeacon if available for reliable delivery on page unload
     if (navigator.sendBeacon) {
       const blob = new Blob([JSON.stringify(batch)], { type: 'application/json' });
@@ -166,7 +166,7 @@ class AuditLogQueue {
     if (batch.length === 0) return;
 
     // Transform entries for database
-    const dbEntries = batch.map(entry => ({
+    const dbEntries = batch.map((entry) => ({
       hospital_id: entry.hospital_id,
       user_id: entry.user_id,
       action_type: entry.action_type,
@@ -175,12 +175,10 @@ class AuditLogQueue {
       details: entry.details,
       ip_address: entry.ip_address,
       user_agent: entry.user_agent,
-      created_at: new Date(entry.timestamp).toISOString()
+      created_at: new Date(entry.timestamp).toISOString(),
     }));
 
-    const { error } = await supabase
-      .from('audit_logs')
-      .insert(dbEntries);
+    const { error } = await supabase.from('audit_logs').insert(dbEntries);
 
     if (error) {
       throw error;
@@ -198,7 +196,7 @@ class AuditLogQueue {
     return {
       queueSize: this.queue.length,
       isFlushing: this.isFlushing,
-      retryCounts: this.retryCount.size
+      retryCounts: this.retryCount.size,
     };
   }
 
@@ -228,35 +226,8 @@ export const auditLogQueue = new AuditLogQueue();
 /**
  * Convenience function to add audit log
  */
-export function logAudit(
-  entry: Omit<AuditLogEntry, 'id' | 'timestamp'>
-): void {
+export function logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): void {
   auditLogQueue.add(entry);
-}
-
-/**
- * Convenience function for HIPAA-compliant audit logging
- */
-export function logPHIAccess(
-  hospitalId: string,
-  userId: string,
-  action: 'view' | 'create' | 'update' | 'delete',
-  entityType: string,
-  entityId: string,
-  details?: Record<string, any>
-): void {
-  auditLogQueue.add({
-    hospital_id: hospitalId,
-    user_id: userId,
-    action_type: `phi_${action}`,
-    entity_type: entityType,
-    entity_id: entityId,
-    details: {
-      ...details,
-      phi_access: true,
-      hipaa_relevant: true
-    }
-  });
 }
 
 /**
@@ -276,8 +247,8 @@ export function logSecurityEvent(
     details: {
       ...details,
       severity,
-      security_event: true
-    }
+      security_event: true,
+    },
   });
 }
 

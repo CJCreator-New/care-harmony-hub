@@ -1,18 +1,18 @@
-import { useState, memo } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, memo } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -20,7 +20,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Plus,
   Search,
@@ -35,37 +35,37 @@ import {
   MoreVertical,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, parseISO } from "date-fns";
+} from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { format, isSameDay, parseISO } from 'date-fns';
 import {
   useCheckInAppointment,
   useUpdateAppointment,
   useAppointmentsRealtime,
-} from "@/lib/hooks/appointments";
-import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { APPOINTMENT_COLUMNS } from "@/lib/queryColumns";
-import { ScheduleAppointmentModal } from "@/components/appointments/ScheduleAppointmentModal";
-import { AuditTimeline } from "@/components/audit/AuditTimeline";
-import { useAmendmentAlerts } from "@/hooks/useAmendmentAlerts";
+} from '@/lib/hooks/appointments';
+import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { APPOINTMENT_COLUMNS } from '@/lib/queryColumns';
+import { ScheduleAppointmentModal } from '@/components/appointments/ScheduleAppointmentModal';
+import { AuditTimeline } from '@/components/audit/AuditTimeline';
+import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Pagination } from "@/components/ui/pagination";
-import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ConfirmDestructiveAction } from "@/components/common/ConfirmDestructiveAction";
+} from '@/components/ui/dropdown-menu';
+import { Pagination } from '@/components/ui/pagination';
+import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 
 // Local type for appointment data returned by usePaginatedQuery
 type Appointment = {
@@ -80,25 +80,32 @@ type Appointment = {
   patient?: { id: string; first_name: string; last_name: string; mrn: string; phone?: string };
   doctor?: { id: string; first_name: string; last_name: string };
 };
-const STATUS_CONFIG: Record<string, { label: string; variant: "info" | "warning" | "secondary" | "success" | "destructive" | "outline"; icon: React.FC<{ className?: string }> }> = {
-  scheduled:   { label: "Scheduled",   variant: "info",        icon: Clock        },
-  checked_in:  { label: "Checked In",  variant: "warning",     icon: CheckCircle  },
-  in_progress: { label: "In Progress", variant: "secondary",   icon: User         },
-  completed:   { label: "Completed",   variant: "success",     icon: CheckCircle  },
-  cancelled:   { label: "Cancelled",   variant: "destructive", icon: XCircle      },
-  no_show:     { label: "No Show",     variant: "outline",     icon: XCircle      },
+const STATUS_CONFIG: Record<
+  string,
+  {
+    label: string;
+    variant: 'info' | 'warning' | 'secondary' | 'success' | 'destructive' | 'outline';
+    icon: React.FC<{ className?: string }>;
+  }
+> = {
+  scheduled: { label: 'Scheduled', variant: 'info', icon: Clock },
+  checked_in: { label: 'Checked In', variant: 'warning', icon: CheckCircle },
+  in_progress: { label: 'In Progress', variant: 'secondary', icon: User },
+  completed: { label: 'Completed', variant: 'success', icon: CheckCircle },
+  cancelled: { label: 'Cancelled', variant: 'destructive', icon: XCircle },
+  no_show: { label: 'No Show', variant: 'outline', icon: XCircle },
 };
 
 export default function AppointmentsPage() {
   const { profile } = useAuth();
-  
+
   // Enable realtime updates
   useAppointmentsRealtime();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showAuditDialog, setShowAuditDialog] = useState(false);
@@ -114,13 +121,13 @@ export default function AppointmentsPage() {
   // Debounce search term for server-side filtering
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
-  const dateString = format(selectedDate, "yyyy-MM-dd");
+  const dateString = format(selectedDate, 'yyyy-MM-dd');
 
   // Build filters for the query
   const filters = {
     hospital_id: profile?.hospital_id,
-    ...(viewMode === "list" && dateString && { scheduled_date: dateString }),
-    ...(statusFilter !== "all" && { status: statusFilter }),
+    ...(viewMode === 'list' && dateString && { scheduled_date: dateString }),
+    ...(statusFilter !== 'all' && { status: statusFilter }),
   };
 
   const {
@@ -140,7 +147,7 @@ export default function AppointmentsPage() {
     searchQuery: debouncedSearch,
     searchColumn: 'patient.first_name,patient.last_name,patient.mrn',
     orderBy: { column: 'scheduled_time', ascending: true },
-    pageSize: viewMode === "calendar" ? 100 : 50, // Load more for calendar view
+    pageSize: viewMode === 'calendar' ? 100 : 50, // Load more for calendar view
   });
 
   // Cast to proper type
@@ -157,24 +164,20 @@ export default function AppointmentsPage() {
   const handleCancel = async (appointmentId: string, reason: string) => {
     await updateAppointment.mutateAsync({
       id: appointmentId,
-      status: "cancelled",
+      status: 'cancelled',
       cancellationReason: reason,
     });
   };
 
   const handleMarkNoShow = (appointmentId: string) => {
-    updateAppointment.mutate({ id: appointmentId, status: "no_show" });
-  };
-
-  const getAppointmentsForDate = (date: Date) => {
-    return appointments?.filter((apt) => isSameDay(parseISO(apt.scheduled_date), date)) || [];
+    updateAppointment.mutate({ id: appointmentId, status: 'no_show' });
   };
 
   const todayStats = {
     total: appointments?.length || 0,
-    scheduled: appointments?.filter((a) => a.status === "scheduled").length || 0,
-    checkedIn: appointments?.filter((a) => a.status === "checked_in").length || 0,
-    completed: appointments?.filter((a) => a.status === "completed").length || 0,
+    scheduled: appointments?.filter((a) => a.status === 'scheduled').length || 0,
+    checkedIn: appointments?.filter((a) => a.status === 'checked_in').length || 0,
+    completed: appointments?.filter((a) => a.status === 'completed').length || 0,
   };
 
   return (
@@ -235,7 +238,11 @@ export default function AppointmentsPage() {
         </div>
 
         {/* View Toggle, Filters and Content */}
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "calendar")} className="space-y-4">
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) => setViewMode(v as 'list' | 'calendar')}
+          className="space-y-4"
+        >
           {/* Tab headers + search/filter row */}
           <div className="flex flex-col sm:flex-row gap-4">
             <TabsList>
@@ -283,7 +290,7 @@ export default function AppointmentsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">List view</p>
                     <CardTitle className="text-lg">
-                      {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                      {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                     </CardTitle>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -292,7 +299,16 @@ export default function AppointmentsPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() => setSelectedDate((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1))}
+                        onClick={() =>
+                          setSelectedDate(
+                            (current) =>
+                              new Date(
+                                current.getFullYear(),
+                                current.getMonth(),
+                                current.getDate() - 1
+                              )
+                          )
+                        }
                         aria-label="Previous day"
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -301,7 +317,16 @@ export default function AppointmentsPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() => setSelectedDate((current) => new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1))}
+                        onClick={() =>
+                          setSelectedDate(
+                            (current) =>
+                              new Date(
+                                current.getFullYear(),
+                                current.getMonth(),
+                                current.getDate() + 1
+                              )
+                          )
+                        }
                         aria-label="Next day"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -322,61 +347,73 @@ export default function AppointmentsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead scope="col">Time</TableHead>
-                      <TableHead scope="col">Patient</TableHead>
-                      <TableHead scope="col" className="hidden md:table-cell">Type</TableHead>
-                      <TableHead scope="col" className="hidden md:table-cell">Doctor</TableHead>
-                      <TableHead scope="col">Status</TableHead>
-                      <TableHead scope="col" className="hidden sm:table-cell">Queue #</TableHead>
-                      <TableHead scope="col" className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading || isSearching ? (
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
-                          <div className="space-y-3">
-                            <div className="flex justify-center items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <span>{isSearching ? "Searching..." : "Loading appointments..."}</span>
-                            </div>
-                            <div className="space-y-2">
-                              <Skeleton className="h-10 w-full" />
-                              <Skeleton className="h-10 w-full" />
-                              <Skeleton className="h-10 w-full" />
-                            </div>
-                          </div>
-                        </TableCell>
+                        <TableHead scope="col">Time</TableHead>
+                        <TableHead scope="col">Patient</TableHead>
+                        <TableHead scope="col" className="hidden md:table-cell">
+                          Type
+                        </TableHead>
+                        <TableHead scope="col" className="hidden md:table-cell">
+                          Doctor
+                        </TableHead>
+                        <TableHead scope="col">Status</TableHead>
+                        <TableHead scope="col" className="hidden sm:table-cell">
+                          Queue #
+                        </TableHead>
+                        <TableHead scope="col" className="text-right">
+                          Actions
+                        </TableHead>
                       </TableRow>
-                    ) : appointments?.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          {searchTerm ? "No appointments match your search" : "No appointments for this date"}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      appointments?.map((appointment) => (
-                        <AppointmentRow
-                          key={appointment.id}
-                          appointment={appointment}
-                          onCheckIn={handleCheckIn}
-                          onCancel={handleCancel}
-                          onMarkNoShow={handleMarkNoShow}
-                          isCheckingIn={checkIn.isPending}
-                          onViewAudit={(apt) => {
-                            setSelectedAppointment(apt);
-                            setShowAuditDialog(true);
-                          }}
-                        />
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading || isSearching ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <div className="space-y-3">
+                              <div className="flex justify-center items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>
+                                  {isSearching ? 'Searching...' : 'Loading appointments...'}
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : appointments?.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            {searchTerm
+                              ? 'No appointments match your search'
+                              : 'No appointments for this date'}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        appointments?.map((appointment) => (
+                          <AppointmentRow
+                            key={appointment.id}
+                            appointment={appointment}
+                            onCheckIn={handleCheckIn}
+                            onCancel={handleCancel}
+                            onMarkNoShow={handleMarkNoShow}
+                            isCheckingIn={checkIn.isPending}
+                            onViewAudit={(apt) => {
+                              setSelectedAppointment(apt);
+                              setShowAuditDialog(true);
+                            }}
+                          />
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
-                
+
                 {totalPages > 1 && (
                   <div className="mt-4">
                     <Pagination
@@ -385,7 +422,7 @@ export default function AppointmentsPage() {
                       onPageChange={goToPage}
                       onPrevious={prevPage}
                       onNext={nextPage}
-                      pageSize={viewMode === "calendar" ? 100 : 50}
+                      pageSize={viewMode === 'calendar' ? 100 : 50}
                       totalCount={totalCount}
                     />
                   </div>
@@ -424,19 +461,22 @@ export default function AppointmentsPage() {
                   {selectedAppointment.patient?.first_name} {selectedAppointment.patient?.last_name}
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  {format(parseISO(selectedAppointment.scheduled_date), 'MMM d, yyyy')} at {selectedAppointment.scheduled_time.slice(0, 5)}
+                  {format(parseISO(selectedAppointment.scheduled_date), 'MMM d, yyyy')} at{' '}
+                  {selectedAppointment.scheduled_time.slice(0, 5)}
                 </p>
               </div>
-              
+
               {getRecentAmendment(selectedAppointment.id) && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-800">Appointment was recently rescheduled or cancelled</p>
+                  <p className="text-sm text-amber-800">
+                    Appointment was recently rescheduled or cancelled
+                  </p>
                 </div>
               )}
-              
+
               <AuditTimeline recordId={selectedAppointment.id} recordType="appointment" />
-              
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowAuditDialog(false)}>
                   Close
@@ -470,13 +510,12 @@ const AppointmentRow = memo(function AppointmentRow({
   const status = STATUS_CONFIG[appointment.status] || STATUS_CONFIG.scheduled;
   // One dialog per row, opened from both the desktop button and the mobile menu item.
   const [cancelOpen, setCancelOpen] = useState(false);
-  const patientName = `${appointment.patient?.first_name ?? ""} ${appointment.patient?.last_name ?? ""}`.trim();
+  const patientName =
+    `${appointment.patient?.first_name ?? ''} ${appointment.patient?.last_name ?? ''}`.trim();
 
   return (
     <TableRow>
-      <TableCell className="font-medium">
-        {appointment.scheduled_time.slice(0, 5)}
-      </TableCell>
+      <TableCell className="font-medium">{appointment.scheduled_time.slice(0, 5)}</TableCell>
       <TableCell>
         <div>
           <p className="font-medium">
@@ -485,7 +524,9 @@ const AppointmentRow = memo(function AppointmentRow({
           <p className="text-sm text-muted-foreground">{appointment.patient?.mrn}</p>
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell capitalize">{appointment.appointment_type}</TableCell>
+      <TableCell className="hidden md:table-cell capitalize">
+        {appointment.appointment_type}
+      </TableCell>
       <TableCell className="hidden md:table-cell">
         {appointment.doctor ? (
           `Dr. ${appointment.doctor.first_name} ${appointment.doctor.last_name}`
@@ -503,13 +544,13 @@ const AppointmentRow = memo(function AppointmentRow({
         {appointment.queue_number ? (
           <Badge variant="outline">#{appointment.queue_number}</Badge>
         ) : (
-          "-"
+          '-'
         )}
       </TableCell>
       <TableCell className="text-right">
         {/* Desktop: Individual buttons */}
         <div className="hidden sm:flex justify-end gap-2">
-          {appointment.status === "scheduled" && (
+          {appointment.status === 'scheduled' && (
             <>
               <Button
                 size="sm"
@@ -519,21 +560,13 @@ const AppointmentRow = memo(function AppointmentRow({
               >
                 Check In
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCancelOpen(true)}
-              >
+              <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
                 Cancel
               </Button>
             </>
           )}
-          {appointment.status === "checked_in" && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onMarkNoShow(appointment.id)}
-            >
+          {appointment.status === 'checked_in' && (
+            <Button size="sm" variant="outline" onClick={() => onMarkNoShow(appointment.id)}>
               No Show
             </Button>
           )}
@@ -556,17 +589,18 @@ const AppointmentRow = memo(function AppointmentRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {appointment.status === "scheduled" && (
+              {appointment.status === 'scheduled' && (
                 <>
-                  <DropdownMenuItem onClick={() => onCheckIn(appointment.id)} disabled={isCheckingIn}>
+                  <DropdownMenuItem
+                    onClick={() => onCheckIn(appointment.id)}
+                    disabled={isCheckingIn}
+                  >
                     Check In
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCancelOpen(true)}>
-                    Cancel
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCancelOpen(true)}>Cancel</DropdownMenuItem>
                 </>
               )}
-              {appointment.status === "checked_in" && (
+              {appointment.status === 'checked_in' && (
                 <DropdownMenuItem onClick={() => onMarkNoShow(appointment.id)}>
                   No Show
                 </DropdownMenuItem>
@@ -584,8 +618,9 @@ const AppointmentRow = memo(function AppointmentRow({
           description={
             <>
               <p>
-                {patientName || "This patient"}'s appointment at {appointment.scheduled_time.slice(0, 5)}{" "}
-                will be marked as cancelled and removed from the queue.
+                {patientName || 'This patient'}'s appointment at{' '}
+                {appointment.scheduled_time.slice(0, 5)} will be marked as cancelled and removed
+                from the queue.
               </p>
               <p>The reason is saved in the audit history.</p>
             </>
@@ -621,15 +656,14 @@ function CalendarView({ selectedDate, onDateSelect, appointments }: CalendarView
             mode="single"
             selected={selectedDate}
             onSelect={(date) => date && onDateSelect(date)}
-            className={cn("p-0 pointer-events-auto w-full")}
+            className={cn('p-0 pointer-events-auto w-full')}
             modifiers={{
-              hasAppointments: (date) =>
-                getAppointmentsForDate(date).length > 0,
+              hasAppointments: (date) => getAppointmentsForDate(date).length > 0,
             }}
             modifiersStyles={{
               hasAppointments: {
-                fontWeight: "bold",
-                backgroundColor: "hsl(var(--primary) / 0.1)",
+                fontWeight: 'bold',
+                backgroundColor: 'hsl(var(--primary) / 0.1)',
               },
             }}
           />
@@ -638,13 +672,11 @@ function CalendarView({ selectedDate, onDateSelect, appointments }: CalendarView
 
       <Card>
         <CardHeader>
-          <CardTitle>{format(selectedDate, "MMMM d, yyyy")}</CardTitle>
+          <CardTitle>{format(selectedDate, 'MMMM d, yyyy')}</CardTitle>
         </CardHeader>
         <CardContent>
           {dateAppointments.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No appointments scheduled
-            </p>
+            <p className="text-muted-foreground text-center py-8">No appointments scheduled</p>
           ) : (
             <div className="space-y-3">
               {dateAppointments
