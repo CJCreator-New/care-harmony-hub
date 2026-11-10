@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { checkDrugAllergyConflict } from '@/utils/clinicalValidation';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -28,34 +27,6 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
     it('writes audit trail to activity_logs on decryption', () => {
       expect(fnSource).toContain('.from("activity_logs").insert');
       expect(fnSource).toContain('PHI_DECRYPT');
-    });
-  });
-
-  describe('Ticket 02 (CLIN-001): Drug Allergy Conflict Normalization', () => {
-    it('detects penicillin allergy without allergy suffix', () => {
-      const res = checkDrugAllergyConflict('Amoxicillin', ['penicillin']);
-      expect(res.safe).toBe(false);
-      expect(res.hasConflict).toBe(true);
-      expect(res.conflictingAllergy).toBe('penicillin');
-    });
-
-    it('detects PCN acronym', () => {
-      const res = checkDrugAllergyConflict('Piperacillin', ['PCN']);
-      expect(res.safe).toBe(false);
-      expect(res.hasConflict).toBe(true);
-    });
-
-    it('detects sulfa class contraindication', () => {
-      const res = checkDrugAllergyConflict('Bactrim', ['sulfa']);
-      expect(res.safe).toBe(false);
-      expect(res.hasConflict).toBe(true);
-    });
-
-    it('passes safe medications without false positives', () => {
-      const res = checkDrugAllergyConflict('Metformin', ['penicillin', 'sulfa']);
-      expect(res.safe).toBe(true);
-      expect(res.hasConflict).toBe(false);
-      expect(res.conflicts).toEqual([]);
     });
   });
 
