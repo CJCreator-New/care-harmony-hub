@@ -19,8 +19,10 @@ vi.mock('sonner', () => ({
 }));
 
 // Mock Supabase
-const mockSupabaseFrom = vi.fn();
-const mockSupabaseInvoke = vi.fn();
+const { mockSupabaseFrom, mockSupabaseInvoke } = vi.hoisted(() => ({
+  mockSupabaseFrom: vi.fn(),
+  mockSupabaseInvoke: vi.fn(),
+}));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: mockSupabaseFrom,
@@ -40,6 +42,8 @@ vi.mock('@/integrations/supabase/client', () => ({
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: vi.fn(() => ({
     user: { id: 'test-user-id', hospital_id: 'test-hospital-id' },
+    hospital: { id: 'test-hospital-id' },
+    primaryRole: 'doctor',
   })),
 }));
 
@@ -51,7 +55,10 @@ vi.mock('@/hooks/useActivityLog', () => ({
 }));
 
 describe('Discharge Workflow - State Machine', () => {
-  const queryClient = new QueryClient();
+  let queryClient: QueryClient;
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
   const mockWorkflow = {
     id: 'wf-123',
     hospital_id: 'hospital-1',
@@ -87,10 +94,10 @@ describe('Discharge Workflow - State Machine', () => {
       ),
     });
 
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isLoadingWorkflow).toBe(true);
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isLoadingWorkflow).toBe(false);
     });
 
     expect(result.current.workflow).toEqual(mockWorkflow);
@@ -116,13 +123,17 @@ describe('Discharge Workflow - State Machine', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isLoadingWorkflow).toBe(false);
     });
 
     expect(result.current.workflow).toBeNull();
   });
 
   it('should initiate new discharge workflow', async () => {
+    mockSupabaseInvoke.mockResolvedValue({
+      data: { ...mockWorkflow, status: 'in_progress' },
+      error: null,
+    });
     mockSupabaseFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnThis(),
@@ -156,21 +167,30 @@ describe('Discharge Workflow - State Machine', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isLoadingWorkflow).toBe(false);
     });
 
     let initiated;
     await act(async () => {
-      initiated = await result.current.initiateDischarge('patient-1');
+      initiated = await result.current.initiateDischarge({ patientId: 'patient-1' });
     });
 
+    expect(mockSupabaseInvoke).toHaveBeenCalledWith(
+      'discharge-workflow',
+      expect.objectContaining({
+        body: expect.objectContaining({ action: 'initiate', patientId: 'patient-1' }),
+      })
+    );
     expect(initiated).toBeDefined();
-    expect(initiated?.status).toBe('pending_review');
+    expect(initiated?.status).toBe('in_progress');
   });
 });
 
 describe('Discharge Workflow - Role Permissions', () => {
-  const queryClient = new QueryClient();
+  let queryClient: QueryClient;
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
 
   it('should enforce role permissions for clinical_clear action', () => {
     const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
@@ -217,7 +237,10 @@ describe('Discharge Workflow - Role Permissions', () => {
 });
 
 describe('Discharge Workflow - State Transitions', () => {
-  const queryClient = new QueryClient();
+  let queryClient: QueryClient;
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
   const mockWorkflow = {
     id: 'wf-123',
     hospital_id: 'hospital-1',
@@ -304,7 +327,10 @@ describe('Discharge Workflow - State Transitions', () => {
 });
 
 describe('Discharge Workflow - Error Handling', () => {
-  const queryClient = new QueryClient();
+  let queryClient: QueryClient;
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
 
   it('should handle network errors gracefully', async () => {
     const error = new Error('Network failed');
@@ -327,7 +353,7 @@ describe('Discharge Workflow - Error Handling', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isLoadingWorkflow).toBe(false);
     });
 
     expect(result.current.error).toBeDefined();
@@ -379,7 +405,10 @@ describe('Discharge Workflow - Error Handling', () => {
 });
 
 describe('Discharge Workflow - Cancellation', () => {
-  const queryClient = new QueryClient();
+  let queryClient: QueryClient;
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
   const mockWorkflow = {
     id: 'wf-123',
     hospital_id: 'hospital-1',
@@ -406,12 +435,10 @@ describe('Discharge Workflow - Cancellation', () => {
 
     mockSupabaseInvoke.mockResolvedValue({
       data: {
-        workflow: {
-          ...mockWorkflow,
-          status: 'cancelled',
-          current_step: 0,
-          cancellation_reason: 'Patient refused discharge',
-        },
+        ...mockWorkflow,
+        status: 'cancelled',
+        current_step: 0,
+        cancellation_reason: 'Patient refused discharge',
       },
       error: null,
     });
@@ -428,7 +455,10 @@ describe('Discharge Workflow - Cancellation', () => {
 
     let cancelled;
     await act(async () => {
-      cancelled = await result.current.cancelDischarge('Patient refused discharge');
+      cancelled = await result.current.cancelWorkflow({
+        workflowId: 'wf-123',
+        reason: 'Patient refused discharge',
+      });
     });
 
     expect(cancelled?.status).toBe('cancelled');

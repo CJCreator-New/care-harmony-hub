@@ -21,7 +21,8 @@ describe('AuditTimeline Component', () => {
     });
 
     render(<AuditTimeline recordId="rx_123" recordType="prescription" />);
-    expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    // Skeleton uses the `motion-safe:animate-pulse` variant, so match the class substring.
+    expect(document.querySelectorAll('[class*="animate-pulse"]').length).toBeGreaterThan(0);
   });
 
   it('renders empty state when no amendments', () => {
