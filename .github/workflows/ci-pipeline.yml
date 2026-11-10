@@ -26,7 +26,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NODE_VERSION: '20'
+  # dependency-cruiser 18 (Architecture boundaries) and lint-staged 17 need Node 22 or later.
+  NODE_VERSION: '22'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -45,13 +46,21 @@ jobs:
       - name: Type-check app and node configs
         run: npm run type-check
       # ARCH-01: fail if the app config stops compiling real source (vacuous gate).
-      # `wc -l` (not `grep -c`) so an empty match is a count of 0, not a grep exit code.
+      # Every tracked non-test file under src/ must be in the set tsc checks. The only
+      # exception is the Supabase client, which tsconfig.app.json excludes.
       - name: Guard against a vacuous type gate
         run: |
-          set -o pipefail
-          FILES=$(npx tsc -p tsconfig.app.json --listFilesOnly | grep -v node_modules | grep '/src/' | wc -l)
-          echo "tsc checked $FILES app source files"
-          test "$FILES" -gt 900
+          set -eo pipefail
+          npx tsc -p tsconfig.app.json --listFilesOnly | grep "^$PWD/src/" | sed "s|^$PWD/||" | sort > tsc-checked.txt
+          git ls-files 'src/*.ts' 'src/*.tsx' \
+            | { grep -vE '\.test\.tsx?$|/__tests__/|^src/test/|^src/integrations/supabase/client\.ts$' || true; } \
+            | sort > tsc-expected.txt
+          echo "tsc checked $(wc -l < tsc-checked.txt) of $(wc -l < tsc-expected.txt) app source files"
+          test -s tsc-expected.txt
+          MISSING=$(comm -13 tsc-checked.txt tsc-expected.txt)
+          if [ -n "$MISSING" ]; then
+            echo "Not type-checked:"; echo "$MISSING"; exit 1
+          fi
 
   lint:
     name: Lint
@@ -230,7 +239,9 @@ jobs:
 
   e2e-smoke:
     name: E2E smoke (Playwright, chromium)
-    runs-on: ubuntu-latest
+    # Pinned: the installed Playwright has no browser build for the image that
+    # ubuntu-latest now resolves to. Move this forward together with @playwright/test.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
