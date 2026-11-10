@@ -16,7 +16,11 @@ describe('injectCorrelationIdIntoFetch', () => {
   it('passes cross-origin requests through untouched (same arguments, no extra headers)', async () => {
     const original = vi.fn(ok);
     const wrapped = injectCorrelationIdIntoFetch(original as unknown as typeof fetch);
-    const init = { method: 'POST', headers: { Authorization: 'Bearer t', 'Content-Type': 'application/json' }, body: '{"action":"decrypt"}' };
+    const init = {
+      method: 'POST',
+      headers: { Authorization: 'Bearer t', 'Content-Type': 'application/json' },
+      body: '{"action":"decrypt"}',
+    };
 
     await wrapped('https://abc.supabase.co/functions/v1/phi-crypto', init);
 
@@ -41,7 +45,11 @@ describe('injectCorrelationIdIntoFetch', () => {
     const original = vi.fn(ok);
     const wrapped = injectCorrelationIdIntoFetch(original as unknown as typeof fetch);
 
-    await wrapped(`${window.location.origin}/api/logs`, { method: 'POST', body: 'x', headers: { 'Content-Type': 'text/plain' } });
+    await wrapped(`${window.location.origin}/api/logs`, {
+      method: 'POST',
+      body: 'x',
+      headers: { 'Content-Type': 'text/plain' },
+    });
     await wrapped('/relative/path');
 
     const [, init1] = original.mock.calls[0] as unknown as [string, RequestInit];
@@ -71,13 +79,6 @@ describe('injectCorrelationIdIntoFetch', () => {
 describe('S0-02: no global fetch patch', () => {
   it('no longer exports registerFetchInterceptor', () => {
     expect('registerFetchInterceptor' in correlationModule).toBe(false);
-  });
-
-  it('bootstrap leaves window.fetch untouched', async () => {
-    const before = window.fetch;
-    const { setupRequestInterceptors } = await import('@/bootstrap/correlation-id');
-    setupRequestInterceptors();
-    expect(window.fetch).toBe(before);
   });
 
   it('no source file reassigns the global fetch', () => {

@@ -1,26 +1,25 @@
-import { useEffect, Suspense } from "react";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { BrowserRouter, Routes, useLocation } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { TestingProvider } from "@/contexts/TestingContext";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
-import { useAmendmentAlert } from "@/hooks/useAmendmentAlert";
-import { bootstrap } from "@/bootstrap";
-import { RouteFallback } from "@/components/common/RouteFallback";
-import { SkipNavigation } from "@/components/accessibility/SkipNavigation";
-import { SessionTimeoutDialog } from "@/components/common/SessionTimeoutDialog";
+import { Suspense } from 'react';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
+import { BrowserRouter, Routes, useLocation } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { TestingProvider } from '@/contexts/TestingContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
+import { useAmendmentAlert } from '@/hooks/useAmendmentAlert';
+import { RouteFallback } from '@/components/common/RouteFallback';
+import { SkipNavigation } from '@/components/accessibility/SkipNavigation';
+import { SessionTimeoutDialog } from '@/components/common/SessionTimeoutDialog';
 import {
   fallbackRoute,
   publicRoutes,
   protectedRoutes,
   redirectRoutes,
   renderRoutes,
-} from "@/routes/routeDefinitions";
+} from '@/routes/routeDefinitions';
 
 function AppRoutes() {
   return (
@@ -34,42 +33,6 @@ function AppRoutes() {
 }
 
 const App = () => {
-  useEffect(() => {
-    const otelEndpoint = import.meta.env.VITE_OTEL_ENDPOINT || 'http://localhost:4318';
-    const appEnv = (import.meta.env.MODE === 'production' || import.meta.env.MODE === 'staging')
-      ? (import.meta.env.MODE as 'development' | 'staging' | 'production')
-      : 'development';
-    const appVersion = import.meta.env.VITE_APP_VERSION || '1.0.0';
-
-    // Bootstrap application in strict initialization order
-    const { getLogger, shutdown } = bootstrap({
-      telemetry: {
-        serviceName: 'care-harmony-hub',
-        applicationVersion: appVersion,
-        otlpEndpoint: otelEndpoint,
-        environment: appEnv,
-      },
-      logger: {
-        version: appVersion,
-        environment: appEnv,
-      },
-    });
-
-    const logger = getLogger();
-    logger.info('AROCORD-HIMS initialized', {
-      version: appVersion,
-      environment: appEnv,
-      otelEndpoint,
-    });
-
-    const handleBeforeUnload = () => {
-      shutdown().catch((err) => console.error('[Bootstrap Shutdown]', err));
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system">
@@ -115,4 +78,3 @@ const AppContent = () => {
 };
 
 export default App;
-

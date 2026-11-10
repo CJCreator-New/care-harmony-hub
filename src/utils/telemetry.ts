@@ -10,15 +10,6 @@ import { createLogger, redactForLog } from '@/utils/logger';
 
 const log = createLogger('telemetry');
 
-export interface TelemetryConfig {
-  serviceName?: string;
-  environment?: string;
-  version?: string;
-  applicationVersion?: string;
-  otlpEndpoint?: string;
-  debugLogging?: boolean;
-}
-
 export interface ClinicalSpan {
   setAttribute(key: string, value: unknown): void;
   setStatus(status: 'OK' | 'ERROR', message?: string): void;
@@ -49,7 +40,10 @@ function createSpan(name: string, attributes: Attributes = {}): ClinicalSpan {
     recordException(error) {
       status = 'ERROR';
       const message = error instanceof Error ? error.message : String(error);
-      attrs.exception = redactForLog({ name: error instanceof Error ? error.name : 'Error', message });
+      attrs.exception = redactForLog({
+        name: error instanceof Error ? error.name : 'Error',
+        message,
+      });
     },
     end() {
       if (ended) return;
@@ -65,31 +59,18 @@ function createSpan(name: string, attributes: Attributes = {}): ClinicalSpan {
   };
 }
 
-export function initializeTelemetry(cfg: TelemetryConfig): void {
-  log.info('Telemetry initialised', {
-    service: cfg.serviceName,
-    environment: cfg.environment,
-    version: cfg.version ?? cfg.applicationVersion,
-  });
-}
-
-export function getTracer(name: string = 'care-sync') {
-  return {
-    name,
-    startSpan: (spanName: string, options?: { attributes?: Attributes }) =>
-      createSpan(spanName, options?.attributes),
-  };
-}
-
-export function getMeter(name: string = 'care-sync') {
-  return { name };
-}
-
-export function createClinicalSpan(operationName: string, attributes: Attributes = {}): ClinicalSpan {
+export function createClinicalSpan(
+  operationName: string,
+  attributes: Attributes = {}
+): ClinicalSpan {
   return createSpan(operationName, attributes);
 }
 
-export function recordClinicalMetric(name: string, value: number, attributes: Attributes = {}): void {
+export function recordClinicalMetric(
+  name: string,
+  value: number,
+  attributes: Attributes = {}
+): void {
   try {
     log.info('clinical metric', { metric: name, value, ...safeAttributes(attributes) });
   } catch {
@@ -100,17 +81,3 @@ export function recordClinicalMetric(name: string, value: number, attributes: At
 export function recordEvent(eventName: string, attributes: Attributes = {}): void {
   log.info('clinical event', { event: eventName, ...safeAttributes(attributes) });
 }
-
-export async function shutdownTelemetry(): Promise<void> {
-  // Nothing to flush: breadcrumbs are sent by Sentry itself.
-}
-
-export default {
-  initializeTelemetry,
-  getTracer,
-  getMeter,
-  createClinicalSpan,
-  recordClinicalMetric,
-  recordEvent,
-  shutdownTelemetry,
-};

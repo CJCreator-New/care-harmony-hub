@@ -1,22 +1,14 @@
 /**
  * useClinicalMetrics Hook
  *
- * Provides convenient access to OpenTelemetry instrumentation for React components.
- * Automatically handles telemetry API initialization and provides typed interfaces
- * for common clinical workflows (prescription, lab, appointment, vital signs).
- *
- * Phase 3B: Observability Integration
+ * Typed helpers for recording clinical workflow spans, metrics and events
+ * (prescription, lab, appointment, vital signs) through `@/utils/telemetry`,
+ * which writes to the PHI-redacting client logger.
  */
 
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  getTracer,
-  getMeter,
-  createClinicalSpan,
-  recordClinicalMetric,
-  recordEvent,
-} from '@/utils/telemetry';
+import { createClinicalSpan, recordClinicalMetric, recordEvent } from '@/utils/telemetry';
 import { getCorrelationId, getTraceContext, logClinicalEvent } from '@/utils/correlationId';
 import { captureException } from '@/lib/monitoring/sentry';
 
@@ -204,7 +196,5 @@ export function useClinicalMetrics() {
     recordCustomEvent,
     recordError,
     getCorrelation,
-    tracer: getTracer('clinical-operations'),
-    meter: getMeter('clinical-metrics'),
   };
 }
