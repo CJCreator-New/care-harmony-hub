@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
-import { componentTagger } from "lovable-tagger";
+import { componentTagger } from 'lovable-tagger';
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
@@ -48,38 +48,38 @@ export default defineConfig(({ mode }) => ({
             src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any maskable',
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
-          }
+            purpose: 'any maskable',
+          },
         ],
         categories: ['medical', 'healthcare', 'productivity'],
         lang: 'en-US',
-        orientation: 'portrait-primary'
+        orientation: 'portrait-primary',
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // SECF-04: never cache Supabase (PHI) responses. Static assets are
         // still precached via globPatterns above.
         runtimeCaching: supabaseNetworkOnlyPatterns(
-          process.env.VITE_SUPABASE_URL ?? loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL,
+          process.env.VITE_SUPABASE_URL ?? loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL
         ).map((urlPattern) => ({
           urlPattern,
           handler: 'NetworkOnly' as const,
         })),
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//]
+        navigateFallbackDenylist: [/^\/api\//],
       },
       devOptions: {
         // Disable PWA service worker in dev: the SW's WebSocket client hardcodes the
         // initial port and fails when Vite falls back to an alternate port (e.g. 8081).
         // Production builds retain full PWA/offline capability unaffected.
-        enabled: false
-      }
+        enabled: false,
+      },
     }),
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
@@ -97,7 +97,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           // Router
           router: ['react-router-dom'],
-          
+
           // UI components (split large ones)
           ui: [
             '@radix-ui/react-dialog',
@@ -105,36 +105,32 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-select',
             '@radix-ui/react-tabs',
             '@radix-ui/react-popover',
-            '@radix-ui/react-toast',
             '@radix-ui/react-tooltip',
           ],
-          
+
           // Charts (lazy load these heavy libraries)
           charts: ['recharts'],
-          
+
           // Supabase
           supabase: ['@supabase/supabase-js'],
-          
+
           // Query management
-          tanstack: ['@tanstack/react-query', '@tanstack/react-query-devtools'],
-          
+          tanstack: ['@tanstack/react-query'],
+
           // Forms
           forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
-          
+
           // Date utilities
           dates: ['date-fns'],
-          
+
           // Animations
           motion: ['framer-motion'],
-          
+
           // Icons
           icons: ['lucide-react'],
-          
+
           // Utilities
           utils: ['clsx', 'tailwind-merge', 'class-variance-authority'],
-          
-          // Calendar (commented out - not installed)
-          // calendar: ['react-big-calendar'],
         },
       },
     },
@@ -152,18 +148,19 @@ export default defineConfig(({ mode }) => ({
     cssCodeSplit: true,
   },
   server: {
-    host: "::",
+    host: '::',
     port: 8080,
     hmr: {
       port: 8080,
     },
     headers: {
       // ws://localhost:* covers any port vite picks (e.g. 8080 or 8081 when the primary port is in use)
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co https://images.unsplash.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:*; frame-ancestors 'none';",
+      'Content-Security-Policy':
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co https://images.unsplash.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://localhost:*; frame-ancestors 'none';",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
-    }
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    },
   },
 }));

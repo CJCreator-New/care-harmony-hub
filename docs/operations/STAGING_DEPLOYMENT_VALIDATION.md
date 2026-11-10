@@ -1,4 +1,5 @@
 # STAGING DEPLOYMENT VALIDATION CHECKLIST
+
 **Date**: April 15, 2026 | **Phase**: 5A + Phase 5 New Features (Features 1.3, 2.3, 3, 4.3-4.5) + Phase 6 Foundation  
 **Status**: READY FOR DEPLOYMENT ✅ | **Target Deployment**: April 16, 2026 @ 6:00 AM UTC
 
@@ -7,13 +8,14 @@
 ## 1. PRE-DEPLOYMENT: DATABASE MIGRATIONS
 
 ### Database Schema Changes
+
 ```sql
 -- All migrations reviewed and tested on local PostgreSQL 15
 ✅ Migration 001: Telehealth prescription issuance fields
    - Added: prescription_issue_sessions table
    - Added: telehealth_rx_approval_workflow table
    - RLS policies: PROVIDER CAN INSERT, PATIENT CAN VIEW
-   
+
 ✅ Migration 002: Prescription refill policy tracking
    - Added: prescription_auto_refill_policies table
    - Added: prescription_refill_requests table
@@ -39,6 +41,7 @@
 ```
 
 ### Migration Verification Checklist
+
 - [ ] Run all migrations locally: `supabase migration dev`
 - [ ] Verify schema matches `src/types/database.ts`
 - [ ] Verify RLS policies enforced correctly
@@ -57,6 +60,7 @@
 ## 2. PRE-DEPLOYMENT: SUPABASE CONFIGURATION
 
 ### Environment Variables (Staging)
+
 ```bash
 # Verify these are set in GitHub Secrets
 SUPABASE_URL_STAGING=https://[staging-project].supabase.co
@@ -72,6 +76,7 @@ DATABASE_URL_POOLED_STAGING=postgresql://user:pass@pgbouncer.staging.internal/ca
 ```
 
 ### Verification
+
 - [ ] All secrets present in GitHub Actions
 - [ ] Secrets NOT logged anywhere (audit logs clean)
 - [ ] Staging database connections tested
@@ -88,6 +93,7 @@ DATABASE_URL_POOLED_STAGING=postgresql://user:pass@pgbouncer.staging.internal/ca
 ### Functions to Deploy (3 new functions)
 
 #### Function 1: `issue-telehealth-prescription`
+
 ```typescript
 // Location: supabase/functions/issue-telehealth-prescription/index.ts
 // Size: 250+ lines
@@ -105,6 +111,7 @@ Verification:
 ```
 
 #### Function 2: `check-drug-interactions`
+
 ```typescript
 // Location: supabase/functions/check-drug-interactions/index.ts
 // Size: 150+ lines (calls external drug interaction API)
@@ -119,6 +126,7 @@ Verification:
 ```
 
 #### Function 3: `get-billing-metrics`
+
 ```typescript
 // Location: supabase/functions/get-billing-metrics/index.ts
 // Size: 200+ lines
@@ -133,6 +141,7 @@ Verification:
 ```
 
 ### Edge Functions Deployment Checklist
+
 - [ ] Deploy to staging: `supabase functions deploy --remote --project-ref={staging-project}`
 - [ ] Verify functions deployed: `supabase functions list --remote`
 - [ ] Test endpoint accessibility (no 503 errors)
@@ -149,6 +158,7 @@ Verification:
 ## 4. FRONTEND BUILD VERIFICATION
 
 ### Production Build
+
 ```bash
 npm run build --configuration production
 
@@ -161,14 +171,17 @@ Expected output:
 ```
 
 ### Bundle Analysis
+
 - [ ] Main bundle: < 2 MB
-- [ ] Vendor bundle: < 1.5 MB  
+- [ ] Vendor bundle: < 1.5 MB
 - [ ] Lazy-loaded routes: < 500 KB each
 - [ ] No duplicate dependencies
 - [ ] Tree-shaking verified (no unused code)
 
 ### Component Verification
+
 New components created (Features 1.3, 2.3, 4.3-4.5):
+
 - [x] `RecurrencePatternSelector.tsx` - ✅ Compiles
 - [x] `RecurrenceExceptionManager.tsx` - ✅ Compiles
 - [x] `AppointmentRecurrenceSettings.tsx` - ✅ Compiles
@@ -186,29 +199,36 @@ New components created (Features 1.3, 2.3, 4.3-4.5):
 ### Test Suite Status (Current: 90/94 passing = 95.7%)
 
 #### Feature 1: Appointment Recurrence
+
 - [x] `feature1-recurrence-ui.test.ts` - 50/50 passing ✅
 - [x] `recurrence-edge-function.test.ts` - 12/12 passing ✅
 
 #### Feature 2: Telehealth Prescriptions
+
 - [x] `telehealth-session.test.ts` - 10/10 passing ✅
 - [x] `issue-telehealth-prescription.test.ts` - 12/12 passing ✅
 - ⚠️ `telehealth-notifications.test.ts` - 4/5 passing (1 flaky test: email timeout handling)
 
 #### Feature 3: Prescription Refills
+
 - ⏳ `prescription-refill.test.ts` - NOT YET CREATED (auto-generated on first run)
 
 #### Feature 4: Billing
+
 - [x] `billing-invoice.test.ts` - 8/8 passing ✅
 - [x] `insurance-claims.test.ts` - 6/6 passing ✅
 - ⏳ `billing-dashboard.test.ts` - NOT YET CREATED
 
-#### Feature 5: Clinical Notes  
+#### Feature 5: Clinical Notes
+
 - [x] `clinical-notes.test.ts` - 16/16 passing ✅
 
 #### Feature 6: Multi-Role Workflows
+
 - [x] `rbac-enforcement.test.ts` - 18/18 passing ✅
 
 ### Pre-Deployment Test Run
+
 ```bash
 npm run test:unit -- --coverage
 
@@ -228,6 +248,7 @@ Expected result:
 ### Critical Path Integration Tests (17 scenarios)
 
 #### Telehealth Prescription Flow
+
 ```typescript
 Test 1: Doctor initiates telehealth session → patient joins → doctor issues prescription → patient receives notification
 Expected: ✅ Prescription sent, audit trail created, email delivered
@@ -240,6 +261,7 @@ Expected: ✅ DEA number validated, refill restrictions applied
 ```
 
 #### Appointment Recurrence Flow
+
 ```typescript
 Test 4: Doctor creates recurring appointment series (weekly, 12 occurrences) → system generates dates → patient receives notifications
 Expected: ✅ 12 appointments created, no conflicts, notifications sent
@@ -252,6 +274,7 @@ Expected: ✅ All times correct after DST change
 ```
 
 #### Billing Flow
+
 ```typescript
 Test 7: Multiple services billed → insurance claim submitted → approval received → patient sees payment breakdown
 Expected: ✅ Cascading calculations correct, patient portion accurate
@@ -264,6 +287,7 @@ Expected: ✅ Pre-auth renewal triggered, service unavailable during gap
 ```
 
 #### Claims Appeal Flow
+
 ```typescript
 Test 10: Claim denied with 30-day appeal window → appeal submitted → appeal tracking started
 Expected: ✅ Appeal visible in dashboard, deadline enforced
@@ -273,6 +297,7 @@ Expected: ✅ Reminder delivered, appeal processed
 ```
 
 #### Multi-Role Authorization
+
 ```typescript
 Test 12: Doctor views patient's billing → verification passes → data shown
 Expected: ✅ Authorization check passes
@@ -285,6 +310,7 @@ Expected: ✅ Patient sees own invoice only, sensitive fields hidden
 ```
 
 ### Test Execution
+
 ```bash
 npm run test:integration -- --testTimeout=30000
 
@@ -304,6 +330,7 @@ Expected result:
 ### Browser Test Scenarios (6 critical flows)
 
 #### E2E 1: Telehealth Prescription Issuance
+
 ```
 Step 1: Doctor logs in
 Step 2: Joins telehealth session with test patient
@@ -318,6 +345,7 @@ Expected: ✅ E2E flow completes without errors
 ```
 
 #### E2E 2: Appointment Recurrence Setup
+
 ```
 Step 1: Doctor logs in
 Step 2: Creates new appointment series
@@ -330,6 +358,7 @@ Expected: ✅ All 12 appointments visible in calendar
 ```
 
 #### E2E 3: Insurance Claims Tracking
+
 ```
 Step 1: Billing manager logs in
 Step 2: Views invoice dashboard
@@ -341,6 +370,7 @@ Expected: ✅ Claims UI functional and responsive
 ```
 
 #### E2E 4: Patient Billing Portal
+
 ```
 Step 1: Patient logs in
 Step 2: Navigates to billing
@@ -352,6 +382,7 @@ Expected: ✅ All payment flows working
 ```
 
 #### E2E 5: Multi-Role Authorization
+
 ```
 Step 1: Doctor logs in, views patient record
 Step 2: Logs out, patient logs in
@@ -362,6 +393,7 @@ Expected: ✅ Role-based scoping enforced
 ```
 
 #### E2E 6: Error Handling
+
 ```
 Step 1: Doctor starts prescribing
 Step 2: Connection drops (simulate timeout)
@@ -373,6 +405,7 @@ Expected: ✅ Graceful degradation + recovery
 ```
 
 ### E2E Test Execution
+
 ```bash
 npm run test:e2e -- --project chromium
 
@@ -390,6 +423,7 @@ Expected result:
 ## 8. SECURITY VERIFICATION
 
 ### OWASP Top 10 Checks
+
 - [x] **A01: Broken Access Control** - RLS policies tested, role-based data filtering verified
 - [x] **A02: Cryptographic Failures** - AES-256-GCM encryption for PHI verified
 - [x] **A03: Injection** - All inputs sanitized via Zod schemas + SQL parameterization
@@ -402,6 +436,7 @@ Expected result:
 - [x] **A10: SSRF** - No external requests from frontend, all through backend
 
 ### HIPAA Compliance Checks
+
 - [x] PHI Encryption: All patient data encrypted before storage
 - [x] Audit Logging: Every data access logged with actor, action, timestamp
 - [x] Access Control: RLS policies enforce by-patient data isolation
@@ -410,6 +445,7 @@ Expected result:
 - [x] Data Retention: 7-year retention for prescriptions, billing
 
 ### Pre-Deployment Security Scan
+
 ```bash
 npm run test:security
 
@@ -427,6 +463,7 @@ Expected result:
 ## 9. PERFORMANCE VERIFICATION
 
 ### Latency Targets (p95)
+
 - [x] Patient data query: < 100ms (RLS policy filters applied)
 - [x] Billing calculations: < 200ms (with insurance lookup)
 - [x] Telehealth session init: < 500ms (provider sync)
@@ -434,8 +471,9 @@ Expected result:
 - [x] Claims status update: < 150ms (EDI parsing)
 
 ### Load Test: 100 Concurrent Users
+
 ```bash
-npm run test:performance -- --concurrency=100 --duration=5m
+npm run test:load   # k6, see tests/performance/README.md
 
 Expected result:
 ✅ p50 latency: < 200ms
@@ -452,6 +490,7 @@ Expected result:
 ## 10. SMOKE TEST (STAGING ENVIRONMENT)
 
 ### Manual Smoke Test Checklist (15 min)
+
 - [ ] Application loads (no 503 errors)
 - [ ] Login with test user (doctor, patient, billing manager)
 - [ ] Doctor can start telehealth session
@@ -473,25 +512,26 @@ Expected result:
 
 ### Go / No-Go Criteria
 
-| Criterion | Target | Current | Status |
-|-----------|--------|---------|--------|
-| Unit Tests Passing | 100% | 95.7% | ⚠️ Need 94 tests |
-| Integration Tests | 100% | 60% | ⏳ TBD |
-| E2E Tests | 100% | 0% | ⏳ TBD |
-| Security Scan | 0 critical | 0 critical | ✅ |
-| Performance p95 | < 500ms | ~300ms avg | ✅ |
-| Database Migrations | Successful | ⏳ TBD | ⏳ |
-| All Functions Deployed | Yes | ⏳ TBD | ⏳ |
-| RLS Policies Verified | Yes | ⏳ TBD | ⏳ |
-| Emergency Rollback Tested | Yes | No | ⚠️ Need test |
+| Criterion                 | Target     | Current    | Status           |
+| ------------------------- | ---------- | ---------- | ---------------- |
+| Unit Tests Passing        | 100%       | 95.7%      | ⚠️ Need 94 tests |
+| Integration Tests         | 100%       | 60%        | ⏳ TBD           |
+| E2E Tests                 | 100%       | 0%         | ⏳ TBD           |
+| Security Scan             | 0 critical | 0 critical | ✅               |
+| Performance p95           | < 500ms    | ~300ms avg | ✅               |
+| Database Migrations       | Successful | ⏳ TBD     | ⏳               |
+| All Functions Deployed    | Yes        | ⏳ TBD     | ⏳               |
+| RLS Policies Verified     | Yes        | ⏳ TBD     | ⏳               |
+| Emergency Rollback Tested | Yes        | No         | ⚠️ Need test     |
 
 ### GO Decision (CTO Approval Required)
+
 ```
 RECOMMENDED DECISION: GO-LIVE
 
 Prerequisites:
 1. ✅ All 94 unit tests passing
-2. ✅ All 17 integration tests passing  
+2. ✅ All 17 integration tests passing
 3. ✅ All 6 E2E tests passing (no timeout)
 4. ✅ Smoke test completed successfully
 5. ✅ Database migrations applied (< 2 min execution)
@@ -529,11 +569,9 @@ Risk Level: LOW (all safety gates passing)
 
 ## 13. ROLLBACK PROCEDURE
 
-If any stage fails:
-```bash
-# Full rollback to previous version
-./rollback.sh
+If any stage fails, roll back manually. There is no rollback script in this repository.
 
+```
 # Steps:
 1. Stop traffic to current version
 2. Switch database to read-only
@@ -552,13 +590,13 @@ If any stage fails:
 
 ## 14. SIGN-OFF
 
-| Role | Name | Approval | Date |
-|------|------|----------|------|
-| CTO | [CTO Name] | ⏳ PENDING | Apr 16 |
-| DevOps Lead | [DevOps Lead] | ⏳ PENDING | Apr 16 |
-| QA Lead | [QA Lead] | ⏳ PENDING | Apr 16 |
+| Role          | Name            | Approval   | Date   |
+| ------------- | --------------- | ---------- | ------ |
+| CTO           | [CTO Name]      | ⏳ PENDING | Apr 16 |
+| DevOps Lead   | [DevOps Lead]   | ⏳ PENDING | Apr 16 |
+| QA Lead       | [QA Lead]       | ⏳ PENDING | Apr 16 |
 | Security Lead | [Security Lead] | ⏳ PENDING | Apr 16 |
-| Clinical PM | [Clinical PM] | ⏳ PENDING | Apr 16 |
+| Clinical PM   | [Clinical PM]   | ⏳ PENDING | Apr 16 |
 
 **Final GO/NO-GO**: ⏳ PENDING
 

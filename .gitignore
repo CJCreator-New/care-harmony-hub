@@ -160,6 +160,7 @@ scripts/python-e2e/reports/
 
 # Stale alternate lockfiles (project uses npm)
 bun.lockb
+bun.lock
 # scratch test artifacts
 test-run.txt
 test-results.json

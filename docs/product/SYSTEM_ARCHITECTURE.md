@@ -11,6 +11,7 @@
 **CareSync** is a comprehensive, enterprise-grade Hospital Information Management System (HIMS) built on modern cloud-native technologies. It provides unified operations across OPD (Out-Patient Department), IPD (In-Patient Department), Operating Theater, Pharmacy, Laboratory, and Billing—all accessible through role-based web dashboards and a patient portal.
 
 ### Key System Characteristics
+
 - **Multi-Tenancy**: Supports multiple hospitals/clinics with complete data isolation
 - **Role-Based Access**: 7 distinct roles (Admin, Doctor, Nurse, Receptionist, Pharmacist, Lab Tech, Patient)
 - **HIPAA-Ready**: Encryption at rest, audit trails, PHI protection, consent tracking
@@ -139,7 +140,7 @@ src/
 │
 ├── utils/               # Helper functions
 │   ├── logger.ts        # Structured logging
-│   ├── telemetry.ts     # OTEL integration
+│   ├── telemetry.ts     # Clinical spans and metrics, written through the logger
 │   ├── errorTracking.ts # Error reporting
 │   └── ... (20+ utilities)
 │
@@ -162,11 +163,13 @@ src/
 ### Rendering Strategy
 
 **Lazy Loading**:
+
 - Role-specific dashboards loaded on-demand (96% reduction in main bundle)
 - Code splitting via React.lazy() + Suspense
 - Pre-loading of next likely page
 
 **Performance**:
+
 - TanStack Query: HTTP caching, automatic stale-while-revalidate
 - Realtime subscriptions: WebSocket for live data (prescriptions, alerts)
 - Memoization: React.memo(), useMemo() for expensive computations
@@ -207,47 +210,45 @@ const { data: patients } = useQuery({
     const { data } = await supabase
       .from('patients')
       .select('*')
-      .eq('hospital_id', hospital.id)  // ← REQUIRED for multi-tenancy
+      .eq('hospital_id', hospital.id) // ← REQUIRED for multi-tenancy
       .order('last_name')
       .limit(50);
     return data;
-  }
+  },
 });
 
 // ❌ INCORRECT (Missing hospital_id filter)
 const { data: patients } = useQuery({
   queryFn: async () => {
-    const { data } = await supabase
-      .from('patients')
-      .select('*');  // ← Relies ONLY on RLS (fragile)
+    const { data } = await supabase.from('patients').select('*'); // ← Relies ONLY on RLS (fragile)
     return data;
-  }
+  },
 });
 ```
 
 ### Supabase Integration Points
 
-| Layer | Purpose | Location |
-|-------|---------|----------|
-| **Client Setup** | Initialize authenticated Supabase client | `src/integrations/supabase/client.ts` |
-| **Types** | Auto-generated types from schema | `src/types/index.ts` (from migrations) |
-| **Hooks** | Data fetching & mutations for each feature | `src/hooks/use*.ts` (150+ hooks) |
-| **Real-Time** | Live dashboards, alerts, notifications | `useRealtimeUpdates()` hook |
-| **RLS Policies** | Server-side access control | `supabase/migrations/*.sql` (50+) |
-| **Encryption** | Field-level PHI protection | `HIPAA_encryption_metadata` in tables |
+| Layer            | Purpose                                    | Location                               |
+| ---------------- | ------------------------------------------ | -------------------------------------- |
+| **Client Setup** | Initialize authenticated Supabase client   | `src/integrations/supabase/client.ts`  |
+| **Types**        | Auto-generated types from schema           | `src/types/index.ts` (from migrations) |
+| **Hooks**        | Data fetching & mutations for each feature | `src/hooks/use*.ts` (150+ hooks)       |
+| **Real-Time**    | Live dashboards, alerts, notifications     | `useRealtimeUpdates()` hook            |
+| **RLS Policies** | Server-side access control                 | `supabase/migrations/*.sql` (50+)      |
+| **Encryption**   | Field-level PHI protection                 | `HIPAA_encryption_metadata` in tables  |
 
 ### Key Hooks (Data Access Layer)
 
-| Feature | Hooks |
-|---------|-------|
-| **Patients** | `usePatients()`, `usePatientDetails()`, `usePatientMedicalHistory()` |
-| **Appointments** | `useAppointments()`, `useAvailableSlots()`, `useQueueManagement()` |
+| Feature           | Hooks                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| **Patients**      | `usePatients()`, `usePatientDetails()`, `usePatientMedicalHistory()`               |
+| **Appointments**  | `useAppointments()`, `useAvailableSlots()`, `useQueueManagement()`                 |
 | **Prescriptions** | `usePrescriptions()`, `usePrescriptionApprovalWorkflow()`, `useDrugInteractions()` |
-| **Lab** | `useLaboratory()`, `useLabOrder()`, `useCriticalValues()`, `useLabResults()` |
-| **Pharmacy** | `usePharmacyInventory()`, `useDispensing()`, `useDrugInteractionChecker()` |
-| **Billing** | `useBilling()`, `useInsuranceClaims()`, `usePaymentPlans()` |
-| **Workflow** | `useWorkflowOrchestrator()`, `useDischargeWorkflow()`, `useApprovalChains()` |
-| **Analytics** | `useClinicalMetrics()`, `useDashboardMetrics()`, `useAdvancedAnalytics()` |
+| **Lab**           | `useLaboratory()`, `useLabOrder()`, `useCriticalValues()`, `useLabResults()`       |
+| **Pharmacy**      | `usePharmacyInventory()`, `useDispensing()`, `useDrugInteractionChecker()`         |
+| **Billing**       | `useBilling()`, `useInsuranceClaims()`, `usePaymentPlans()`                        |
+| **Workflow**      | `useWorkflowOrchestrator()`, `useDischargeWorkflow()`, `useApprovalChains()`       |
+| **Analytics**     | `useClinicalMetrics()`, `useDashboardMetrics()`, `useAdvancedAnalytics()`          |
 
 ---
 
@@ -255,21 +256,21 @@ const { data: patients } = useQuery({
 
 ### 7 Roles & Responsibilities
 
-| Role | Primary Dashboard | Permissions | Constraints |
-|------|----------|-----------|-----------|
-| **Admin** | Admin Console | All operations | Hospital ownership |
-| **Doctor** | Doctor Workspace | Consultations, Orders, Prescriptions, Lab Results | Assigned patients only |
-| **Nurse** | Nurse Dashboard | Vitals, Medication Admin, Care Plans | IPD ward assignment |
-| **Receptionist** | Reception Queue | Appointments, Check-in, Patient Registry | Desk-assigned location |
-| **Pharmacist** | Pharmacy Queue | Rx Dispensing, Inventory, Drug Interactions | Pharmacy location |
-| **Lab Technician** | Lab Dashboard | Specimen Processing, Results Entry | Lab location |
-| **Patient** | Patient Portal | Appointments, Rx, Lab Results, Medical History | Own data only |
+| Role               | Primary Dashboard | Permissions                                       | Constraints            |
+| ------------------ | ----------------- | ------------------------------------------------- | ---------------------- |
+| **Admin**          | Admin Console     | All operations                                    | Hospital ownership     |
+| **Doctor**         | Doctor Workspace  | Consultations, Orders, Prescriptions, Lab Results | Assigned patients only |
+| **Nurse**          | Nurse Dashboard   | Vitals, Medication Admin, Care Plans              | IPD ward assignment    |
+| **Receptionist**   | Reception Queue   | Appointments, Check-in, Patient Registry          | Desk-assigned location |
+| **Pharmacist**     | Pharmacy Queue    | Rx Dispensing, Inventory, Drug Interactions       | Pharmacy location      |
+| **Lab Technician** | Lab Dashboard     | Specimen Processing, Results Entry                | Lab location           |
+| **Patient**        | Patient Portal    | Appointments, Rx, Lab Results, Medical History    | Own data only          |
 
 ### Permission Enforcement
 
 ```typescript
 // Location: src/lib/permissions.ts
-type Permission = 
+type Permission =
   | 'patients:read' | 'patients:write' | 'patients:delete'
   | 'appointments:read' | 'appointments:write'
   | 'prescriptions:read' | 'prescriptions:write' | 'prescriptions:sign'
@@ -324,10 +325,10 @@ CREATE POLICY "Hospital Isolation" ON patients
 
 ```typescript
 interface AuthContext {
-  user: User              // Current user
-  hospital: Hospital      // Current hospital
-  profile: Profile        // User profile
-  roles: UserRole[]       // User's roles
+  user: User; // Current user
+  hospital: Hospital; // Current hospital
+  profile: Profile; // User profile
+  roles: UserRole[]; // User's roles
 }
 
 // All queries filter by hospital_id + apply RLS
@@ -426,17 +427,17 @@ Payment received/reconciled
 
 ### HIPAA Compliance
 
-| Requirement | Implementation |
-|-------------|-----------------|
-| **Encryption at Rest** | PostgreSQL encryption + field-level encryption for PHI |
-| **Encryption in Transit** | TLS 1.3 + HSTS headers |
-| **Audit Trails** | Append-only `activity_logs` table with immutable records |
-| **Access Control** | RLS policies + role-based permissions |
-| **Consent Management** | Consent records tracked for data disclosure |
-| **Data Retention** | Configurable retention policies per hospital (7-year default for clinical) |
-| **Password Policy** | Min 12 chars, complexity, rotation enforced |
-| **Session Management** | JWT + automatic timeout (30 min idle) |
-| **2FA/Biometric** | TOTP + WebAuthn support for critical roles |
+| Requirement               | Implementation                                                             |
+| ------------------------- | -------------------------------------------------------------------------- |
+| **Encryption at Rest**    | PostgreSQL encryption + field-level encryption for PHI                     |
+| **Encryption in Transit** | TLS 1.3 + HSTS headers                                                     |
+| **Audit Trails**          | Append-only `activity_logs` table with immutable records                   |
+| **Access Control**        | RLS policies + role-based permissions                                      |
+| **Consent Management**    | Consent records tracked for data disclosure                                |
+| **Data Retention**        | Configurable retention policies per hospital (7-year default for clinical) |
+| **Password Policy**       | Min 12 chars, complexity, rotation enforced                                |
+| **Session Management**    | JWT + automatic timeout (30 min idle)                                      |
+| **2FA/Biometric**         | TOTP + WebAuthn support for critical roles                                 |
 
 ### Audit Trail Pattern
 
@@ -454,7 +455,7 @@ CREATE TABLE activity_logs (
   timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
   ip_address INET,
   user_agent TEXT,
-  
+
   -- Make append-only (no updates/deletes)
   CONSTRAINT immutable CHECK (true)
 );
@@ -470,31 +471,36 @@ CREATE TABLE activity_logs (
 ### Laboratory Equipment
 
 **Protocol**: HL7v2.5 (or REST API)  
-**Direction**: Bidirectional  
+**Direction**: Bidirectional
+
 - **Send**: Lab orders (test code, specimen requirements)
 - **Receive**: Results (test values, reference ranges, critical flags)
 
 ### Pharmacy Management
 
-**Protocol**: NCPDP SCRIPT (script.org) or REST  
+**Protocol**: NCPDP SCRIPT (script.org) or REST
+
 - **Send**: Prescriptions (drug, dose, patient)
 - **Receive**: Dispensing confirmation, inventory updates
 
 ### Insurance & Billing
 
-**Protocol**: X12 EDI (claim format 837) or SFTP  
+**Protocol**: X12 EDI (claim format 837) or SFTP
+
 - **Send**: Claim (patient, provider, procedures, charges)
 - **Receive**: Remittance Advice (approved, denied, paid amounts)
 
 ### Telemedicine Provider
 
-**Protocol**: REST API + WebRTC  
+**Protocol**: REST API + WebRTC
+
 - **Send**: Consultation request, patient demographics
 - **Receive**: Session token, recording URL
 
 ### Observability
 
-**Protocol**: OTEL (OpenTelemetry)  
+**Protocol**: OTEL (OpenTelemetry)
+
 - **Send**: Metrics, traces, logs to central collector
 - **Receive**: Dashboards (Grafana), alerting (Prometheus)
 
@@ -513,18 +519,18 @@ export default {
         manualChunks: {
           // Split large libraries
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'query': ['@tanstack/react-query'],
-          'ui': ['@radix-ui/primitives', 'tailwindcss'],
-          
+          query: ['@tanstack/react-query'],
+          ui: ['@radix-ui/primitives', 'tailwindcss'],
+
           // Lazy-load role dashboards
           'admin-dashboard': ['./src/pages/admin/AdminDashboard'],
           'doctor-dashboard': ['./src/pages/doctor/DoctorDashboard'],
           // ... (5+ more)
-        }
-      }
-    }
-  }
-}
+        },
+      },
+    },
+  },
+};
 
 // Result: 96% reduction in main.js (1.2MB → 50KB)
 ```
@@ -535,15 +541,15 @@ export default {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,     // 5 min: data freshness
-      cacheTime: 10 * 60 * 1000,    // 10 min: keep in memory
-      retry: 1,                     // Retry failed requests once
-      refetchOnWindowFocus: false,  // Don't refetch when tab re-focused
+      staleTime: 5 * 60 * 1000, // 5 min: data freshness
+      cacheTime: 10 * 60 * 1000, // 10 min: keep in memory
+      retry: 1, // Retry failed requests once
+      refetchOnWindowFocus: false, // Don't refetch when tab re-focused
     },
     mutations: {
-      retry: 0,  // Never auto-retry mutations
-    }
-  }
+      retry: 0, // Never auto-retry mutations
+    },
+  },
 });
 ```
 
@@ -555,8 +561,8 @@ const { data: prescription } = useRealtimeUpdates([
   {
     table: 'prescriptions',
     filter: `id=eq.${prescriptionId}`,
-    event: ['UPDATE'],  // Only listen to updates, not deletes
-  }
+    event: ['UPDATE'], // Only listen to updates, not deletes
+  },
 ]);
 
 // Unsubscribe automatically when component unmounts
@@ -571,14 +577,14 @@ useEffect(() => {
 
 ### Test Types & Coverage
 
-| Type | Framework | Coverage | Command |
-|------|-----------|----------|---------|
-| **Unit** | Vitest | Business logic, hooks | `npm run test:unit` |
-| **Integration** | Vitest | Hook + service integration | `npm run test:integration` |
-| **Security** | Vitest | Auth, RLS, encryption | `npm run test:security` |
-| **Accessibility** | Vitest | WCAG compliance | `npm run test:accessibility` |
-| **E2E** | Playwright | Full user workflows by role | `npm run test:e2e` |
-| **Performance** | Vitest | Bundle size, query latency | `npm run test:performance` |
+| Type              | Framework   | Coverage                                                              | Command                      |
+| ----------------- | ----------- | --------------------------------------------------------------------- | ---------------------------- |
+| **Unit**          | Vitest      | Business logic, hooks                                                 | `npm run test:unit`          |
+| **Integration**   | Vitest      | Hook + service integration                                            | `npm run test:integration`   |
+| **Security**      | Vitest      | Auth, RLS, encryption                                                 | `npm run test:security`      |
+| **Accessibility** | Vitest      | Layout landmarks, focus and accessible-name checks on real components | `npm run test:accessibility` |
+| **E2E**           | Playwright  | Full user workflows by role                                           | `npm run test:e2e`           |
+| **Load**          | k6 (manual) | Latency under load against a deployed environment                     | `npm run test:load`          |
 
 ### E2E Test Structure
 
@@ -662,11 +668,11 @@ logger.debug('Query cache miss', { queryKey });          // Debug
 
 ### Environments
 
-| Env | URL | Infrastructure | Secrets Mgmt |
-|-----|-----|-----------------|-------------|
-| **Dev** | localhost:5173 | Docker Compose | .env.local |
-| **Staging** | staging.caresync.com | Kubernetes (single zone) | Sealed Secrets |
-| **Prod** | caresync.com | Kubernetes (multi-zone HA) | HashiCorp Vault |
+| Env         | URL                  | Infrastructure             | Secrets Mgmt    |
+| ----------- | -------------------- | -------------------------- | --------------- |
+| **Dev**     | localhost:5173       | Docker Compose             | .env.local      |
+| **Staging** | staging.caresync.com | Kubernetes (single zone)   | Sealed Secrets  |
+| **Prod**    | caresync.com         | Kubernetes (multi-zone HA) | HashiCorp Vault |
 
 ### CI/CD Pipeline
 
@@ -687,8 +693,7 @@ jobs:
     - Critical path tests (patient safety)
     - Full E2E suite (500+ tests)
 
-  deploy:
-    (only on main branch)
+  deploy: (only on main branch)
     - Build Docker image
     - Push to registry
     - Trigger Kubernetes deployment
@@ -700,17 +705,17 @@ jobs:
 
 ## 13. Key Files & Directories
 
-| Path | Purpose | Key Files |
-|------|---------|-----------|
-| `src/components/` | React UI components (45+) | `DoctorDashboard.tsx`, `PrescriptionUI.tsx`, etc. |
-| `src/hooks/` | Data fetching & logic (150+) | `usePatients.ts`, `usePrescriptions.ts`, etc. |
-| `src/contexts/` | Global state | `AuthContext.tsx`, `ThemeContext.tsx` |
-| `src/pages/` | Route handlers (lazy-loaded) | `admin/`, `doctor/`, `patient/`, etc. |
-| `src/services/` | Backend clients | `supabase/`, `api/`, `external/` |
-| `supabase/migrations/` | Schema + RLS policies (50+) | `001_initial_schema.sql`, `020_add_rls.sql`, etc. |
-| `tests/` | Test files (500+) | `e2e/roles/`, `e2e/workflows/`, `unit/` |
-| `.github/` | CI/CD, workflows | `workflows/`, `skills/` |
-| `docs/` | Documentation | `product/`, `workflows/` (to be populated) |
+| Path                   | Purpose                      | Key Files                                         |
+| ---------------------- | ---------------------------- | ------------------------------------------------- |
+| `src/components/`      | React UI components (45+)    | `DoctorDashboard.tsx`, `PrescriptionUI.tsx`, etc. |
+| `src/hooks/`           | Data fetching & logic (150+) | `usePatients.ts`, `usePrescriptions.ts`, etc.     |
+| `src/contexts/`        | Global state                 | `AuthContext.tsx`, `ThemeContext.tsx`             |
+| `src/pages/`           | Route handlers (lazy-loaded) | `admin/`, `doctor/`, `patient/`, etc.             |
+| `src/services/`        | Backend clients              | `supabase/`, `api/`, `external/`                  |
+| `supabase/migrations/` | Schema + RLS policies (50+)  | `001_initial_schema.sql`, `020_add_rls.sql`, etc. |
+| `tests/`               | Test files (500+)            | `e2e/roles/`, `e2e/workflows/`, `unit/`           |
+| `.github/`             | CI/CD, workflows             | `workflows/`, `skills/`                           |
+| `docs/`                | Documentation                | `product/`, `workflows/` (to be populated)        |
 
 ---
 
@@ -762,14 +767,14 @@ SELECT COUNT(*) FROM patients; → 45 rows (check-in queue today)
 
 ## 15. Troubleshooting Guide
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| "Permission Denied" on query | RLS policy blocking access | Check `usePermissions()` + verify RLS allows role |
-| Query returns empty | Missing `hospital_id` filter | Add `.eq('hospital_id', hospital.id)` to query |
-| Realtime updates not working | No active subscription | Check `useRealtimeUpdates()` hook is called |
-| Slow dashboard load | Large dataset + no pagination | Add `limit()` + implement infinite scroll |
-| E2E test fails intermittently | Race condition or timing issue | Add `page.waitForLoadState()` + use `waitFor()` |
-| Bundle size too large | Missing lazy loading | Move feature to separate chunk in `manualChunks` |
+| Issue                         | Cause                          | Solution                                          |
+| ----------------------------- | ------------------------------ | ------------------------------------------------- |
+| "Permission Denied" on query  | RLS policy blocking access     | Check `usePermissions()` + verify RLS allows role |
+| Query returns empty           | Missing `hospital_id` filter   | Add `.eq('hospital_id', hospital.id)` to query    |
+| Realtime updates not working  | No active subscription         | Check `useRealtimeUpdates()` hook is called       |
+| Slow dashboard load           | Large dataset + no pagination  | Add `limit()` + implement infinite scroll         |
+| E2E test fails intermittently | Race condition or timing issue | Add `page.waitForLoadState()` + use `waitFor()`   |
+| Bundle size too large         | Missing lazy loading           | Move feature to separate chunk in `manualChunks`  |
 
 ---
 

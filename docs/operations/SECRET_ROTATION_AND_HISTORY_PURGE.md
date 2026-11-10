@@ -1,12 +1,12 @@
 # Secret rotation, git history purge and test-account removal (S0-11)
 
-| | |
-|---|---|
-| Roadmap task | S0-11 (P0), from the repository audit roadmap (removed; see git history) |
-| Issues | SECF-20, SECF-19, OPS-16, SECF-21, OPS-17, OPS-06 |
-| Replaces | audit-remediation ticket 18, git secrets purge (removed with `.scratch/`; its `--path-glob '*.env*'` would also delete `.env.example` and `.env.test`) |
-| Audience | Repository owner, Supabase project owner, whoever controls Lovable, hosting and provider accounts |
-| Status | Repository changes are done (see section 9). Every step in sections 2 to 8 is an **operator action** that has not been performed yet. |
+|              |                                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Roadmap task | S0-11 (P0), from the repository audit roadmap (removed; see git history)                                                                               |
+| Issues       | SECF-20, SECF-19, OPS-16, SECF-21, OPS-17, OPS-06                                                                                                      |
+| Replaces     | audit-remediation ticket 18, git secrets purge (removed with `.scratch/`; its `--path-glob '*.env*'` would also delete `.env.example` and `.env.test`) |
+| Audience     | Repository owner, Supabase project owner, whoever controls Lovable, hosting and provider accounts                                                      |
+| Status       | Repository changes are done (see section 9). Every step in sections 2 to 8 is an **operator action** that has not been performed yet.                  |
 
 **Ground rules**
 
@@ -25,26 +25,26 @@ Legend for the "Where" column:
 - **Tree**: present in the working tree at `a1208ce` and removed by the S0-11 repository commits.
 - **History**: present only in earlier commits.
 
-| # | Credential (type) | Location(s) | Where | Notes |
-|---|---|---|---|---|
-| C1 | Supabase anon key, legacy JWT, `role=anon`, `ref` = production project (208 chars) | `.env` (`VITE_SUPABASE_PUBLISHABLE_KEY`) | History: added by `df8831e`/`ff2ea46`, deleted by `791c933` | Public by design and shipped in every bundle. It belongs to production, so rotating it is still required by SECF-20. No `service_role` JWT was found anywhere in visible history (the `.env` `SUPABASE_SERVICE_ROLE_KEY=` line was empty). |
-| C2 | Supabase project URL and ref | `.env`, `supabase/config.toml:1`, `deploy.bat`, `scripts/inspect-database-rls.sql:459`, `tests/security/authentication.test.ts:91` | Tree + history | An identifier, not a secret. It stays: the guards in section 9 use it to block production targets. |
-| C3 | **Former client-side PHI encryption key** `VITE_ENCRYPTION_KEY` (39 chars) | `.env`; `docs/AUDIT_TRACKER.md` (`5a2dc50`); `docs/QUICK_START_15_MIN.md` (`df8831e`) | History only | **Highest impact.** Any PHI encrypted with it is decryptable by anyone with repo access. See section 4.2. |
-| C4 | Generic frontend API key `VITE_API_KEY` (33 chars) | `.env`; `docs/QUICK_START_15_MIN.md`. The **same value** is the Kong `caresync-frontend` consumer key (C6), `REACT_APP_API_KEY` in `docker-compose.dev.yml:40`, `scripts/init-kong.sh` (echoed) and the removed audit report (`COMPREHENSIVE_AUDIT_REPORT.md:505`) | History; tree (kong/dev compose/init script/doc) | One value reused in five places. |
-| C5 | Kong database password `KONG_PG_PASSWORD` (25 chars) | `.env.kong`; `docker-compose.yml:19,49,73` (also used as the `kong-database` `POSTGRES_PASSWORD`) | History; tree (compose) | |
-| C6 | Kong key-auth consumer keys ×3 (`caresync-frontend` 33, `caresync-mobile` 31, `caresync-admin` 30 chars) | `kong.yml:159-165`; all three echoed by `scripts/init-kong.sh:51-53` | Tree + history | `docker-compose.prod.yml` mounted this file into the production Kong. |
-| C7 | Loggly customer token (13 chars) | `kong.yml:306` | Tree + history | |
-| C8 | Stale Kong API key used by the test scripts (28 chars, not one of C6) | `scripts/test-rate-limiting.sh:7`, `.ps1:5`; `scripts/test-response-caching.sh:7`, `.ps1:5` | Tree + history | Rotate if it was ever provisioned in a gateway. |
-| C9 | Clinical-service `JWT_SECRET` (31) and `ENCRYPTION_KEY` (32) | `docker-compose.yml:95-96` | Tree + history | |
-| C10 | Main Postgres password (29) | `docker-compose.yml:113` and inline in `DATABASE_URL` at `:92` | Tree + history | |
-| C11 | Grafana admin password (a well-known default) | `docker-compose.yml:212` | Tree + history | |
-| C12 | Kong Admin GUI session secret (28) | `docker-compose.dev.yml:12` | Tree + history | |
-| C13 | Patient-service DB password (16), `JWT_SECRET` (46), `ENCRYPTION_KEY` (54) | `services/patient-service/docker-compose.yml:14,17,18,36`; DB password also in `services/patient-service/.env.example:10` | Tree + history | |
-| C14 | Appointment-service DB password (20) | `services/appointment-service/docker-compose.yml:40` | Tree + history | |
-| C15 | **Shared E2E password** (12 chars) for 7 accounts: `admin@`, `doctor@`, `nurse@`, `reception@`, `pharmacy@`, `lab@`, `patient@testgeneral.com` | `.env.test:7-29`; `scripts/create-test-users.js:52-112` (also printed to stdout); `scripts/seed-e2e-data.mjs:18` (fallback for `test-*@caresync.local` users); `src/pages/hospital/LoginPage.tsx:312,329`; 26 files under `tests/e2e/`; `tests/test/e2e-fixtures.ts`; `tests/performance/auth-flow.k6.js` (history only); `.scratch/e2e-testing/issues/01-…md:36` | Tree + history | **P1 (SECF-21).** Includes an **admin** account. See section 3. |
-| C16 | Fixed test UUIDs with an `admin` role grant | `supabase/migrations/20260204000011_misc.sql:~7005-7145` (from legacy `20260125000000_create_test_users.sql`) | Tree | Not a secret, but it creates the "Test General Hospital" tenant, its profiles and `user_roles` (`…440003` = admin) **in whatever project the migrations are applied to**. Combined with C15 this gives a known-password admin. |
-| C17 | Provider keys (OpenAI, Anthropic, Twilio auth token, Lovable API key) as `VITE_*` | `.github/workflows/ci-pipeline.yml:203-211` | Tree + history | **Canary strings only** (`AUDITCANARY_*`). They prove nothing leaks into `dist/`. **No real provider key was found in the repo or its visible history.** These keys may still be set in deployed build environments (S0-09). See section 4.4. |
-| C18 | Local/CI defaults (`postgres`/`test` passwords for disposable containers, `postgresql://user:password@…` doc placeholders, `your_secure_…` placeholders in `.env.prod.example`) | various | Tree | Not credentials. They are allowlisted in `.gitleaks.toml`. |
+| #   | Credential (type)                                                                                                                                                               | Location(s)                                                                                                                                                                                                                                                                                                                                                       | Where                                                       | Notes                                                                                                                                                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | Supabase anon key, legacy JWT, `role=anon`, `ref` = production project (208 chars)                                                                                              | `.env` (`VITE_SUPABASE_PUBLISHABLE_KEY`)                                                                                                                                                                                                                                                                                                                          | History: added by `df8831e`/`ff2ea46`, deleted by `791c933` | Public by design and shipped in every bundle. It belongs to production, so rotating it is still required by SECF-20. No `service_role` JWT was found anywhere in visible history (the `.env` `SUPABASE_SERVICE_ROLE_KEY=` line was empty).    |
+| C2  | Supabase project URL and ref                                                                                                                                                    | `.env`, `supabase/config.toml:1`, `tests/security/authentication.test.ts:91`                                                                                                                                                                                                                                                                                      | Tree + history                                              | An identifier, not a secret. It stays: the guards in section 9 use it to block production targets.                                                                                                                                            |
+| C3  | **Former client-side PHI encryption key** `VITE_ENCRYPTION_KEY` (39 chars)                                                                                                      | `.env`; `docs/AUDIT_TRACKER.md` (`5a2dc50`); `docs/QUICK_START_15_MIN.md` (`df8831e`)                                                                                                                                                                                                                                                                             | History only                                                | **Highest impact.** Any PHI encrypted with it is decryptable by anyone with repo access. See section 4.2.                                                                                                                                     |
+| C4  | Generic frontend API key `VITE_API_KEY` (33 chars)                                                                                                                              | `.env`; `docs/QUICK_START_15_MIN.md`. The **same value** is the Kong `caresync-frontend` consumer key (C6), `REACT_APP_API_KEY` in `docker-compose.dev.yml:40`, `scripts/init-kong.sh` (echoed) and the removed audit report (`COMPREHENSIVE_AUDIT_REPORT.md:505`)                                                                                                | History; tree (kong/dev compose/init script/doc)            | One value reused in five places.                                                                                                                                                                                                              |
+| C5  | Kong database password `KONG_PG_PASSWORD` (25 chars)                                                                                                                            | `.env.kong`; `docker-compose.yml:19,49,73` (also used as the `kong-database` `POSTGRES_PASSWORD`)                                                                                                                                                                                                                                                                 | History; tree (compose)                                     |                                                                                                                                                                                                                                               |
+| C6  | Kong key-auth consumer keys ×3 (`caresync-frontend` 33, `caresync-mobile` 31, `caresync-admin` 30 chars)                                                                        | `kong.yml:159-165`; all three echoed by `scripts/init-kong.sh:51-53`                                                                                                                                                                                                                                                                                              | Tree + history                                              | `docker-compose.prod.yml` mounted this file into the production Kong.                                                                                                                                                                         |
+| C7  | Loggly customer token (13 chars)                                                                                                                                                | `kong.yml:306`                                                                                                                                                                                                                                                                                                                                                    | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C8  | Stale Kong API key used by the test scripts (28 chars, not one of C6)                                                                                                           | `scripts/test-rate-limiting.sh:7`, `.ps1:5`; `scripts/test-response-caching.sh:7`, `.ps1:5`                                                                                                                                                                                                                                                                       | Tree + history                                              | Rotate if it was ever provisioned in a gateway.                                                                                                                                                                                               |
+| C9  | Clinical-service `JWT_SECRET` (31) and `ENCRYPTION_KEY` (32)                                                                                                                    | `docker-compose.yml:95-96`                                                                                                                                                                                                                                                                                                                                        | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C10 | Main Postgres password (29)                                                                                                                                                     | `docker-compose.yml:113` and inline in `DATABASE_URL` at `:92`                                                                                                                                                                                                                                                                                                    | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C11 | Grafana admin password (a well-known default)                                                                                                                                   | `docker-compose.yml:212`                                                                                                                                                                                                                                                                                                                                          | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C12 | Kong Admin GUI session secret (28)                                                                                                                                              | `docker-compose.dev.yml:12`                                                                                                                                                                                                                                                                                                                                       | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C13 | Patient-service DB password (16), `JWT_SECRET` (46), `ENCRYPTION_KEY` (54)                                                                                                      | `services/patient-service/docker-compose.yml:14,17,18,36`; DB password also in `services/patient-service/.env.example:10`                                                                                                                                                                                                                                         | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C14 | Appointment-service DB password (20)                                                                                                                                            | `services/appointment-service/docker-compose.yml:40`                                                                                                                                                                                                                                                                                                              | Tree + history                                              |                                                                                                                                                                                                                                               |
+| C15 | **Shared E2E password** (12 chars) for 7 accounts: `admin@`, `doctor@`, `nurse@`, `reception@`, `pharmacy@`, `lab@`, `patient@testgeneral.com`                                  | `.env.test:7-29`; `scripts/create-test-users.js:52-112` (also printed to stdout); `scripts/seed-e2e-data.mjs:18` (fallback for `test-*@caresync.local` users); `src/pages/hospital/LoginPage.tsx:312,329`; 26 files under `tests/e2e/`; `tests/test/e2e-fixtures.ts`; `tests/performance/auth-flow.k6.js` (history only); `.scratch/e2e-testing/issues/01-…md:36` | Tree + history                                              | **P1 (SECF-21).** Includes an **admin** account. See section 3.                                                                                                                                                                               |
+| C16 | Fixed test UUIDs with an `admin` role grant                                                                                                                                     | `supabase/migrations/20260204000011_misc.sql:~7005-7145` (from legacy `20260125000000_create_test_users.sql`)                                                                                                                                                                                                                                                     | Tree                                                        | Not a secret, but it creates the "Test General Hospital" tenant, its profiles and `user_roles` (`…440003` = admin) **in whatever project the migrations are applied to**. Combined with C15 this gives a known-password admin.                |
+| C17 | Provider keys (OpenAI, Anthropic, Twilio auth token, Lovable API key) as `VITE_*`                                                                                               | `.github/workflows/ci-pipeline.yml:203-211`                                                                                                                                                                                                                                                                                                                       | Tree + history                                              | **Canary strings only** (`AUDITCANARY_*`). They prove nothing leaks into `dist/`. **No real provider key was found in the repo or its visible history.** These keys may still be set in deployed build environments (S0-09). See section 4.4. |
+| C18 | Local/CI defaults (`postgres`/`test` passwords for disposable containers, `postgresql://user:password@…` doc placeholders, `your_secure_…` placeholders in `.env.prod.example`) | various                                                                                                                                                                                                                                                                                                                                                           | Tree                                                        | Not credentials. They are allowlisted in `.gitleaks.toml`.                                                                                                                                                                                    |
 
 **Counts.** There are 17 distinct secret values, not counting the Grafana default. The current tree held 15 of them (C4 to C15) until the S0-11 commits removed them. Two exist only in history: the C1 anon JWT and the C3 PHI key. By type, they are:
 
@@ -63,16 +63,16 @@ The provider API keys from S0-09 were not found.
 
 ## 2. Order of operations (priority)
 
-| Step | Priority | Action | Section |
-|---|---|---|---|
-| 1 | P0, now | Remove the shared test accounts and the test tenant from **production**, then audit their activity | 3 |
-| 2 | P0 | Decide whether C3 (old PHI key) ever encrypted production data. Rotate `PHI_ENCRYPTION_KEY` and re-encrypt. | 4.2 |
-| 3 | P0 | Rotate Supabase API keys (C1). Rotate the provider keys of any `VITE_*` secret that was ever set in a deployed build (S0-09). | 4.1, 4.4 |
-| 4 | P1 | Rotate the Kong, Loggly and microservice credentials (C4 to C14) wherever that stack ran | 4.3 |
-| 5 | P1 | Create the separate test/staging Supabase project and move every seed and test run there | 5 |
-| 6 | P1 | Enable GitHub secret scanning and push protection. Make `Secret Scan` a required check. | 7 |
-| 7 | P1 | Purge history with `git filter-repo` in a coordinated freeze: all clones, Lovable, branch protection | 6 |
-| 8 | — | Verify and write the rotation record | 8 |
+| Step | Priority | Action                                                                                                                        | Section  |
+| ---- | -------- | ----------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1    | P0, now  | Remove the shared test accounts and the test tenant from **production**, then audit their activity                            | 3        |
+| 2    | P0       | Decide whether C3 (old PHI key) ever encrypted production data. Rotate `PHI_ENCRYPTION_KEY` and re-encrypt.                   | 4.2      |
+| 3    | P0       | Rotate Supabase API keys (C1). Rotate the provider keys of any `VITE_*` secret that was ever set in a deployed build (S0-09). | 4.1, 4.4 |
+| 4    | P1       | Rotate the Kong, Loggly and microservice credentials (C4 to C14) wherever that stack ran                                      | 4.3      |
+| 5    | P1       | Create the separate test/staging Supabase project and move every seed and test run there                                      | 5        |
+| 6    | P1       | Enable GitHub secret scanning and push protection. Make `Secret Scan` a required check.                                       | 7        |
+| 7    | P1       | Purge history with `git filter-repo` in a coordinated freeze: all clones, Lovable, branch protection                          | 6        |
+| 8    | —        | Verify and write the rotation record                                                                                          | 8        |
 
 Steps 1 to 4 do not depend on the purge, so do them first. Step 7 must come after step 6, so that push protection blocks any re-push of the old values from a stale clone.
 
@@ -117,9 +117,9 @@ Any of these accounts that ever signed in could have been used by anyone who rea
 
 ### 3.3 Disable, then delete
 
-1. **Ban first.** Dashboard → Authentication → Users → *Ban user*, or the Admin API `updateUserById(id, { ban_duration: '876000h' })`. Banning stops new sessions immediately.
+1. **Ban first.** Dashboard → Authentication → Users → _Ban user_, or the Admin API `updateUserById(id, { ban_duration: '876000h' })`. Banning stops new sessions immediately.
 2. Remove the role grants (`delete from public.user_roles where user_id in (…)`) and the test tenant's profiles.
-3. Delete the auth users (Dashboard → *Delete user*). `profiles` and the other `ON DELETE CASCADE` children go with them.
+3. Delete the auth users (Dashboard → _Delete user_). `profiles` and the other `ON DELETE CASCADE` children go with them.
 4. Delete the `Test General Hospital` row only after 3.1 shows that no real patients are attached to it.
 5. Re-run 3.1. All queries must return 0 rows. This is the acceptance criterion: "Production has 0 `@testgeneral.com` users".
 
@@ -188,7 +188,7 @@ The repo has no real values (C17 are canaries). However, any `VITE_OPENAI_API_KE
 
 1. Check the Lovable project env and each hosting env for those names, including old deployments.
 2. For each one that was set:
-   - **Revoke** it in the provider console: OpenAI → API keys, Anthropic Console → API keys, Twilio → Auth Tokens → *Request secondary token* → promote → delete the old one, Lovable → workspace API keys.
+   - **Revoke** it in the provider console: OpenAI → API keys, Anthropic Console → API keys, Twilio → Auth Tokens → _Request secondary token_ → promote → delete the old one, Lovable → workspace API keys.
    - **Remove** the `VITE_*` variable.
    - **Set** the new value only as a Supabase edge-function secret (`supabase secrets set NAME=…`).
 3. CI already blocks these names in client code (`npm run security:client-secrets`).
@@ -287,7 +287,7 @@ shred -u ../replacements.txt ../before.json 2>/dev/null || rm -P ../replacements
 
 ### 6.3 After the push
 
-1. **GitHub cached data:** the old commits stay reachable through `refs/pull/*` and the commit SHAs until GitHub garbage-collects them. Open a GitHub Support request ("remove sensitive data / purge cached views"). Give the repo and the old SHAs (`df8831e`, `ff2ea46`, `791c933`, `5a2dc50` and all old branch tips). See GitHub Docs → *Removing sensitive data from a repository*.
+1. **GitHub cached data:** the old commits stay reachable through `refs/pull/*` and the commit SHAs until GitHub garbage-collects them. Open a GitHub Support request ("remove sensitive data / purge cached views"). Give the repo and the old SHAs (`df8831e`, `ff2ea46`, `791c933`, `5a2dc50` and all old branch tips). See GitHub Docs → _Removing sensitive data from a repository_.
 2. **Re-enable branch protection** on `main`: no force-pushes, required checks (add `Secret Scan / gitleaks (new commits)`), required reviews.
 3. Everyone **re-clones**. Delete old clones and worktrees. Never `git pull` into an old clone.
 4. Check Lovable: it shows the rewritten `main` and builds green.
@@ -303,7 +303,7 @@ shred -u ../replacements.txt ../before.json 2>/dev/null || rm -P ../replacements
 3. Optional custom patterns, matching `.gitleaks.toml`:
    - `sb_secret_[A-Za-z0-9_-]{20,}`
    - The service_role JWT pattern.
-4. Triage existing alerts: Security → Secret scanning. Close each alert as *revoked* only after its section 4 rotation.
+4. Triage existing alerts: Security → Secret scanning. Close each alert as _revoked_ only after its section 4 rotation.
 5. Make **`Secret Scan / gitleaks (new commits)`** a required status check on `main` (Settings → Branches / Rulesets).
 6. Optional local hook: `gitleaks git --staged --config .gitleaks.toml --redact` in `.husky/pre-commit`, once gitleaks is part of the developer setup. This repo adds no npm dependency for it.
 
@@ -323,17 +323,17 @@ Acceptance criteria (from S0-11, SECF-19/20/21, OPS-06/16/17):
 
 Rotation record. Keep it here or in your secrets manager. **No values.**
 
-| Credential | Rotated on | By | Updated in | Old value verified dead (how) |
-|---|---|---|---|---|
-| C1 Supabase anon/legacy keys | | | | |
-| C3 PHI encryption key | | | | |
-| C4/C6/C8 Kong consumer keys | | | | |
-| C7 Loggly token | | | | |
-| C5/C10/C13/C14 DB passwords | | | | |
-| C9/C13 JWT/encryption secrets | | | | |
-| C11/C12 Grafana / Kong GUI session | | | | |
-| C15 shared test accounts deleted | | | | |
-| S0-09 provider keys (if ever set) | | | | |
+| Credential                         | Rotated on | By  | Updated in | Old value verified dead (how) |
+| ---------------------------------- | ---------- | --- | ---------- | ----------------------------- |
+| C1 Supabase anon/legacy keys       |            |     |            |                               |
+| C3 PHI encryption key              |            |     |            |                               |
+| C4/C6/C8 Kong consumer keys        |            |     |            |                               |
+| C7 Loggly token                    |            |     |            |                               |
+| C5/C10/C13/C14 DB passwords        |            |     |            |                               |
+| C9/C13 JWT/encryption secrets      |            |     |            |                               |
+| C11/C12 Grafana / Kong GUI session |            |     |            |                               |
+| C15 shared test accounts deleted   |            |     |            |                               |
+| S0-09 provider keys (if ever set)  |            |     |            |                               |
 
 ---
 
@@ -359,5 +359,5 @@ Rotation record. Keep it here or in your secrets manager. **No values.**
 - The `phi-crypto` dual-key and re-encryption code (4.2).
 - `tests/security/authentication.test.ts` and `tests/api/*` call whatever project `.env` points to. In CI they hit `stub.supabase.co` (TEST-04). Locally they need the test project or `supabase start`.
 - The vitest setup (`src/test/setup.ts`) has no production guard yet.
-- `scripts/apply-rls-migration.mjs` and `scripts/validate-rls*.mjs` intentionally target a configured project with the service-role key. Run them against production only through the migration process.
+- `scripts/validate-rls.ts` intentionally targets a configured project with the service-role key. Run it against production only through the deploy workflow.
 - Image digest pinning (OPS-05, OPS-06).
