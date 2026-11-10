@@ -26,8 +26,8 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
     });
 
     it('writes audit trail to activity_logs on decryption', () => {
-      expect(fnSource).toContain(".from(\"activity_logs\").insert");
-      expect(fnSource).toContain("PHI_DECRYPT");
+      expect(fnSource).toContain('.from("activity_logs").insert');
+      expect(fnSource).toContain('PHI_DECRYPT');
     });
   });
 
@@ -127,9 +127,12 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
       expect(censusSource).not.toContain('super_admin');
     });
 
-    it('insurance-integration enforces getAuthorizedActor and actor hospital scoping', () => {
+    it('insurance-integration authenticates the caller and stays a non-writing 501 stub', () => {
+      // No payer adapter exists, so there is no data to scope by hospital yet.
+      // Until one is added, the function must authenticate and must not touch the database.
       expect(insuranceSource).toContain('getAuthorizedActor');
-      expect(insuranceSource).toContain('actor.hospitalId');
+      expect(insuranceSource).toContain('status: 501');
+      expect(insuranceSource).not.toMatch(/\.from\(|\.insert\(|\.update\(|\.upsert\(|\.rpc\(/);
     });
 
     it('billing-reconciliation enforces getAuthorizedActor and pins hospital_id', () => {
