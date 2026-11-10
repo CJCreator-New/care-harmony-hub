@@ -15,6 +15,8 @@
  * through `INITIAL_CHECK_IN_STEP` when it closes (a reset, not a transition).
  */
 
+import { canMove, move } from './wizardFlow';
+
 export type CheckInStep = 'search' | 'verify' | 'insurance' | 'copay' | 'complete';
 
 /** Steps shown in the progress indicator, in order. */
@@ -39,7 +41,7 @@ export const CHECK_IN_BACK_TARGET: Readonly<Partial<Record<CheckInStep, CheckInS
 };
 
 export function canTransition(from: CheckInStep, to: CheckInStep): boolean {
-  return CHECK_IN_TRANSITIONS[from].includes(to);
+  return canMove(CHECK_IN_TRANSITIONS, from, to);
 }
 
 /**
@@ -47,7 +49,7 @@ export function canTransition(from: CheckInStep, to: CheckInStep): boolean {
  * Rejecting an illegal move keeps the wizard on a valid screen.
  */
 export function transition(from: CheckInStep, to: CheckInStep): CheckInStep {
-  return canTransition(from, to) ? to : from;
+  return move(CHECK_IN_TRANSITIONS, from, to);
 }
 
 /** Step the Back button returns to, or `null` when Back is not offered. */

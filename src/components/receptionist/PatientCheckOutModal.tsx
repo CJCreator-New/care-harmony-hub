@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,6 +39,13 @@ import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CURRENCY_SYMBOL } from '@/lib/currency';
+import {
+  CHECK_OUT_PROGRESS_STEPS,
+  INITIAL_CHECK_OUT_STEP,
+  backTarget,
+  transition,
+  type CheckOutStep,
+} from './checkOutFlow';
 
 interface PatientCheckOutModalProps {
   open: boolean;
@@ -34,10 +53,14 @@ interface PatientCheckOutModalProps {
   queueEntry?: QueueEntry | null;
 }
 
-type CheckOutStep = 'summary' | 'billing' | 'payment' | 'followup' | 'complete';
-
-export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: PatientCheckOutModalProps) {
-  const [step, setStep] = useState<CheckOutStep>('summary');
+export function PatientCheckOutModal({
+  open,
+  onOpenChange,
+  queueEntry,
+}: PatientCheckOutModalProps) {
+  const [step, setStep] = useState<CheckOutStep>(INITIAL_CHECK_OUT_STEP);
+  // All forward/back moves go through the transition table in checkOutFlow.ts.
+  const goTo = (next: CheckOutStep) => setStep((current) => transition(current, next));
   const [selectedEntry, setSelectedEntry] = useState<QueueEntry | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -50,12 +73,12 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
   const recordPayment = useRecordPayment();
   const { data: allInvoices = [] } = useInvoices();
 
-  const inServicePatients = inServiceQueue.filter(q => q.status === 'in_service');
+  const inServicePatients = inServiceQueue.filter((q) => q.status === 'in_service');
 
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setStep('summary');
+      setStep(INITIAL_CHECK_OUT_STEP);
       setSelectedEntry(null);
       setPaymentMethod('cash');
       setPaymentAmount('');
@@ -69,7 +92,7 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
 
   const handleSelectPatient = (entry: QueueEntry) => {
     setSelectedEntry(entry);
-    setStep('summary');
+    setStep(INITIAL_CHECK_OUT_STEP);
   };
 
   const handleCompleteCheckOut = async () => {
@@ -93,7 +116,7 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
       }
 
       await completeService.mutateAsync(selectedEntry.id);
-      setStep('complete');
+      goTo('complete');
     } catch (error) {
       // Error handled by mutation
     }
@@ -104,7 +127,7 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
       <div className="text-sm text-muted-foreground mb-4">
         Select a patient currently in service to check out:
       </div>
-      
+
       {inServicePatients.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -128,9 +151,7 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
                       <p className="font-medium">
                         {entry.patient?.first_name} {entry.patient?.last_name}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        MRN: {entry.patient?.mrn}
-                      </p>
+                      <p className="text-sm text-muted-foreground">MRN: {entry.patient?.mrn}</p>
                     </div>
                   </div>
                   <Badge variant="success">In Service</Badge>
@@ -157,7 +178,9 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
                 {selectedEntry?.patient?.first_name} {selectedEntry?.patient?.last_name}
               </h3>
               <p className="text-sm text-muted-foreground">MRN: {selectedEntry?.patient?.mrn}</p>
-              <p className="text-sm text-muted-foreground">Queue #: {selectedEntry?.queue_number}</p>
+              <p className="text-sm text-muted-foreground">
+                Queue #: {selectedEntry?.queue_number}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -174,11 +197,17 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
         <CardContent className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Check-in Time:</span>
-            <span>{selectedEntry?.check_in_time && format(new Date(selectedEntry.check_in_time), 'h:mm a')}</span>
+            <span>
+              {selectedEntry?.check_in_time &&
+                format(new Date(selectedEntry.check_in_time), 'h:mm a')}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Service Start:</span>
-            <span>{selectedEntry?.service_start_time && format(new Date(selectedEntry.service_start_time), 'h:mm a')}</span>
+            <span>
+              {selectedEntry?.service_start_time &&
+                format(new Date(selectedEntry.service_start_time), 'h:mm a')}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Department:</span>
@@ -287,14 +316,14 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
             <Button
-              variant={needsFollowUp ? "default" : "outline"}
+              variant={needsFollowUp ? 'default' : 'outline'}
               size="sm"
               onClick={() => setNeedsFollowUp(true)}
             >
               Schedule Follow-Up
             </Button>
             <Button
-              variant={!needsFollowUp ? "default" : "outline"}
+              variant={!needsFollowUp ? 'default' : 'outline'}
               size="sm"
               onClick={() => setNeedsFollowUp(false)}
             >
@@ -311,8 +340,8 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !followUpDate && "text-muted-foreground"
+                        'w-full justify-start text-left font-normal',
+                        !followUpDate && 'text-muted-foreground'
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -339,7 +368,13 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
                     size="sm"
                     onClick={() => setFollowUpDate(addDays(new Date(), days))}
                   >
-                    {days === 7 ? '1 Week' : days === 14 ? '2 Weeks' : days === 30 ? '1 Month' : '3 Months'}
+                    {days === 7
+                      ? '1 Week'
+                      : days === 14
+                        ? '2 Weeks'
+                        : days === 30
+                          ? '1 Month'
+                          : '3 Months'}
                   </Button>
                 ))}
               </div>
@@ -367,7 +402,8 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
       <div>
         <h3 className="text-lg font-semibold">Check-Out Complete!</h3>
         <p className="text-muted-foreground">
-          {selectedEntry?.patient?.first_name} {selectedEntry?.patient?.last_name} has been checked out.
+          {selectedEntry?.patient?.first_name} {selectedEntry?.patient?.last_name} has been checked
+          out.
         </p>
       </div>
       {needsFollowUp && followUpDate && (
@@ -408,11 +444,11 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
         {/* Step Indicator */}
         {step !== 'complete' && selectedEntry && (
           <div className="flex items-center gap-1 mb-4">
-            {(['summary', 'billing', 'payment', 'followup'] as CheckOutStep[]).map((s, i) => (
+            {CHECK_OUT_PROGRESS_STEPS.map((s, i) => (
               <div
                 key={s}
                 className={`flex-1 h-1 rounded-full ${
-                  ['summary', 'billing', 'payment', 'followup'].indexOf(step) >= i
+                  (CHECK_OUT_PROGRESS_STEPS as readonly CheckOutStep[]).indexOf(step) >= i
                     ? 'bg-primary'
                     : 'bg-muted'
                 }`}
@@ -441,44 +477,31 @@ export function PatientCheckOutModal({ open, onOpenChange, queueEntry }: Patient
           )}
           {selectedEntry && step !== 'complete' && (
             <div className="flex w-full justify-between items-center">
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                className="text-muted-foreground"
+              >
                 Cancel
               </Button>
               <div className="flex gap-2">
-                {step !== 'summary' && (
+                {backTarget(step) !== null && (
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const steps: CheckOutStep[] = ['summary', 'billing', 'payment', 'followup'];
-                      const currentIndex = steps.indexOf(step);
-                      if (currentIndex > 0) {
-                        setStep(steps[currentIndex - 1]);
-                      }
+                      const back = backTarget(step);
+                      if (back) goTo(back);
                     }}
                   >
                     Back
                   </Button>
                 )}
-                {step === 'summary' && (
-                  <Button onClick={() => setStep('billing')}>
-                    Continue
-                  </Button>
-                )}
-                {step === 'billing' && (
-                  <Button onClick={() => setStep('payment')}>
-                    Continue
-                  </Button>
-                )}
-                {step === 'payment' && (
-                  <Button onClick={() => setStep('followup')}>
-                    Continue
-                  </Button>
-                )}
+                {step === 'summary' && <Button onClick={() => goTo('billing')}>Continue</Button>}
+                {step === 'billing' && <Button onClick={() => goTo('payment')}>Continue</Button>}
+                {step === 'payment' && <Button onClick={() => goTo('followup')}>Continue</Button>}
                 {step === 'followup' && (
-                  <Button
-                    onClick={handleCompleteCheckOut}
-                    disabled={completeService.isPending}
-                  >
+                  <Button onClick={handleCompleteCheckOut} disabled={completeService.isPending}>
                     {completeService.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Complete Check-Out
                   </Button>
