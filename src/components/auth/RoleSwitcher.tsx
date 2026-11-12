@@ -102,7 +102,7 @@ export function RoleSwitcher({
             onClick={() => handleRoleSwitch(role)}
           >
             <span className={`mr-2 ${ROLE_INFO[role]?.color || 'text-gray-500'}`}>
-              •
+              â€¢
             </span>
             {ROLE_INFO[role]?.label || role}
           </DropdownMenuItem>
