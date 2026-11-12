@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { sanitizeLogMessage } from '@/utils/sanitize';
+import { useActivityLog } from '@/hooks/useActivityLog';
 
 export interface AppointmentRequest {
   id: string;
@@ -189,9 +190,20 @@ export const usePatientAppointmentRequests = useAppointmentRequests;
 export function useUpdateAppointmentRequest() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logActivity } = useActivityLog();
 
   return useMutation({
-    mutationFn: async ({ id, status, reviewed_by }: { id: string; status: string; reviewed_by: string }) => {
+    // `reason` is audit-only (required by the UI when rejecting); the request row has no reason column.
+    mutationFn: async ({
+      id,
+      status,
+      reviewed_by,
+    }: {
+      id: string;
+      status: string;
+      reviewed_by: string;
+      reason?: string;
+    }) => {
       const { data, error } = await supabase
         .from('appointment_requests')
         .update({ 
@@ -207,9 +219,17 @@ export function useUpdateAppointmentRequest() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['appointment-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-appointment-requests'] });
+      if (data.status === 'rejected') {
+        void logActivity({
+          actionType: 'appointment_update',
+          entityType: 'appointment_request',
+          entityId: data.id,
+          details: { status: 'rejected', reason: variables.reason?.trim() || null },
+        });
+      }
       toast({
         title: data.status === 'approved' ? "Request Approved" : "Request Rejected",
         description: `Appointment request has been ${data.status}.`,

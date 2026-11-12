@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/integrations/supabase/client';
 
-describe('Supabase Edge Functions', () => {
+// Integration gate: edge functions are only reachable on a live Supabase project.
+// Without VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY the suite is skipped.
+const hasLiveBackend = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+);
+
+describe.runIf(hasLiveBackend)('Supabase Edge Functions', () => {
   describe('Health Check Function', () => {
     it('should respond with system health status', async () => {
       const { data, error } = await supabase.functions.invoke('health-check');
-      
+
       expect(error).toBeNull();
       expect(data).toBeDefined();
     });
@@ -45,9 +51,9 @@ describe('Supabase Edge Functions', () => {
   describe('Function Performance', () => {
     it('should respond within acceptable time', async () => {
       const start = Date.now();
-      
+
       await supabase.functions.invoke('health-check');
-      
+
       const duration = Date.now() - start;
       expect(duration).toBeLessThan(2000); // Under 2 seconds
     });

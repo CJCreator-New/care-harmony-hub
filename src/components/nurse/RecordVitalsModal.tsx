@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { writeIntakeToPatientRecord } from '@/modules/order-safety';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActiveQueue } from '@/hooks/useQueue';
 import { usePatients } from '@/lib/hooks/patients';
@@ -239,6 +240,13 @@ export function RecordVitalsModal({
         const errorMessage = error.message || 'Failed to record vitals';
         throw new Error(errorMessage);
       }
+
+      // CLIN-14: make intake allergies/medications visible to prescribing safety checks.
+      const intakeWrite = await writeIntakeToPatientRecord(selectedPatient.id, {
+        allergies: vitals.allergies,
+        currentMedications: vitals.current_medications,
+      });
+      if (!intakeWrite.ok) toast.warning('Allergies/medications could not be saved to the patient record. Update the record before prescribing.');
 
       toast.success('Vitals recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['vital-signs'] });

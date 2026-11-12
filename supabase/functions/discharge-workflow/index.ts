@@ -1,10 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authorize, getAuthorizedActor } from '../_shared/authorize.ts';
+import { assertPatientInHospital, findInHospital } from '../_shared/tenantScope.ts';
 import { withRateLimit } from '../_shared/rateLimit.ts';
 import { validateRequest, validationErrorResponse } from '../_shared/validation.ts';
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 const requestSchema = z.object({
   workflowId: z.string().uuid().optional(),
@@ -74,7 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
   if (authError) return authError;
 
   const validation = await validateRequest(req, requestSchema);
-  if (!validation.success) return validationErrorResponse(validation.error);
+  if (!validation.success) return validationErrorResponse(validation.error, req);
 
   try {
     const supabase = createClient(
@@ -133,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return await cancelWorkflow(supabase, actor, typedWorkflow, corsHeaders);
   } catch (err) {
-    console.error('[discharge-workflow]', err);
+    logEdge('error', 'discharge-workflow', { stage: 'discharge_workflow', error: err });
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -157,11 +159,13 @@ async function getActorContext(req: Request, supabase: ReturnType<typeof createC
     .eq('user_id', actor.userId)
     .maybeSingle();
 
-  if (!profile) return null;
+  // S0-06 / EDGE-14: the hospital is the one getAuthorizedActor verified; never
+  // fall back to an empty string.
+  if (!profile || profile.hospital_id !== actor.hospitalId) return null;
 
   return {
     userId: actor.userId,
-    hospitalId: (profile.hospital_id as string | null) ?? actor.hospitalId ?? '',
+    hospitalId: actor.hospitalId,
     fullName: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Unknown User',
     roles: actor.assignedRoles,
   };
@@ -190,6 +194,25 @@ async function initiateWorkflow(
     });
   }
 
+  // S0-06 / EDGE-13: patient and consultation must belong to the caller's hospital.
+  if (!(await assertPatientInHospital(supabase as never, payload.patientId, actor.hospitalId))) {
+    return new Response(JSON.stringify({ error: 'Forbidden - patient not found in caller hospital' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+  if (payload.consultationId) {
+    const consultation = await findInHospital(supabase as never, 'consultations', payload.consultationId, actor.hospitalId, {
+      select: 'id, patient_id, hospital_id',
+    });
+    if (!consultation || consultation.patient_id !== payload.patientId) {
+      return new Response(JSON.stringify({ error: 'Forbidden - consultation not found for this patient' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+  }
+
   const now = new Date().toISOString();
 
   const { data: workflow, error } = await supabase
@@ -204,9 +227,10 @@ async function initiateWorkflow(
       last_action_by: actor.userId,
       last_action_at: now,
       metadata: {
+        ...payload.metadata,
+        // server-owned fields last so the body cannot overwrite them
         initiated_at: now,
         initiated_by_name: actor.fullName,
-        ...payload.metadata,
       },
     })
     .select('*')

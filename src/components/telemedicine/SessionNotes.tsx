@@ -38,7 +38,14 @@ export function SessionNotes({ patientId, appointmentId, onSave }: SessionNotesP
       return;
     }
 
-    onSave?.(notes);
+    // CLIN-21: without a handler nothing is stored, so do not report success.
+    if (!onSave) {
+      toast.error(
+        'Session notes were not saved. This call is not linked to a patient record yet; copy the notes before closing.'
+      );
+      return;
+    }
+    onSave(notes);
     toast.success('Session notes saved');
   };
 

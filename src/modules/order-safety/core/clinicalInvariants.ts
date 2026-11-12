@@ -126,7 +126,11 @@ export function evaluateClinicalInvariants(
     }
 
     // 4. Drug-Route Compatibility
-    const matchedRouteDrug = Object.keys(ROUTE_RESTRICTIONS).find((d) => drugLower.includes(d));
+    // Route rules need a known route; never guess one.
+    const matchedRouteDrug =
+      item.route === 'UNSPECIFIED'
+        ? undefined
+        : Object.keys(ROUTE_RESTRICTIONS).find((d) => drugLower.includes(d));
     if (matchedRouteDrug) {
       const allowedRoutes = ROUTE_RESTRICTIONS[matchedRouteDrug];
       if (!allowedRoutes.includes(item.route)) {

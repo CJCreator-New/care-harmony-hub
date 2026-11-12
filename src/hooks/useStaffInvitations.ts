@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
+import { getEdgeFunctionErrorMessage } from '@/lib/onboarding/edgeFunctionError';
+import { useAudit } from '@/hooks/useAudit';
 
 export interface StaffInvitation {
   id: string;
@@ -25,8 +27,31 @@ interface CreateInvitationParams {
   role: UserRole;
 }
 
+/**
+ * Turns a PostgREST error from an invitation insert into a message for the
+ * admin. `staff_invitations` has UNIQUE (hospital_id, email, status), so any
+ * earlier invitation for the same email and status blocks a new one (23505).
+ * The raw database text is not shown.
+ */
+export function mapInvitationInsertError(
+  err: { code?: string | null; message?: string | null } | null | undefined
+): string {
+  if (err?.code === '23505') {
+    return 'An invitation for this email already exists for this hospital.';
+  }
+  return err?.message || 'Failed to create invitation';
+}
+
+interface AcceptInvitationParams {
+  token: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
 export function useStaffInvitations() {
   const { profile } = useAuth();
+  const { logActivity } = useAudit();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,8 +105,12 @@ export function useStaffInvitations() {
       }
 
       // Handle E2E Mock Auth where the profile ID doesn't exist in the database
-      const isE2EMockMode = import.meta.env.VITE_E2E_MOCK_AUTH === 'true' ||
-           (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user'));
+      // Never in production builds: a stray localStorage key must not turn a real
+      // insert into a fake success (FUNC-21).
+      const isE2EMockMode = !import.meta.env.PROD && (
+        import.meta.env.VITE_E2E_MOCK_AUTH === 'true' ||
+        (typeof window !== 'undefined' && !!localStorage.getItem('e2e-mock-auth-user'))
+      );
       if (isE2EMockMode) {
         return {
           data: {
@@ -111,7 +140,7 @@ export function useStaffInvitations() {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) throw new Error(mapInvitationInsertError(insertError));
 
       return { data, error: null };
     } catch (err) {
@@ -123,7 +152,7 @@ export function useStaffInvitations() {
     }
   }, [profile?.hospital_id, profile?.id]);
 
-  const cancelInvitation = useCallback(async (invitationId: string) => {
+  const cancelInvitation = useCallback(async (invitationId: string, reason?: string) => {
     if (!profile?.hospital_id) {
       return { error: 'Not authenticated or no hospital' };
     }
@@ -141,6 +170,13 @@ export function useStaffInvitations() {
 
       if (updateError) throw updateError;
 
+      void logActivity({
+        actionType: 'STAFF_INVITATION_CANCELLED',
+        entityType: 'staff_invitations',
+        entityId: invitationId,
+        details: { reason: reason?.trim() || null },
+      });
+
       return { error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to cancel invitation';
@@ -149,7 +185,7 @@ export function useStaffInvitations() {
     } finally {
       setIsLoading(false);
     }
-  }, [profile?.hospital_id]);
+  }, [profile?.hospital_id, logActivity]);
 
   const resendInvitation = useCallback(async (invitationId: string) => {
     if (!profile?.hospital_id) {
@@ -189,39 +225,61 @@ export function useStaffInvitations() {
         body: { token }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Non-2xx (rate limit, origin, server error): show the function's own text.
+        return {
+          data: null,
+          error: await getEdgeFunctionErrorMessage(error, 'Invalid or expired invitation'),
+        };
+      }
 
-      if (!data.valid) {
-        return { data: null, error: data.error || 'Invalid invitation' };
+      if (!data?.valid) {
+        return { data: null, error: data?.error || 'Invalid or expired invitation' };
       }
 
       return { data: data.invitation, error: null };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid or expired invitation';
+      const message = await getEdgeFunctionErrorMessage(err, 'Invalid or expired invitation');
       return { data: null, error: message };
     }
   }, []);
 
-  const acceptInvitation = useCallback(async (token: string, userId: string) => {
-    try {
-      // Delegate the entire acceptance — profile update, role assignment, and
-      // invitation status update — to the accept-invitation-signup edge function
-      // which calls the accept_staff_invitation SECURITY DEFINER RPC. This
-      // prevents client-side direct inserts into user_roles (privilege escalation).
-      // The edge function performs its own token validation server-side.
-      const { error: acceptError } = await supabase.functions.invoke(
-        'accept-invitation-signup',
-        { body: { token, userId } }
-      );
+  /**
+   * Accepts an invitation by creating the invitee's account. The body matches the
+   * `accept-invitation-signup` contract: the server creates the user itself from
+   * the invited email, so the client sends the password and name, not a user id.
+   */
+  const acceptInvitation = useCallback(
+    async ({ token, password, firstName, lastName }: AcceptInvitationParams) => {
+      // Delegate the entire acceptance (user creation, profile, role assignment,
+      // invitation status) to the edge function, which calls the
+      // accept_staff_invitation RPC. The client never writes user_roles itself.
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'accept-invitation-signup',
+          { body: { token, password, firstName, lastName } }
+        );
 
-      if (acceptError) throw acceptError;
+        if (invokeError) {
+          return {
+            data: null,
+            error: await getEdgeFunctionErrorMessage(invokeError, 'Failed to accept invitation'),
+          };
+        }
+        if (!data?.success) {
+          return { data: null, error: data?.error || 'Failed to accept invitation' };
+        }
 
-      return { error: null };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to accept invitation';
-      return { error: message };
-    }
-  }, []);
+        return { data, error: null };
+      } catch (err) {
+        return {
+          data: null,
+          error: await getEdgeFunctionErrorMessage(err, 'Failed to accept invitation'),
+        };
+      }
+    },
+    []
+  );
 
   return {
     isLoading,

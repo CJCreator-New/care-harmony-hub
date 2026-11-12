@@ -15,8 +15,25 @@ export function scoreRespirationRate(rate: number | null): number {
   return 3; // >= 25
 }
 
-export function scoreOxygenSaturation(spo2: number | null): number {
+/** NEWS2 Scale 2 (hypercapnic target 88-92%). Scores depend on whether the patient is on supplemental oxygen. */
+export function scoreOxygenSaturationScale2(spo2: number, onOxygen: boolean): number {
+  if (spo2 <= 83) return 3;
+  if (spo2 <= 85) return 2;
+  if (spo2 <= 87) return 1;
+  if (spo2 <= 92) return 0;
+  if (!onOxygen) return 0; // >= 93% on air
+  if (spo2 <= 94) return 1;
+  if (spo2 <= 96) return 2;
+  return 3; // >= 97% on oxygen
+}
+
+export function scoreOxygenSaturation(
+  spo2: number | null,
+  scale: 1 | 2 = 1,
+  onOxygen = false
+): number {
   if (spo2 === null || !Number.isFinite(spo2)) return 0;
+  if (scale === 2) return scoreOxygenSaturationScale2(spo2, onOxygen);
   if (spo2 <= 91) return 3;
   if (spo2 <= 93) return 2;
   if (spo2 <= 95) return 1;
@@ -47,6 +64,7 @@ export function scoreHeartRate(rate: number | null): number {
 }
 
 export function scoreConsciousness(level: ConsciousnessLevel): number {
+  // Confusion (C), voice, pain and unresponsive are all scored 3.
   return level === 'alert' ? 0 : 3;
 }
 
@@ -62,6 +80,7 @@ export function scoreTemperatureCelsius(tempC: number | null): number {
 export function calculateNews2Score(params: {
   respiratoryRate: number | null;
   oxygenSaturation: number | null;
+  spo2Scale?: 1 | 2;
   supplementalOxygen: boolean;
   bloodPressureSystolic: number | null;
   heartRate: number | null;
@@ -70,7 +89,11 @@ export function calculateNews2Score(params: {
 }): News2ScoreResult {
   const subScores: News2SubScores = {
     respirationRate: scoreRespirationRate(params.respiratoryRate),
-    oxygenSaturation: scoreOxygenSaturation(params.oxygenSaturation),
+    oxygenSaturation: scoreOxygenSaturation(
+      params.oxygenSaturation,
+      params.spo2Scale ?? 1,
+      params.supplementalOxygen
+    ),
     supplementalOxygen: scoreSupplementalOxygen(params.supplementalOxygen),
     systolicBp: scoreSystolicBp(params.bloodPressureSystolic),
     heartRate: scoreHeartRate(params.heartRate),

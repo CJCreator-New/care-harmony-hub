@@ -89,11 +89,3 @@ export function usePatientsReadyForDoctor() {
     refetchInterval: 15000, // Refresh every 15 seconds
   });
 }
-
-/**
- * Get count of patients ready for doctor
- */
-export function usePatientsReadyCount() {
-  const { data: patients } = usePatientsReadyForDoctor();
-  return patients?.length || 0;
-}

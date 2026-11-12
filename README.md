@@ -42,11 +42,10 @@ The system has been finalized with advanced production optimizations:
 /product-strategy-session — Build competitive analysis for clinical AI features
 ```
 
-**Documentation Hub**: All 32+ project documents consolidated in a single, self-contained skill directory:
-- 📚 [Consolidated Documentation](./github/copilot-instructions.md?region=product-strategy-session) — All business, technical, security, and operational docs
-- 🎯 [Product Strategy Skill](./agents/skills/product-strategy-session/) — Market analysis, roadmap, business cases
-- 🗓️ [Index & Navigation](./agents/skills/product-strategy-session/INDEX.md) — Complete documentation master index
-- 📖 [Implementation Guide](./docs/IMPLEMENTATION_GUIDE.md) — Code patterns and development standards
+**Documentation Hub**: start at the documentation index.
+- 📚 [Documentation index](./docs/INDEX.md) — All current business, technical, security and operational docs
+- 🏛️ [Architecture decisions](./docs/adr/) — ADR-0001 sets the Supabase-native runtime
+- 📖 [Development standards](./docs/product/DEVELOPMENT_STANDARDS.md) — Code patterns and development standards
 
 ---
 
@@ -55,12 +54,11 @@ The system has been finalized with advanced production optimizations:
 ### Prerequisites
 
 - Node.js 18+ & npm
-- Docker & Docker Compose (for full microservices setup)
 - Git
 
 ### Installation
 
-#### Option 1: Development with API Gateway (Recommended)
+#### Development
 
 ```bash
 # Clone the repository
@@ -70,35 +68,17 @@ cd caresync
 # Install dependencies
 npm install
 
-# Start full microservices stack
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-
-# Initialize Kong API Gateway
-docker-compose --profile init up kong-init
-
-# Start development frontend
-npm run dev
-```
-
-The app will be available at `http://localhost:5173` with API Gateway at `http://localhost:8000`
-
-#### Option 2: Simple Development (Frontend Only)
-
-```bash
-# Install dependencies
-npm install
-
 # Start development server
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:5173`. The former Kong/microservices stack has been removed from the repository (see ADR-0001) and is not needed to run the app.
 
 ### Environment Setup
 
 The project uses Lovable Cloud for backend services. Environment variables are automatically configured.
 
-For local microservices development, see [API_GATEWAY.md](docs/API_GATEWAY.md) for detailed setup instructions.
+The former microservices stack and Kong gateway were removed from the repository and are not part of the runtime (ADR-0001).
 
 ### Pre-Deployment Validation
 
@@ -120,7 +100,7 @@ cat scripts/validate-rls.ts
 - ✅ No unintended `USING(true)` policies on clinical data
 - ✅ Role-based access control enforced
 
-**Documentation:** See [docs/RLS_AUDIT_REPORT.md](docs/RLS_AUDIT_REPORT.md) for policy exceptions and security rationale.
+**Documentation:** See [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md) for roles, permissions and access-control rationale.
 
 ### Recent Updates (January 2026)
 
@@ -136,9 +116,6 @@ cat scripts/validate-rls.ts
 - **50+ database tables** with comprehensive RLS policies
 - **16+ edge functions** for advanced automation
 - **AI-powered task routing** and real-time communication
-- See [PHASES_1-8_COMPLETE_SUMMARY.md](PHASES_1-8_COMPLETE_SUMMARY.md) for complete implementation details
-- See [PHASES_1-4_COMPLETE_SUMMARY.md](PHASES_1-4_COMPLETE_SUMMARY.md) for Phase 1-4 details
-- See [CHANGELOG.md](docs/CHANGELOG.md) for complete feature history
 
 ---
 
@@ -211,14 +188,13 @@ caresync/
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System architecture & design |
-| [Features](docs/FEATURES.md) | Complete feature documentation |
+| [Architecture](docs/product/SYSTEM_ARCHITECTURE.md) | System architecture & design |
 | [Database Schema](docs/DATABASE.md) | Database structure & relations |
-| [API Reference](docs/API.md) | Edge functions & endpoints |
-| [Security](docs/SECURITY.md) | Security & compliance |
-| [Deployment](docs/DEPLOYMENT.md) | Deployment guide |
-| [Contributing](docs/CONTRIBUTING.md) | Contribution guidelines |
-| [Changelog](docs/CHANGELOG.md) | Version history |
+| [API Reference](docs/product/API_REFERENCE.md) | Edge functions & endpoints |
+| [RBAC & permissions](docs/RBAC_PERMISSIONS.md) | Roles, permissions & access control |
+| [Security checklist](docs/product/SECURITY_CHECKLIST.md) | Security review checklist |
+| [Staging deployment](docs/operations/STAGING_DEPLOYMENT_VALIDATION.md) | Staging deployment validation |
+| [Development standards](docs/product/DEVELOPMENT_STANDARDS.md) | Coding and contribution standards |
 
 ---
 

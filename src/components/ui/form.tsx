@@ -82,17 +82,29 @@ const FormLabel = React.forwardRef<
 });
 FormLabel.displayName = "FormLabel";
 
+// A11Y-03/A11Y-10: FormControl wires the control to its FormLabel (htmlFor) and to its
+// description and message. It must not wrap the control, and it must not let a caller's
+// `id` or `aria-describedby` silently break those associations.
 const FormControl = React.forwardRef<React.ElementRef<typeof Slot>, React.ComponentPropsWithoutRef<typeof Slot>>(
-  ({ ...props }, ref) => {
+  (props, ref) => {
     const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+    const { "aria-describedby": callerDescribedBy, ...rest } = props;
+
+    const describedBy = [
+      formDescriptionId,
+      error ? formMessageId : undefined,
+      callerDescribedBy,
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return (
       <Slot
+        {...rest}
         ref={ref}
         id={formItemId}
-        aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
+        aria-describedby={describedBy}
         aria-invalid={!!error}
-        {...props}
       />
     );
   },

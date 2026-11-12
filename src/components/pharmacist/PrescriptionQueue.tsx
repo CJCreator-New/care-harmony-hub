@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { DataError } from '@/components/common/DataStatus';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 export function PrescriptionQueue() {
@@ -64,7 +65,12 @@ export function PrescriptionQueue() {
   const [selectedForClarification, setSelectedForClarification] = useState<any>(null);
   const [clarificationModalOpen, setClarificationModalOpen] = useState(false);
 
-  const { data: prescriptions, isLoading } = usePrescriptions();
+  const {
+    data: prescriptions,
+    isLoading,
+    isError: prescriptionsError,
+    refetch: refetchPrescriptions,
+  } = usePrescriptions();
   const dispenseMutation = useDispensePrescription();
   const approveMutation = useApprovePrescription();
   const clarifyMutation = useClarifyPrescription();
@@ -100,6 +106,7 @@ export function PrescriptionQueue() {
     batchNumber: string;
     patientVerified: boolean;
     safetyChecksComplete: boolean;
+    reason: string;
     notes: string;
     items: Array<{
       itemId?: string;
@@ -152,6 +159,7 @@ export function PrescriptionQueue() {
           safetyChecksComplete: safetyData.safetyChecksComplete,
           items: safetyData.items,
           witness: safetyData.witness,
+          reason: safetyData.reason,
         });
 
         // Emit canonical dispense event for downstream patient notification rules.
@@ -255,7 +263,13 @@ export function PrescriptionQueue() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {prescriptionsError ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-4">
+                    <DataError resource="prescriptions" onRetry={() => refetchPrescriptions()} />
+                  </TableCell>
+                </TableRow>
+              ) : isLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Loading prescriptions...
@@ -378,8 +392,8 @@ export function PrescriptionQueue() {
           if (!open) setSelectedForApproval(null);
         }}
         prescription={selectedForApproval}
-        onApprove={async ({ prescriptionId, notes }) => {
-          await approveMutation.mutateAsync({ prescriptionId, notes });
+        onApprove={async ({ prescriptionId, notes, safety }) => {
+          await approveMutation.mutateAsync({ prescriptionId, notes, safety });
           setApprovalModalOpen(false);
           setSelectedForApproval(null);
         }}

@@ -285,3 +285,58 @@ export class SecureTransmissionService {
 export const fieldEncryption = new FieldEncryptionService();
 export const dataMasking = new DataMaskingService();
 export const secureTransmission = new SecureTransmissionService();
+
+const ENCRYPTED_TOKEN_PREFIX = '__ENCRYPTED__';
+
+/**
+ * Decrypts the `__ENCRYPTED__` fields of a stored record using its
+ * `encryption_metadata` (CLIN-05).
+ *
+ * `resource` is the row the ciphertext belongs to. phi-crypto refuses
+ * non-admin decryption without it, and the client must not show the storage
+ * token in its place. A failed field shows "[Encrypted]".
+ */
+export async function decryptRecordFields<T extends Record<string, any>>(
+  record: T,
+  resource: { resourceType: string; resourceId: string }
+): Promise<T> {
+  const metadata = record.encryption_metadata as Record<string, EncryptedData> | null | undefined;
+  if (!metadata || Object.keys(metadata).length === 0) return record;
+
+  const fields = Object.keys(metadata).filter((field) => {
+    const value = record[field];
+    return typeof value === 'string' && value.startsWith(ENCRYPTED_TOKEN_PREFIX) && !!metadata[field];
+  });
+  if (fields.length === 0) return record;
+
+  const out: Record<string, any> = { ...record };
+  try {
+    const values = await fieldEncryption.decryptFields(
+      fields.map((field) => metadata[field]),
+      resource
+    );
+    fields.forEach((field, i) => {
+      const plain = values[i];
+      const isUsable =
+        typeof plain === 'string' &&
+        plain !== '' &&
+        !plain.startsWith(ENCRYPTED_TOKEN_PREFIX) &&
+        plain !== metadata[field].encrypted;
+      out[field] = isUsable ? plain : '[Encrypted]';
+    });
+  } catch {
+    for (const field of fields) out[field] = '[Encrypted]';
+  }
+  return out as T;
+}
+
+/**
+ * Merges encryption metadata for a partial update, so that writing one field
+ * keeps the ciphertext of the others (CLIN-05). Incoming entries win.
+ */
+export function mergeEncryptionMetadata(
+  existing: Record<string, EncryptedData> | null | undefined,
+  incoming: Record<string, EncryptedData>
+): Record<string, EncryptedData> {
+  return { ...(existing ?? {}), ...incoming };
+}

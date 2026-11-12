@@ -1,53 +1,54 @@
-// @ts-nocheck
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  getEffectivePermissions,
-  hasAnyAllowedRole,
-  hasPermission,
-  hasPermissionForAnyRole,
-  type Permission,
-} from '@/lib/permissions';
-import type { UserRole } from '@/types/auth';
+  can,
+  canAll,
+  canAny,
+  grantedCapabilities,
+  hasAnyRole as roleIsListed,
+  resolveActingRole,
+  type PermissionCategory,
+} from '@/modules/rbac';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 
+/**
+ * Permission checks for the acting role (the dev test role, else the primary role).
+ * Route guards and the sidebar use the same role, so a check that passes here
+ * matches what the guard allows. Other roles the user holds are not used.
+ */
 export function usePermissions() {
   const { primaryRole, roles } = useAuth();
-
   const persistedTestRole = getDevTestRole(roles);
-  const effectiveRoles = persistedTestRole ? [persistedTestRole] : roles;
 
-  const currentPermissions = useMemo(() => {
-    return new Set(getEffectivePermissions(persistedTestRole ? [persistedTestRole] : (primaryRole ? [primaryRole] : [])));
-  }, [primaryRole, persistedTestRole]);
+  const actingRole = useMemo(
+    () => resolveActingRole({ primaryRole, testRole: persistedTestRole }),
+    [primaryRole, persistedTestRole]
+  );
 
-  const allPermissions = useMemo(() => {
-    return new Set(getEffectivePermissions(effectiveRoles));
-  }, [effectiveRoles]);
-
-  const can = (permission: Permission) => hasPermissionForAnyRole(effectiveRoles, permission);
-  const canAny = (permissions: Permission[]) => permissions.some((permission) => can(permission));
-  const canAll = (permissions: Permission[]) => permissions.every((permission) => can(permission));
-  const canInPrimaryRole = (permission: Permission) => hasPermission(persistedTestRole || primaryRole, permission);
-  const canInAnyRole = (permission: Permission) => hasPermissionForAnyRole(effectiveRoles, permission);
+  const granted = useMemo(
+    () => new Set<PermissionCategory>(grantedCapabilities(actingRole)),
+    [actingRole]
+  );
 
   return {
-    can,
-    canAny,
-    canAll,
-    canInAnyRole,
-    canInPrimaryRole,
-    permissions: currentPermissions,
-    allPermissions,
-    canCreatePatients: can('patients:write'),
-    canViewPatients: can('patients:read'),
-    canManageStaff: can('staff-management'),
-    canViewReports: can('reports:read'),
-    canManageQueue: can('queue:write'),
-    canRecordVitals: can('vitals:write'),
+    actingRole,
+    can: (permission: string) => can(actingRole, permission),
+    canAny: (permissions: string[]) => canAny(actingRole, permissions),
+    canAll: (permissions: string[]) => canAll(actingRole, permissions),
+    permissions: granted,
+    canCreatePatients: can(actingRole, 'patients:write'),
+    canViewPatients: can(actingRole, 'patients:read'),
+    canManageStaff: can(actingRole, 'staff-management'),
+    canViewReports: can(actingRole, 'reports:read'),
+    canManageQueue: can(actingRole, 'queue:write'),
+    canRecordVitals: can(actingRole, 'vitals:write'),
   };
 }
 
-export function hasAnyRole(userRoles: UserRole[], requiredRoles: UserRole[]): boolean {
-  return hasAnyAllowedRole(userRoles, requiredRoles);
+/** True when one of the given roles is listed. An empty list denies. */
+export function hasAnyRole(
+  userRoles: readonly string[],
+  requiredRoles: readonly string[]
+): boolean {
+  return requiredRoles.length > 0 && userRoles.some((role) => roleIsListed(role, requiredRoles));
 }

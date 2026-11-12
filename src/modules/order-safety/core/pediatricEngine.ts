@@ -144,16 +144,23 @@ export const AAP_DOSING_RULES: Record<string, AAPDosingRule> = {
 };
 
 /**
- * Determine frequency doses per day multiplier
+ * Determine frequency doses per day multiplier.
+ *
+ * Interval ranges use the SHORTER interval (more doses per day): for overdose
+ * screening the conservative assumption is the maximum permitted frequency.
+ * (Previous version counted q4h as 5/day and q6h as 3/day; audit CLIN-15.)
  */
 export function getDosesPerDay(frequency: string, defaultDoses: number): number {
-  const f = frequency.toLowerCase();
+  const f = frequency.toLowerCase().replace(/\s+/g, '');
+  const interval = f.match(/^q(\d+)(?:-(\d+))?h(?:rs?)?$/) || f.match(/every(\d+)(?:-(\d+))?(?:hours?|hrs?|h)/);
+  if (interval) {
+    const shortest = Number(interval[1]);
+    if (shortest > 0) return Math.max(1, Math.floor(24 / shortest));
+  }
   if (f === 'bid' || f.includes('twice')) return 2;
-  if (f === 'tid' || f.includes('three')) return 3;
+  if (f === 'tid' || f.includes('three') || f.includes('thrice')) return 3;
   if (f === 'qid' || f.includes('four')) return 4;
-  if (f === 'daily' || f === 'qd' || f.includes('once')) return 1;
-  if (f === 'q4-6h' || f === 'q4h') return 5;
-  if (f === 'q6-8h' || f === 'q6h') return 3;
+  if (f === 'daily' || f === 'qd' || f === 'od' || f.includes('once')) return 1;
   return defaultDoses;
 }
 
@@ -170,12 +177,10 @@ export function evaluatePediatricDosing(
 } {
   const isPediatric =
     patient.ageYears < 18 || (patient.ageMonths !== undefined && patient.ageMonths < 216);
-  if (!isPediatric || !patient.weightKg || patient.weightKg <= 0) {
+  if (!isPediatric) {
     return {};
   }
 
-  const weightKg = patient.weightKg;
-  const ageMonths = patient.ageMonths !== undefined ? patient.ageMonths : patient.ageYears * 12;
   const drugKey = item.drugName.toLowerCase().trim();
   const matchedKey = Object.keys(AAP_DOSING_RULES).find((k) => drugKey.includes(k));
   const rule = matchedKey ? AAP_DOSING_RULES[matchedKey] : null;
@@ -183,6 +188,49 @@ export function evaluatePediatricDosing(
   if (!rule) {
     return {};
   }
+
+  // Fail-closed: a pediatric order for a weight-based drug cannot be screened
+  // without a weight and an interpretable dose. Previously both cases returned
+  // silently (missing weight) or compared NaN (unparseable dose) and passed.
+  if (!patient.weightKg || patient.weightKg <= 0) {
+    return {
+      finding: {
+        code: `PEDIATRIC_WEIGHT_UNAVAILABLE_${item.clientItemId}`,
+        kind: 'PEDIATRIC_DOSE_LIMIT',
+        severity: 'SERIOUS',
+        isHardStop: false,
+        requiresPhysicianOverride: true,
+        clientItemId: item.clientItemId,
+        drugName: item.drugName,
+        title: `Pediatric dose not verified (no weight): ${item.drugName}`,
+        detail: `${rule.drugName} is dosed by weight in children, but no current weight in kg is available, so the AAP dose check could not run.`,
+        clinicalRecommendation:
+          'Record the patient weight in kg, or document a manual weight-based dose verification.',
+        source: 'AAP',
+      },
+    };
+  }
+  if (!Number.isFinite(item.doseMg) || item.doseMg <= 0) {
+    return {
+      finding: {
+        code: `PEDIATRIC_DOSE_UNVERIFIED_${item.clientItemId}`,
+        kind: 'PEDIATRIC_DOSE_LIMIT',
+        severity: 'SERIOUS',
+        isHardStop: false,
+        requiresPhysicianOverride: true,
+        clientItemId: item.clientItemId,
+        drugName: item.drugName,
+        title: `Pediatric dose not verified (dose unreadable): ${item.drugName}`,
+        detail: `The dose could not be interpreted as a mass in mg (e.g. "250 mg"), so the AAP weight-based limit for ${rule.drugName} could not be checked.`,
+        clinicalRecommendation:
+          'Enter the dose in mg/g/mcg, or document a manual weight-based dose verification.',
+        source: 'AAP',
+      },
+    };
+  }
+
+  const weightKg = patient.weightKg;
+  const ageMonths = patient.ageMonths !== undefined ? patient.ageMonths : patient.ageYears * 12;
 
   const adjustmentsApplied: string[] = [];
   const dosesPerDay = item.dosesPerDay || getDosesPerDay(item.frequency, rule.dosesPerDay);
@@ -210,7 +258,8 @@ export function evaluatePediatricDosing(
   const prescribedDoseMg = item.doseMg;
   const prescribedDailyDose = prescribedDoseMg * dosesPerDay;
   const prescribedMgPerKgDay = prescribedDailyDose / weightKg;
-  const maxSafeDailyDose = weightKg * rule.maxSafeDailyMgPerKg;
+  // EDGE-19: the weight-based ceiling never exceeds the absolute paediatric daily maximum.
+  const maxSafeDailyDose = Math.min(weightKg * rule.maxSafeDailyMgPerKg, rule.maxDailyDoseMg);
   const ratioToSafeCeiling = Math.round((prescribedDailyDose / maxSafeDailyDose) * 100) / 100;
 
   const analysis: PediatricSafetyAnalysis = {
@@ -225,29 +274,14 @@ export function evaluatePediatricDosing(
     ratioToSafeCeiling,
   };
 
-  // Age/Weight minimum warnings
-  if (rule.minAgeMonths && ageMonths < rule.minAgeMonths) {
-    return {
-      analysis,
-      finding: {
-        code: `PEDIATRIC_AGE_MIN_${item.clientItemId}`,
-        kind: 'PEDIATRIC_DOSE_LIMIT',
-        severity: 'SERIOUS',
-        isHardStop: false,
-        requiresPhysicianOverride: true,
-        clientItemId: item.clientItemId,
-        drugName: item.drugName,
-        title: `Patient Age Below AAP Minimum: ${item.drugName}`,
-        detail: `Patient age (${ageMonths} months) is below AAP minimum recommendation (${rule.minAgeMonths} months) for ${rule.drugName}.`,
-        clinicalRecommendation:
-          'Verify age-appropriateness or document physician clinical justification.',
-        source: 'AAP',
-      },
-    };
-  }
-
-  // Overdose Threshold 1: >200% Safe Ceiling => HARD STOP
-  if (prescribedDailyDose > maxSafeDailyDose * 2.0) {
+  // Overdose Threshold 1: >200% Safe Ceiling => HARD STOP.
+  // The absolute paediatric daily maximum caps the weight-based ceiling (EDGE-19), and any
+  // daily dose above the absolute adult maximum is a hard stop. These run before the age
+  // warning below so that a young infant's overdose is never reported as only an age issue.
+  if (
+    prescribedDailyDose > maxSafeDailyDose * 2.0 ||
+    prescribedDailyDose > rule.adultMaxDailyDoseMg
+  ) {
     return {
       analysis,
       finding: {
@@ -281,6 +315,27 @@ export function evaluatePediatricDosing(
         title: `Pediatric Dose Exceeds Safe Ceiling: ${item.drugName}`,
         detail: `Prescribed dose (${Math.round(prescribedMgPerKgDay)} mg/kg/day) exceeds 110% of AAP maximum guideline (${rule.maxSafeDailyMgPerKg} mg/kg/day). Clinical override required.`,
         clinicalRecommendation: `Standard recommended daily dose is ${calculatedDailyDose} mg/day. Document rationale if intentional.`,
+        source: 'AAP',
+      },
+    };
+  }
+
+  // Age minimum warning: evaluated last, after the dose limits above (CLIN-15).
+  if (rule.minAgeMonths && ageMonths < rule.minAgeMonths) {
+    return {
+      analysis,
+      finding: {
+        code: `PEDIATRIC_AGE_MIN_${item.clientItemId}`,
+        kind: 'PEDIATRIC_DOSE_LIMIT',
+        severity: 'SERIOUS',
+        isHardStop: false,
+        requiresPhysicianOverride: true,
+        clientItemId: item.clientItemId,
+        drugName: item.drugName,
+        title: `Patient Age Below AAP Minimum: ${item.drugName}`,
+        detail: `Patient age (${ageMonths} months) is below AAP minimum recommendation (${rule.minAgeMonths} months) for ${rule.drugName}.`,
+        clinicalRecommendation:
+          'Verify age-appropriateness or document physician clinical justification.',
         source: 'AAP',
       },
     };

@@ -4,17 +4,17 @@ import { sanitizeForLog } from '@/utils/sanitize';
 
 /**
  * Phase 2B: Real-time Amendment Alerts Hook
- * 
+ *
  * Subscribes to real-time amendments and provides:
  * - Unread alert count
  * - Alert filtering by severity
  * - Mark as read functionality
  * - Auto-cleanup after 24 hours
- * 
+ *
  * @example
  * ```typescript
  * const { alerts, unreadCount, markAsRead } = useAmendmentAlerts('hospital_123');
- * 
+ *
  * return (
  *   <div>
  *     <Badge>{unreadCount}</Badge>
@@ -73,10 +73,8 @@ export function useAmendmentAlerts(
    * Mark alert as read
    */
   const markAsRead = useCallback((amendmentId: string) => {
-    setAlerts(prev =>
-      prev.map(alert =>
-        alert.amendmentId === amendmentId ? { ...alert, unread: false } : alert
-      )
+    setAlerts((prev) =>
+      prev.map((alert) => (alert.amendmentId === amendmentId ? { ...alert, unread: false } : alert))
     );
   }, []);
 
@@ -91,7 +89,7 @@ export function useAmendmentAlerts(
       alertTimerRef.current.delete(amendmentId);
     }
 
-    setAlerts(prev => prev.filter(alert => alert.amendmentId !== amendmentId));
+    setAlerts((prev) => prev.filter((alert) => alert.amendmentId !== amendmentId));
   }, []);
 
   /**
@@ -99,34 +97,11 @@ export function useAmendmentAlerts(
    */
   const clearAllAlerts = useCallback(() => {
     // Clear all timers
-    alertTimerRef.current.forEach(timer => clearTimeout(timer));
+    alertTimerRef.current.forEach((timer) => clearTimeout(timer));
     alertTimerRef.current.clear();
 
     setAlerts([]);
   }, []);
-
-  /**
-   * Add new alert with auto-cleanup (24 hours or if legal hold)
-   */
-  const addAlert = useCallback(
-    (alert: AmendmentAlert) => {
-      setAlerts(prev => {
-        // Avoid duplicates
-        if (prev.some(a => a.amendmentId === alert.amendmentId)) {
-          return prev;
-        }
-        return [alert, ...prev];
-      });
-
-      // Set auto-cleanup timer (24 hours unless legal hold)
-      const timer = setTimeout(() => {
-        clearAlert(alert.amendmentId);
-      }, 24 * 60 * 60 * 1000);
-
-      alertTimerRef.current.set(alert.amendmentId, timer);
-    },
-    [clearAlert]
-  );
 
   /**
    * In production, this would subscribe to Supabase Realtime
@@ -154,7 +129,7 @@ export function useAmendmentAlerts(
    * Filter alerts by role if specified
    */
   const filteredAlerts = filterByRole
-    ? alerts.filter(alert => {
+    ? alerts.filter((alert) => {
         const userRole = filterByRole;
         // Only show critical amendments to all roles
         if (alert.severity === 'CRITICAL') return true;
@@ -164,9 +139,7 @@ export function useAmendmentAlerts(
         }
         // Show lab amendments to lab staff/doctors
         if (alert.recordType === 'lab_result') {
-          return ['doctor', 'lab_technician', 'pathologist'].includes(
-            userRole.toLowerCase()
-          );
+          return ['doctor', 'lab_technician'].includes(userRole.toLowerCase());
         }
         return true;
       })
@@ -174,7 +147,7 @@ export function useAmendmentAlerts(
 
   return {
     alerts: filteredAlerts,
-    unreadCount: filteredAlerts.filter(a => a.unread).length,
+    unreadCount: filteredAlerts.filter((a) => a.unread).length,
     markAsRead,
     clearAlert,
     clearAllAlerts,
@@ -224,7 +197,7 @@ function parseSeverity(changeType: string): AmendmentAlert['severity'] {
   if (
     lower.includes('critical') ||
     lower.includes('discontinue') ||
-    lower.includes('dosage') && lower.includes('high')
+    (lower.includes('dosage') && lower.includes('high'))
   ) {
     return 'CRITICAL';
   }

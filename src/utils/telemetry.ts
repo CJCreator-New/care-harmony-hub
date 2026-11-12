@@ -1,293 +1,83 @@
-// @ts-nocheck
 /**
- * Client-Side Telemetry for CareSync HIMS
- * 
- * Lightweight observability module for:
- * - Correlation ID tracking across API calls
- * - Console logging with structured output
- * - Performance metrics (stub for future OpenTelemetry integration)
- * 
- * Note: Full OpenTelemetry distributed tracing will be implemented
- * in a future phase once dependency versions are properly aligned.
+ * Clinical telemetry facade. It has no transport of its own: spans, metrics and
+ * events are written through the single client logger (`@/utils/logger`), so they
+ * get the same PHI redaction and the same Sentry breadcrumb sink.
+ *
+ * Attributes are redacted by key (name, mrn, dob, medication, notes, ...) before
+ * they are logged. Pass record IDs, never record contents.
  */
+import { createLogger, redactForLog } from '@/utils/logger';
 
-import { getTraceContext, setTraceContext, getCorrelationId } from './correlationId';
+const log = createLogger('telemetry');
 
-export interface TelemetryConfig {
-  serviceName: string;
-  version: string;
-  applicationVersion: string;
-  hospitalId?: string;
-  userId?: string;
-  userRole?: string;
-  otlpEndpoint?: string;
-  environment?: 'development' | 'staging' | 'production';
-  sampleRate?: number;
-  debugLogging?: boolean;
+export interface ClinicalSpan {
+  setAttribute(key: string, value: unknown): void;
+  setStatus(status: 'OK' | 'ERROR', message?: string): void;
+  recordException(error: unknown): void;
+  end(): void;
 }
 
-interface Span {
-  startTime: number;
-  endTime?: number;
-  name: string;
-  attributes: Record<string, any>;
-  status?: string;
-  duration?: number;
+type Attributes = Record<string, unknown>;
+
+function safeAttributes(attributes: Attributes = {}): Attributes {
+  return (redactForLog(attributes) as Attributes) ?? {};
 }
 
-let isInitialized = false;
-const spans = new Map<string, Span>();
-let telemetryConfig: TelemetryConfig | null = null;
-
-/**
- * Initialize telemetry for client-side tracing
- */
-export function initializeTelemetry(cfg: TelemetryConfig): void {
-  if (isInitialized) return;
-  isInitialized = true;
-
-  telemetryConfig = {
-    serviceName: cfg.serviceName || 'care-sync-frontend',
-    version: cfg.version || '1.2.0',
-    applicationVersion: cfg.applicationVersion || '1.2.0',
-    otlpEndpoint: cfg.otlpEndpoint || import.meta.env.VITE_OTLP_ENDPOINT || 'http://localhost:4317',
-    environment: cfg.environment || (import.meta.env.VITE_ENV as any) || 'development',
-    sampleRate: cfg.sampleRate ?? (cfg.environment === 'production' ? 0.1 : 1.0),
-    debugLogging: cfg.debugLogging ?? (cfg.environment === 'development'),
-    ...cfg,
-  };
-
-  // Extract trace context from script tag if present
-  const scriptTag = document.currentScript as HTMLScriptElement | null;
-  if (scriptTag) {
-    const traceContext = scriptTag.getAttribute('data-trace-context');
-    if (traceContext) {
-      try {
-        setTraceContext(JSON.parse(traceContext));
-      } catch (e) {
-        if (telemetryConfig.debugLogging) {
-          console.warn('Failed to parse trace context from script tag');
-        }
-      }
-    }
-  }
-
-  if (telemetryConfig.debugLogging) {
-    console.log(
-      `[Telemetry] Initialized ${telemetryConfig.serviceName} v${telemetryConfig.version} (${telemetryConfig.environment})`
-    );
-  }
-}
-
-/**
- * Get current tracer object (stub for future OpenTelemetry)
- */
-export function getTracer(name: string = 'care-sync') {
-  return {
-    startSpan: (operationName: string, options?: any) => createSpan(operationName, options),
-  };
-}
-
-/**
- * Get current meter object (stub for future OpenTelemetry)
- */
-export function getMeter(name: string = 'care-sync') {
-  return {
-    createHistogram: (name: string) => ({
-      record: (value: number, attributes?: any) => recordMetric(name, value, attributes),
-    }),
-  };
-}
-
-/**
- * Internal function to create a span for tracking operations
- */
-function createSpan(name: string, options: any = {}) {
-  const spanId = `span-${Date.now()}-${Math.random()}`;
-  const span: Span = {
-    startTime: Date.now(),
-    name,
-    attributes: {
-      'span.kind': options.attributes?.['span.kind'] || 'internal',
-      'correlation.id': getCorrelationId() || '',
-      ...options.attributes,
-    },
-  };
-
-  spans.set(spanId, span);
+function createSpan(name: string, attributes: Attributes = {}): ClinicalSpan {
+  const startedAt = Date.now();
+  const attrs: Attributes = safeAttributes(attributes);
+  let status: 'OK' | 'ERROR' | undefined;
+  let ended = false;
 
   return {
-    spanId,
-    setAttribute: (key: string, value: any) => {
-      span.attributes[key] = value;
+    setAttribute(key, value) {
+      attrs[key] = (redactForLog({ [key]: value }) as Attributes)[key];
     },
-    setStatus: (status: any) => {
-      span.status = status.code;
+    setStatus(next, message) {
+      status = next;
+      if (message) attrs.status_message = redactForLog(message);
     },
-    recordException: (error: Error) => {
-      span.attributes['error'] = true;
-      span.attributes['error.message'] = error.message;
-      span.attributes['error.stack'] = error.stack;
-      if (telemetryConfig?.debugLogging) {
-        console.error(`[Span ${span.name}] Error:`, error);
-      }
+    recordException(error) {
+      status = 'ERROR';
+      const message = error instanceof Error ? error.message : String(error);
+      attrs.exception = redactForLog({
+        name: error instanceof Error ? error.name : 'Error',
+        message,
+      });
     },
-    spanContext: () => ({
-      traceId: 'development-' + getCorrelationId(),
-      spanId: spanId.substring(0, 16),
-      traceFlags: 1,
-    }),
-    end: () => {
-      span.endTime = Date.now();
-      span.duration = span.endTime - span.startTime;
-      
-      if (telemetryConfig?.debugLogging) {
-        console.log(`[Span] ${span.name}: ${span.duration}ms`, span.attributes);
-      }
-
-      // Clean up old spans after 5 minutes
-      if (spans.size > 1000) {
-        const now = Date.now();
-        for (const [id, s] of spans.entries()) {
-          if (s.endTime && now - s.endTime > 300000) {
-            spans.delete(id);
-          }
-        }
-      }
+    end() {
+      if (ended) return;
+      ended = true;
+      const duration_ms = Date.now() - startedAt;
+      log.logPerformanceEvent({
+        operation: name,
+        duration_ms,
+        success: status !== 'ERROR',
+        ...attrs,
+      });
     },
   };
 }
 
-/**
- * Create a span for a clinical workflow operation
- */
 export function createClinicalSpan(
   operationName: string,
-  attributes: Record<string, any> = {}
-) {
-  const tracer = getTracer();
-  return tracer.startSpan(operationName, {
-    attributes: {
-      'span.kind': 'internal',
-      'clinical.operation': operationName,
-      ...attributes,
-    },
-  });
+  attributes: Attributes = {}
+): ClinicalSpan {
+  return createSpan(operationName, attributes);
 }
 
-/**
- * Create a span for an API call with correlation headers
- */
-export function createAPISpan(
-  endpoint: string,
-  method: string = 'GET',
-  attributes: Record<string, any> = {}
-) {
-  const tracer = getTracer();
-  const span = tracer.startSpan(`api.${method.toLowerCase()}`, {
-    attributes: {
-      'span.kind': 'client',
-      'http.method': method,
-      'http.url': endpoint,
-      ...attributes,
-    },
-  });
-
-  const correlationId = getCorrelationId();
-  return {
-    span,
-    headers: {
-      'x-correlation-id': correlationId,
-      'x-trace-context': JSON.stringify(getTraceContext()),
-    },
-  };
-}
-
-/**
- * Record a metric value
- */
-function recordMetric(name: string, value: number, attributes: Record<string, any> = {}) {
-  if (telemetryConfig?.debugLogging) {
-    console.log(`[Metric] ${name}: ${value}`, attributes);
-  }
-}
-
-/**
- * Record a clinical SLI (Service Level Indicator) metric
- */
 export function recordClinicalMetric(
-  metricName: string,
+  name: string,
   value: number,
-  attributes: Record<string, any> = {}
-) {
+  attributes: Attributes = {}
+): void {
   try {
-    const meter = getMeter();
-    const histogram = meter.createHistogram(metricName);
-    histogram.record(value, attributes);
-  } catch (e) {
-    if (telemetryConfig?.debugLogging) {
-      console.warn(`[Telemetry] Failed to record metric ${metricName}:`, e);
-    }
+    log.info('clinical metric', { metric: name, value, ...safeAttributes(attributes) });
+  } catch {
+    // Telemetry must never break a clinical workflow.
   }
 }
 
-/**
- * Record event for observability dashboard
- */
-export function recordEvent(
-  eventName: string,
-  properties: Record<string, any> = {}
-) {
-  const tracer = getTracer();
-  const span = tracer.startSpan(eventName, {
-    attributes: {
-      'span.kind': 'event',
-      ...properties,
-    },
-  });
-  span.end();
+export function recordEvent(eventName: string, attributes: Attributes = {}): void {
+  log.info('clinical event', { event: eventName, ...safeAttributes(attributes) });
 }
-
-/**
- * Gracefully shutdown telemetry
- */
-export async function shutdownTelemetry(): Promise<void> {
-  if (telemetryConfig?.debugLogging) {
-    console.log('[Telemetry] Shutting down...');
-  }
-  spans.clear();
-}
-
-// Auto-initialize telemetry if in browser
-if (typeof window !== 'undefined' && !isInitialized) {
-  const autoInit = (window as any).__TELEMETRY_AUTO_INIT !== false;
-  
-  if (autoInit) {
-    const cfg: TelemetryConfig = {
-      serviceName: 'care-sync-frontend',
-      version: '1.2.0',
-      applicationVersion: (window as any).__APP_VERSION || '1.2.0',
-      hospitalId: (window as any).__HOSPITAL_ID,
-      userId: (window as any).__USER_ID,
-      userRole: (window as any).__USER_ROLE,
-      environment: (import.meta.env.VITE_ENV as any) || import.meta.env.MODE || 'development',
-    };
-    
-    try {
-      initializeTelemetry(cfg);
-    } catch (e) {
-      console.warn('[Telemetry] Failed to auto-initialize:', e);
-    }
-  }
-}
-
-export default {
-  initializeTelemetry,
-  getTracer,
-  getMeter,
-  createClinicalSpan,
-  createAPISpan,
-  recordClinicalMetric,
-  recordEvent,
-  shutdownTelemetry,
-};

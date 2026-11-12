@@ -6,19 +6,19 @@ import { sanitizeForLog } from '@/utils/sanitize';
 
 /**
  * Phase 2B: Audit Trail Hook
- * 
+ *
  * Fetches and caches audit trail for a record with real-time updates.
  * Supports multiple record types (prescription, lab_result, appointment).
- * 
+ *
  * @example
  * ```typescript
  * const { auditTrail, isLoading, error, hasAmendments, refetch } = useAuditTrail(
  *   'rx_123',
  *   'prescription'
  * );
- * 
+ *
  * return (
- *   <AuditTimeline 
+ *   <AuditTimeline
  *     trail={auditTrail}
  *     loading={isLoading}
  *     recordType="prescription"
@@ -136,22 +136,26 @@ export function useAuditTrail(
       avatarUrl: record.actor_avatar_url,
     },
     changeType: record.action_type || record.amendment_type || 'UPDATE',
-    originalValue: record.dosage_before ||
+    originalValue:
+      record.dosage_before ||
       record.result_value_before ||
       record.appointment_date_before ||
       record.before_state ||
       'N/A',
-    amendedValue: record.dosage_after ||
+    amendedValue:
+      record.dosage_after ||
       record.result_value_after ||
       record.appointment_date_after ||
       record.after_state ||
       'N/A',
     reason: record.change_reason || record.amendment_reason || 'No reason provided',
-    approvedBy: record.approval_user_id ? {
-      userId: record.approval_user_id,
-      name: record.approval_user_name || 'Unknown',
-      role: record.approval_user_role || 'DOCTOR',
-    } : undefined,
+    approvedBy: record.approval_user_id
+      ? {
+          userId: record.approval_user_id,
+          name: record.approval_user_name || 'Unknown',
+          role: record.approval_user_role || 'DOCTOR',
+        }
+      : undefined,
     legalHoldAt: record.legal_hold_at || null,
     severity: parseSeverity(record.severity || record.change_type),
     sequence: record.sequence_number || idx + 1,
@@ -169,8 +173,8 @@ export function useAuditTrail(
   }, [recordId, profile?.hospital_id, cacheKey, queryClient]);
 
   return {
-    auditTrail: auditTrail.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    auditTrail: auditTrail.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     ),
     isLoading,
     error: error as Error | null,
@@ -188,24 +192,4 @@ function parseSeverity(value: string): Amendment['severity'] {
   if (lower.includes('dosage') || lower.includes('discontinue')) return 'HIGH';
   if (lower.includes('quantity') || lower.includes('frequency')) return 'MEDIUM';
   return 'LOW';
-}
-
-/**
- * Invalidate audit trail cache after mutation
- */
-export function useInvalidateAuditTrail() {
-  const queryClient = useQueryClient();
-
-  return {
-    invalidate: (recordId: string, recordType: RecordType = 'prescription') => {
-      queryClient.invalidateQueries({
-        queryKey: ['audit_trail', recordType, recordId],
-      });
-    },
-    invalidateAll: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['audit_trail'],
-      });
-    },
-  };
 }

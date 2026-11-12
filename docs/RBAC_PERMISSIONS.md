@@ -2,7 +2,7 @@
 
 **Last Updated**: April 10, 2026  
 **Security Level**: CRITICAL - Healthcare Data Classification  
-**References**: [copilot-instructions.md](../../.github/copilot-instructions.md), Phase 3 Security Audit
+**References**: Phase 3 Security Audit (removed; see git history)
 
 ---
 
@@ -519,7 +519,7 @@ All data access is logged via audit trail:
 - **When**: Timestamp with RFC3339 format
 - **Result**: Allowed/Denied + reason
 
-See [PHASE_1C_CROSS_REFERENCE_AUDIT.md](./PHASE_1C_CROSS_REFERENCE_AUDIT.md) for audit implementation.
+The Phase 1C cross-reference audit that tracked this implementation was removed; see git history.
 
 ### Encryption at Rest
 
@@ -609,11 +609,10 @@ WITH CHECK (
 
 ## Further Reading
 
-- **Development Standards**: [DEVELOPMENT_STANDARDS.md](./DEVELOPMENT_STANDARDS.md)
-- **System Architecture**: [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md)
-- **Audit Trail**: See [EXECUTION_FRAMEWORK_MASTER_GUIDE.md](./EXECUTION_FRAMEWORK_MASTER_GUIDE.md) § Audit Logging
-- **Security Guide**: [CareSync Security Documentation](../../docs/) (Phase 3)
-- **RLS Policies**: See [supabase/migrations/](../../supabase/migrations/) for latest policies
+- **Development Standards**: [DEVELOPMENT_STANDARDS.md](./product/DEVELOPMENT_STANDARDS.md)
+- **System Architecture**: [SYSTEM_ARCHITECTURE.md](./product/SYSTEM_ARCHITECTURE.md)
+- **Security Guide**: [Security checklist](./product/SECURITY_CHECKLIST.md) (Phase 3)
+- **RLS Policies**: See [supabase/migrations/](../supabase/migrations/) for latest policies
 
 ---
 

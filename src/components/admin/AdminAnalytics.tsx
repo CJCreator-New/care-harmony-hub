@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
-import { 
+import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
+import {
   Users, 
   Calendar, 
   DollarSign, 
@@ -44,10 +45,18 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AdminAnalytics() {
-  const { data: stats, isLoading } = useAdminStats();
+  const { data: stats, isLoading, isError: statsError, refetch: refetchStats } = useAdminStats();
   const { data: staffOverview } = useStaffOverview();
-  const { data: deptPerformance } = useDepartmentPerformance();
-  const { data: weeklyTrend } = useWeeklyAppointmentTrend();
+  const {
+    data: deptPerformance,
+    isError: deptError,
+    refetch: refetchDept,
+  } = useDepartmentPerformance();
+  const {
+    data: weeklyTrend,
+    isError: trendError,
+    refetch: refetchTrend,
+  } = useWeeklyAppointmentTrend();
   const { components: Recharts, loading: rechartsLoading } = useRecharts();
 
   const compactCurrency = (amount: number) => {
@@ -57,71 +66,78 @@ export function AdminAnalytics() {
     return formatCurrency(amount);
   };
 
+  // When the stats query fails, every stat shows DATA_UNAVAILABLE rather than 0.
   const mainStats = useMemo(() => ([
     {
       title: 'Total Patients',
-      value: stats?.totalPatients || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.totalPatients || 0),
       icon: Users,
       color: 'bg-primary/10 text-primary',
-      subtitle: stats?.patientGrowthLabel || `+${stats?.newPatientsThisMonth || 0} this month`,
+      subtitle: statsError
+        ? 'Data unavailable'
+        : stats?.patientGrowthLabel || `+${stats?.newPatientsThisMonth || 0} this month`,
     },
     {
       title: stats?.appointmentMetricLabel || "Today's Appointments",
-      value: stats?.todayAppointments || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.todayAppointments || 0),
       icon: Calendar,
       color: 'bg-info/10 text-info',
-      subtitle: stats?.appointmentMetricSubtitle || `${stats?.completedToday || 0} completed, ${stats?.cancelledToday || 0} cancelled`,
+      subtitle: statsError
+        ? 'Data unavailable'
+        : stats?.appointmentMetricSubtitle || `${stats?.completedToday || 0} completed, ${stats?.cancelledToday || 0} cancelled`,
     },
     {
       title: 'Active Staff',
-      value: stats?.activeStaff || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.activeStaff || 0),
       icon: UserCheck,
       color: 'bg-success/10 text-success',
-      breakdown: stats?.staffByRole,
+      breakdown: statsError ? undefined : stats?.staffByRole,
     },
     {
       title: 'Monthly Revenue',
-      value: compactCurrency(stats?.monthlyRevenue || 0),
+      value: statsError ? DATA_UNAVAILABLE : compactCurrency(stats?.monthlyRevenue || 0),
       icon: DollarSign,
       color: 'bg-warning/10 text-warning',
-      subtitle: `${compactCurrency(stats?.pendingAmount || 0)} pending`,
+      subtitle: statsError
+        ? 'Data unavailable'
+        : `${compactCurrency(stats?.pendingAmount || 0)} pending`,
     },
-  ]), [stats]);
+  ]), [stats, statsError]);
 
   const operationalStats = useMemo(() => ([
     {
       title: 'Queue Waiting',
-      value: stats?.queueWaiting || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.queueWaiting || 0),
       icon: Clock,
       color: 'bg-muted',
     },
     {
       title: 'In Service',
-      value: stats?.queueInService || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.queueInService || 0),
       icon: Activity,
       color: 'bg-success/10',
     },
     {
       title: 'Pending Rx',
-      value: stats?.pendingPrescriptions || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.pendingPrescriptions || 0),
       icon: Pill,
       color: 'bg-pharmacy/10',
     },
     {
       title: 'Pending Labs',
-      value: stats?.pendingLabOrders || 0,
+      value: statsError ? DATA_UNAVAILABLE : (stats?.pendingLabOrders || 0),
       icon: FlaskConical,
       color: 'bg-laboratory/10',
-      alert: (stats?.criticalLabOrders || 0) > 0,
+      alert: !statsError && (stats?.criticalLabOrders || 0) > 0,
       alertText: `${stats?.criticalLabOrders} critical`,
     },
     {
       title: 'Bed Occupancy',
-      value: `${stats?.bedOccupancy || 0}%`,
+      value: statsError ? DATA_UNAVAILABLE : `${stats?.bedOccupancy || 0}%`,
       icon: Bed,
       color: 'bg-info/10',
     },
-  ]), [stats]);
+  ]), [stats, statsError]);
 
   const weeklyTrendData = useMemo(() => weeklyTrend || [], [weeklyTrend]);
 
@@ -144,6 +160,13 @@ export function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
+      {statsError && (
+        <DataError
+          resource="admin statistics"
+          onRetry={() => void refetchStats()}
+        />
+      )}
+
       {/* Main Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {mainStats.map((stat) => (
@@ -209,7 +232,9 @@ export function AdminAnalytics() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {weeklyTrendData.length > 0 ? (
+            {trendError ? (
+              <DataError resource="this week's appointments" onRetry={() => void refetchTrend()} />
+            ) : weeklyTrendData.length > 0 ? (
               <WeeklyTrendChart data={weeklyTrendData} isLoading={rechartsLoading} Recharts={Recharts} />
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
@@ -228,7 +253,9 @@ export function AdminAnalytics() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {stats?.staffByRole && Object.keys(stats.staffByRole).length > 0 ? (
+            {statsError ? (
+              <DataError resource="staff by role" onRetry={() => void refetchStats()} />
+            ) : stats?.staffByRole && Object.keys(stats.staffByRole).length > 0 ? (
               Object.entries(stats.staffByRole).map(([role, count]) => {
                 const RoleIcon = ROLE_ICONS[role] || UserCheck;
                 const colorClass = ROLE_COLORS[role] || 'bg-muted text-muted-foreground';
@@ -257,7 +284,11 @@ export function AdminAnalytics() {
       </div>
 
       {/* Department Performance */}
-      {deptPerformance && deptPerformance.length > 0 && (
+      {deptError && (
+        <DataError resource="department performance" onRetry={() => void refetchDept()} />
+      )}
+
+      {!deptError && deptPerformance && deptPerformance.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

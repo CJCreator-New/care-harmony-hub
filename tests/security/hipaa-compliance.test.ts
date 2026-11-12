@@ -42,7 +42,10 @@ describe('HIPAA Compliance Tests', () => {
         diagnosis: 'Acute viral pharyngitis',
       };
 
-      const { data, encryptionMetadata } = await secureTransmission.prepareForTransmission(payload, ['ssn']);
+      const { data, encryptionMetadata } = await secureTransmission.prepareForTransmission(
+        payload,
+        ['ssn']
+      );
       expect(data.ssn).toMatch(/^__ENCRYPTED__/);
       expect(encryptionMetadata.ssn).toBeDefined();
       expect(data.diagnosis).toBe(payload.diagnosis);
@@ -55,7 +58,10 @@ describe('HIPAA Compliance Tests', () => {
 
   describe('Deterministic Compliance Controls', () => {
     it('keeps required HIPAA PHI field definitions in compliance hook', () => {
-      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/hooks/useDataProtection.ts'), 'utf8');
+      const source = fs.readFileSync(
+        path.resolve(process.cwd(), 'src/hooks/useDataProtection.ts'),
+        'utf8'
+      );
       const requiredPhiFields = [
         "'ssn'",
         "'medical_record_number'",
@@ -71,13 +77,19 @@ describe('HIPAA Compliance Tests', () => {
     });
 
     it('enforces 30-minute inactivity timeout configuration', () => {
-      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/hooks/useSessionTimeout.ts'), 'utf8');
-      expect(source).toMatch(/SESSION_TIMEOUT\s*=\s*30\s*\*\s*60\s*\*\s*1000/);
-      expect(source).toMatch(/WARNING_TIME\s*=\s*5\s*\*\s*60\s*\s*\*\s*1000|WARNING_TIME\s*=\s*5\s*\*\s*60\s*\*\s*1000/);
+      const source = fs.readFileSync(
+        path.resolve(process.cwd(), 'src/lib/hooks/auth/useSessionTimeout.ts'),
+        'utf8'
+      );
+      expect(source).toMatch(/SESSION_IDLE_TIMEOUT_MS\s*=\s*30\s*\*\s*60\s*\*\s*1000/);
+      expect(source).toMatch(/SESSION_WARNING_LEAD_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/);
     });
 
     it('keeps audit logging mapped to activity_logs with required metadata', () => {
-      const source = fs.readFileSync(path.resolve(process.cwd(), 'src/utils/auditLogger.ts'), 'utf8');
+      const source = fs.readFileSync(
+        path.resolve(process.cwd(), 'src/hooks/useActivityLog.ts'),
+        'utf8'
+      );
       expect(source).toContain(".from('activity_logs')");
       expect(source).toContain('hospital_id');
       expect(source).toContain('user_id');

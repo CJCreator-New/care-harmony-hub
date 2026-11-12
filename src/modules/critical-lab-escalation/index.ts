@@ -36,6 +36,21 @@ export {
 // Clinical Reference Ranges & Panic Threshold Evaluator
 export * from './core/labPanels';
 
+// Client contract for the critical-lab-check edge function (S0-08)
+export {
+  CRITICAL_LAB_CHECK_FUNCTION,
+  buildCriticalLabCheckPayload,
+  shouldRunServerCriticalCheck,
+  interpretCriticalLabCheckResponse,
+  interpretAcknowledgeResponse,
+  runCriticalLabCheck,
+  acknowledgeCriticalLabAlert,
+  type CriticalLabCheckAnalyte,
+  type CriticalLabCheckPayload,
+  type CriticalLabCheckOutcome,
+  type AcknowledgeOutcome,
+} from './criticalLabCheckClient';
+
 // Test Doubles / Adapters
 export { InMemoryLabEscalationAdapter } from './adapters/InMemoryLabEscalationAdapter';
 

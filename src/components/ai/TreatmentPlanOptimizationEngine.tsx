@@ -22,7 +22,7 @@ import {
   Shield,
   Calculator
 } from 'lucide-react';
-import { useAI } from '@/hooks/useAI';
+import { useAI, AIUnavailableError } from '@/hooks/useAI';
 import { useToast } from '@/hooks/use-toast';
 
 interface OptimizationResult {
@@ -150,7 +150,7 @@ export default function TreatmentPlanOptimizationEngine() {
       console.error('Treatment optimization error:', error);
       toast({
         title: "Optimization Failed",
-        description: "Failed to optimize treatment plan. Please try again.",
+        description: error instanceof AIUnavailableError ? error.message : "Failed to optimize treatment plan. Please try again.",
         variant: "destructive"
       });
     }

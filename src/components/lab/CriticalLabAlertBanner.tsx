@@ -71,7 +71,9 @@ export function CriticalLabAlertBanner({
 
   return (
     <div
-      className={`rounded-lg border-2 p-4 transition-all duration-300 shadow-md ${
+      role="alert"
+      aria-label="Unacknowledged critical lab value"
+      className={`rounded-lg border-2 p-4 transition-all duration-300 shadow-md motion-reduce:animate-none ${
         isBreached
           ? 'border-red-600 bg-red-950/20 dark:bg-red-950/40 text-red-700 dark:text-red-300 animate-pulse'
           : isUrgentWarning
@@ -81,7 +83,7 @@ export function CriticalLabAlertBanner({
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-full bg-red-600 text-white mt-0.5 sm:mt-0 flex-shrink-0 animate-bounce">
+          <div className="p-2 rounded-full bg-red-600 text-white mt-0.5 sm:mt-0 flex-shrink-0 animate-bounce motion-reduce:animate-none" aria-hidden="true">
             <AlertOctagon className="h-5 w-5" />
           </div>
 

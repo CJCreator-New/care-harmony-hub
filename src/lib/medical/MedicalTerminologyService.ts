@@ -1,84 +1,82 @@
-import { useCallback, useMemo } from 'react';
-
 // Medical terminology dictionary with common medical terms, abbreviations, and corrections
 const MEDICAL_TERMS = {
   // Common medical abbreviations
-  'bp': 'blood pressure',
-  'hr': 'heart rate',
-  'rr': 'respiratory rate',
-  'temp': 'temperature',
-  'wbc': 'white blood cell',
-  'rbc': 'red blood cell',
-  'hgb': 'hemoglobin',
-  'hct': 'hematocrit',
-  'plt': 'platelet',
-  'bun': 'blood urea nitrogen',
-  'cre': 'creatinine',
-  'na': 'sodium',
-  'k': 'potassium',
-  'cl': 'chloride',
-  'co2': 'carbon dioxide',
-  'glu': 'glucose',
-  'ca': 'calcium',
-  'mg': 'magnesium',
-  'phos': 'phosphate',
-  'alb': 'albumin',
-  'tp': 'total protein',
-  'alt': 'alanine aminotransferase',
-  'ast': 'aspartate aminotransferase',
-  'tbili': 'total bilirubin',
-  'dbili': 'direct bilirubin',
-  'alk': 'alkaline phosphatase',
-  'ck': 'creatine kinase',
-  'troponin': 'troponin',
+  bp: 'blood pressure',
+  hr: 'heart rate',
+  rr: 'respiratory rate',
+  temp: 'temperature',
+  wbc: 'white blood cell',
+  rbc: 'red blood cell',
+  hgb: 'hemoglobin',
+  hct: 'hematocrit',
+  plt: 'platelet',
+  bun: 'blood urea nitrogen',
+  cre: 'creatinine',
+  na: 'sodium',
+  k: 'potassium',
+  cl: 'chloride',
+  co2: 'carbon dioxide',
+  glu: 'glucose',
+  ca: 'calcium',
+  mg: 'magnesium',
+  phos: 'phosphate',
+  alb: 'albumin',
+  tp: 'total protein',
+  alt: 'alanine aminotransferase',
+  ast: 'aspartate aminotransferase',
+  tbili: 'total bilirubin',
+  dbili: 'direct bilirubin',
+  alk: 'alkaline phosphatase',
+  ck: 'creatine kinase',
+  troponin: 'troponin',
   'd dimer': 'd-dimer',
-  'pt': 'prothrombin time',
-  'ptt': 'partial thromboplastin time',
-  'inr': 'international normalized ratio',
-  'cbc': 'complete blood count',
-  'cmp': 'comprehensive metabolic panel',
-  'lft': 'liver function test',
-  'ua': 'urinalysis',
-  'ekg': 'electrocardiogram',
-  'ecg': 'electrocardiogram',
-  'echo': 'echocardiogram',
-  'ct': 'computed tomography',
-  'mri': 'magnetic resonance imaging',
+  pt: 'prothrombin time',
+  ptt: 'partial thromboplastin time',
+  inr: 'international normalized ratio',
+  cbc: 'complete blood count',
+  cmp: 'comprehensive metabolic panel',
+  lft: 'liver function test',
+  ua: 'urinalysis',
+  ekg: 'electrocardiogram',
+  ecg: 'electrocardiogram',
+  echo: 'echocardiogram',
+  ct: 'computed tomography',
+  mri: 'magnetic resonance imaging',
   'x ray': 'x-ray',
-  'xr': 'x-ray',
-  'us': 'ultrasound',
-  'iv': 'intravenous',
-  'po': 'by mouth',
-  'pr': 'per rectum',
-  'im': 'intramuscular',
-  'sc': 'subcutaneous',
-  'bid': 'twice daily',
-  'tid': 'three times daily',
-  'qid': 'four times daily',
-  'qd': 'once daily',
-  'qod': 'every other day',
-  'prn': 'as needed',
-  'ac': 'before meals',
-  'pc': 'after meals',
-  'hs': 'at bedtime',
+  xr: 'x-ray',
+  us: 'ultrasound',
+  iv: 'intravenous',
+  po: 'by mouth',
+  pr: 'per rectum',
+  im: 'intramuscular',
+  sc: 'subcutaneous',
+  bid: 'twice daily',
+  tid: 'three times daily',
+  qid: 'four times daily',
+  qd: 'once daily',
+  qod: 'every other day',
+  prn: 'as needed',
+  ac: 'before meals',
+  pc: 'after meals',
+  hs: 'at bedtime',
 
   // Common medical conditions and symptoms
-  'mi': 'myocardial infarction',
-  'chf': 'congestive heart failure',
-  'copd': 'chronic obstructive pulmonary disease',
-  'dm': 'diabetes mellitus',
-  'htn': 'hypertension',
-  'cad': 'coronary artery disease',
-  'cva': 'cerebrovascular accident',
-  'tia': 'transient ischemic attack',
-  'pe': 'pulmonary embolism',
-  'dvt': 'deep vein thrombosis',
-  'uti': 'urinary tract infection',
-  'pna': 'pneumonia',
-  'sob': 'shortness of breath',
-  'cp': 'chest pain',
+  mi: 'myocardial infarction',
+  chf: 'congestive heart failure',
+  copd: 'chronic obstructive pulmonary disease',
+  dm: 'diabetes mellitus',
+  htn: 'hypertension',
+  cad: 'coronary artery disease',
+  cva: 'cerebrovascular accident',
+  tia: 'transient ischemic attack',
+  pe: 'pulmonary embolism',
+  dvt: 'deep vein thrombosis',
+  uti: 'urinary tract infection',
+  pna: 'pneumonia',
+  sob: 'shortness of breath',
+  cp: 'chest pain',
   'n/v': 'nausea and vomiting',
-  'abd': 'abdominal',
+  abd: 'abdominal',
   'c/o': 'complains of',
   'w/': 'with',
   'w/o': 'without',
@@ -86,39 +84,39 @@ const MEDICAL_TERMS = {
   'r/o': 'rule out',
 
   // Anatomical terms
-  'ant': 'anterior',
-  'post': 'posterior',
-  'lat': 'lateral',
-  'med': 'medial',
-  'sup': 'superior',
-  'inf': 'inferior',
-  'prox': 'proximal',
-  'dist': 'distal',
-  'bilat': 'bilateral',
-  'unilat': 'unilateral',
+  ant: 'anterior',
+  post: 'posterior',
+  lat: 'lateral',
+  med: 'medial',
+  sup: 'superior',
+  inf: 'inferior',
+  prox: 'proximal',
+  dist: 'distal',
+  bilat: 'bilateral',
+  unilat: 'unilateral',
 
   // Common medications (abbreviated)
-  'asa': 'aspirin',
-  'ntg': 'nitroglycerin',
-  'lasix': 'furosemide',
-  'lisinopril': 'lisinopril',
-  'metoprolol': 'metoprolol',
-  'atorvastatin': 'atorvastatin',
-  'omeprazole': 'omeprazole',
-  'albuterol': 'albuterol',
-  'prednisone': 'prednisone',
-  'amoxicillin': 'amoxicillin',
-  'azithromycin': 'azithromycin',
-  'levaquin': 'levofloxacin',
-  'vancomycin': 'vancomycin',
-  'heparin': 'heparin',
-  'warfarin': 'warfarin',
-  'insulin': 'insulin',
-  'metformin': 'metformin',
-  'glyburide': 'glyburide',
-  'lantus': 'insulin glargine',
-  'humalog': 'insulin lispro',
-  'novolog': 'insulin aspart',
+  asa: 'aspirin',
+  ntg: 'nitroglycerin',
+  lasix: 'furosemide',
+  lisinopril: 'lisinopril',
+  metoprolol: 'metoprolol',
+  atorvastatin: 'atorvastatin',
+  omeprazole: 'omeprazole',
+  albuterol: 'albuterol',
+  prednisone: 'prednisone',
+  amoxicillin: 'amoxicillin',
+  azithromycin: 'azithromycin',
+  levaquin: 'levofloxacin',
+  vancomycin: 'vancomycin',
+  heparin: 'heparin',
+  warfarin: 'warfarin',
+  insulin: 'insulin',
+  metformin: 'metformin',
+  glyburide: 'glyburide',
+  lantus: 'insulin glargine',
+  humalog: 'insulin lispro',
+  novolog: 'insulin aspart',
 };
 
 export interface MedicalTermCorrection {
@@ -181,7 +179,7 @@ export class MedicalTerminologyServiceImpl implements MedicalTerminologyService 
         original: term,
         corrected: bestMatch.term,
         confidence: bestMatch.confidence,
-        alternatives: corrections.slice(1, 4).map(c => c.term),
+        alternatives: corrections.slice(1, 4).map((c) => c.term),
       };
     }
 
@@ -236,7 +234,7 @@ export class MedicalTerminologyServiceImpl implements MedicalTerminologyService 
       // Levenshtein distance for fuzzy matching
       const distance = this.levenshteinDistance(term, abbr);
       const maxLength = Math.max(term.length, abbr.length);
-      const confidence = 1 - (distance / maxLength);
+      const confidence = 1 - distance / maxLength;
 
       if (confidence > 0.7) {
         corrections.push({ term: full, confidence });
@@ -244,7 +242,7 @@ export class MedicalTerminologyServiceImpl implements MedicalTerminologyService 
 
       // Also check full term
       const fullDistance = this.levenshteinDistance(term, full);
-      const fullConfidence = 1 - (fullDistance / Math.max(term.length, full.length));
+      const fullConfidence = 1 - fullDistance / Math.max(term.length, full.length);
 
       if (fullConfidence > 0.7) {
         corrections.push({ term: abbr, confidence: fullConfidence });
@@ -257,7 +255,9 @@ export class MedicalTerminologyServiceImpl implements MedicalTerminologyService 
   }
 
   private levenshteinDistance(a: string, b: string): number {
-    const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+    const matrix = Array(b.length + 1)
+      .fill(null)
+      .map(() => Array(a.length + 1).fill(null));
 
     for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
     for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
@@ -266,9 +266,9 @@ export class MedicalTerminologyServiceImpl implements MedicalTerminologyService 
       for (let i = 1; i <= a.length; i++) {
         const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
         matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1,     // deletion
-          matrix[j - 1][i] + 1,     // insertion
-          matrix[j - 1][i - 1] + indicator, // substitution
+          matrix[j][i - 1] + 1, // deletion
+          matrix[j - 1][i] + 1, // insertion
+          matrix[j - 1][i - 1] + indicator // substitution
         );
       }
     }
@@ -279,31 +279,3 @@ export class MedicalTerminologyServiceImpl implements MedicalTerminologyService 
 
 // Singleton instance
 const medicalTerminologyService = new MedicalTerminologyServiceImpl();
-
-export const useMedicalTerminology = (): MedicalTerminologyService => {
-  return medicalTerminologyService;
-};
-
-
-export const useMedicalTermCorrection = () => {
-  const service = useMedicalTerminology();
-
-  const correctTranscript = useCallback((transcript: string) => {
-    return service.correctText(transcript);
-  }, [service]);
-
-  const getTermSuggestions = useCallback((partial: string) => {
-    return service.getSuggestions(partial);
-  }, [service]);
-
-  const validateMedicalTerm = useCallback((term: string) => {
-    return service.isMedicalTerm(term);
-  }, [service]);
-
-  return {
-    correctTranscript,
-    getTermSuggestions,
-    validateMedicalTerm,
-  };
-};
-

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Audit Log Viewer Component
  * Admin-only dashboard for viewing and filtering activity logs
@@ -15,6 +14,7 @@ import {
 } from '@/hooks/useActivityLogsPaginated';
 import { downloadLogsAsCSV, generateCSVWithMetadata } from '@/utils/auditLogExport';
 import { useAuth } from '@/contexts/AuthContext';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,8 +45,11 @@ import {
   ChevronDown,
   Search,
 } from 'lucide-react';
-import { Sonner, toast } from 'sonner';
+import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+
+/** Radix Select throws on an empty-string item value, so "all" uses a sentinel. */
+const ALL_OPTION = '__all__';
 
 export interface AuditLogViewerProps {
   pageSize?: number;
@@ -61,10 +64,11 @@ export function AuditLogViewer({
   pageSize = 50,
   showUserAgent = false,
 }: AuditLogViewerProps) {
-  const { hasPermission } = usePermissions();
-  const { hospital, user } = useAuth();
+  // FUNC-17: usePermissions() has no `hasPermission`; calling it crashed the page.
+  const { can } = usePermissions();
+  const { hospital, profile } = useAuth();
 
-  const hasAuditPermission = hasPermission('audit-logs');
+  const hasAuditPermission = can('audit-logs');
 
   // Filter state
   const [page, setPage] = useState(1);
@@ -161,7 +165,7 @@ export function AuditLogViewer({
     try {
       const csv = generateCSVWithMetadata(
         data.logs,
-        `${user?.first_name} ${user?.last_name}`.trim(),
+        `${profile?.first_name ?? ''} ${profile?.last_name ?? ''}`.trim(),
         hospital?.name,
         {
           filename: `audit_logs_${hospital?.id}_${format(new Date(), 'yyyy-MM-dd_HHmmss')}.csv`,
@@ -309,14 +313,14 @@ export function AuditLogViewer({
               </label>
               <Select
                 onValueChange={(value) =>
-                  handleFilterChange('actionType', value || undefined)
+                  handleFilterChange('actionType', value === ALL_OPTION ? undefined : value)
                 }
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All actions</SelectItem>
+                  <SelectItem value={ALL_OPTION}>All actions</SelectItem>
                   {isLoadingFilters ? (
                     <SelectItem value="loading" disabled>
                       Loading...
@@ -339,14 +343,14 @@ export function AuditLogViewer({
               </label>
               <Select
                 onValueChange={(value) =>
-                  handleFilterChange('entityType', value || undefined)
+                  handleFilterChange('entityType', value === ALL_OPTION ? undefined : value)
                 }
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All entities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All entities</SelectItem>
+                  <SelectItem value={ALL_OPTION}>All entities</SelectItem>
                   {isLoadingFilters ? (
                     <SelectItem value="loading" disabled>
                       Loading...
@@ -369,14 +373,14 @@ export function AuditLogViewer({
               </label>
               <Select
                 onValueChange={(value) =>
-                  handleFilterChange('userId', value || undefined)
+                  handleFilterChange('userId', value === ALL_OPTION ? undefined : value)
                 }
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All users</SelectItem>
+                  <SelectItem value={ALL_OPTION}>All users</SelectItem>
                   {isLoadingFilters ? (
                     <SelectItem value="loading" disabled>
                       Loading...
@@ -595,4 +599,11 @@ export function AuditLogViewer({
   );
 }
 
-export default AuditLogViewer;
+/** Route page: renders inside the app shell so navigation stays available (FUNC-17). */
+export default function AuditLogViewerPage() {
+  return (
+    <DashboardLayout>
+      <AuditLogViewer />
+    </DashboardLayout>
+  );
+}

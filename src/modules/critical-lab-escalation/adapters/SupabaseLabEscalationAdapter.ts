@@ -54,9 +54,14 @@ export class SupabaseLabEscalationAdapter
   }
 
   async saveAlert(alert: LabCriticalAlert): Promise<LabCriticalAlert> {
+    // Alerts are created only by the critical-lab-check edge function (service role).
+    // RLS lets clinical users UPDATE an alert in their hospital but never INSERT one,
+    // so this is an update by id; the DB trigger cancels pending escalations.
+    const { id, created_at: _createdAt, ...changes } = alert;
     const { data, error } = await supabase
       .from('lab_critical_alerts' as any)
-      .upsert(alert)
+      .update(changes as any)
+      .eq('id', id)
       .select()
       .single();
 

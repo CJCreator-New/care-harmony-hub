@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useClinicalCodingService, ClinicalCodeMapping } from '@/lib/medical/ClinicalCodingService';
 import { ICD10Suggestion } from '@/lib/medical/ICD10Service';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -63,11 +63,11 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
   }, [analyzeText]);
 
   const handleCodeToggle = (code: ICD10Suggestion) => {
-    const isSelected = localSelectedCodes.some(selected => selected.code === code.code);
+    const isSelected = localSelectedCodes.some((selected) => selected.code === code.code);
 
     let newSelectedCodes: ICD10Suggestion[];
     if (isSelected) {
-      newSelectedCodes = localSelectedCodes.filter(selected => selected.code !== code.code);
+      newSelectedCodes = localSelectedCodes.filter((selected) => selected.code !== code.code);
     } else {
       newSelectedCodes = [...localSelectedCodes, code];
     }
@@ -78,12 +78,6 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
 
   const handleConfirmCodes = () => {
     onCodesConfirmed?.(localSelectedCodes);
-  };
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600';
-    if (confidence >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
   };
 
   const getConfidenceBadgeVariant = (confidence: number) => {
@@ -97,8 +91,15 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
       <Card className={cn('w-full', className)}>
         <CardContent className="p-6">
           <div className="flex items-center justify-center space-x-2">
-            <div role="status" aria-label="Analyzing clinical text" className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" aria-hidden="true"></div>
+            <div
+              role="status"
+              aria-label="Analyzing clinical text"
+              className="flex items-center space-x-2"
+            >
+              <div
+                className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"
+                aria-hidden="true"
+              ></div>
               <span className="text-sm text-muted-foreground">Analyzing clinical text...</span>
             </div>
           </div>
@@ -137,7 +138,7 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
     <Card className={cn('w-full', className)}>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <CheckCircle className="h-5 w-5 text-green-600" />
+          <CheckCircle className="h-5 w-5 text-success" />
           <span>ICD-10 Code Suggestions</span>
         </CardTitle>
       </CardHeader>
@@ -173,16 +174,21 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
         {analysis.primaryCode && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Primary Code Recommendation:</h4>
-            <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-950/20">
+            <div className="border rounded-lg p-3 bg-success/10 ">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
                     <span className="font-mono text-sm font-bold">{analysis.primaryCode.code}</span>
-                    <Badge variant={getConfidenceBadgeVariant(analysis.primaryCode.confidence)} className="text-xs">
+                    <Badge
+                      variant={getConfidenceBadgeVariant(analysis.primaryCode.confidence)}
+                      className="text-xs"
+                    >
                       {Math.round(analysis.primaryCode.confidence * 100)}% confidence
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{analysis.primaryCode.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {analysis.primaryCode.description}
+                  </p>
                   {analysis.primaryCode.matchedKeywords.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {analysis.primaryCode.matchedKeywords.map((keyword) => (
@@ -195,10 +201,15 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                 </div>
                 <Button
                   size="sm"
-                  variant={localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? "secondary" : "default"}
+                  variant={
+                    localSelectedCodes.some((c) => c.code === analysis.primaryCode!.code)
+                      ? 'secondary'
+                      : 'default'
+                  }
                   onClick={() => handleCodeToggle(analysis.primaryCode!)}
+                  aria-label={`${localSelectedCodes.some((c) => c.code === analysis.primaryCode!.code) ? 'Remove' : 'Add'} primary ICD-10 code ${analysis.primaryCode!.code}`}
                 >
-                  {localSelectedCodes.some(c => c.code === analysis.primaryCode!.code) ? (
+                  {localSelectedCodes.some((c) => c.code === analysis.primaryCode!.code) ? (
                     <X className="h-3 w-3" />
                   ) : (
                     <Plus className="h-3 w-3" />
@@ -216,12 +227,18 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
             <ScrollArea className="h-48">
               <div className="space-y-2">
                 {analysis.secondaryCodes.map((code, index) => (
-                  <div key={code.code} className="border rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                  <div
+                    key={code.code}
+                    className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <span className="font-mono text-sm font-bold">{code.code}</span>
-                          <Badge variant={getConfidenceBadgeVariant(code.confidence)} className="text-xs">
+                          <Badge
+                            variant={getConfidenceBadgeVariant(code.confidence)}
+                            className="text-xs"
+                          >
                             {Math.round(code.confidence * 100)}%
                           </Badge>
                           <Badge variant="outline" className="text-xs capitalize">
@@ -241,10 +258,15 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
                       </div>
                       <Button
                         size="sm"
-                        variant={localSelectedCodes.some(c => c.code === code.code) ? "secondary" : "outline"}
+                        variant={
+                          localSelectedCodes.some((c) => c.code === code.code)
+                            ? 'secondary'
+                            : 'outline'
+                        }
                         onClick={() => handleCodeToggle(code)}
+                        aria-label={`${localSelectedCodes.some((c) => c.code === code.code) ? 'Remove' : 'Add'} ICD-10 code ${code.code}`}
                       >
-                        {localSelectedCodes.some(c => c.code === code.code) ? (
+                        {localSelectedCodes.some((c) => c.code === code.code) ? (
                           <X className="h-3 w-3" />
                         ) : (
                           <Plus className="h-3 w-3" />
@@ -266,10 +288,20 @@ export const ICD10CodeSuggestions: React.FC<ICD10CodeSuggestionsProps> = ({
               <h4 className="text-sm font-medium">Selected Codes ({localSelectedCodes.length}):</h4>
               <div className="flex flex-wrap gap-2">
                 {localSelectedCodes.map((code) => (
-                  <Badge key={code.code} variant="default" className="cursor-pointer" onClick={() => handleCodeToggle(code)}>
+                  // A11Y-08: a clickable badge is a real button, so it is keyboard-operable and named.
+                  <button
+                    key={code.code}
+                    type="button"
+                    aria-label={`Remove ICD-10 code ${code.code}`}
+                    className={cn(
+                      badgeVariants({ variant: 'default' }),
+                      'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    )}
+                    onClick={() => handleCodeToggle(code)}
+                  >
                     {code.code} - {code.description.slice(0, 30)}...
-                    <X className="h-3 w-3 ml-1" />
-                  </Badge>
+                    <X className="h-3 w-3 ml-1" aria-hidden="true" />
+                  </button>
                 ))}
               </div>
               <Button onClick={handleConfirmCodes} className="w-full" size="sm">

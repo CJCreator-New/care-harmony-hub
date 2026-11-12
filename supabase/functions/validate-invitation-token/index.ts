@@ -1,9 +1,10 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { rateLimit, getIdentifier, withRateLimit } from "../_shared/rateLimit.ts";
 import { getCorsHeaders, isOriginAllowed } from "../_shared/cors.ts";
 import { validateRequest } from "../_shared/validation.ts";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 const inviteTokenSchema = z.object({
   token: z.string().min(1),
@@ -115,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (error) {
-      console.error("Database error:", error);
+      logEdge('error', 'validate-invitation-token', { stage: 'database_error', error: error });
       return new Response(
         JSON.stringify({ error: "Unable to validate invitation" }),
         { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }
@@ -159,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: unknown) {
-    console.error("Error in validate-invitation-token function:", error);
+    logEdge('error', 'validate-invitation-token', { stage: 'error_in_validate_invitation_token_function', error: error });
     return new Response(
       JSON.stringify({ error: "Unable to validate invitation" }),
       { status: 500, headers: { "Content-Type": "application/json", ...reqCorsHeaders } }

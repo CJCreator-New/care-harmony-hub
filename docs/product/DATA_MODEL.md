@@ -745,8 +745,7 @@ ALTER TABLE patients
 ## Documentation References
 
 - **Related**: See [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) for data access patterns
-- **Related**: See [RBAC_PERMISSIONS.md](./RBAC_PERMISSIONS.md) for RLS policies
-- **Related**: See [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md) for entity usage
+- **Related**: See [RBAC_PERMISSIONS.md](../RBAC_PERMISSIONS.md) for RLS policies
 
 ---
 

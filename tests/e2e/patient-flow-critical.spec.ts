@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect, Page } from '@playwright/test';
 
 // Test data
@@ -127,7 +128,7 @@ test.describe('Critical Patient Flow E2E', () => {
     
     // Login as admin (will be overridden by role switcher)
     await page.getByLabel('Email').fill('admin@testgeneral.com');
-    await page.getByLabel('Password').fill('TestPass123!');
+    await page.getByLabel('Password').fill(E2E_TEST_PASSWORD);
     await page.getByRole('button', { name: /sign in|login/i }).click();
     
     // Wait for dashboard to load
@@ -469,7 +470,7 @@ test.describe('Edge Cases and Error Handling', () => {
 
     await page.goto('/hospital/login');
     await page.getByLabel('Email').fill('admin@testgeneral.com');
-    await page.getByLabel('Password').fill('TestPass123!');
+    await page.getByLabel('Password').fill(E2E_TEST_PASSWORD);
     await page.getByRole('button', { name: /sign in/i }).click();
     
     await setTestRole(page, 'receptionist');

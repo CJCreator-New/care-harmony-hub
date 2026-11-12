@@ -7,7 +7,11 @@
 
 export type TemperatureUnit = 'celsius' | 'fahrenheit';
 
-export type ConsciousnessLevel = 'alert' | 'voice' | 'pain' | 'unresponsive';
+/** ACVPU. `confusion` is the new-confusion "C" of ACVPU (CLIN-12); NEWS2 scores any non-alert level as 3. */
+export type ConsciousnessLevel = 'alert' | 'confusion' | 'voice' | 'pain' | 'unresponsive';
+
+/** NEWS2 SpO2 scale: Scale 2 is for patients with hypercapnic respiratory failure (target 88-92%). */
+export type Spo2Scale = 1 | 2;
 
 export interface VitalSignsInput {
   readonly temperature?: number | string | null;
@@ -17,6 +21,7 @@ export interface VitalSignsInput {
   readonly bloodPressureDiastolic?: number | string | null;
   readonly respiratoryRate?: number | string | null;
   readonly oxygenSaturation?: number | string | null;
+  readonly spo2Scale?: Spo2Scale;
   readonly supplementalOxygen?: boolean;
   readonly consciousness?: ConsciousnessLevel;
   readonly painScale?: number | string | null;
@@ -72,4 +77,7 @@ export interface VitalSignsEvaluationResult {
   readonly criticalAlert: CriticalVitalsAlert;
   readonly validationErrors: Record<string, string>;
   readonly isValid: boolean;
+  /** False when any of the seven NEWS2 parameters is unrecorded (a missing parameter otherwise scores 0). */
+  readonly isComplete: boolean;
+  readonly missingParameters: readonly string[];
 }

@@ -12,6 +12,7 @@
  * @group critical
  */
 
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect, Browser } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
@@ -22,17 +23,17 @@ import type { Page } from '@playwright/test';
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:8080';
 
 const TEST_USERS = {
-  admin: { email: 'admin@testgeneral.com', password: 'TestPass123!', role: 'admin' },
-  doctor: { email: 'doctor@testgeneral.com', password: 'TestPass123!', role: 'doctor' },
-  nurse: { email: 'nurse@testgeneral.com', password: 'TestPass123!', role: 'nurse' },
+  admin: { email: 'admin@testgeneral.com', password: E2E_TEST_PASSWORD, role: 'admin' },
+  doctor: { email: 'doctor@testgeneral.com', password: E2E_TEST_PASSWORD, role: 'doctor' },
+  nurse: { email: 'nurse@testgeneral.com', password: E2E_TEST_PASSWORD, role: 'nurse' },
   receptionist: {
     email: 'reception@testgeneral.com',
-    password: 'TestPass123!',
+    password: E2E_TEST_PASSWORD,
     role: 'receptionist',
   },
-  pharmacist: { email: 'pharmacy@testgeneral.com', password: 'TestPass123!', role: 'pharmacist' },
-  labtech: { email: 'lab@testgeneral.com', password: 'TestPass123!', role: 'lab_technician' },
-  patient: { email: 'patient@testgeneral.com', password: 'TestPass123!', role: 'patient' },
+  pharmacist: { email: 'pharmacy@testgeneral.com', password: E2E_TEST_PASSWORD, role: 'pharmacist' },
+  labtech: { email: 'lab@testgeneral.com', password: E2E_TEST_PASSWORD, role: 'lab_technician' },
+  patient: { email: 'patient@testgeneral.com', password: E2E_TEST_PASSWORD, role: 'patient' },
 };
 
 // Define which roles should have access to which routes

@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from '../../support/test-credentials';
 import { test, expect, type Page, type Route } from '@playwright/test';
 
 const HOSPITAL_ID = '00000000-0000-0000-0000-000000000001';
@@ -227,7 +228,7 @@ async function mockWorkflowDashboardData(page: Page) {
 async function bootstrapAdminSession(page: Page) {
   await page.goto('/hospital/login');
   await page.getByRole('textbox').first().fill('admin@testgeneral.com');
-  await page.locator('input[type="password"]').first().fill('TestPass123!');
+  await page.locator('input[type="password"]').first().fill(E2E_TEST_PASSWORD);
   await page.getByRole('button', { name: /sign in|log in|login/i }).click();
   await page.waitForURL(/dashboard|hospital\/account-setup/i, { timeout: 15000 });
   await page.evaluate(() => {

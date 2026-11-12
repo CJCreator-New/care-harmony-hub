@@ -11,7 +11,9 @@
  * so individual spec files can reference them without re-creating data.
  */
 
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { chromium, FullConfig } from '@playwright/test';
+import { assertNotProductionTarget } from '../../scripts/lib/supabase-target-guard.mjs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -83,13 +85,13 @@ async function supabaseQuery<T = unknown>(
 
 // ─── Role credentials (mirrors config/test-users.ts) ──────────────────────────
 const ALL_ROLES = [
-  { role: 'admin',          email: 'admin@testgeneral.com',       password: 'TestPass123!' },
-  { role: 'doctor',         email: 'doctor@testgeneral.com',      password: 'TestPass123!' },
-  { role: 'nurse',          email: 'nurse@testgeneral.com',       password: 'TestPass123!' },
-  { role: 'receptionist',   email: 'reception@testgeneral.com',   password: 'TestPass123!' },
-  { role: 'pharmacist',     email: 'pharmacy@testgeneral.com',    password: 'TestPass123!' },
-  { role: 'lab_technician', email: 'lab@testgeneral.com',         password: 'TestPass123!' },
-  { role: 'patient',        email: 'patient@testgeneral.com',     password: 'TestPass123!' },
+  { role: 'admin',          email: 'admin@testgeneral.com',       password: E2E_TEST_PASSWORD },
+  { role: 'doctor',         email: 'doctor@testgeneral.com',      password: E2E_TEST_PASSWORD },
+  { role: 'nurse',          email: 'nurse@testgeneral.com',       password: E2E_TEST_PASSWORD },
+  { role: 'receptionist',   email: 'reception@testgeneral.com',   password: E2E_TEST_PASSWORD },
+  { role: 'pharmacist',     email: 'pharmacy@testgeneral.com',    password: E2E_TEST_PASSWORD },
+  { role: 'lab_technician', email: 'lab@testgeneral.com',         password: E2E_TEST_PASSWORD },
+  { role: 'patient',        email: 'patient@testgeneral.com',     password: E2E_TEST_PASSWORD },
 ] as const;
 
 // ─── Seed data constants ──────────────────────────────────────────────────────
@@ -151,7 +153,7 @@ async function tryLogin(page: import('@playwright/test').Page, email: string, pa
 async function ensureHospitalExists(page: import('@playwright/test').Page): Promise<boolean> {
   // Try logging in as admin first — if it works, hospital already exists
   try {
-    await tryLogin(page, 'admin@testgeneral.com', 'TestPass123!');
+    await tryLogin(page, 'admin@testgeneral.com', E2E_TEST_PASSWORD);
     console.log('  ✓ Hospital already exists — skipping registration');
     return true;
   } catch {
@@ -184,8 +186,8 @@ async function ensureHospitalExists(page: import('@playwright/test').Page): Prom
     [/First Name/i,       'Admin'],
     [/Last Name/i,        'User'],
     [/Admin Email/i,      'admin@testgeneral.com'],
-    [/^Password/i,        'TestPass123!'],
-    [/Confirm Password/i, 'TestPass123!'],
+    [/^Password/i,        E2E_TEST_PASSWORD],
+    [/Confirm Password/i, E2E_TEST_PASSWORD],
   ] as [RegExp, string][]) {
     await page.getByLabel(label).first().fill(value);
   }
@@ -215,7 +217,7 @@ async function ensureTestUsersExist(_browser: import('@playwright/test').Browser
   }
 
   // Sign in as admin via REST
-  const adminSession = await supabaseSignIn('admin@testgeneral.com', 'TestPass123!');
+  const adminSession = await supabaseSignIn('admin@testgeneral.com', E2E_TEST_PASSWORD);
   if (!adminSession?.access_token) {
     console.warn('  ⚠ Could not sign in as admin via REST — skipping staff user creation');
     return;
@@ -243,7 +245,7 @@ async function ensureTestUsersExist(_browser: import('@playwright/test').Browser
 
   for (const staff of STAFF_ROLES_TO_CREATE) {
     // Check if user can already log in (skip if they exist)
-    const existingSession = await supabaseSignIn(staff.email, 'TestPass123!');
+    const existingSession = await supabaseSignIn(staff.email, E2E_TEST_PASSWORD);
     if (existingSession?.access_token) {
       console.log(`  ✓ ${staff.role} already exists — skipping`);
       continue;
@@ -260,7 +262,7 @@ async function ensureTestUsersExist(_browser: import('@playwright/test').Browser
         },
         body: JSON.stringify({
           email: staff.email,
-          password: 'TestPass123!',
+          password: E2E_TEST_PASSWORD,
           data: { first_name: staff.firstName, last_name: staff.lastName },
         }),
       });
@@ -450,6 +452,12 @@ export default async function globalSetupSeed(_config: FullConfig) {
   console.log('  Phase 0 — Global Setup & Data Seeding');
   console.log('════════════════════════════════════════════\n');
 
+  // S0-11 / OPS-17: this setup registers hospitals and writes profiles, roles and
+  // patients. It must never run against the production project or app.
+  const context = 'The E2E global setup (tests/e2e/global-setup-seed.ts)';
+  assertNotProductionTarget(SUPABASE_URL, 'VITE_SUPABASE_URL (.env)', context);
+  assertNotProductionTarget(BASE_URL, 'E2E_BASE_URL', context);
+
   await ensureDir(AUTH_DIR);
   await ensureDir(path.dirname(MANIFEST_PATH));
 
@@ -474,7 +482,7 @@ export default async function globalSetupSeed(_config: FullConfig) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     try {
-      await tryLogin(page, 'admin@testgeneral.com', 'TestPass123!');
+      await tryLogin(page, 'admin@testgeneral.com', E2E_TEST_PASSWORD);
 
       console.log('\n[Step 0.4] Seeding patients…');
       const pIds = await seedPatients(page);
@@ -495,7 +503,7 @@ export default async function globalSetupSeed(_config: FullConfig) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     try {
-      await tryLogin(page, 'pharmacy@testgeneral.com', 'TestPass123!');
+      await tryLogin(page, 'pharmacy@testgeneral.com', E2E_TEST_PASSWORD);
       console.log('\n[Step 0.6] Seeding pharmacy inventory…');
       await seedInventory(page);
     } catch (err) {

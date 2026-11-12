@@ -1,9 +1,10 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authorize, getAuthorizedActor } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // Critical value thresholds for common lab tests
 const CRITICAL_VALUES: Record<string, { low?: number; high?: number; unit: string }> = {
@@ -90,9 +91,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
-  if (authError) return authError;
-
   try {
     const { actor, response } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'lab_technician']);
     if (response || !actor) {
@@ -140,11 +138,9 @@ const handler = async (req: Request): Promise<Response> => {
         ordering_physician:profiles!lab_orders_ordered_by_fkey(user_id, first_name, last_name)
       `)
       .eq('status', 'completed')
-      .eq('is_critical', false);
-
-    if (actor.hospitalId) {
-      query = query.eq('hospital_id', actor.hospitalId);
-    }
+      .eq('is_critical', false)
+      // S0-06 / EDGE-14: always scoped; getAuthorizedActor refuses a caller without a hospital.
+      .eq('hospital_id', actor.hospitalId);
 
     if (labOrderId) {
       query = query.eq('id', labOrderId);
@@ -157,7 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: labOrders, error: fetchError } = await query;
 
     if (fetchError) {
-      console.error("Error fetching lab orders:", fetchError);
+      logEdge('error', 'lab-critical-values', { stage: 'error_fetching_lab_orders', error: fetchError });
       throw fetchError;
     }
 
@@ -236,7 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
           },
         });
 
-        console.log(`Critical value found for order ${order.id}: ${criticalMessages.join(', ')}`);
+        logEdge('info', 'lab-critical-values', { stage: 'critical_value_found', order_id: order.id, count: criticalMessages.length });
       }
     }
 
@@ -248,7 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
           .insert([notification]);
         
         if (insertError) {
-          console.error("Error inserting notification:", insertError);
+          logEdge('error', 'lab-critical-values', { stage: 'error_inserting_notification', error: insertError });
         }
       }
       console.log(`Created ${notifications.length} critical value notifications`);
@@ -263,10 +259,11 @@ const handler = async (req: Request): Promise<Response> => {
           critical_notified: true,
           critical_notified_at: new Date().toISOString()
         })
-        .in('id', criticalOrders);
+        .in('id', criticalOrders)
+        .eq('hospital_id', actor.hospitalId);
 
       if (updateError) {
-        console.error("Error updating lab orders:", updateError);
+        logEdge('error', 'lab-critical-values', { stage: 'error_updating_lab_orders', error: updateError });
       }
     }
 
@@ -283,7 +280,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: unknown) {
-    console.error("Error in lab-critical-values function:", error);
+    logEdge('error', 'lab-critical-values', { stage: 'error_in_lab_critical_values_function', error: error });
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }

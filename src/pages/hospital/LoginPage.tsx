@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,11 +14,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { TwoFactorVerifyModal } from '@/components/auth/TwoFactorVerifyModal';
-import { BackupCodeVerifyModal } from '@/components/auth/BackupCodeVerifyModal';
+import { MFA_REENROLL_LOGIN_STATE } from '@/lib/auth/mfa';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
+import { describeAuthError } from '@/lib/auth/authErrors';
+import { consumeSignOutReason } from '@/lib/hooks/auth/useSessionTimeout';
 
-// â”€â”€ Validation schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Validation schema
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -28,15 +29,15 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Component
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-
-  // 2FA state â€” separate from form state (flow concern, not input concern)
-  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
-  const [showBackupCodeModal, setShowBackupCodeModal] = useState(false);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [signedOutForInactivity, setSignedOutForInactivity] = useState(false);
+  const location = useLocation();
+  const mustReenrollMfa =
+    (location.state as { mfaReenroll?: boolean } | null)?.mfaReenroll ===
+    MFA_REENROLL_LOGIN_STATE.mfaReenroll;
 
   const { login } = useAuth();
   const isE2EMockAuthEnabled = import.meta.env.VITE_E2E_MOCK_AUTH === 'true';
@@ -51,6 +52,10 @@ export default function LoginPage() {
   const isLoading = form.formState.isSubmitting;
 
   useEffect(() => {
+    if (consumeSignOutReason() === 'inactivity') setSignedOutForInactivity(true);
+  }, []);
+
+  useEffect(() => {
     const hadDevOverride =
       import.meta.env.DEV &&
       typeof window !== 'undefined' &&
@@ -58,33 +63,18 @@ export default function LoginPage() {
     clearDevTestRole();
     if (typeof window !== 'undefined') window.localStorage.removeItem('preferredRole');
     if (hadDevOverride) {
-      toast.info('Dev role override cleared â€” login flow uses authenticated roles only.');
+      toast.info('Dev role override cleared. Login uses authenticated roles only.');
     }
   }, []);
-
-  const checkTwoFactorRequired = async (userId: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('two_factor_enabled')
-        .eq('user_id', userId)
-        .single();
-      if (error) return false;
-      return data?.two_factor_enabled === true;
-    } catch {
-      return false;
-    }
-  };
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       const { error } = await login(data.email, data.password);
 
       if (error) {
-        form.setError('root', { message: error.message || 'Invalid email or password.' });
-        toast.error('Login Failed', {
-          description: error.message || 'Invalid email or password. Please try again.',
-        });
+        // Inline message only (role="alert" below). The toast title is kept for the e2e page object.
+        form.setError('root', { message: describeAuthError(error, 'login') });
+        toast.error('Login Failed');
         return;
       }
 
@@ -102,51 +92,28 @@ export default function LoginPage() {
       if (!user) {
         // Auth succeeded but session couldn't be read — sign out cleanly and ask user to retry
         await supabase.auth.signOut();
-        form.setError('root', { message: 'Session could not be established. Please try again.' });
-        toast.error('Login Failed', { description: 'Session could not be established. Please try again.' });
+        form.setError('root', { message: 'We could not start your session. Try again.' });
+        toast.error('Login Failed');
         return;
       }
 
-      const requires2FA = await checkTwoFactorRequired(user.id);
-      if (requires2FA) {
-        setPendingUserId(user.id);
-        setShowTwoFactorModal(true);
-        return;
-      }
-
+      // The second factor is enforced by the route guard (ProtectedRoute): a
+      // user with a verified Supabase MFA factor is held on the challenge page
+      // until the session is aal2, and admin/doctor without one are sent to
+      // enrol. Nothing here decides whether 2FA applies.
       logActivity({ actionType: 'login', details: { email: data.email } });
       clearDevTestRole();
       toast.success('Welcome back!', { description: 'You have successfully logged in.' });
       navigate('/dashboard');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      form.setError('root', { message });
-      toast.error('Login Failed', { description: message });
+      console.error('Login error:', err);
+      form.setError('root', { message: describeAuthError(err, 'login') });
+      toast.error('Login Failed');
     }
   };
 
-  const handleTwoFactorVerified = () => {
-    setShowTwoFactorModal(false);
-    setShowBackupCodeModal(false);
-    setPendingUserId(null);
-    logActivity({ actionType: 'login', details: { email: form.getValues('email'), twoFactorUsed: true } });
-    clearDevTestRole();
-    toast.success('Welcome back!', { description: 'You have successfully logged in with 2FA.' });
-    navigate('/dashboard');
-  };
-
-  const handleCancelTwoFactor = async () => {
-    await supabase.auth.signOut();
-    setShowTwoFactorModal(false);
-    setShowBackupCodeModal(false);
-    setPendingUserId(null);
-    toast.error('Login Cancelled', {
-      description: 'Two-factor authentication is required for this account.',
-    });
-  };
-
   return (
-    <div className="min-h-screen flex">
+    <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
         <title>Hospital Login | AROCORD-HIMS</title>
         <meta name="description" content="Sign in to your AROCORD-HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
@@ -217,6 +184,25 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {mustReenrollMfa && (
+            <Alert role="status">
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                Your backup code was accepted and your old authenticator was removed. Sign in
+                again to set up a new one.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {signedOutForInactivity && (
+            <Alert role="status">
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                You were signed out after 30 minutes without activity. Sign in again to continue.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
               {/* Email */}
@@ -262,7 +248,7 @@ export default function LoginPage() {
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                          placeholder="••••••••"
                           autoComplete="current-password"
                           className="h-12 pr-12"
                           aria-required="true"
@@ -338,7 +324,7 @@ export default function LoginPage() {
           {import.meta.env.VITE_E2E_MOCK_AUTH === 'true' && (
             <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 space-y-3">
               <p className="text-xs font-semibold text-warning uppercase tracking-wide">Mock Auth Mode — Test Credentials</p>
-              <p className="text-xs text-muted-foreground">All accounts share password: <code className="font-mono font-bold">TestPass123!</code></p>
+              <p className="text-xs text-muted-foreground">All mock accounts use the <code className="font-mono font-bold">VITE_E2E_MOCK_PASSWORD</code> value from <code className="font-mono">.env.test</code>.</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                 {[
                   { role: 'Admin', email: 'admin@testgeneral.com' },
@@ -355,7 +341,7 @@ export default function LoginPage() {
                     className="text-left hover:text-primary transition-colors py-0.5"
                     onClick={() => {
                       form.setValue('email', email);
-                      form.setValue('password', 'TestPass123!');
+                      form.setValue('password', import.meta.env.DEV ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '') : '');
                     }}
                   >
                     <span className="font-medium">{role}:</span>{' '}
@@ -367,31 +353,6 @@ export default function LoginPage() {
           )}
         </div>
       </div>
-
-      {/* 2FA Modals */}
-      {pendingUserId && (
-        <>
-          <TwoFactorVerifyModal
-            open={showTwoFactorModal}
-            onOpenChange={(open) => { if (!open) handleCancelTwoFactor(); }}
-            userId={pendingUserId}
-            onVerified={handleTwoFactorVerified}
-            onUseBackupCode={() => {
-              setShowTwoFactorModal(false);
-              setShowBackupCodeModal(true);
-            }}
-          />
-          <BackupCodeVerifyModal
-            open={showBackupCodeModal}
-            onOpenChange={(open) => { if (!open) handleCancelTwoFactor(); }}
-            onVerified={handleTwoFactorVerified}
-            onBack={() => {
-              setShowBackupCodeModal(false);
-              setShowTwoFactorModal(true);
-            }}
-          />
-        </>
-      )}
     </div>
   );
 }

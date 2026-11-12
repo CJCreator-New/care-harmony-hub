@@ -2,6 +2,7 @@
 // BE-002: Add Zod schema validation
 
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { jsonResponse } from './response.ts';
 
 // Common schemas
 export const uuidSchema = z.string().uuid();
@@ -72,10 +73,8 @@ export async function validateRequest<T>(
   }
 }
 
-// Create validation error response
-export function validationErrorResponse(error: string): Response {
-  return new Response(
-    JSON.stringify({ error: 'Validation failed', details: error }),
-    { status: 400, headers: { 'Content-Type': 'application/json' } }
-  );
+// Create validation error response. Pass the request so the browser can read the body
+// (per-request CORS headers, EDGE-26).
+export function validationErrorResponse(error: string, req?: Request): Response {
+  return jsonResponse(req, 400, { error: 'Validation failed', details: error });
 }

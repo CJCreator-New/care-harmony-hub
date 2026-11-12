@@ -35,7 +35,7 @@ Do not create giant barrel `index.ts` files that re-export an entire internal di
 3. **`src/modules/prescription-dispensing/`**: Strict pharmacist-gated prescription dispensing engine, multi-stage approval workflow (initiated ➔ pending_approval ➔ approved ➔ dispensed ➔ completed), structural dispensing lock, role gating, and audit history per ADR-0004.
 4. **`src/modules/critical-lab-escalation/`**: Durable background lab escalation engine managing the ADR-0005 multi-tier ladder (Primary 0m ➔ On-Call 5m ➔ Emergency Department 10m), auto-cancellation triggers, and physician acknowledgment workflows.
 5. **`src/modules/vital-signs/`**: Clinical vital signs normalization, plausibility bounds, Royal College of Physicians NEWS2 physiological deterioration scoring, and panic alert detection.
-6. **`src/modules/example/`**: Minimal reference module illustrating deep module structure and boundary enforcement.
+6. **`src/modules/offline-store/`**: Encrypted offline caches and pending-write queue (SECF-06). IndexedDB database `caresync-offline`, AES-GCM records under a per-session non-extractable WebCrypto key, legacy localStorage migration, and `wipeOfflineStore()` for the logout purge.
 
 ## Running Boundary Validation
 

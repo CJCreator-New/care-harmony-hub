@@ -217,10 +217,11 @@ export function useActivityLogFilterOptions(
         .order('entity_type')
         .throwOnError();
 
-      // Get user list for this hospital
+      // Get user list for this hospital. There is no `staff` table (FUNC-17):
+      // staff are the hospital's profiles, and activity_logs.user_id is the auth user id.
       const { data: staffData } = await supabase
-        .from('staff')
-        .select('profiles:user_id (id, first_name, last_name, email)')
+        .from('profiles')
+        .select('user_id, first_name, last_name, email')
         .eq('hospital_id', hospital.id)
         .throwOnError();
 
@@ -240,14 +241,21 @@ export function useActivityLogFilterOptions(
         )
       ).sort();
 
-      const userIds = staffData
-        ?.map((staff) => ({
-          id: (staff.profiles as any)?.id ?? '',
-          name: `${(staff.profiles as any)?.first_name ?? ''} ${(staff.profiles as any)?.last_name ?? ''}`.trim(),
-          email: (staff.profiles as any)?.email ?? '',
+      const userIds = (
+        (staffData ?? []) as Array<{
+          user_id: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+        }>
+      )
+        .map((staff) => ({
+          id: staff.user_id ?? '',
+          name: `${staff.first_name ?? ''} ${staff.last_name ?? ''}`.trim(),
+          email: staff.email ?? '',
         }))
         .filter((user) => user.id)
-        .sort((a, b) => a.name.localeCompare(b.name)) ?? [];
+        .sort((a, b) => a.name.localeCompare(b.name));
 
       return {
         actionTypes,

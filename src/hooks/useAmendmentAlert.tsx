@@ -7,10 +7,10 @@ import { sanitizeForLog } from '@/utils/sanitize';
 
 /**
  * Phase 2B: Real-Time Amendment Alert System
- * 
+ *
  * Pharmacist receives real-time notifications when high-risk amendments occur.
  * Uses Supabase Realtime to subscribe to amendment events on prescriptions table.
- * 
+ *
  * Alert payload example:
  * "Doctor Smith amended Rx #123 (Dosage 500mg→250mg). Reason: C. difficile risk. Review?"
  */
@@ -41,19 +41,19 @@ export interface UseAmendmentAlertOptions {
 
 /**
  * Hook for subscribing to real-time amendment notifications.
- * 
+ *
  * Pharmacist gets notified of high-risk amendments:
  * - Dosage changes > 25%
  * - Quantity changes
  * - Changes to critical medications (anticoagulants, etc.)
- * 
+ *
  * @example
  * ```typescript
  * const { alerts, acknowledgeAlert } = useAmendmentAlert({
  *   enabled: profile?.primary_role === 'pharmacist',
  *   showToasts: true,
  * });
- * 
+ *
  * return (
  *   <div>
  *     {alerts.map(alert => (
@@ -72,12 +72,7 @@ export function useAmendmentAlert(options: UseAmendmentAlertOptions = {}) {
   const alerts = useRef<Map<string, AmendmentAlert>>(new Map());
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  const {
-    enabled = false,
-    onAlertReceived,
-    showToasts = true,
-    messageFormatter,
-  } = options;
+  const { enabled = false, onAlertReceived, showToasts = true, messageFormatter } = options;
 
   // Handle incoming amendment notification
   const handleAmendmentNotification = useCallback(
@@ -130,7 +125,7 @@ export function useAmendmentAlert(options: UseAmendmentAlertOptions = {}) {
               label: 'Review',
               onClick: () => {
                 // Navigate to prescription detail
-                window.location.href = `/pharmacy/prescriptions/${alert.prescription_id}`;
+                window.location.href = '/pharmacy';
               },
             },
           });
@@ -199,18 +194,15 @@ export function useAmendmentAlert(options: UseAmendmentAlertOptions = {}) {
   // Get unreviewed alerts
   const getUnreviewedAlerts = useCallback(() => {
     return Array.from(alerts.current.values())
-      .filter(a => !a.reviewed)
-      .sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
+      .filter((a) => !a.reviewed)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, []);
 
   // Get all alerts
   const getAllAlerts = useCallback(() => {
-    return Array.from(alerts.current.values())
-      .sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
+    return Array.from(alerts.current.values()).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
   }, []);
 
   // Clear alert
@@ -230,22 +222,5 @@ export function useAmendmentAlert(options: UseAmendmentAlertOptions = {}) {
     clearAlert,
     dismissAllAlerts,
     isSubscribed: !!unsubscribeRef.current && enabled,
-  };
-}
-
-/**
- * Hook to query historical amendments (not real-time).
- * Used for dashboard showing recent amendments.
- */
-export function useRecentAmendments(limit: number = 10) {
-  const { profile } = useAuth();
-
-  // This would query from prescription_audit table
-  // For now, returns empty array (to be implemented with Supabase RPC)
-  
-  return {
-    amendments: [] as AmendmentAlert[],
-    isLoading: false,
-    error: null,
   };
 }

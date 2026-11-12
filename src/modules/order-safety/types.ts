@@ -23,7 +23,18 @@ export interface ClinicalActor {
 // ─── Clinical Order Request Data ──────────────────────────────────────────────
 
 export type AdministrationRoute =
-  'PO' | 'IV' | 'IV (slow)' | 'IM' | 'SC' | 'PR' | 'Inhaled' | 'Topical' | 'SL';
+  | 'PO'
+  | 'IV'
+  | 'IV (slow)'
+  | 'IM'
+  | 'SC'
+  | 'PR'
+  | 'Inhaled'
+  | 'Topical'
+  | 'SL'
+  // Route not captured by the ordering form. Route-specific rules are skipped
+  // rather than guessed (guessing 'PO' would falsely flag insulin, heparin...).
+  | 'UNSPECIFIED';
 
 export interface OrderItemIntent {
   readonly clientItemId: string;
@@ -52,6 +63,18 @@ export interface PatientClinicalContext {
     readonly drugRxcui?: string;
     readonly dosageMg?: number;
   }[];
+  /**
+   * Fail-closed CDS input: reasons why the patient context above is known to be
+   * incomplete (e.g. allergies could not be loaded, existing prescriptions could
+   * not be decrypted). Any entry makes the assessment INCOMPLETE_CDS, which
+   * blocks automated clearance until a documented physician override.
+   */
+  readonly dataGaps?: readonly string[];
+  /**
+   * True when the patient's allergy status has never been recorded (as opposed
+   * to "no known allergies"). Surfaced as an informational finding.
+   */
+  readonly allergyStatusUnknown?: boolean;
 }
 
 // ─── Findings & Verdict ───────────────────────────────────────────────────────

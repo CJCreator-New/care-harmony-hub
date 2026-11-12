@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+
 import {
   Heart,
   Thermometer,
@@ -14,13 +14,13 @@ import {
   Weight,
   Ruler,
   Droplets,
-  CheckCircle,
   AlertTriangle,
   Send,
   Loader2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { writeIntakeToPatientRecord } from '@/modules/order-safety';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { evaluateVitalSigns } from '@/modules/vital-signs';
@@ -73,25 +73,6 @@ export function PatientPrepModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const hasValue = (value: number | '') => value !== '' && Number.isFinite(Number(value));
-
-  // Validation rules using vital-signs deep module
-  const validateVitals = () => {
-    const evaluation = evaluateVitalSigns({
-      temperature: vitals.temperature,
-      temperatureUnit: 'celsius',
-      heartRate: vitals.heart_rate,
-      bloodPressureSystolic: vitals.blood_pressure_systolic,
-      bloodPressureDiastolic: vitals.blood_pressure_diastolic,
-      respiratoryRate: vitals.respiratory_rate,
-      oxygenSaturation: vitals.oxygen_saturation,
-      painScale: vitals.pain_scale,
-      weightKg: vitals.weight,
-      heightCm: vitals.height,
-    });
-
-    setErrors(evaluation.validationErrors);
-    return evaluation.isValid;
-  };
 
   const handleVitalChange = (field: keyof VitalsData, value: string) => {
     setVitals((prev) => ({ ...prev, [field]: value === '' ? '' : Number(value) }));
@@ -214,6 +195,16 @@ export function PatientPrepModal({
           `Critical vital signs detected (${evaluation.news2.riskLevel.toUpperCase()} risk) — Doctor alerted immediately!`
         );
       }
+
+      // CLIN-14: make intake allergies/medications visible to prescribing safety checks.
+      const intakeWrite = await writeIntakeToPatientRecord(patient.id, {
+        allergies,
+        currentMedications,
+      });
+      if (!intakeWrite.ok)
+        toast.warning(
+          'Allergies/medications could not be saved to the patient record. Update the record before prescribing.'
+        );
 
       toast.success('Patient prep completed successfully!');
       queryClient.invalidateQueries({ queryKey: ['queue'] });

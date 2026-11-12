@@ -330,7 +330,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             <Mic className="h-5 w-5" />
             Real-Time Voice Input
             {isListening && (
-              <Badge variant="destructive" className="animate-pulse">
+              <Badge variant="destructive" className="motion-safe:animate-pulse">
                 Recording
               </Badge>
             )}
@@ -340,11 +340,11 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             {/* Connection Status */}
             <div className="flex items-center gap-1">
               {connectionStatus === 'connected' ? (
-                <Wifi className="h-4 w-4 text-green-500" />
+                <Wifi className="h-4 w-4 text-success" />
               ) : connectionStatus === 'connecting' ? (
-                <Zap className="h-4 w-4 text-yellow-500 animate-pulse" />
+                <Zap className="h-4 w-4 text-warning motion-safe:animate-pulse" />
               ) : (
-                <WifiOff className="h-4 w-4 text-red-500" />
+                <WifiOff className="h-4 w-4 text-destructive" />
               )}
               <span className="text-xs text-muted-foreground">
                 {connectionStatus}
@@ -443,25 +443,25 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         {showLatency && isListening && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg">
             <div className="text-center">
-              <div className="text-lg font-semibold text-blue-600">
+              <div className="text-lg font-semibold text-info">
                 {latency}ms
               </div>
               <div className="text-xs text-muted-foreground">Latency</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-green-600">
+              <div className="text-lg font-semibold text-success">
                 {uptime.toFixed(1)}%
               </div>
               <div className="text-xs text-muted-foreground">Uptime</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-purple-600">
+              <div className="text-lg font-semibold text-pharmacy">
                 {confidence ? Math.round(confidence * 100) : 0}%
               </div>
               <div className="text-xs text-muted-foreground">Confidence</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-orange-600">
+              <div className="text-lg font-semibold text-warning">
                 {currentProvider || 'Web API'}
               </div>
               <div className="text-xs text-muted-foreground">Provider</div>
@@ -489,8 +489,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
             <div className="flex items-center justify-between text-sm">
               <span>Recognition Confidence:</span>
               <span className={`font-medium ${
-                confidence > 0.8 ? 'text-green-600' :
-                confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'
+                confidence > 0.8 ? 'text-success' :
+                confidence > 0.6 ? 'text-warning' : 'text-destructive'
               }`}>
                 {Math.round(confidence * 100)}%
               </span>
@@ -525,9 +525,9 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
               <Settings className="h-4 w-4" />
               Medical Term Corrections:
             </label>
-            <div className="max-h-[100px] overflow-y-auto p-2 border rounded-md bg-blue-50/50">
+            <div className="max-h-[100px] overflow-y-auto p-2 border rounded-md bg-info/10">
               {corrections.map((correction) => (
-                <div key={correction} className="text-xs text-blue-700 py-1">
+                <div key={correction} className="text-xs text-info py-1">
                   {correction}
                 </div>
               ))}

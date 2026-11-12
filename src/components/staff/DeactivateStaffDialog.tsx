@@ -2,20 +2,11 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAudit } from '@/hooks/useAudit';
 import { UserRole } from '@/types/auth';
 import { getRoleLabel } from '@/types/rbac';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface StaffMember {
   id: string;
@@ -41,9 +32,11 @@ export function DeactivateStaffDialog({
 }: DeactivateStaffDialogProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
+  const { logActivity } = useAudit();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleDeactivate = async () => {
+  // Throws on failure so the confirmation stays open and the reason is kept.
+  const handleDeactivate = async (reason: string) => {
     if (!staff || !profile?.hospital_id) return;
 
     setIsLoading(true);
@@ -71,6 +64,14 @@ export function DeactivateStaffDialog({
 
       if (roleError) throw roleError;
 
+      void logActivity({
+        actionType: 'staff_deactivate',
+        entityType: 'user_roles',
+        entityId: staff.user_id,
+        details: { reason, roles_removed: staff.roles },
+        severity: 'warning',
+      });
+
       toast({
         title: 'Staff Deactivated',
         description: `${staff.first_name} ${staff.last_name} has been removed from this hospital.`,
@@ -85,70 +86,52 @@ export function DeactivateStaffDialog({
         description: error instanceof Error ? error.message : 'Failed to deactivate staff member. Please try again.',
         variant: 'destructive',
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-            <AlertTriangle className="h-5 w-5" />
-            Deactivate Staff Member
-          </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-4">
-              <p>
-                Are you sure you want to deactivate this staff member? This action will:
-              </p>
-              <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
-                <li>Remove all their roles and permissions</li>
-                <li>Remove their access to the hospital</li>
-                <li>They will no longer be able to log in to this hospital</li>
-              </ul>
+    <ConfirmDestructiveAction
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Deactivate staff member?"
+      description={
+        <div className="space-y-4">
+          <p>This action will:</p>
+          <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
+            <li>Remove all their roles and permissions</li>
+            <li>Remove their access to the hospital</li>
+            <li>Stop them logging in to this hospital</li>
+          </ul>
 
-              {staff && (
-                <div className="p-4 rounded-lg bg-muted">
-                  <p className="font-medium">
-                    {staff.first_name} {staff.last_name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{staff.email}</p>
-                  <div className="flex gap-1 mt-2">
-                    {staff.roles.map((role) => (
-                      <Badge key={role} variant="secondary">
-                        {getRoleLabel(role)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <p className="text-sm font-medium text-destructive">
-                This action cannot be undone. The user will need to be re-invited to regain access.
+          {staff && (
+            <div className="p-4 rounded-lg bg-muted">
+              <p className="font-medium text-foreground">
+                {staff.first_name} {staff.last_name}
               </p>
+              <p className="text-sm text-muted-foreground">{staff.email}</p>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {staff.roles.map((role) => (
+                  <Badge key={role} variant="secondary">
+                    {getRoleLabel(role)}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDeactivate}
-            disabled={isLoading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Deactivating...
-              </>
-            ) : (
-              'Deactivate'
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          )}
+
+          <p className="text-sm font-medium text-destructive">
+            The user will need to be re-invited to regain access.
+          </p>
+        </div>
+      }
+      confirmLabel="Deactivate"
+      reasonLabel="Reason for deactivation (recorded in the audit log)"
+      reasonPlaceholder="e.g. Left the hospital; contract ended on 31 October."
+      isPending={isLoading}
+      onConfirm={handleDeactivate}
+    />
   );
 }

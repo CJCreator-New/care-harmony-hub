@@ -1,0 +1,374 @@
+-- =============================================================================
+-- PENDING MIGRATION (not in supabase/migrations/, so neither the Supabase CLI
+-- nor the Lovable sync applies it). Read supabase/pending-migrations/README.md
+-- and the sibling note 20261105000006.README.md before promoting it.
+--
+-- 20261105000006_rls_lab_tables.sql
+-- Urgent exposure: six public lab tables have row-level security OFF in
+-- production. This file adds deny-by-default policies, then enables RLS.
+--
+--   lab_results, lab_qc_results, lab_trends, critical_value_notifications
+--                       tenant tables: a row is visible or writable only to an
+--                       ACTIVE staff member whose role is listed for that
+--                       operation AND whose hospital is the row's hospital.
+--   loinc_codes, lab_interpretation_rules
+--                       reference tables: any authenticated user reads; only an
+--                       active admin writes.
+--   patients / anon     no policy grants them anything on these six tables.
+--
+-- Helpers (SECURITY DEFINER, SET search_path = ''), all prefixed lab_rls_:
+--   lab_rls_profile_active(uuid)                 profile not deactivated
+--   lab_rls_staff_hospital_ids(text[])           hospitals where the caller is
+--                                                active staff with one of the roles
+--   lab_rls_can_access(text[], uuid)             hospital is one of those
+--   lab_rls_result_access(text[], uuid, uuid)    lab_results: scope is the parent
+--                                                lab order's hospital when linked
+--   lab_rls_is_active_admin()                    caller is active admin somewhere
+--
+-- Idempotent: policies are dropped (every permissive policy on the six tables,
+-- then each named policy IF EXISTS) before they are created; functions use
+-- CREATE OR REPLACE; RLS is enabled last. Restrictive policies on these tables
+-- (for example the S0-10 aal2 guard) are NOT dropped, so they keep applying.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 0. Guard: abort before changing anything if a prerequisite is missing.
+-- -----------------------------------------------------------------------------
+DO $guard$
+DECLARE
+  t text;
+  c record;
+  missing_tables text[] := ARRAY[]::text[];
+  missing_cols text[] := ARRAY[]::text[];
+BEGIN
+  FOREACH t IN ARRAY ARRAY['lab_results', 'lab_qc_results', 'lab_trends',
+                           'lab_interpretation_rules', 'critical_value_notifications',
+                           'loinc_codes', 'lab_orders', 'user_roles', 'profiles'] LOOP
+    IF to_regclass('public.' || t) IS NULL THEN
+      missing_tables := missing_tables || t;
+    END IF;
+  END LOOP;
+  IF cardinality(missing_tables) > 0 THEN
+    RAISE EXCEPTION '20261105000006 aborted, nothing changed: missing table(s) in public: %',
+      array_to_string(missing_tables, ', ');
+  END IF;
+
+  FOR c IN SELECT * FROM (VALUES
+      ('lab_results', 'hospital_id'), ('lab_results', 'lab_order_id'),
+      ('lab_qc_results', 'hospital_id'), ('lab_trends', 'hospital_id'),
+      ('critical_value_notifications', 'hospital_id'),
+      ('lab_orders', 'id'), ('lab_orders', 'hospital_id'),
+      ('user_roles', 'user_id'), ('user_roles', 'hospital_id'), ('user_roles', 'role'),
+      ('profiles', 'user_id')) AS v(tbl, col) LOOP
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = c.tbl AND column_name = c.col) THEN
+      missing_cols := missing_cols || (c.tbl || '.' || c.col);
+    END IF;
+  END LOOP;
+  IF cardinality(missing_cols) > 0 THEN
+    RAISE EXCEPTION '20261105000006 aborted, nothing changed: missing column(s): %',
+      array_to_string(missing_cols, ', ');
+  END IF;
+END
+$guard$;
+
+-- -----------------------------------------------------------------------------
+-- 1. Helper functions
+-- -----------------------------------------------------------------------------
+
+-- Profile not deactivated. Reads is_active through to_jsonb (same approach as
+-- 20261105000004): a NULL or missing column counts as active, an explicit false
+-- as inactive, and no profile row counts as inactive.
+CREATE OR REPLACE FUNCTION public.lab_rls_profile_active(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles p
+     WHERE p.user_id = _user_id
+       AND coalesce((to_jsonb(p) ->> 'is_active')::boolean, true))
+$$;
+
+-- Hospitals where the caller holds one of _roles (a user_roles row, hospital
+-- set, role listed) and the caller's profile is active. Patients never match:
+-- the role list is explicit and 'patient' is not on any list.
+CREATE OR REPLACE FUNCTION public.lab_rls_staff_hospital_ids(_roles text[])
+RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT DISTINCT ur.hospital_id
+    FROM public.user_roles ur
+   WHERE ur.user_id = auth.uid()
+     AND ur.hospital_id IS NOT NULL
+     AND ur.role::text = ANY (_roles)
+     AND public.lab_rls_profile_active(ur.user_id)
+$$;
+
+-- Row hospital must be non-null and one of the caller's hospitals for _roles.
+CREATE OR REPLACE FUNCTION public.lab_rls_can_access(_roles text[], _hospital_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT _hospital_id IS NOT NULL
+     AND EXISTS (SELECT 1 FROM public.lab_rls_staff_hospital_ids(_roles) h
+                  WHERE h = _hospital_id)
+$$;
+
+-- lab_results: the scope is the hospital of the parent lab order when the row
+-- is linked to one (the order decides the tenant, as in 20261105000004 DB-09).
+-- A row whose own hospital_id disagrees with its order is refused. A row with no
+-- order falls back to its own hospital_id. A row with neither is visible to no one.
+CREATE OR REPLACE FUNCTION public.lab_rls_result_access(
+  _roles text[], _hospital_id uuid, _lab_order_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+DECLARE
+  v_order_hospital uuid;
+BEGIN
+  IF _lab_order_id IS NOT NULL THEN
+    SELECT lo.hospital_id INTO v_order_hospital
+      FROM public.lab_orders lo
+     WHERE lo.id = _lab_order_id;
+    IF v_order_hospital IS NOT NULL
+       AND _hospital_id IS NOT NULL
+       AND _hospital_id <> v_order_hospital THEN
+      RETURN false;
+    END IF;
+  END IF;
+  RETURN public.lab_rls_can_access(_roles, coalesce(v_order_hospital, _hospital_id));
+END
+$$;
+
+-- Active admin in any hospital. Used for the global reference tables.
+CREATE OR REPLACE FUNCTION public.lab_rls_is_active_admin()
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.lab_rls_staff_hospital_ids(ARRAY['admin']::text[]))
+$$;
+
+-- Function privileges: nothing for PUBLIC, anon or default grants; the three
+-- functions that policy expressions call go to authenticated. The two internal
+-- helpers stay callable only from other SECURITY DEFINER functions (owner rights).
+DO $grants$
+DECLARE
+  f text;
+BEGIN
+  FOREACH f IN ARRAY ARRAY[
+    'public.lab_rls_profile_active(uuid)',
+    'public.lab_rls_staff_hospital_ids(text[])',
+    'public.lab_rls_can_access(text[], uuid)',
+    'public.lab_rls_result_access(text[], uuid, uuid)',
+    'public.lab_rls_is_active_admin()'] LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', f);
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY[
+    'public.lab_rls_can_access(text[], uuid)',
+    'public.lab_rls_result_access(text[], uuid, uuid)',
+    'public.lab_rls_is_active_admin()'] LOOP
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);
+  END LOOP;
+  EXECUTE 'REVOKE ALL ON FUNCTION public.lab_rls_profile_active(uuid) FROM authenticated';
+  EXECUTE 'REVOKE ALL ON FUNCTION public.lab_rls_staff_hospital_ids(text[]) FROM authenticated';
+END
+$grants$;
+
+-- -----------------------------------------------------------------------------
+-- 2. Drop existing permissive policies on the six tables. Earlier migrations
+--    (20260204000011, 20260309000003) define permissive policies on some of
+--    them; permissive policies OR together, so any survivor would widen access.
+--    Restrictive policies are kept on purpose.
+-- -----------------------------------------------------------------------------
+DO $drop_legacy$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT p.tablename, p.policyname
+      FROM pg_policies p
+     WHERE p.schemaname = 'public'
+       AND p.permissive = 'PERMISSIVE'
+       AND p.tablename IN ('lab_results', 'lab_qc_results', 'lab_trends',
+                           'lab_interpretation_rules', 'critical_value_notifications',
+                           'loinc_codes')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', r.policyname, r.tablename);
+  END LOOP;
+END
+$drop_legacy$;
+
+-- -----------------------------------------------------------------------------
+-- 3. Policies: lab_results (roles that use it today: LAB_READ = admin, doctor,
+--    nurse, lab_technician; writers: doctor, lab_technician). Patients: none.
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS lab_rls_lab_results_select ON public.lab_results;
+CREATE POLICY lab_rls_lab_results_select ON public.lab_results
+  FOR SELECT TO authenticated
+  USING (public.lab_rls_result_access(
+    ARRAY['admin', 'doctor', 'nurse', 'lab_technician']::text[], hospital_id, lab_order_id));
+
+DROP POLICY IF EXISTS lab_rls_lab_results_insert ON public.lab_results;
+CREATE POLICY lab_rls_lab_results_insert ON public.lab_results
+  FOR INSERT TO authenticated
+  WITH CHECK (public.lab_rls_result_access(
+    ARRAY['doctor', 'lab_technician']::text[], hospital_id, lab_order_id));
+
+DROP POLICY IF EXISTS lab_rls_lab_results_update ON public.lab_results;
+CREATE POLICY lab_rls_lab_results_update ON public.lab_results
+  FOR UPDATE TO authenticated
+  USING (public.lab_rls_result_access(
+    ARRAY['doctor', 'lab_technician']::text[], hospital_id, lab_order_id))
+  WITH CHECK (public.lab_rls_result_access(
+    ARRAY['doctor', 'lab_technician']::text[], hospital_id, lab_order_id));
+
+-- -----------------------------------------------------------------------------
+-- 4. Policies: lab_qc_results (no client caller today; lab QC is the lab
+--    technician's job, and admin keeps read access as for other lab data).
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS lab_rls_lab_qc_results_select ON public.lab_qc_results;
+CREATE POLICY lab_rls_lab_qc_results_select ON public.lab_qc_results
+  FOR SELECT TO authenticated
+  USING (public.lab_rls_can_access(ARRAY['admin', 'lab_technician']::text[], hospital_id));
+
+DROP POLICY IF EXISTS lab_rls_lab_qc_results_insert ON public.lab_qc_results;
+CREATE POLICY lab_rls_lab_qc_results_insert ON public.lab_qc_results
+  FOR INSERT TO authenticated
+  WITH CHECK (public.lab_rls_can_access(ARRAY['lab_technician']::text[], hospital_id));
+
+DROP POLICY IF EXISTS lab_rls_lab_qc_results_update ON public.lab_qc_results;
+CREATE POLICY lab_rls_lab_qc_results_update ON public.lab_qc_results
+  FOR UPDATE TO authenticated
+  USING (public.lab_rls_can_access(ARRAY['lab_technician']::text[], hospital_id))
+  WITH CHECK (public.lab_rls_can_access(ARRAY['lab_technician']::text[], hospital_id));
+
+-- -----------------------------------------------------------------------------
+-- 5. Policies: lab_trends (client reads by patient_id: doctor, nurse, lab
+--    technician, admin; the calculateTrend writer: doctor, lab technician).
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS lab_rls_lab_trends_select ON public.lab_trends;
+CREATE POLICY lab_rls_lab_trends_select ON public.lab_trends
+  FOR SELECT TO authenticated
+  USING (public.lab_rls_can_access(
+    ARRAY['admin', 'doctor', 'nurse', 'lab_technician']::text[], hospital_id));
+
+DROP POLICY IF EXISTS lab_rls_lab_trends_insert ON public.lab_trends;
+CREATE POLICY lab_rls_lab_trends_insert ON public.lab_trends
+  FOR INSERT TO authenticated
+  WITH CHECK (public.lab_rls_can_access(ARRAY['doctor', 'lab_technician']::text[], hospital_id));
+
+DROP POLICY IF EXISTS lab_rls_lab_trends_update ON public.lab_trends;
+CREATE POLICY lab_rls_lab_trends_update ON public.lab_trends
+  FOR UPDATE TO authenticated
+  USING (public.lab_rls_can_access(ARRAY['doctor', 'lab_technician']::text[], hospital_id))
+  WITH CHECK (public.lab_rls_can_access(ARRAY['doctor', 'lab_technician']::text[], hospital_id));
+
+-- -----------------------------------------------------------------------------
+-- 6. Policies: critical_value_notifications (no client caller in src/ today;
+--    the notify path uses the service role). Read: clinicians and lab + admin.
+--    Create: doctor, lab technician. Acknowledge/escalate (UPDATE): doctor,
+--    nurse (read-back), lab technician. No DELETE.
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS lab_rls_critical_value_notifications_select ON public.critical_value_notifications;
+CREATE POLICY lab_rls_critical_value_notifications_select ON public.critical_value_notifications
+  FOR SELECT TO authenticated
+  USING (public.lab_rls_can_access(
+    ARRAY['admin', 'doctor', 'nurse', 'lab_technician']::text[], hospital_id));
+
+DROP POLICY IF EXISTS lab_rls_critical_value_notifications_insert ON public.critical_value_notifications;
+CREATE POLICY lab_rls_critical_value_notifications_insert ON public.critical_value_notifications
+  FOR INSERT TO authenticated
+  WITH CHECK (public.lab_rls_can_access(ARRAY['doctor', 'lab_technician']::text[], hospital_id));
+
+DROP POLICY IF EXISTS lab_rls_critical_value_notifications_update ON public.critical_value_notifications;
+CREATE POLICY lab_rls_critical_value_notifications_update ON public.critical_value_notifications
+  FOR UPDATE TO authenticated
+  USING (public.lab_rls_can_access(
+    ARRAY['doctor', 'nurse', 'lab_technician']::text[], hospital_id))
+  WITH CHECK (public.lab_rls_can_access(
+    ARRAY['doctor', 'nurse', 'lab_technician']::text[], hospital_id));
+
+-- -----------------------------------------------------------------------------
+-- 7. Policies: reference tables. Any authenticated user reads; only an active
+--    admin writes. No policy for anon, so anon reads and writes nothing.
+-- -----------------------------------------------------------------------------
+DROP POLICY IF EXISTS lab_rls_loinc_codes_select ON public.loinc_codes;
+CREATE POLICY lab_rls_loinc_codes_select ON public.loinc_codes
+  FOR SELECT TO authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS lab_rls_loinc_codes_insert ON public.loinc_codes;
+CREATE POLICY lab_rls_loinc_codes_insert ON public.loinc_codes
+  FOR INSERT TO authenticated
+  WITH CHECK (public.lab_rls_is_active_admin());
+
+DROP POLICY IF EXISTS lab_rls_loinc_codes_update ON public.loinc_codes;
+CREATE POLICY lab_rls_loinc_codes_update ON public.loinc_codes
+  FOR UPDATE TO authenticated
+  USING (public.lab_rls_is_active_admin())
+  WITH CHECK (public.lab_rls_is_active_admin());
+
+DROP POLICY IF EXISTS lab_rls_loinc_codes_delete ON public.loinc_codes;
+CREATE POLICY lab_rls_loinc_codes_delete ON public.loinc_codes
+  FOR DELETE TO authenticated
+  USING (public.lab_rls_is_active_admin());
+
+DROP POLICY IF EXISTS lab_rls_lab_interpretation_rules_select ON public.lab_interpretation_rules;
+CREATE POLICY lab_rls_lab_interpretation_rules_select ON public.lab_interpretation_rules
+  FOR SELECT TO authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS lab_rls_lab_interpretation_rules_insert ON public.lab_interpretation_rules;
+CREATE POLICY lab_rls_lab_interpretation_rules_insert ON public.lab_interpretation_rules
+  FOR INSERT TO authenticated
+  WITH CHECK (public.lab_rls_is_active_admin());
+
+DROP POLICY IF EXISTS lab_rls_lab_interpretation_rules_update ON public.lab_interpretation_rules;
+CREATE POLICY lab_rls_lab_interpretation_rules_update ON public.lab_interpretation_rules
+  FOR UPDATE TO authenticated
+  USING (public.lab_rls_is_active_admin())
+  WITH CHECK (public.lab_rls_is_active_admin());
+
+DROP POLICY IF EXISTS lab_rls_lab_interpretation_rules_delete ON public.lab_interpretation_rules;
+CREATE POLICY lab_rls_lab_interpretation_rules_delete ON public.lab_interpretation_rules
+  FOR DELETE TO authenticated
+  USING (public.lab_rls_is_active_admin());
+
+-- -----------------------------------------------------------------------------
+-- 8. Remove the default anon grant (Supabase grants ALL on public tables to
+--    anon by default). RLS would already block anon; this removes the grant too.
+-- -----------------------------------------------------------------------------
+REVOKE ALL ON public.lab_results, public.lab_qc_results, public.lab_trends,
+              public.lab_interpretation_rules, public.critical_value_notifications,
+              public.loinc_codes
+  FROM anon;
+
+-- -----------------------------------------------------------------------------
+-- 9. Enable RLS last, then verify that all six tables have it on.
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.lab_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lab_qc_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lab_trends ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lab_interpretation_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.critical_value_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loinc_codes ENABLE ROW LEVEL SECURITY;
+
+DO $verify$
+DECLARE
+  t text;
+  off text[] := ARRAY[]::text[];
+BEGIN
+  FOREACH t IN ARRAY ARRAY['lab_results', 'lab_qc_results', 'lab_trends',
+                           'lab_interpretation_rules', 'critical_value_notifications',
+                           'loinc_codes'] LOOP
+    IF NOT coalesce((SELECT c.relrowsecurity FROM pg_class c
+                      JOIN pg_namespace n ON n.oid = c.relnamespace
+                     WHERE n.nspname = 'public' AND c.relname = t), false) THEN
+      off := off || t;
+    END IF;
+  END LOOP;
+  IF cardinality(off) > 0 THEN
+    RAISE EXCEPTION '20261105000006 failed: RLS still off on: %', array_to_string(off, ', ');
+  END IF;
+END
+$verify$;

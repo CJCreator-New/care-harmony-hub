@@ -231,7 +231,16 @@ export function NotificationsSystem() {
                     "group flex flex-col p-4 hover:bg-muted/50 transition-all cursor-pointer relative",
                     !notification.is_read && "bg-primary/5 border-l-2 border-l-primary"
                   )}
+                  // A11Y-08: an unread notification is marked read by click or Enter/Space. Read items do nothing, so they expose no control.
+                  role={notification.is_read ? undefined : 'button'}
+                  tabIndex={notification.is_read ? undefined : 0}
                   onClick={() => !notification.is_read && markAsReadMutation.mutate(notification.id)}
+                  onKeyDown={(event) => {
+                    if (!notification.is_read && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      markAsReadMutation.mutate(notification.id);
+                    }
+                  }}
                 >
                   <div className="flex items-start justify-between mb-1.5">
                     <div className="flex items-center gap-2">
@@ -266,7 +275,7 @@ export function NotificationsSystem() {
                     {!notification.is_read && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-primary font-bold">New</span>
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
                       </div>
                     )}
                   </div>

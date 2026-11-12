@@ -18,6 +18,8 @@ import { Pagination } from '@/components/ui/pagination';
 import {
   Table,
   TableBody,
+  TableCard,
+  TableCardList,
   TableCell,
   TableHead,
   TableHeader,
@@ -50,6 +52,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
+import { can } from '@/modules/rbac';
 
 interface Patient {
   id: string;
@@ -186,6 +189,16 @@ export default function PatientsPage() {
   const { profile, primaryRole } = useAuth();
   const { canCreatePatients } = usePermissions();
   const { logActivity } = useActivityLog();
+
+  const handleViewPatient = (patient: any) => {
+    logActivity({
+      actionType: 'patient_view',
+      entityType: 'patient',
+      entityId: patient.id,
+      details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
+    });
+    navigate(`/patients/${patient.id}`);
+  };
   const { toast } = useToast();
 
   // Deep-link: /patients?id=<uuid> -> navigate directly to patient profile
@@ -281,7 +294,7 @@ export default function PatientsPage() {
 
   const showRegisterPatient = canCreatePatients && primaryRole !== 'doctor' && primaryRole !== 'nurse';
   const canBookAppointment = primaryRole === 'admin' || primaryRole === 'receptionist';
-  const canGenerateInvoice = primaryRole === 'admin' || primaryRole === 'receptionist' || primaryRole === 'billing';
+  const canGenerateInvoice = can(primaryRole, 'billing:write');
   const canRecordHistory = primaryRole === 'admin' || primaryRole === 'doctor' || primaryRole === 'nurse';
 
   return (
@@ -393,7 +406,32 @@ export default function PatientsPage() {
             </div>
           ) : (
             <>
-              <Table>
+              <TableCardList>
+                {(patients as any[]).map((patient: any) => (
+                  <TableCard
+                    key={patient.id}
+                    title={`${patient.first_name} ${patient.last_name}`}
+                    fields={[
+                      { label: 'MRN', value: patient.mrn },
+                      {
+                        label: 'Age / Gender',
+                        value: `${calculateAge(patient.date_of_birth)} · ${genderLabels[patient.gender] || patient.gender}`,
+                      },
+                      { label: 'Contact', value: patient.phone || patient.email || 'No contact' },
+                      { label: 'Blood Type', value: patient.blood_type || '—' },
+                      { label: 'Registered', value: format(new Date(patient.created_at), 'MMM d, yyyy') },
+                    ]}
+                    actions={
+                      <Button size="sm" variant="outline" onClick={() => handleViewPatient(patient)}>
+                        View profile
+                      </Button>
+                    }
+                  />
+                ))}
+              </TableCardList>
+
+              <div className="hidden md:block">
+              <Table scrollLabel="Patients">
               <TableHeader>
                 <TableRow>
                   <TableHead scope="col" className="text-left font-bold text-foreground">MRN</TableHead>
@@ -414,15 +452,7 @@ export default function PatientsPage() {
                     canBookAppointment={canBookAppointment}
                     canGenerateInvoice={canGenerateInvoice}
                     canRecordHistory={canRecordHistory}
-                    onViewProfile={(patient) => {
-                      logActivity({
-                        actionType: 'patient_view',
-                        entityType: 'patient',
-                        entityId: patient.id,
-                        details: { mrn: patient.mrn, name: `${patient.first_name} ${patient.last_name}` },
-                      });
-                      navigate(`/patients/${patient.id}`);
-                    }}
+                    onViewProfile={handleViewPatient}
                     onBookAppointment={(patient) => {
                       navigate('/appointments', {
                         state: {
@@ -435,7 +465,8 @@ export default function PatientsPage() {
                 ))}
               </TableBody>
             </Table>
-            
+              </div>
+
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="p-4 border-t">

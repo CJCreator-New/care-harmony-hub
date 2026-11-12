@@ -25,7 +25,7 @@ import {
 import {
   Form,
   FormControl,
-  FormField,
+  FormField as RHFFormField,
   FormItem,
   FormLabel,
   FormMessage,
@@ -35,7 +35,9 @@ import { usePatients } from '@/lib/hooks/patients';
 import { useCreateInvoice } from '@/hooks/useBilling';
 import { useUnbilledCharges, UnbilledChargeItem } from '@/hooks/useUnbilledCharges';
 import { toast } from 'sonner';
-import { formatCurrency, CURRENCY_SYMBOL } from '@/lib/currency';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
+import { formatCurrency } from '@/lib/format';
+import { FormField } from '@/components/common/FormField';
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 
@@ -219,32 +221,22 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             {/* Patient selector */}
-            <FormField
-              control={form.control}
-              name="patientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Patient <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select patient to load clinical charges" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="z-[200]">
-                      {patientsList.map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
-                          {patient.first_name} {patient.last_name} ({patient.mrn})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+            <FormField control={form.control} name="patientId" label="Patient" required>
+              {(field, controlProps) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger {...controlProps}>
+                    <SelectValue placeholder="Select patient to load clinical charges" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[200]">
+                    {patientsList.map((patient) => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.first_name} {patient.last_name} ({patient.mrn})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-            />
+            </FormField>
 
             {/* Unbilled Clinical Charges Drawer */}
             {watchedPatientId && unbilledCharges && unbilledCharges.length > 0 && (
@@ -335,7 +327,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                 >
                   <div className="flex-1 space-y-2">
                     {/* Description */}
-                    <FormField
+                    <RHFFormField
                       control={form.control}
                       name={`items.${index}.description`}
                       render={({ field: f }) => (
@@ -351,7 +343,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
 
                     <div className="flex gap-2">
                       {/* Item type */}
-                      <FormField
+                      <RHFFormField
                         control={form.control}
                         name={`items.${index}.item_type`}
                         render={({ field: f }) => (
@@ -375,7 +367,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                       />
 
                       {/* Quantity */}
-                      <FormField
+                      <RHFFormField
                         control={form.control}
                         name={`items.${index}.quantity`}
                         render={({ field: f }) => (
@@ -395,7 +387,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                       />
 
                       {/* Unit price */}
-                      <FormField
+                      <RHFFormField
                         control={form.control}
                         name={`items.${index}.unit_price`}
                         render={({ field: f }) => (
@@ -448,37 +440,25 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
             </div>
 
             {/* Discount field */}
-            <FormField
-              control={form.control}
-              name="discountPercent"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Discount{' '}
-                    <span className="text-xs text-muted-foreground font-normal">
-                      (% Concession)
-                    </span>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative w-36">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        placeholder="0"
-                        {...field}
-                        value={field.value || ''}
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                        %
-                      </span>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <FormField control={form.control} name="discountPercent" label="Discount (% Concession)">
+              {(field, controlProps) => (
+                <div className="relative w-36">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    placeholder="0"
+                    {...field}
+                    {...controlProps}
+                    value={field.value || ''}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    %
+                  </span>
+                </div>
               )}
-            />
+            </FormField>
 
             {/* Invoice breakdown */}
             <div className="p-3.5 bg-muted/60 border rounded-lg space-y-1 text-sm">
@@ -504,37 +484,15 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
 
             {/* Due date and Notes in 2 columns */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="dueDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Due Date{' '}
-                      <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="dueDate" label="Due Date (Optional)">
+                {(field, controlProps) => <Input type="date" {...field} {...controlProps} />}
+              </FormField>
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Notes{' '}
-                      <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="Additional notes or encounter reference..." {...field} />
-                    </FormControl>
-                  </FormItem>
+              <FormField control={form.control} name="notes" label="Notes (Optional)">
+                {(field, controlProps) => (
+                  <Input placeholder="Additional notes or encounter reference..." {...field} {...controlProps} />
                 )}
-              />
+              </FormField>
             </div>
 
             <DialogFooter className="border-t pt-4">

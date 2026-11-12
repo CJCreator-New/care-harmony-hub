@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS prescription_approval_workflows_update_trigger ON public.prescription_approval_workflows; CREATE TRIGGER prescription_approval_workflows_update_trigger BEFORE UPDATE ON public.prescription_approval_workflows FOR EACH ROW EXECUTE FUNCTION public.touch_row_updated_at();

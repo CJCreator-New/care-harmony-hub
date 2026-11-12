@@ -6,6 +6,8 @@ import { Calendar, Clock, Video, MapPin, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLatestScheduledAppointments, useTodayAppointments } from '@/lib/hooks/appointments';
 import { format, parseISO } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DataError } from '@/components/common/DataStatus';
 
 interface Appointment {
   id: string;
@@ -29,7 +31,8 @@ const statusStyles = {
 
 export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingAppointmentsProps>(
   ({ appointments: propAppointments }, ref) => {
-    const { data: dbAppointments = [], isLoading } = useTodayAppointments();
+    const { data: dbAppointmentsData, isLoading, isError, refetch } = useTodayAppointments();
+    const dbAppointments = dbAppointmentsData ?? [];
     const { data: latestScheduled } = useLatestScheduledAppointments();
 
     const fallbackAppointments = latestScheduled?.appointments || [];
@@ -86,7 +89,16 @@ export const UpcomingAppointments = React.forwardRef<HTMLDivElement, UpcomingApp
           </Button>
         </div>
 
-        {appointments.length === 0 ? (
+        {!propAppointments && isError ? (
+          <div className="p-4">
+            <DataError resource="today's appointments" onRetry={() => refetch()} />
+          </div>
+        ) : !propAppointments && isLoading ? (
+          <div role="status" aria-label="Loading today's appointments" className="p-4 space-y-3">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        ) : appointments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Calendar className="w-12 h-12 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground font-medium">No appointments available</p>

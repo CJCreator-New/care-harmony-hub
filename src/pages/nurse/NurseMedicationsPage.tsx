@@ -42,6 +42,7 @@ import { DoseWithholdingModal } from '@/components/nurse/DoseWithholdingModal';
 import { PRNAdministrationModal } from '@/components/nurse/PRNAdministrationModal';
 import { PRNEffectivenessModal } from '@/components/nurse/PRNEffectivenessModal';
 import { isHighAlertMedication } from '@/lib/clinical/medicationAdministrationRules';
+import { administrationBlock, isSameLocalDay } from './medicationDoseGuard';
 
 export default function NurseMedicationsPage() {
   const { user, profile, hospital } = useAuth();
@@ -65,7 +66,9 @@ export default function NurseMedicationsPage() {
 
   // Data fetching
   const { data: prescriptions, isLoading: isLoadingPrescriptions } = usePrescriptions();
-  const { data: patientsList } = usePatients();
+  const { data: patientsData } = usePatients();
+  // usePatients returns a paginated result ({ patients, total, ... }), not an array.
+  const patientsList = patientsData?.patients ?? [];
 
   // Fetch real medication administrations log
   const { data: administrations, isLoading: isLoadingAdmins } = useQuery({
@@ -208,12 +211,30 @@ export default function NurseMedicationsPage() {
     },
   });
 
+  // CLIN-13: whether a scheduled line may be given now, from the administration log.
+  const doseBlockFor = (item: any) =>
+    administrationBlock({
+      administrations: administrations ?? [],
+      prescriptionId: item.prescription_id,
+      medicationName: item.medication_name || '',
+      frequency: item.frequency,
+      now: new Date(),
+    });
+
   // Action handlers
   const handleStartAdministrationFlow = (item: any) => {
+    // CLIN-13: a dose inside its interval cannot be given again.
+    const block = doseBlockFor(item);
+    if (block.blocked) {
+      toast.error(
+        `${item.medication_name} was already given. Next dose due ${format(block.nextDueAt!, 'HH:mm')}.`
+      );
+      return;
+    }
     setTargetItem(item);
     setTargetPatient(
       item.patient ||
-        (patientsList || []).find((p) => p.id === item.patient_id) || {
+        patientsList.find((p) => p.id === item.patient_id) || {
           id: item.patient_id,
           first_name: 'Patient',
           last_name: item.patient_id.slice(0, 6),
@@ -243,7 +264,7 @@ export default function NurseMedicationsPage() {
     setTargetItem(item);
     setTargetPatient(
       item.patient ||
-        (patientsList || []).find((p) => p.id === item.patient_id) || {
+        patientsList.find((p) => p.id === item.patient_id) || {
           id: item.patient_id,
           first_name: 'Patient',
           last_name: item.patient_id.slice(0, 6),
@@ -267,7 +288,7 @@ export default function NurseMedicationsPage() {
     setTargetItem(item);
     setTargetPatient(
       item.patient ||
-        (patientsList || []).find((p) => p.id === item.patient_id) || {
+        patientsList.find((p) => p.id === item.patient_id) || {
           id: item.patient_id,
           first_name: 'Patient',
           last_name: item.patient_id.slice(0, 6),
@@ -291,7 +312,7 @@ export default function NurseMedicationsPage() {
   const handleOpenOutcomeModal = (adminRecord: any) => {
     setSelectedAdminRecord(adminRecord);
     setTargetPatient(
-      (patientsList || []).find((p) => p.id === adminRecord.patient_id) || {
+      patientsList.find((p) => p.id === adminRecord.patient_id) || {
         id: adminRecord.patient_id,
         first_name: 'Patient',
         last_name: adminRecord.patient_id.slice(0, 6),
@@ -300,12 +321,14 @@ export default function NurseMedicationsPage() {
     setPrnOutcomeModalOpen(true);
   };
 
-  // Stats calculation
+  // Stats calculation ("today" is the local calendar day, not the UTC date; CLIN-13)
   const totalScheduledCount = filteredScheduled.length;
+  const today = new Date();
   const administeredTodayCount = (administrations || []).filter(
     (a) =>
       a.status === 'administered' &&
-      a.administered_at?.startsWith(new Date().toISOString().split('T')[0])
+      !!a.administered_at &&
+      isSameLocalDay(new Date(a.administered_at), today)
   ).length;
   const withheldCount = (administrations || []).filter(
     (a) => a.status === 'withheld' || a.status === 'refused'
@@ -407,7 +430,7 @@ export default function NurseMedicationsPage() {
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <option value="all">All Inpatients</option>
-                  {(patientsList || []).map((p) => (
+                  {patientsList.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.first_name} {p.last_name} ({p.mrn || 'N/A'})
                     </option>
@@ -466,6 +489,7 @@ export default function NurseMedicationsPage() {
                       <TableBody>
                         {filteredScheduled.map((item) => {
                           const isHigh = isHighAlertMedication(item.medication_name);
+                          const block = doseBlockFor(item);
                           const patientName = item.patient
                             ? `${item.patient.first_name} ${item.patient.last_name}`
                             : 'Inpatient';
@@ -507,6 +531,12 @@ export default function NurseMedicationsPage() {
                                 <div className="flex justify-end gap-1.5">
                                   <Button
                                     size="sm"
+                                    disabled={block.blocked}
+                                    title={
+                                      block.blocked && block.nextDueAt
+                                        ? `Given ${format(block.lastGivenAt!, 'HH:mm')}; next dose due ${format(block.nextDueAt, 'HH:mm')}`
+                                        : undefined
+                                    }
                                     onClick={() => handleStartAdministrationFlow(item)}
                                     className="h-8 text-xs font-semibold gap-1 bg-blue-600 hover:bg-blue-700 text-white"
                                   >

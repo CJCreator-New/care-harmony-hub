@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
-import { useEffect, useCallback, useRef } from 'react';
 import { devLog } from '@/utils/sanitize';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +9,11 @@ import { CONSULTATION_COLUMNS, PATIENT_COLUMNS } from '@/lib/queryColumns';
 import { hasPermission } from '@/lib/permissions';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { useAudit } from '@/hooks/useAudit';
-import { fieldEncryption } from '@/utils/dataProtection';
+import {
+  decryptRecordFields,
+  fieldEncryption,
+  mergeEncryptionMetadata,
+} from '@/utils/dataProtection';
 
 export type ConsultationStatus =
   | 'scheduled'
@@ -36,14 +39,6 @@ export const LEGACY_CONSULTATION_STATUS_MAP: Record<string, ConsultationLifecycl
   'in-progress': 'in_progress',
   in_service: 'in_progress',
 };
-
-export function mapToLifecycleStatus(raw: string | null | undefined): ConsultationLifecycleStatus {
-  if (!raw) return 'scheduled';
-  if (['scheduled', 'in_progress', 'completed', 'cancelled'].includes(raw)) {
-    return raw as ConsultationLifecycleStatus;
-  }
-  return LEGACY_CONSULTATION_STATUS_MAP[raw] ?? 'scheduled';
-}
 
 export interface Consultation {
   id: string;
@@ -219,30 +214,13 @@ const stripUnsupportedConsultationFields = <T extends Record<string, any>>(
 };
 
 /** F2.3 — Decrypt consultation clinical PHI fields if encryption_metadata is present. */
-async function decryptConsultationFields(consultation: any): Promise<any> {
-  if (
-    !consultation?.encryption_metadata ||
-    Object.keys(consultation.encryption_metadata).length === 0
-  ) {
-    return consultation;
-  }
-  const decrypted = { ...consultation };
-  for (const [field, encData] of Object.entries(
-    consultation.encryption_metadata as Record<string, any>
-  )) {
-    if (
-      decrypted[field] &&
-      typeof decrypted[field] === 'string' &&
-      decrypted[field].startsWith('__ENCRYPTED__')
-    ) {
-      try {
-        decrypted[field] = await fieldEncryption.decryptField(encData);
-      } catch {
-        decrypted[field] = '[Encrypted]';
-      }
-    }
-  }
-  return decrypted;
+// CLIN-05: the consultation row is the resource the ciphertext belongs to, so phi-crypto authorises against it.
+export async function decryptConsultationFields(consultation: any): Promise<any> {
+  if (!consultation?.id) return consultation;
+  return decryptRecordFields(consultation, {
+    resourceType: 'consultations',
+    resourceId: consultation.id,
+  });
 }
 
 export function useConsultations() {
@@ -519,7 +497,7 @@ export function useUpdateConsultation() {
           'follow_up_notes',
           'handoff_notes',
         ] as const;
-        const encMeta: Record<string, any> = (updates as any).encryption_metadata ?? {};
+        const encMeta: Record<string, any> = { ...((updates as any).encryption_metadata ?? {}) };
         for (const field of clinicalPHIFields) {
           const value = (updates as any)[field];
           if (value && typeof value === 'string' && !value.startsWith('__ENCRYPTED__')) {
@@ -529,7 +507,19 @@ export function useUpdateConsultation() {
           }
         }
         if (Object.keys(encMeta).length > 0) {
-          (updates as any).encryption_metadata = encMeta;
+          // CLIN-05: a partial update (for example a signed addendum) must not replace the
+          // ciphertext of the other fields. Merge with the stored metadata. A missing-column
+          // error is left for the retry loop below, which strips the field.
+          const { data: current, error: readError } = await supabase
+            .from('consultations')
+            .select('encryption_metadata')
+            .eq('id', id)
+            .maybeSingle();
+          if (readError && getMissingConsultationColumns(readError).length === 0) throw readError;
+          (updates as any).encryption_metadata = mergeEncryptionMetadata(
+            readError ? undefined : (current as any)?.encryption_metadata,
+            encMeta
+          );
         }
 
         let pendingUpdates = { ...updates };
@@ -576,6 +566,7 @@ export function useUpdateConsultation() {
 }
 
 export function useAdvanceConsultationStep() {
+  const queryClient = useQueryClient();
   const updateConsultation = useUpdateConsultation();
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { primaryRole } = useAuth();
@@ -657,105 +648,5 @@ export function useAdvanceConsultationStep() {
       }
       toast.success('Moved to next step');
     },
-  });
-}
-
-export function useAutoSaveConsultation(consultationId: string | undefined) {
-  const updateConsultation = useUpdateConsultation();
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const currentConsultationId = useRef(consultationId);
-  currentConsultationId.current = consultationId;
-
-  const autoSave = useCallback(
-    (data: Record<string, any>) => {
-      const id = currentConsultationId.current;
-      if (!id) return;
-
-      // Debounce auto-save to every 30 seconds
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = setTimeout(() => {
-        if (!currentConsultationId.current) return;
-        updateConsultation.mutate({
-          id: currentConsultationId.current,
-          auto_save_data: data,
-          last_auto_save: new Date().toISOString(),
-        });
-      }, 30000);
-    },
-    [updateConsultation]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  return autoSave;
-}
-
-export function useConsultationsRealtime() {
-  const queryClient = useQueryClient();
-  const { hospital } = useAuth();
-
-  useEffect(() => {
-    if (!hospital?.id) return;
-
-    const channel = supabase
-      .channel('consultations-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'consultations',
-          filter: `hospital_id=eq.${hospital.id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['consultations'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [hospital?.id, queryClient]);
-}
-
-export function usePatientsReadyForConsultation() {
-  const { hospital } = useAuth();
-
-  return useQuery({
-    queryKey: ['ready-patients', hospital?.id],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      return withConsultationRateLimit(async () => {
-        const { data, error } = await supabase
-          .from('patient_prep_checklists')
-          .select(
-            `
-            *,
-            patient:patients(id, first_name, last_name, mrn, date_of_birth, gender),
-            queue_entry:patient_queue!patient_prep_checklists_queue_entry_id_fkey(id, queue_number, status, check_in_time)
-          `
-          )
-          .eq('hospital_id', hospital.id)
-          .eq('ready_for_doctor', true)
-          .in('queue_entry.status', ['waiting', 'called']);
-
-        if (error) throw error;
-        return data || [];
-      });
-    },
-    enabled: !!hospital?.id,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30000, // Refetch every 30 seconds
   });
 }

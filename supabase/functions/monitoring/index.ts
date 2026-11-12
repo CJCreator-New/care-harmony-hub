@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsHeaders as defaultCorsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { authorize } from "../_shared/authorize.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { validateRequest } from "../_shared/validation.ts";
@@ -53,11 +53,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     switch (action) {
       case 'collect_metrics':
-        return await collectMetrics(supabase, data);
+        return await collectMetrics(supabase, data, corsHeaders);
       case 'check_alerts':
-        return await checkAlerts(supabase);
+        return await checkAlerts(supabase, corsHeaders);
       case 'get_status':
-        return await getSystemStatus(supabase);
+        return await getSystemStatus(supabase, corsHeaders);
       default:
         throw new Error('Invalid action');
     }
@@ -69,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function collectMetrics(supabase: any, metrics: MetricData[]) {
+async function collectMetrics(supabase: any, metrics: MetricData[], corsHeaders: Record<string, string>) {
   const { error } = await supabase
     .from('system_metrics')
     .insert(metrics);
@@ -78,11 +78,11 @@ async function collectMetrics(supabase: any, metrics: MetricData[]) {
 
   return new Response(
     JSON.stringify({ success: true, collected: metrics.length }),
-    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
+    { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
 }
 
-async function checkAlerts(supabase: any) {
+async function checkAlerts(supabase: any, corsHeaders: Record<string, string>) {
   const { data: rules } = await supabase
     .from('alert_rules')
     .select('*')
@@ -115,11 +115,11 @@ async function checkAlerts(supabase: any) {
 
   return new Response(
     JSON.stringify({ alerts_triggered: alerts.length, alerts }),
-    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
+    { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
 }
 
-async function getSystemStatus(supabase: any) {
+async function getSystemStatus(supabase: any, corsHeaders: Record<string, string>) {
   const { data: recentMetrics } = await supabase
     .from('system_metrics')
     .select('*')
@@ -139,7 +139,7 @@ async function getSystemStatus(supabase: any) {
       active_alerts: activeAlerts?.length || 0,
       last_updated: new Date().toISOString(),
     }),
-    { headers: { "Content-Type": "application/json", ...defaultCorsHeaders } }
+    { headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
 }
 

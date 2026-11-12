@@ -1,53 +1,71 @@
+import { logEdge } from '../_shared/sanitizeLog.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { authorize } from '../_shared/authorize.ts'
+import { getAuthorizedActor } from '../_shared/authorize.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
+import {
+  assertPatientInHospital,
+  clampInt,
+  findInHospital,
+  hasAnyRole,
+  isUuid,
+  pickAllowedFields,
+} from '../_shared/tenantScope.ts'
+
+// S0-06 / EDGE-08: actor and hospital come from the JWT; writes take explicit
+// column allowlists (hospital_id, collector_id, created_at... are rejected with
+// 400); patient, sample and equipment ids are checked against the caller's hospital.
+
+const SAMPLE_CREATE_FIELDS = [
+  'sample_id', 'patient_id', 'test_type', 'status', 'priority', 'collected_at', 'received_at',
+  'location', 'temperature', 'volume', 'notes',
+]
+const SAMPLE_UPDATE_FIELDS = [
+  'status', 'priority', 'received_at', 'processed_at', 'completed_at', 'technician_id',
+  'location', 'temperature', 'volume', 'notes', 'rejection_reason',
+]
+const TRACKING_FIELDS = ['sample_id', 'location', 'action', 'temperature', 'notes']
+const QC_FIELDS = [
+  'test_type', 'control_lot', 'control_level', 'expected_value', 'expected_range_min',
+  'expected_range_max', 'measured_value', 'result', 'equipment_id', 'notes',
+]
 
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
+  const json = (status: number, payload: unknown) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
 
-  const authError = await authorize(req, ['admin', 'doctor', 'nurse', 'lab_technician'])
-  if (authError) return authError
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'doctor', 'nurse', 'lab_technician'])
+  if (authError || !actor) return authError ?? json(401, { error: 'Unauthorized' })
 
   try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+    const db = supabaseClient as never
+    const user = { id: actor.userId }
+    const profile = { hospital_id: actor.hospitalId }
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user } } = await supabaseClient.auth.getUser(token)
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+    const readBody = async (): Promise<Record<string, unknown>> => {
+      const body = await req.json().catch(() => null)
+      return body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {}
     }
 
-    // Get user profile to determine hospital_id
-    const { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('hospital_id')
-      .eq('user_id', user.id)
-      .single()
+    /** lab_samples row in the caller's hospital, by its text sample_id or its uuid. */
+    const findSample = async (sampleId: unknown) =>
+      (await findInHospital(db, 'lab_samples', sampleId, actor.hospitalId, { column: 'sample_id', select: 'id, sample_id, hospital_id' })) ??
+      (isUuid(sampleId) ? await findInHospital(db, 'lab_samples', sampleId, actor.hospitalId, { select: 'id, sample_id, hospital_id' }) : null)
 
-    if (!profile?.hospital_id) {
-      return new Response(JSON.stringify({ error: 'Hospital not found' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+    const requireProfile = (): Response | null =>
+      actor.profileId ? null : json(403, { error: 'Forbidden - caller has no staff profile' })
 
     const url = new URL(req.url)
     const action = url.searchParams.get('action')
@@ -83,13 +101,20 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'create_lab_sample': {
-        const body = await req.json()
+        const denied = requireProfile()
+        if (denied) return denied
+        const fields = pickAllowedFields(await readBody(), SAMPLE_CREATE_FIELDS)
+        if (!fields.ok) return json(fields.status, { error: fields.error })
+        if (!(await assertPatientInHospital(db, fields.value.patient_id, actor.hospitalId))) {
+          return json(403, { error: 'Forbidden - patient not found in caller hospital' })
+        }
         const { data, error } = await supabaseClient
           .from('lab_samples')
           .insert({
-            ...body,
-            hospital_id: profile.hospital_id,
-            collector_id: user.id
+            ...fields.value,
+            hospital_id: actor.hospitalId,
+            // collector_id references profiles(id)
+            collector_id: actor.profileId
           })
           .select()
           .single()
@@ -101,33 +126,47 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'update_lab_sample': {
-        const body = await req.json()
-        const { id, ...updates } = body
+        const { id, ...rest } = await readBody()
+        if (!isUuid(id)) return json(400, { error: 'id must be a UUID' })
+        const fields = pickAllowedFields(rest, SAMPLE_UPDATE_FIELDS)
+        if (!fields.ok) return json(fields.status, { error: fields.error })
+        if (fields.value.technician_id != null &&
+            !(await findInHospital(db, 'profiles', fields.value.technician_id, actor.hospitalId))) {
+          return json(403, { error: 'Forbidden - technician not found in caller hospital' })
+        }
         const { data, error } = await supabaseClient
           .from('lab_samples')
           .update({
-            ...updates,
+            ...fields.value,
             updated_at: new Date().toISOString()
           })
           .eq('id', id)
-          .eq('hospital_id', profile.hospital_id)
+          .eq('hospital_id', actor.hospitalId)
           .select()
-          .single()
+          .maybeSingle()
 
         if (error) throw error
+        if (!data) return json(404, { error: 'Sample not found' })
         return new Response(JSON.stringify(data), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
       case 'track_sample_movement': {
-        const body = await req.json()
+        const denied = requireProfile()
+        if (denied) return denied
+        const fields = pickAllowedFields(await readBody(), TRACKING_FIELDS)
+        if (!fields.ok) return json(fields.status, { error: fields.error })
+        if (!(await findSample(fields.value.sample_id))) {
+          return json(403, { error: 'Forbidden - sample not found in caller hospital' })
+        }
         const { data, error } = await supabaseClient
           .from('sample_tracking')
           .insert({
-            ...body,
-            user_id: user.id,
-            hospital_id: profile.hospital_id,
+            ...fields.value,
+            // user_id references profiles(id)
+            user_id: actor.profileId,
+            hospital_id: actor.hospitalId,
             timestamp: new Date().toISOString()
           })
           .select()
@@ -165,13 +204,24 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'perform_qc_test': {
-        const body = await req.json()
+        if (!hasAnyRole(actor, ['lab_technician', 'admin'])) {
+          return json(403, { error: 'Forbidden - lab technician or admin only' })
+        }
+        const denied = requireProfile()
+        if (denied) return denied
+        const fields = pickAllowedFields(await readBody(), QC_FIELDS)
+        if (!fields.ok) return json(fields.status, { error: fields.error })
+        if (fields.value.equipment_id != null &&
+            !(await findInHospital(db, 'lab_equipment', fields.value.equipment_id, actor.hospitalId))) {
+          return json(403, { error: 'Forbidden - equipment not found in caller hospital' })
+        }
         const { data, error } = await supabaseClient
           .from('quality_control')
           .insert({
-            ...body,
-            technician_id: user.id,
-            hospital_id: profile.hospital_id,
+            ...fields.value,
+            // technician_id references profiles(id)
+            technician_id: actor.profileId,
+            hospital_id: actor.hospitalId,
             performed_at: new Date().toISOString()
           })
           .select()
@@ -185,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       case 'get_qc_results': {
         const testType = url.searchParams.get('test_type')
-        const days = parseInt(url.searchParams.get('days') || '30')
+        const days = clampInt(url.searchParams.get('days'), { min: 1, max: 365, fallback: 30 })
 
         let query = supabaseClient
           .from('quality_control')
@@ -294,7 +344,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'get_processing_metrics': {
-        const days = parseInt(url.searchParams.get('days') || '7')
+        const days = clampInt(url.searchParams.get('days'), { min: 1, max: 365, fallback: 7 })
 
         const { data, error } = await supabaseClient
           .rpc('get_sample_processing_metrics', {
@@ -310,7 +360,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       case 'get_qc_statistics': {
         const testType = url.searchParams.get('test_type') || 'Hemoglobin'
-        const days = parseInt(url.searchParams.get('days') || '30')
+        const days = clampInt(url.searchParams.get('days'), { min: 1, max: 365, fallback: 30 })
 
         const { data, error } = await supabaseClient
           .rpc('calculate_qc_statistics', {
@@ -345,7 +395,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
   } catch (error) {
-    console.error('Error:', error)
+    logEdge('error', 'lab-automation', { stage: 'unhandled', error: error })
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }

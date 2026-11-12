@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, Users, Clock, CheckCircle2, AlertTriangle, Award } from 'lucide-react';
 import { ChartSkeleton, useRecharts } from '@/components/ui/lazy-chart';
 import { useDoctorStats } from '@/hooks/useDoctorStats';
+import { DataError } from '@/components/common/DataStatus';
 
 interface MetricData {
   name: string;
@@ -24,7 +25,9 @@ interface PeerComparison {
 
 export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | 'admin' }) {
   const { components: Recharts, loading: rechartsLoading } = useRecharts();
-  const { data: doctorStats } = useDoctorStats();
+  const { data: doctorStats, isError: doctorStatsError, refetch: refetchDoctorStats } = useDoctorStats();
+  // Doctor metrics come from a live query. When it fails they are replaced by an error, not 0.
+  const doctorMetricsUnavailable = role === 'doctor' && doctorStatsError;
   const personalMetrics: MetricData[] = useMemo(() => {
     if (role === 'doctor') {
       return [
@@ -85,6 +88,11 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
         </div>
       </div>
 
+      {doctorMetricsUnavailable && (
+        <DataError resource="your performance metrics" onRetry={() => void refetchDoctorStats()} />
+      )}
+
+      {!doctorMetricsUnavailable && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {personalMetrics.map((m) => (
           <Card key={m.name}>
@@ -106,6 +114,7 @@ export function StaffPerformanceMetrics({ role }: { role: 'doctor' | 'nurse' | '
           </Card>
         ))}
       </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">

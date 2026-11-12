@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 interface LowStockMedication {
   id: string;
@@ -49,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('hospital_id', actor!.hospitalId);
 
     if (medError) {
-      console.error('Error fetching medications:', medError);
+      logEdge('error', 'check-low-stock', { stage: 'error_fetching_medications', error: medError });
       throw medError;
     }
 
@@ -88,7 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
       .in('id', hospitalIds);
 
     if (hospError) {
-      console.error('Error fetching hospitals:', hospError);
+      logEdge('error', 'check-low-stock', { stage: 'error_fetching_hospitals', error: hospError });
       throw hospError;
     }
 
@@ -197,7 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
         .insert(notifications);
 
       if (notifError) {
-        console.error('Error creating notifications:', notifError);
+        logEdge('error', 'check-low-stock', { stage: 'error_creating_notifications', error: notifError });
       } else {
         console.log(`Created ${notifications.length} notifications`);
       }
@@ -218,7 +219,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: unknown) {
-    console.error('Error in check-low-stock function:', error);
+    logEdge('error', 'check-low-stock', { stage: 'error_in_check_low_stock_function', error: error });
     return new Response(
       JSON.stringify({ 
         success: false, 

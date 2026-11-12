@@ -1,4 +1,4 @@
-import { sanitizeLogMessage } from './sanitizeLog.ts';
+import { logEdge, sanitizeLogMessage } from './sanitizeLog.ts';
 
 /**
  * HP-3 PR2: Centralized Error Handling for Supabase Edge Functions
@@ -252,13 +252,13 @@ export class EdgeFunctionErrorHandler {
       environment: env,
     };
 
-    // Use appropriate log level based on status code
+    // Use appropriate log level based on status code; logEdge redacts the payload.
     if (error.statusCode >= 500) {
-      console.error('[ERROR]', JSON.stringify(logData));
+      logEdge('error', 'ERROR', logData);
     } else if (error.statusCode >= 400) {
-      console.warn('[WARN]', JSON.stringify(logData));
+      logEdge('warn', 'WARN', logData);
     } else {
-      console.info('[INFO]', JSON.stringify(logData));
+      logEdge('info', 'INFO', logData);
     }
   }
 }

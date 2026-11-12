@@ -21,9 +21,19 @@ export {
 export {
   celsiusToFahrenheit,
   fahrenheitToCelsius,
+  kgToLb,
+  lbToKg,
   calculateBmi,
   roundToOneDecimal,
 } from './core/conversions';
+
+export {
+  fromVitalsRecord,
+  parseBloodPressure,
+  inferTemperatureUnit,
+  hasNews2Parameters,
+  verifiedWeightKg,
+} from './core/adapters';
 
 // Domain Types
 export * from './types';

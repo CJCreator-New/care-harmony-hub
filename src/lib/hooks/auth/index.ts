@@ -3,4 +3,3 @@
 export * from './usePermissions';
 export * from './usePermissionAudit';
 export * from './useSessionTimeout';
-export * from './useTwoFactorAuth';

@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from '../support/test-credentials';
 import { test, expect } from '../../test/e2e-fixtures';
 
 test.describe('@workflow Complete Patient Registration to Appointment', () => {
@@ -27,7 +28,7 @@ test.describe('@workflow Complete Patient Registration to Appointment', () => {
     // Step 2: If redirected to login, login now
     if (page.url().includes('login')) {
       const email = await page.inputValue('input[name="email"]');
-      await page.fill('input[name="password"]', 'TestPass123!');
+      await page.fill('input[name="password"]', E2E_TEST_PASSWORD);
       await page.click('button[type="submit"]');
       await page.waitForURL('**/patient/dashboard');
     }

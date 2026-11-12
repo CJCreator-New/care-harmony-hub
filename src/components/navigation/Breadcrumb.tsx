@@ -74,12 +74,10 @@ const AI_ANALYTICS_ROUTES = new Set([
   '/length-of-stay-forecasting',
   '/resource-utilization-optimization',
 ]);
-const PHARMACY_INVENTORY_ROUTES = new Set([
-  '/inventory',
-]);
+const PHARMACY_INVENTORY_ROUTES = new Set(['/inventory']);
 
 const manifestRouteLabels = Object.fromEntries(
-  flatRouteManifest.map((route) => [route.href, route.label]),
+  flatRouteManifest.map((route) => [route.href, route.label])
 );
 
 export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
@@ -88,7 +86,9 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
   const hospitalId = hospital?.id;
 
   // Detect if we're on a patient profile page and fetch the patient name
-  const patientIdMatch = location.pathname.match(/^\/patients\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  const patientIdMatch = location.pathname.match(
+    /^\/patients\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+  );
   const patientId = patientIdMatch ? patientIdMatch[1] : null;
 
   const { data: patientName } = useQuery({
@@ -111,9 +111,7 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
     }
 
     const pathSegments = location.pathname.split('/').filter(Boolean);
-    const breadcrumbs: BreadcrumbItem[] = [
-      { label: 'Home', href: '/dashboard', icon: Home }
-    ];
+    const breadcrumbs: BreadcrumbItem[] = [{ label: 'Home', href: '/dashboard', icon: Home }];
 
     let currentPath = '';
 
@@ -141,14 +139,20 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
   let breadcrumbs = generateBreadcrumbs();
 
   // Inject "AI & Analytics" parent for AI sub-pages — moved inside function scope for consistency
-  if (AI_ANALYTICS_ROUTES.has(location.pathname) && !breadcrumbs.some(b => b.label === 'AI & Analytics')) {
+  if (
+    AI_ANALYTICS_ROUTES.has(location.pathname) &&
+    !breadcrumbs.some((b) => b.label === 'AI & Analytics')
+  ) {
     breadcrumbs = [
       breadcrumbs[0],
       { label: 'AI & Analytics', href: '/ai-demo' },
       ...breadcrumbs.slice(1),
     ];
   }
-  if (PHARMACY_INVENTORY_ROUTES.has(location.pathname) && !breadcrumbs.some(b => b.label === 'Pharmacy & Inventory')) {
+  if (
+    PHARMACY_INVENTORY_ROUTES.has(location.pathname) &&
+    !breadcrumbs.some((b) => b.label === 'Pharmacy & Inventory')
+  ) {
     breadcrumbs = [
       breadcrumbs[0],
       { label: 'Pharmacy & Inventory', href: '/pharmacy' },
@@ -162,7 +166,7 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
 
   return (
     <nav
-      className={cn("flex items-center space-x-1 text-sm text-muted-foreground", className)}
+      className={cn('flex items-center space-x-1 text-sm text-muted-foreground', className)}
       aria-label="Breadcrumb"
     >
       {breadcrumbs.map((item, index) => {
@@ -171,9 +175,7 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
 
         return (
           <div key={`${item.href}-${index}`} className="flex items-center">
-            {index > 0 && (
-              <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground/50" />
-            )}
+            {index > 0 && <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground/50" />}
 
             {isLast ? (
               <span className="font-medium text-foreground flex items-center gap-1">
@@ -194,40 +196,4 @@ export function Breadcrumb({ className, customItems }: BreadcrumbProps) {
       })}
     </nav>
   );
-}
-
-// Hook for programmatic breadcrumb management
-export function useBreadcrumbs() {
-  const location = useLocation();
-
-  const setBreadcrumbs = (items: BreadcrumbItem[]) => {
-    // This would typically integrate with a global state management solution
-    // For now, we'll just return the items for use in components
-    return items;
-  };
-
-  const getCurrentBreadcrumbs = () => {
-    const pathSegments = location.pathname.split('/').filter(Boolean);
-    const breadcrumbs: BreadcrumbItem[] = [
-      { label: 'Home', href: '/dashboard', icon: Home }
-    ];
-
-    let currentPath = '';
-
-    for (const segment of pathSegments) {
-      currentPath += `/${segment}`;
-      const label = routeLabels[currentPath] || manifestRouteLabels[currentPath];
-
-      if (label) {
-        breadcrumbs.push({ label, href: currentPath });
-      }
-    }
-
-    return breadcrumbs;
-  };
-
-  return {
-    setBreadcrumbs,
-    getCurrentBreadcrumbs,
-  };
 }

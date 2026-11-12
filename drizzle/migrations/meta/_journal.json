@@ -1,0 +1,174 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793863043103,
+      "tag": "0000_push_batch01_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793863254123,
+      "tag": "0001_push_laboratory_reference_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793863279227,
+      "tag": "0002_push_appointment_recurrence_part1",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793863291849,
+      "tag": "0003_push_recurrence_audit_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793863301201,
+      "tag": "0004_push_feature_flags",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793863316964,
+      "tag": "0005_push_telehealth_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793863330780,
+      "tag": "0006_push_hipaa_encryption_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793863343409,
+      "tag": "0007_push_lab_critical_acknowledgements",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793863358531,
+      "tag": "0008_push_medication_reconciliation_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793863404669,
+      "tag": "0009_push_rls_hardening_m3",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793863408149,
+      "tag": "0010_push_prescription_approval_workflows_part1",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793863420777,
+      "tag": "0011_push_prescription_approval_workflows_part2",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793863443483,
+      "tag": "0012_push_break_glass_overrides",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793863455416,
+      "tag": "0013_fix_prescription_approval_updated_at_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793863489984,
+      "tag": "0014_push_tier4_lab_critical_ranges",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793863527080,
+      "tag": "0015_push_tier4_lab_notifications_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793863553041,
+      "tag": "0016_push_audit_logs_superset",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793868398746,
+      "tag": "0017_push_tier4_drug_interactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793868436113,
+      "tag": "0018_push_hardening_2fa_immutability_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793868449147,
+      "tag": "0019_push_tier4_discharge_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793868469623,
+      "tag": "0020_push_optimistic_locking_and_active_user_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793868477363,
+      "tag": "0021_push_discharge_workflow_transition_rpc",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793868487213,
+      "tag": "0022_push_grants_sweep_for_new_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793868573887,
+      "tag": "0023_push_telehealth_screen_share_policy",
+      "breakpoints": true
+    }
+  ]
+}

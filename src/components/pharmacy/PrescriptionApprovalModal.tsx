@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,26 +12,42 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { ShieldCheck, AlertTriangle, Pill, CheckCircle2, AlertOctagon, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { OrderSafetyPanel } from '@/components/prescriptions/OrderSafetyPanel';
 import {
-  ShieldCheck,
-  AlertTriangle,
-  Pill,
-  CheckCircle2,
-  AlertOctagon,
-  FileText,
-  Loader2,
-  Lock,
-} from 'lucide-react';
-import { checkPrescriptionSafety } from '@/hooks/usePrescriptionSafety';
+  buildPrescriptionSafetyColumns,
+  overrideSummary,
+  priorOverridesForFindings,
+  toOrderItems,
+  useOrderSafety,
+  usePatientClinicalContext,
+  type PatientClinicalContext,
+  type PrescriptionSafetyColumns,
+} from '@/modules/order-safety';
 
 export interface PrescriptionApprovalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prescription: any;
-  onApprove: (data: { prescriptionId: string; notes?: string }) => void;
+  onApprove: (data: {
+    prescriptionId: string;
+    notes?: string;
+    /** Pharmacist safety verification to append to the prescription's safety record. */
+    safety?: PrescriptionSafetyColumns;
+  }) => void;
   isLoading?: boolean;
 }
 
+const isUnreadableName = (name: unknown) =>
+  typeof name !== 'string' || !name.trim() || name.startsWith('__ENCRYPTED__') || name === '[Encrypted]';
+
+/**
+ * Pharmacist verification (ADR-0004) with the fail-closed order-safety engine.
+ * Allergies and current medications are loaded from the patient record (the
+ * previous version read `prescription.patient.allergies`, which the queue query
+ * never selected, so allergy checks always ran against an empty list).
+ */
 export function PrescriptionApprovalModal({
   open,
   onOpenChange,
@@ -39,74 +55,95 @@ export function PrescriptionApprovalModal({
   onApprove,
   isLoading = false,
 }: PrescriptionApprovalModalProps) {
-  const [overrideNotes, setOverrideNotes] = useState('');
+  const [generalNotes, setGeneralNotes] = useState('');
+  const [isSigning, setIsSigning] = useState(false);
 
-  const medicationNames = useMemo(() => {
-    if (!prescription?.items) return [];
-    return prescription.items.map((item: any) => item.medication_name).filter(Boolean);
-  }, [prescription?.items]);
+  const patientId: string | undefined = prescription?.patient_id ?? prescription?.patient?.id;
+  const safetyContext = usePatientClinicalContext({
+    patientId,
+    enabled: open && !!patientId,
+    excludePrescriptionId: prescription?.id,
+  });
 
-  const patientAllergies = useMemo(() => {
-    if (!prescription?.patient) return [];
-    const allergies = (prescription.patient as any).allergies;
-    if (Array.isArray(allergies)) return allergies;
-    if (typeof allergies === 'string' && allergies.trim()) {
-      return allergies.split(',').map((a: string) => a.trim());
+  const rawItems: any[] = useMemo(() => prescription?.items ?? [], [prescription?.items]);
+  const unreadableCount = rawItems.filter((i) => isUnreadableName(i?.medication_name)).length;
+
+  // Medication names that could not be decrypted cannot be screened: fail closed.
+  const patient: PatientClinicalContext | null = useMemo(() => {
+    const ctx = safetyContext.context;
+    if (!ctx) return null;
+    if (unreadableCount === 0) return ctx;
+    return {
+      ...ctx,
+      dataGaps: [
+        ...(ctx.dataGaps || []),
+        `${unreadableCount} medication name(s) on this prescription could not be decrypted`,
+      ],
+    };
+  }, [safetyContext.context, unreadableCount]);
+
+  const items = useMemo(
+    () => toOrderItems(rawItems.filter((i) => !isUnreadableName(i?.medication_name)), 'item'),
+    [rawItems]
+  );
+  // Unreadable-only prescriptions still need the incomplete-screening finding.
+  const evaluatedItems = useMemo(
+    () =>
+      items.length > 0 || unreadableCount === 0
+        ? items
+        : [{ clientItemId: 'unreadable', drugName: 'Unreadable medication', doseMg: Number.NaN, route: 'UNSPECIFIED' as const, frequency: 'unspecified' }],
+    [items, unreadableCount]
+  );
+
+  const safety = useOrderSafety({
+    patient,
+    items: evaluatedItems,
+    actingRole: 'pharmacist',
+    enabled: open,
+    isContextLoading: safetyContext.isLoading,
+    contextError: safetyContext.loadError,
+  });
+
+  const priorOverrides = useMemo(
+    () =>
+      priorOverridesForFindings(
+        [...(prescription?.allergy_alerts ?? []), ...(prescription?.drug_interactions ?? [])],
+        safety.findings
+      ),
+    [prescription?.allergy_alerts, prescription?.drug_interactions, safety.findings]
+  );
+  const withoutPrescriberOverride = safety.findings.filter(
+    (f) => f.requiresPhysicianOverride && !f.isHardStop && !priorOverrides[f.code]
+  ).length;
+
+  const allergyList = safetyContext.context?.allergies ?? [];
+  const allergyUnknown = safetyContext.context?.allergyStatusUnknown;
+
+  const handleSubmit = async () => {
+    if (!prescription?.id || !safety.canProceed) return;
+    setIsSigning(true);
+    try {
+      const receipt = await safety.clearAndSign('PHARMACIST_DISPENSE');
+      const notes = [
+        generalNotes.trim() || undefined,
+        overrideSummary(safety.findings, receipt.overridesApplied).replace(
+          /\[CLINICAL SAFETY OVERRIDE\]/g,
+          '[PHARMACIST VERIFICATION]'
+        ) || undefined,
+      ]
+        .filter(Boolean)
+        .join('\n');
+      onApprove({
+        prescriptionId: prescription.id,
+        notes: notes || undefined,
+        safety: buildPrescriptionSafetyColumns(safety.findings, receipt),
+      });
+      setGeneralNotes('');
+    } catch (err) {
+      toast.error(`Safety verification failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsSigning(false);
     }
-    return [];
-  }, [prescription?.patient]);
-
-  // Run DUR and Allergy Safety Check across all items
-  const safetyResults = useMemo(() => {
-    if (!medicationNames.length) return { alerts: [], hasContraindication: false };
-
-    const alerts: Array<{
-      type: 'allergy' | 'interaction';
-      severity: string;
-      title: string;
-      message: string;
-    }> = [];
-
-    medicationNames.forEach((med: string) => {
-      const otherMeds = medicationNames.filter((m: string) => m !== med);
-      const res = checkPrescriptionSafety(med, patientAllergies, otherMeds);
-
-      res.allergyAlerts.forEach((a) => {
-        alerts.push({
-          type: 'allergy',
-          severity: a.severity,
-          title: `Allergy Alert: ${a.medication} (${a.allergen})`,
-          message: a.message,
-        });
-      });
-
-      res.drugInteractions.forEach((d) => {
-        alerts.push({
-          type: 'interaction',
-          severity: d.severity,
-          title: `DDI: ${d.drug1} + ${d.drug2}`,
-          message: d.message,
-        });
-      });
-    });
-
-    const hasContraindication = alerts.some(
-      (a) =>
-        a.severity === 'contraindicated' || a.severity === 'critical' || a.severity === 'severe'
-    );
-
-    return { alerts, hasContraindication };
-  }, [medicationNames, patientAllergies]);
-
-  const canSubmit = !safetyResults.hasContraindication || overrideNotes.trim().length >= 15;
-
-  const handleSubmit = () => {
-    if (!prescription?.id) return;
-    onApprove({
-      prescriptionId: prescription.id,
-      notes: overrideNotes.trim() || undefined,
-    });
-    setOverrideNotes('');
   };
 
   if (!prescription) return null;
@@ -120,8 +157,8 @@ export function PrescriptionApprovalModal({
             Pharmacist Clinical Verification & DUR Review
           </DialogTitle>
           <DialogDescription>
-            ADR-0004 Gated Approval: Review patient allergies, drug interactions, and clinical
-            safety before approving.
+            ADR-0004 gated approval: review allergies, interactions and dosing before releasing the
+            prescription for dispensing.
           </DialogDescription>
         </DialogHeader>
 
@@ -137,9 +174,7 @@ export function PrescriptionApprovalModal({
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">MRN:</span>
-                <p className="font-mono text-xs font-semibold">
-                  {prescription.patient?.mrn || 'N/A'}
-                </p>
+                <p className="font-mono text-xs font-semibold">{prescription.patient?.mrn || 'N/A'}</p>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs">Prescriber:</span>
@@ -150,16 +185,22 @@ export function PrescriptionApprovalModal({
               <div>
                 <span className="text-muted-foreground text-xs">Documented Allergies:</span>
                 <div className="flex gap-1 flex-wrap mt-0.5">
-                  {patientAllergies.length > 0 ? (
-                    patientAllergies.map((allergy: string, i: number) => (
-                      <Badge key={i} variant="destructive" className="text-[10px] py-0 px-1.5">
+                  {safetyContext.isLoading ? (
+                    <span className="text-xs text-muted-foreground">Loading…</span>
+                  ) : !safetyContext.context ? (
+                    <span className="text-xs font-semibold text-destructive">Unavailable</span>
+                  ) : allergyList.length > 0 ? (
+                    allergyList.map((allergy: string) => (
+                      <Badge key={allergy} variant="destructive" className="text-[10px] py-0 px-1.5">
                         {allergy}
                       </Badge>
                     ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">
-                      None documented (NKDA)
+                  ) : allergyUnknown ? (
+                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      Not recorded
                     </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">No known allergies</span>
                   )}
                 </div>
               </div>
@@ -169,18 +210,20 @@ export function PrescriptionApprovalModal({
           {/* Prescribed Items */}
           <div>
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Prescription Items ({prescription.items?.length || 0})
+              Prescription Items ({rawItems.length})
             </h4>
             <div className="space-y-2">
-              {prescription.items?.map((item: any, idx: number) => (
+              {rawItems.map((item: any, idx: number) => (
                 <div
-                  key={idx}
+                  key={item?.id ?? idx}
                   className="flex items-center justify-between p-2.5 rounded-md border text-sm"
                 >
                   <div className="flex items-center gap-2">
-                    <Pill className="h-4 w-4 text-primary shrink-0" />
+                    <Pill className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
                     <div>
-                      <span className="font-medium text-foreground">{item.medication_name}</span>
+                      <span className="font-medium text-foreground">
+                        {isUnreadableName(item?.medication_name) ? 'Unreadable (decryption failed)' : item.medication_name}
+                      </span>
                       <span className="text-xs text-muted-foreground ml-2">
                         {item.dosage} • {item.frequency} • {item.duration}
                       </span>
@@ -194,102 +237,74 @@ export function PrescriptionApprovalModal({
 
           <Separator />
 
-          {/* DUR & Safety Check Findings */}
+          {/* DUR & Safety Screening */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4 text-primary" />
+                <AlertTriangle className="h-4 w-4 text-primary" aria-hidden="true" />
                 Drug Utilization Review (DUR) & Safety Screening
               </h4>
-              {safetyResults.alerts.length === 0 ? (
-                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  All Checks Clear
+              {safety.status === 'checking' ? (
+                <Badge variant="outline">Checking…</Badge>
+              ) : safety.status === 'error' || safety.hasHardStop ? (
+                <Badge variant="destructive">
+                  <AlertOctagon className="h-3 w-3 mr-1" aria-hidden="true" />
+                  Blocked
                 </Badge>
-              ) : safetyResults.hasContraindication ? (
-                <Badge variant="destructive" className="animate-pulse">
-                  <AlertOctagon className="h-3 w-3 mr-1" />
-                  Contraindicated / Severe
+              ) : safety.findings.some((f) => f.requiresPhysicianOverride) ? (
+                <Badge variant="secondary">
+                  <AlertTriangle className="h-3 w-3 mr-1" aria-hidden="true" />
+                  Verification required
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="bg-amber-100 text-amber-900 border-amber-300">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Warnings Present
+                <Badge variant="outline">
+                  <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
+                  No blocking findings
                 </Badge>
               )}
             </div>
 
-            {safetyResults.alerts.length === 0 ? (
-              <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                No high-risk drug-drug interactions or cross-reactive allergy alerts detected for
-                this prescription.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {safetyResults.alerts.map((alert, idx) => (
-                  <div
-                    key={idx}
-                    className={`rounded-md p-3 text-xs border ${
-                      alert.severity === 'contraindicated' ||
-                      alert.severity === 'severe' ||
-                      alert.severity === 'critical'
-                        ? 'border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40 text-red-900 dark:text-red-200'
-                        : 'border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200'
-                    }`}
-                  >
-                    <div className="font-semibold flex items-center gap-1.5">
-                      <AlertOctagon className="h-3.5 w-3.5" />
-                      <span>{alert.title}</span>
-                      <Badge variant="outline" className="ml-auto text-[10px] capitalize">
-                        {alert.severity}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 pl-5 text-[11px] opacity-90">{alert.message}</p>
-                  </div>
-                ))}
-              </div>
+            {withoutPrescriberOverride > 0 && (
+              <p className="mb-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+                {withoutPrescriberOverride} finding(s) have no prescriber override on record. Contact
+                the prescriber before verifying, and record the outcome in the note.
+              </p>
             )}
+
+            <OrderSafetyPanel
+              safety={safety}
+              priorOverrides={priorOverrides}
+              overrideLabel="Pharmacist verification note"
+            />
           </div>
 
-          {/* Pharmacist Override Justification for Contraindicated Orders */}
-          {safetyResults.hasContraindication && (
-            <div className="rounded-lg border border-red-300 bg-red-50/60 p-3 space-y-2 dark:border-red-900/60 dark:bg-red-950/30">
-              <Label
-                htmlFor="dur-override"
-                className="text-xs font-semibold text-red-900 dark:text-red-300 flex items-center gap-1"
-              >
-                <Lock className="h-3.5 w-3.5" />
-                Mandatory Pharmacist Clinical Override Justification *
-              </Label>
-              <p className="text-[11px] text-red-800 dark:text-red-400">
-                Severe safety contraindication detected. Approval requires detailed clinical
-                documentation (minimum 15 characters).
-              </p>
-              <Textarea
-                id="dur-override"
-                rows={3}
-                placeholder="Document clinical risk-benefit evaluation, attending physician discussion, or specific monitoring protocol..."
-                value={overrideNotes}
-                onChange={(e) => setOverrideNotes(e.target.value)}
-                className="text-xs bg-white dark:bg-background"
-              />
-            </div>
-          )}
+          <div className="space-y-1">
+            <Label htmlFor="pharmacist-general-notes" className="text-xs font-semibold">
+              Verification notes (optional)
+            </Label>
+            <Textarea
+              id="pharmacist-general-notes"
+              rows={2}
+              value={generalNotes}
+              onChange={(e) => setGeneralNotes(e.target.value)}
+              className="text-xs"
+            />
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading || isSigning}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isLoading || !canSubmit}
+            disabled={isLoading || isSigning || !safety.canProceed}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isLoading || isSigning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
+              <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
             )}
             Approve & Release to Dispense
           </Button>

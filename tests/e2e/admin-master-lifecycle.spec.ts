@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect, Page, Route } from '@playwright/test';
 import { loginAsTestUser } from './utils/test-helpers';
 
@@ -109,7 +110,7 @@ function nowIso() {
 async function loginAsAdmin(page: Page) {
   await page.goto('/hospital/login');
   await page.getByLabel(/email/i).fill('admin@testgeneral.com');
-  await page.getByLabel(/password/i).fill('TestPass123!');
+  await page.getByLabel(/password/i).fill(E2E_TEST_PASSWORD);
   await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
   try {

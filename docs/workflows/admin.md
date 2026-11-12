@@ -900,5 +900,5 @@ Next, admin schedules peer review completion date:
 
 **Related Documentation**:
 - [SYSTEM_ARCHITECTURE.md](../product/SYSTEM_ARCHITECTURE.md) - For user role hierarchy
-- [RBAC_PERMISSIONS.md](../product/RBAC_PERMISSIONS.md) - For complete permissions reference
+- [RBAC_PERMISSIONS.md](../RBAC_PERMISSIONS.md) - For complete permissions reference
 - See [API_REFERENCE.md](../product/API_REFERENCE.md) for API user management endpoints

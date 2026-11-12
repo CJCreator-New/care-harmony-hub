@@ -1,452 +1,322 @@
 /**
- * Tests for Discharge Workflow (Tier 4.1)
- * Covers: state machine, role permissions, real-time notifications, audit logging
+ * Tests for the discharge workflow React hook (`useDischargePipeline`).
+ *
+ * Imports go through the discharge-pipeline module's public entry point, as its
+ * README requires. The pure state-machine rules (role mapping, transitions,
+ * rollback, AMA) are covered by src/modules/discharge-pipeline/tests; this file
+ * covers the hook: queries, actions, error reporting, and realtime wiring.
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useDischargeWorkflow } from '@/hooks/useDischargeWorkflow';
-import * as sonner from 'sonner';
+import type { ReactNode } from 'react';
+import { toast } from 'sonner';
+import { useDischargePipeline, getRoleStep } from '@/modules/discharge-pipeline';
 
-// Mock Sonner
-vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-    info: vi.fn(),
-  },
-}));
-
-// Mock Supabase
-const mockSupabaseFrom = vi.fn();
-const mockSupabaseInvoke = vi.fn();
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    from: mockSupabaseFrom,
-    functions: {
-      invoke: mockSupabaseInvoke,
+const { tableRows, tableErrors, mockInvoke, mockChannel, mockRemoveChannel, authState } =
+  vi.hoisted(() => ({
+    tableRows: {} as Record<string, unknown[]>,
+    tableErrors: {} as Record<string, unknown>,
+    mockInvoke: vi.fn(),
+    mockChannel: vi.fn(),
+    mockRemoveChannel: vi.fn(),
+    authState: {
+      user: { id: 'u1' } as { id: string } | null,
+      hospital: { id: 'h1' } as { id: string } | null,
+      primaryRole: 'doctor' as string | null,
     },
-    channel: vi.fn(() => ({
-      on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn(),
-      send: vi.fn(),
-    })),
-    removeChannel: vi.fn(),
-  },
+  }));
+
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
 
-// Mock Auth context
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: vi.fn(() => ({
-    user: { id: 'test-user-id', hospital_id: 'test-hospital-id' },
-  })),
+  useAuth: () => authState,
 }));
 
-// Mock activity log
-vi.mock('@/hooks/useActivityLog', () => ({
-  useActivityLog: vi.fn(() => ({
-    logActivity: vi.fn(),
-  })),
-}));
-
-describe('Discharge Workflow - State Machine', () => {
-  const queryClient = new QueryClient();
-  const mockWorkflow = {
-    id: 'wf-123',
-    hospital_id: 'hospital-1',
-    admission_id: 'admission-1',
-    patient_id: 'patient-1',
-    initiated_by: 'doctor-1',
-    status: 'pending_review' as const,
-    current_step: 1,
-    created_at: '2024-04-18T10:00:00Z',
-    updated_at: '2024-04-18T10:00:00Z',
+vi.mock('@/integrations/supabase/client', () => {
+  // Chainable query builder. `single()` resolves to the first row; otherwise to all rows.
+  const builder = (table: string): any => {
+    let single = false;
+    const b: any = {};
+    for (const m of ['select', 'eq', 'order']) b[m] = () => b;
+    b.single = () => {
+      single = true;
+      return b;
+    };
+    b.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => {
+      const rows = (tableRows[table] ?? []) as unknown[];
+      const error = tableErrors[table] ?? null;
+      const data = single ? (rows[0] ?? null) : rows;
+      return Promise.resolve({ data, error }).then(resolve, reject);
+    };
+    return b;
   };
+  const channel = (name: string) => {
+    mockChannel(name);
+    const ch: any = {};
+    ch.on = () => ch;
+    ch.subscribe = () => ch;
+    return ch;
+  };
+  return {
+    supabase: {
+      from: (table: string) => builder(table),
+      functions: { invoke: (...args: unknown[]) => mockInvoke(...args) },
+      channel,
+      removeChannel: (...args: unknown[]) => mockRemoveChannel(...args),
+    },
+  };
+});
 
+const workflow = {
+  id: 'wf1',
+  hospital_id: 'h1',
+  patient_id: 'p1',
+  status: 'in_progress',
+  current_step: 'pharmacist',
+};
+
+function wrapperFor(client: QueryClient) {
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+}
+
+function newClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+}
+
+describe('useDischargePipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    for (const k of Object.keys(tableRows)) delete tableRows[k];
+    for (const k of Object.keys(tableErrors)) delete tableErrors[k];
+    mockInvoke.mockResolvedValue({ data: { ok: true }, error: null });
+    authState.user = { id: 'u1' };
+    authState.hospital = { id: 'h1' };
+    authState.primaryRole = 'doctor';
   });
 
-  it('should fetch existing discharge workflow', async () => {
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockWorkflow,
-          error: null,
+  describe('current queue step', () => {
+    it('derives the queue step from the signed-in role', () => {
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+      expect(result.current.currentRoleStep).toBe(getRoleStep('doctor'));
+      expect(result.current.currentRoleStep).toBe('doctor');
+    });
+
+    it('uses the explicit queue step override when given', () => {
+      const { result } = renderHook(() => useDischargePipeline(undefined, 'nurse'), {
+        wrapper: wrapperFor(newClient()),
+      });
+      expect(result.current.currentRoleStep).toBe('nurse');
+    });
+
+    it('has no queue step for a role outside the pipeline', () => {
+      authState.primaryRole = 'patient';
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+      expect(result.current.currentRoleStep).toBeNull();
+    });
+  });
+
+  describe('queries', () => {
+    it('loads the workflow and its audit trail for a given workflow id', async () => {
+      tableRows.discharge_workflows = [workflow];
+      tableRows.discharge_workflow_audit = [{ id: 'a1', workflow_id: 'wf1', action: 'initiate' }];
+
+      const { result } = renderHook(() => useDischargePipeline('wf1'), {
+        wrapper: wrapperFor(newClient()),
+      });
+
+      await waitFor(() => expect(result.current.isLoadingWorkflow).toBe(false));
+      expect(result.current.workflow).toEqual(workflow);
+      expect(result.current.workflowAudit).toEqual([
+        { id: 'a1', workflow_id: 'wf1', action: 'initiate' },
+      ]);
+    });
+
+    it('does not query a workflow when no id is given', () => {
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+      expect(result.current.workflow).toBeNull();
+      expect(result.current.workflowAudit).toEqual([]);
+    });
+
+    it('returns the queue of in-progress workflows for the current step', async () => {
+      tableRows.discharge_workflows = [workflow];
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+      await waitFor(() => expect(result.current.isLoadingQueue).toBe(false));
+      expect(result.current.myQueue).toEqual([workflow]);
+    });
+
+    it('reports a failed workflow query as no workflow, without a toast (current behavior)', async () => {
+      // Known gap: query errors are not surfaced to the user. This test pins that
+      // behavior so a change to it is deliberate.
+      tableErrors.discharge_workflows = { message: 'boom' };
+      const { result } = renderHook(() => useDischargePipeline('wf1'), {
+        wrapper: wrapperFor(newClient()),
+      });
+      await waitFor(() => expect(result.current.isLoadingWorkflow).toBe(false));
+      expect(result.current.workflow).toBeNull();
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('actions', () => {
+    it('initiates a discharge with the initiate action and patient id', async () => {
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+
+      await act(async () => {
+        await result.current.initiateDischarge({ patientId: 'p1', consultationId: 'c1' });
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('discharge-workflow', {
+        body: expect.objectContaining({
+          action: 'initiate',
+          patientId: 'p1',
+          consultationId: 'c1',
         }),
-      }),
+      });
     });
 
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
+    it('approves a step with the workflow id', async () => {
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+
+      await act(async () => {
+        await result.current.approveStep({ workflowId: 'wf1', patientId: 'p1' });
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('discharge-workflow', {
+        body: expect.objectContaining({ action: 'approve', workflowId: 'wf1' }),
+      });
     });
 
-    expect(result.current.isLoading).toBe(true);
+    it('sends the rejection type with a reject action', async () => {
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+      await act(async () => {
+        await result.current.rejectStep({
+          workflowId: 'wf1',
+          patientId: 'p1',
+          reason: 'Vitals unstable',
+          rejectionType: 'clinical',
+        } as any);
+      });
 
-    expect(result.current.workflow).toEqual(mockWorkflow);
-  });
-
-  it('should handle missing workflow gracefully', async () => {
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error: { code: 'PGRST116', message: 'No rows' },
+      expect(mockInvoke).toHaveBeenCalledWith('discharge-workflow', {
+        body: expect.objectContaining({
+          action: 'reject',
+          reason: 'Vitals unstable',
+          metadata: { rejectionType: 'clinical' },
         }),
-      }),
+      });
     });
 
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
+    it('cancels a workflow with the cancel action', async () => {
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+      await act(async () => {
+        await result.current.cancelWorkflow({ workflowId: 'wf1' });
+      });
 
-    expect(result.current.workflow).toBeNull();
-  });
-
-  it('should initiate new discharge workflow', async () => {
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi
-          .fn()
-          .mockResolvedValueOnce({
-            data: null,
-            error: { code: 'PGRST116' },
-          })
-          .mockResolvedValueOnce({
-            data: mockWorkflow,
-            error: null,
-          }),
-      }),
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: mockWorkflow,
-            error: null,
-          }),
-        }),
-      }),
-    });
-
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    let initiated;
-    await act(async () => {
-      initiated = await result.current.initiateDischarge('patient-1');
-    });
-
-    expect(initiated).toBeDefined();
-    expect(initiated?.status).toBe('pending_review');
-  });
-});
-
-describe('Discharge Workflow - Role Permissions', () => {
-  const queryClient = new QueryClient();
-
-  it('should enforce role permissions for clinical_clear action', () => {
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
-
-    // Doctor should be allowed
-    expect(result.current.canPerformAction('clinical_clear', 'doctor')).toBe(true);
-    // Nurse should not be allowed
-    expect(result.current.canPerformAction('clinical_clear', 'nurse')).toBe(false);
-    // Admin always allowed
-    expect(result.current.canPerformAction('clinical_clear', 'admin')).toBe(true);
-  });
-
-  it('should enforce role permissions for all actions', () => {
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
-
-    const permissions = [
-      { action: 'clinical_clear', role: 'doctor', allowed: true },
-      { action: 'clinical_clear', role: 'nurse', allowed: false },
-      { action: 'nurse_confirm', role: 'nurse', allowed: true },
-      { action: 'nurse_confirm', role: 'doctor', allowed: false },
-      { action: 'med_reconcile', role: 'pharmacist', allowed: true },
-      { action: 'med_reconcile', role: 'nurse', allowed: false },
-      { action: 'financial_clear', role: 'billing', allowed: true },
-      { action: 'financial_clear', role: 'pharmacist', allowed: false },
-      { action: 'checkout', role: 'receptionist', allowed: true },
-      { action: 'checkout', role: 'billing', allowed: false },
-      { action: 'cancel', role: 'doctor', allowed: true },
-      { action: 'cancel', role: 'pharmacist', allowed: false },
-    ];
-
-    permissions.forEach(({ action, role, allowed }) => {
-      const result_value = result.current.canPerformAction(action, role);
-      expect(result_value).toBe(allowed);
+      expect(mockInvoke).toHaveBeenCalledWith('discharge-workflow', {
+        body: expect.objectContaining({ action: 'cancel', workflowId: 'wf1' }),
+      });
     });
   });
-});
 
-describe('Discharge Workflow - State Transitions', () => {
-  const queryClient = new QueryClient();
-  const mockWorkflow = {
-    id: 'wf-123',
-    hospital_id: 'hospital-1',
-    admission_id: 'admission-1',
-    patient_id: 'patient-1',
-    initiated_by: 'doctor-1',
-    status: 'pending_review' as const,
-    current_step: 1,
-    created_at: '2024-04-18T10:00:00Z',
-    updated_at: '2024-04-18T10:00:00Z',
-  };
+  describe('error reporting', () => {
+    it('shows the server error message and rejects when the function returns an error payload', async () => {
+      mockInvoke.mockResolvedValue({ data: { error: 'Step already advanced' }, error: null });
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
 
-  it('should advance workflow from pending_review to clinical_cleared', async () => {
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockWorkflow,
-          error: null,
-        }),
-      }),
+      await act(async () => {
+        await expect(
+          result.current.approveStep({ workflowId: 'wf1', patientId: 'p1' })
+        ).rejects.toThrow('Step already advanced');
+      });
+
+      expect(toast.error).toHaveBeenCalledWith('Step already advanced');
     });
 
-    mockSupabaseInvoke.mockResolvedValue({
-      data: {
-        workflow: {
-          ...mockWorkflow,
-          status: 'clinical_cleared',
-          current_step: 2,
-        },
-      },
-      error: null,
+    it('shows a toast when the transport itself fails', async () => {
+      mockInvoke.mockResolvedValue({ data: null, error: new Error('network down') });
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+
+      await act(async () => {
+        await expect(result.current.cancelWorkflow({ workflowId: 'wf1' })).rejects.toThrow(
+          'network down'
+        );
+      });
+
+      expect(toast.error).toHaveBeenCalledWith('network down');
     });
 
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
+    it('refuses actions for a role that cannot act on discharge workflows, before calling the server', async () => {
+      authState.primaryRole = null;
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
 
-    await waitFor(() => {
-      expect(result.current.workflow).not.toBeNull();
-    });
+      await act(async () => {
+        await expect(result.current.initiateDischarge({ patientId: 'p1' })).rejects.toThrow(
+          'You do not have permission to act on discharge workflows'
+        );
+      });
 
-    let advanced;
-    await act(async () => {
-      advanced = await result.current.advanceWorkflow('clinical_clear', 'Patient stable');
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith(
+        'You do not have permission to act on discharge workflows'
+      );
     });
-
-    expect(advanced?.status).toBe('clinical_cleared');
-    expect(advanced?.current_step).toBe(2);
   });
 
-  it('should provide next actions for current status', async () => {
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockWorkflow,
-          error: null,
-        }),
-      }),
+  describe('canAct and realtime', () => {
+    it('cannot act without a signed-in user', () => {
+      authState.user = null;
+      const { result } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+      expect(result.current.canAct).toBe(false);
     });
 
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
+    it('subscribes to the hospital channel and removes it on unmount', () => {
+      const { unmount } = renderHook(() => useDischargePipeline(), {
+        wrapper: wrapperFor(newClient()),
+      });
+
+      expect(mockChannel).toHaveBeenCalledWith('discharge-workflows:h1');
+      unmount();
+      expect(mockRemoveChannel).toHaveBeenCalledTimes(1);
     });
 
-    await waitFor(() => {
-      expect(result.current.workflow).not.toBeNull();
+    it('does not subscribe without a hospital', () => {
+      authState.hospital = null;
+      renderHook(() => useDischargePipeline(), { wrapper: wrapperFor(newClient()) });
+      expect(mockChannel).not.toHaveBeenCalled();
     });
-
-    const actions = result.current.getNextActions();
-    expect(actions).toContain('clinical_clear');
-    expect(actions).toContain('cancel');
-    expect(actions).not.toContain('nurse_confirm');
-  });
-});
-
-describe('Discharge Workflow - Error Handling', () => {
-  const queryClient = new QueryClient();
-
-  it('should handle network errors gracefully', async () => {
-    const error = new Error('Network failed');
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error,
-        }),
-      }),
-    });
-
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.error).toBeDefined();
-    expect(sonner.toast.error).toHaveBeenCalled();
-  });
-
-  it('should handle transition errors from Edge Function', async () => {
-    const mockWorkflow = {
-      id: 'wf-123',
-      status: 'pending_review',
-      current_step: 1,
-    };
-
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockWorkflow,
-          error: null,
-        }),
-      }),
-    });
-
-    mockSupabaseInvoke.mockResolvedValue({
-      data: null,
-      error: new Error('Invalid transition'),
-    });
-
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
-
-    await waitFor(() => {
-      expect(result.current.workflow).not.toBeNull();
-    });
-
-    let advanced;
-    await act(async () => {
-      advanced = await result.current.advanceWorkflow('invalid_action');
-    });
-
-    expect(advanced).toBeNull();
-    expect(sonner.toast.error).toHaveBeenCalled();
-  });
-});
-
-describe('Discharge Workflow - Cancellation', () => {
-  const queryClient = new QueryClient();
-  const mockWorkflow = {
-    id: 'wf-123',
-    hospital_id: 'hospital-1',
-    admission_id: 'admission-1',
-    patient_id: 'patient-1',
-    status: 'nurse_confirmed' as const,
-    current_step: 3,
-    created_at: '2024-04-18T10:00:00Z',
-    updated_at: '2024-04-18T10:00:00Z',
-  };
-
-  it('should cancel discharge workflow at any step', async () => {
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockWorkflow,
-          error: null,
-        }),
-      }),
-    });
-
-    mockSupabaseInvoke.mockResolvedValue({
-      data: {
-        workflow: {
-          ...mockWorkflow,
-          status: 'cancelled',
-          current_step: 0,
-          cancellation_reason: 'Patient refused discharge',
-        },
-      },
-      error: null,
-    });
-
-    const { result } = renderHook(() => useDischargeWorkflow('admission-1'), {
-      wrapper: ({ children }: any) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    });
-
-    await waitFor(() => {
-      expect(result.current.workflow).not.toBeNull();
-    });
-
-    let cancelled;
-    await act(async () => {
-      cancelled = await result.current.cancelDischarge('Patient refused discharge');
-    });
-
-    expect(cancelled?.status).toBe('cancelled');
-    expect(cancelled?.cancellation_reason).toBe('Patient refused discharge');
-  });
-});
-
-describe('Discharge Workflow - Audit Logging', () => {
-  it('should log activity on workflow initiation', async () => {
-    // Tested via mocked logActivity in hook
-    // Verify action_type is discharge_initiated
-    // Verify entity_type is discharge_workflow
-    // Verify details include admission_id, patient_id
-  });
-
-  it('should log activity on state transition', async () => {
-    // Tested via mocked logActivity in hook
-    // Verify action_type is discharge_<action>
-    // Verify details include step, status, notes
   });
 });

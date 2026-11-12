@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
@@ -8,9 +8,9 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { GroupedSidebar } from './GroupedSidebar';
 import { Breadcrumb } from '@/components/navigation/Breadcrumb';
 import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
-import { SkipNavigation } from '@/components/accessibility/SkipNavigation';
 import { ConnectionStatusBanner } from '@/components/admin/ConnectionStatusBanner';
 import { CriticalLabAlertBanner } from '@/components/labs/CriticalLabAlertBanner';
+import { CriticalResultSafeguardBanner } from '@/components/safety/CriticalResultSafeguardBanner';
 import { useCriticalLabAlerts } from '@/hooks/useCriticalLabAlerts';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -71,8 +71,41 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// React 18's DOM typings predate the boolean `inert` prop, so the attribute is rendered as a string.
+const inertProps = (inert: boolean): Record<string, string> => (inert ? { inert: '' } : {});
+
+// Below Tailwind's `lg` breakpoint the sidebar is an off-canvas drawer (1024px).
+const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+
+function useIsNarrowViewport(): boolean {
+  const [isNarrow, setIsNarrow] = useState(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia(NARROW_VIEWPORT_QUERY).matches
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia(NARROW_VIEWPORT_QUERY);
+    const onChange = () => setIsNarrow(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  return isNarrow;
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isNarrow = useIsNarrowViewport();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement>(null);
+  const wasSidebarOpenRef = useRef(false);
+  // On narrow screens a closed drawer is inert (out of the tab order and the accessibility tree),
+  // and an open drawer makes the page behind it inert so focus stays in the drawer.
+  const drawerInert = isNarrow && !sidebarOpen;
+  const backgroundInert = isNarrow && sidebarOpen;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true';
@@ -126,6 +159,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setSidebarOpen(false);
     setSearchOpen(false);
   }, [location.pathname]);
+
+  // A11Y-04: move focus into the drawer when it opens and back to its trigger when it closes.
+  useEffect(() => {
+    if (sidebarOpen) {
+      drawerCloseRef.current?.focus();
+    } else if (wasSidebarOpenRef.current) {
+      menuButtonRef.current?.focus();
+    }
+    wasSidebarOpenRef.current = sidebarOpen;
+  }, [sidebarOpen]);
 
   const handleLogout = async () => {
     logActivity({ actionType: 'logout' });
@@ -193,31 +236,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Skip Navigation Link */}
-      <SkipNavigation targetId="main-content" />
-
-      {/* Mobile sidebar backdrop */}
+      {/* Mobile sidebar backdrop. Escape and the close button are the keyboard routes; this is pointer-only. */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden"
+        <button
+          type="button"
+          tabIndex={-1}
+          className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden cursor-default"
           onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
+          aria-label="Dismiss navigation menu"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar. Off-canvas on narrow screens: inert while closed so its links are not reachable. */}
       <aside
+        id="app-sidebar"
         className={cn(
-          'fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out lg:translate-x-0 overflow-hidden',
+          'fixed top-0 left-0 z-50 h-full bg-sidebar transform transition-all duration-300 ease-in-out motion-reduce:transition-none lg:translate-x-0 overflow-hidden',
           sidebarCollapsed ? 'w-16' : 'w-64',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
-        aria-label="Main navigation"
-        aria-hidden={
-          !sidebarOpen && typeof window !== 'undefined' && window.innerWidth < 1024
-            ? 'true'
-            : undefined
-        }
+        aria-label="Application sidebar"
+        {...inertProps(drawerInert)}
       >
         {/* Ambient vertical accent line — right edge glow */}
         <div
@@ -257,13 +296,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <ChevronLeft
                 className={cn(
-                  'w-4 h-4 transition-transform duration-300',
+                  'w-4 h-4 transition-transform duration-300 motion-reduce:transition-none',
                   sidebarCollapsed && 'rotate-180'
                 )}
               />
             </button>
             {/* Mobile close */}
             <button
+              ref={drawerCloseRef}
+              type="button"
               className="lg:hidden shrink-0 text-sidebar-foreground hover:text-sidebar-primary-foreground"
               onClick={() => setSidebarOpen(false)}
               aria-label="Close navigation menu"
@@ -273,13 +314,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className={cn('flex-1 overflow-y-auto py-4', sidebarCollapsed ? 'px-2' : 'px-3')}>
+          {/* GroupedSidebar renders the navigation landmark itself, so this wrapper is a plain scroll container. */}
+          <div className={cn('flex-1 overflow-y-auto py-4', sidebarCollapsed ? 'px-2' : 'px-3')}>
             <GroupedSidebar
               userRole={activeRole}
               testRole={persistedTestRole}
               collapsed={sidebarCollapsed}
             />
-          </nav>
+          </div>
 
           {/* User card */}
           <div className="p-3 border-t border-sidebar-border">
@@ -325,18 +367,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
            compositing layer that can trap position:fixed overlay children (dialog backdrops). */}
       <div
         className={cn(
-          'transition-[padding-left] duration-300 min-h-screen',
+          'transition-[padding-left] duration-300 motion-reduce:transition-none min-h-screen',
           sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
         )}
+        {...inertProps(backgroundInert)}
       >
         {/* Header */}
         <header className="sticky top-0 z-30 h-16 bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <button
+                ref={menuButtonRef}
+                type="button"
                 className="lg:hidden p-2 rounded-lg hover:bg-accent"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open navigation menu"
+                aria-expanded={sidebarOpen}
+                aria-controls="app-sidebar"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -443,6 +490,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
+        {/* S0-08 interim safeguard: unacknowledged critical results, independent of the escalation tables */}
+        <div className="px-4 lg:px-6 pt-2 empty:hidden">
+          <CriticalResultSafeguardBanner />
+        </div>
+
         {/* CLIN-002: Critical Lab Alert Banner for clinical roles */}
         {!criticalLabsLoading && criticalLabAlerts.length > 0 && (
           <div className="px-4 lg:px-6 pt-2 space-y-2">
@@ -458,10 +510,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
 
         {/* Page content */}
+        {/* tabIndex -1 lets the skip link move keyboard focus here, not just scroll to it. */}
         <main
           id="main-content"
-          className={cn('p-4 lg:p-6', import.meta.env.DEV && 'pb-24')}
-          role="main"
+          tabIndex={-1}
+          className={cn('p-4 lg:p-6 focus:outline-none', import.meta.env.DEV && 'pb-24')}
         >
           <div className="mb-4">
             <Breadcrumb />

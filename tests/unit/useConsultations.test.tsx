@@ -130,7 +130,7 @@ describe('useConsultation', () => {
 describe('useCreateConsultation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(createMockAuthContext({ primaryRole: "doctor", roles: ["doctor"] }));
   });
 
   it('inserts consultation with hospital_id scoping', async () => {
@@ -177,7 +177,7 @@ describe('useCreateConsultation', () => {
 describe('useUpdateConsultation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(createMockAuthContext({ primaryRole: "doctor", roles: ["doctor"] }));
   });
 
   it('updates consultation by id', async () => {

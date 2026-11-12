@@ -6,9 +6,47 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { convertLogsToCSV, downloadLogsAsCSV, generateCSVWithMetadata } from '@/utils/auditLogExport';
+import {
+  convertLogsToCSV,
+  downloadLogsAsCSV,
+  generateCSVWithMetadata,
+} from '@/utils/auditLogExport';
 import type { ActivityLogRow } from '@/hooks/useActivityLogsPaginated';
 import { AuditLogViewer } from '@/pages/admin/AuditLogViewer';
+
+// Auth: the page reads the acting role via usePermissions and the hospital/profile via useAuth.
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({
+    user: { id: 'admin-user-id' },
+    profile: { id: 'admin-profile-id', first_name: 'Admin', last_name: 'User' },
+    hospital: { id: 'hospital-456', name: 'County Hospital' },
+    primaryRole: 'admin',
+    roles: ['admin'],
+  })),
+}));
+
+// Data hooks: keep the page rendering without a Supabase backend.
+vi.mock('@/hooks/useActivityLogsPaginated', () => ({
+  useActivityLogsPaginated: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  useActivityLogFilterOptions: vi.fn(() => ({
+    data: { actions: [], entities: [], users: [] },
+    isLoading: false,
+  })),
+}));
+
+// Layout: the real DashboardLayout needs router, sidebar and notification providers.
+vi.mock('@/components/layout/DashboardLayout', async () => {
+  const React = await import('react');
+  return {
+    DashboardLayout: ({ children }: { children: React.ReactNode }) =>
+      React.createElement('div', null, children),
+  };
+});
 
 // Mock data for testing
 const mockActivityLogs: ActivityLogRow[] = [
@@ -116,8 +154,8 @@ describe('CSV Export Utilities', () => {
 
       const csv = convertLogsToCSV(testLogs);
 
-      // Should wrap in quotes and escape internal quotes
-      expect(csv).toContain('"Contains ""quotes"" and, commas"');
+      // Details are JSON-encoded first, then the CSV cell is quoted and its quotes doubled.
+      expect(csv).toContain('"{""note"":""Contains \\""quotes\\"" and, commas""}"');
     });
 
     it('should handle null and undefined values', () => {
@@ -148,11 +186,7 @@ describe('CSV Export Utilities', () => {
 
   describe('generateCSVWithMetadata', () => {
     it('should include metadata headers', () => {
-      const csv = generateCSVWithMetadata(
-        mockActivityLogs,
-        'Admin User',
-        'County Hospital'
-      );
+      const csv = generateCSVWithMetadata(mockActivityLogs, 'Admin User', 'County Hospital');
 
       expect(csv).toContain('Audit Trail Export');
       expect(csv).toContain('County Hospital');
@@ -176,24 +210,35 @@ describe('CSV Export Utilities', () => {
       global.URL.revokeObjectURL = vi.fn();
     });
 
-    it('should create and trigger download', () => {
-      const mockElement = {
-        href: '',
-        download: '',
+    // Anchor stand-in that records setAttribute calls, as the real DOM element does.
+    const createMockLink = () => {
+      const attributes: Record<string, string> = {};
+      return {
+        attributes,
+        setAttribute: vi.fn((name: string, value: string) => {
+          attributes[name] = value;
+        }),
         click: vi.fn(),
         style: {},
       } as any;
+    };
 
-      const createElementSpy = vi
-        .spyOn(document, 'createElement')
-        .mockReturnValueOnce(mockElement);
+    it('should create and trigger download', () => {
+      const mockElement = createMockLink();
 
-      const appendChildSpy = vi.spyOn(document, 'appendChild');
-      const removeChildSpy = vi.spyOn(document, 'removeChild');
+      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValueOnce(mockElement);
+      const appendChildSpy = vi
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation((node: any) => node);
+      const removeChildSpy = vi
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation((node: any) => node);
 
       downloadLogsAsCSV(mockActivityLogs);
 
       expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(mockElement.attributes.href).toBe('blob:mock-url');
+      expect(mockElement.attributes.download).toMatch(/^audit_logs_\d{4}-\d{2}-\d{2}\.csv$/);
       expect(mockElement.click).toHaveBeenCalled();
       expect(removeChildSpy).toHaveBeenCalledWith(mockElement);
 
@@ -203,20 +248,25 @@ describe('CSV Export Utilities', () => {
     });
 
     it('should use custom filename if provided', () => {
-      const mockElement = {
-        href: '',
-        download: '',
-        click: vi.fn(),
-        style: {},
-      } as any;
+      const mockElement = createMockLink();
 
-      vi.spyOn(document, 'createElement').mockReturnValueOnce(mockElement);
+      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValueOnce(mockElement);
+      const appendChildSpy = vi
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation((node: any) => node);
+      const removeChildSpy = vi
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation((node: any) => node);
 
       downloadLogsAsCSV(mockActivityLogs, {
         filename: 'custom_audit_logs.csv',
       });
 
-      expect(mockElement.download).toContain('custom_audit_logs');
+      expect(mockElement.attributes.download).toBe('custom_audit_logs.csv');
+
+      createElementSpy.mockRestore();
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
     });
   });
 });
@@ -243,8 +293,8 @@ describe('AuditLogViewer Component', () => {
   it('should render loading state initially', () => {
     renderComponent();
 
-    // Component should be present
-    expect(screen.getByText(/Audit Logs/i)).toBeDefined();
+    // Component should be present (the page title is the only heading)
+    expect(screen.getByRole('heading', { name: /Audit Logs/i })).toBeDefined();
   });
 
   it('should render access denied message for non-admins', () => {
@@ -278,23 +328,25 @@ describe('AuditLogViewer Component', () => {
     renderComponent();
 
     // Table headers should be present
-    expect(screen.getByText(/Timestamp/i)).toBeDefined();
-    expect(screen.getByText(/User/i)).toBeDefined();
-    expect(screen.getByText(/Action/i)).toBeDefined();
+    expect(screen.getByRole('columnheader', { name: /Timestamp/i })).toBeDefined();
+    expect(screen.getByRole('columnheader', { name: /User/i })).toBeDefined();
+    expect(screen.getByRole('columnheader', { name: /Action/i })).toBeDefined();
   });
 
   it('should support pagination', () => {
     renderComponent({ pageSize: 50 });
 
     // Pagination controls should be renderable (exact rendering depends on data)
-    expect(screen.getByText(/Audit Logs/i)).toBeDefined();
+    expect(screen.getByRole('heading', { name: /Audit Logs/i })).toBeDefined();
   });
 
   it('should have filter selectors for action, entity, and user', () => {
     renderComponent();
 
     // Filter dropdowns should be present
-    expect(screen.getByText(/All actions/i) || screen.getByDisplayValue(/All actions/i)).toBeDefined();
+    expect(
+      screen.getByText(/All actions/i) || screen.getByDisplayValue(/All actions/i)
+    ).toBeDefined();
   });
 
   it('should support date range filtering', () => {
@@ -309,7 +361,8 @@ describe('AuditLogViewer Component', () => {
     renderComponent();
 
     // Sort selector should be present
-    expect(screen.getByDisplayValue(/Newest First/i) || true).toBe(true);
+    // The sort select's trigger shows the default option, newest first
+    expect(screen.getByText(/Newest First/i)).toBeDefined();
   });
 });
 
@@ -344,10 +397,10 @@ describe('Activity Log Query Parameters', () => {
 describe('Audit Log Display Features', () => {
   it('should color-code actions based on type', () => {
     const actionColors = {
-      'patient_create': 'bg-green-100 text-green-800', // Create
-      'prescription_update': 'bg-blue-100 text-blue-800', // Update
-      'patient_delete': 'bg-red-100 text-red-800', // Delete
-      'patient_view': 'bg-gray-100 text-gray-800', // View
+      patient_create: 'bg-green-100 text-green-800', // Create
+      prescription_update: 'bg-blue-100 text-blue-800', // Update
+      patient_delete: 'bg-red-100 text-red-800', // Delete
+      patient_view: 'bg-gray-100 text-gray-800', // View
     };
 
     Object.entries(actionColors).forEach(([action, color]) => {
@@ -439,11 +492,7 @@ describe('Compliance Features', () => {
   });
 
   it('should support CSV export for compliance reporting', () => {
-    const csv = generateCSVWithMetadata(
-      mockActivityLogs,
-      'Compliance Officer',
-      'Medical Center'
-    );
+    const csv = generateCSVWithMetadata(mockActivityLogs, 'Compliance Officer', 'Medical Center');
 
     expect(csv).toContain('Audit Trail Export');
     expect(csv).toContain('Compliance Officer');

@@ -196,6 +196,38 @@ describe('OrderSafetyEngine - Public Interface Tests', () => {
       expect(assessment.verdict).toBe('REQUIRES_OVERRIDE');
       expect(assessment.findings.some((f) => f.kind === 'ALLERGY_CROSS_REACTIVITY')).toBe(true);
     });
+
+    // CLIN-001: allergy term normalization and class cross-reactivity.
+    const allergyFindings = async (drugName: string, allergies: string[]) => {
+      const assessment = await engine.evaluate({
+        actor: mockDoctor,
+        patient: { ...safeAdultPatient, allergies },
+        items: [{ clientItemId: 'item-clin-001', drugName, route: 'PO', frequency: 'BID' }],
+      });
+      return assessment.findings.filter((f) => f.kind === 'ALLERGY_CROSS_REACTIVITY');
+    };
+
+    it.each([
+      ['bare allergen "penicillin"', 'Amoxicillin 500mg', 'penicillin'],
+      ['acronym "PCN"', 'Piperacillin-Tazobactam', 'PCN'],
+      ['full phrase "penicillin allergy"', 'Ampicillin', 'penicillin allergy'],
+      ['sulfa class', 'Bactrim DS', 'sulfa'],
+      ['NSAID class', 'Ibuprofen 400mg', 'nsaids'],
+      ['opioid class', 'Morphine 10mg IV', 'opioid allergy'],
+    ])('CLIN-001: detects conflict for %s', async (_label, drugName, allergy) => {
+      const findings = await allergyFindings(drugName, [allergy]);
+      expect(findings).toHaveLength(1);
+      expect(findings[0].interactingSubject).toBe(allergy);
+      expect(findings[0].requiresPhysicianOverride).toBe(true);
+    });
+
+    it('CLIN-001: reports no allergy finding for a non-conflicting medication', async () => {
+      expect(await allergyFindings('Metformin 500mg', ['penicillin', 'sulfa'])).toEqual([]);
+    });
+
+    it('CLIN-001: reports no allergy finding when the allergy list is empty', async () => {
+      expect(await allergyFindings('Amoxicillin 500mg', [])).toEqual([]);
+    });
   });
 
   // ============================================================================

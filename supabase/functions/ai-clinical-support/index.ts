@@ -1,9 +1,43 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { rateLimit, withRateLimit } from "../_shared/rateLimit.ts";
-import { validateAIClinicalRequest } from "../_shared/validation.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { withRateLimit } from "../_shared/rateLimit.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+
+// EDGE-18: the request contract is declared here. The previous import of
+// validateAIClinicalRequest matched no export in _shared/validation.ts, so the module
+// failed to load on every request. CORS headers are passed to each helper per request
+// (no module-level headers).
+const clinicalDataSchema = z.object({
+  symptoms: z.array(z.string()).default([]),
+  vital_signs: z.record(z.number()).default({}),
+  medical_history: z.array(z.string()).default([]),
+  medications: z.array(z.string()).default([]),
+  lab_results: z.record(z.number()).optional(),
+});
+
+const aiClinicalRequestSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("analyze_symptoms"),
+    data: z.object({ clinical_data: clinicalDataSchema }),
+  }),
+  z.object({
+    action: z.literal("drug_interaction_check"),
+    data: z.object({ medications: z.array(z.string()).min(1) }),
+  }),
+  z.object({
+    action: z.literal("risk_assessment"),
+    data: z.object({ patient_id: z.string().uuid() }),
+  }),
+  z.object({
+    action: z.literal("treatment_recommendations"),
+    data: z.object({
+      diagnosis: z.string().min(1),
+      patient_data: z.record(z.unknown()).optional(),
+    }),
+  }),
+]);
 
 interface ClinicalData {
   symptoms: string[];
@@ -28,31 +62,25 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Apply rate limiting
-  const rateLimitResponse = await rateLimit(req, { limit: 10, window: 60 });
-  if (rateLimitResponse) return rateLimitResponse;
+  // Rate limiting is applied by withRateLimit at serve() below. The inline call that was
+  // here passed the request as the bucket key and returned a plain object, not a Response (EDGE-11).
 
   // Check authorization
-  const authResponse = await authorize(req, ["doctor", "admin"]);
-  if (authResponse) return authResponse;
+  const { actor, response: authResponse } = await getAuthorizedActor(req, ["doctor", "admin"]);
+  if (authResponse || !actor) return authResponse!;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Resolve caller's hospital_id from their profile
-    const token = req.headers.get("Authorization")!.replace("Bearer ", "");
-    const { data: { user } } = await supabase.auth.getUser(token);
-    const { data: callerProfile } = user
-      ? await supabase.from("profiles").select("hospital_id").eq("user_id", user.id).maybeSingle()
-      : { data: null };
-    const callerHospitalId: string | null = callerProfile?.hospital_id ?? null;
+    // S0-06: hospital comes from the verified actor (never null).
+    const callerHospitalId: string = actor.hospitalId;
 
     const body = await req.json();
     
     // Validate input
-    const validation = validateAIClinicalRequest(body);
+    const validation = aiClinicalRequestSchema.safeParse(body);
     if (!validation.success) {
       return new Response(
         JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
@@ -60,17 +88,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { action, data } = validation.data;
+    const request = validation.data;
 
-    switch (action) {
+    switch (request.action) {
       case 'analyze_symptoms':
-        return await analyzeSymptoms(supabase, data, callerHospitalId);
+        return await analyzeSymptoms(supabase, request.data, callerHospitalId, corsHeaders);
       case 'drug_interaction_check':
-        return await checkDrugInteractions(supabase, data);
+        return await checkDrugInteractions(supabase, request.data, corsHeaders);
       case 'risk_assessment':
-        return await assessPatientRisk(supabase, data);
+        return await assessPatientRisk(supabase, request.data, callerHospitalId, corsHeaders);
       case 'treatment_recommendations':
-        return await getTreatmentRecommendations(supabase, data);
+        return await getTreatmentRecommendations(supabase, request.data, corsHeaders);
       default:
         throw new Error('Invalid action');
     }
@@ -82,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function analyzeSymptoms(supabase: any, { clinical_data }: { clinical_data: ClinicalData }, hospitalId: string | null) {
+async function analyzeSymptoms(supabase: any, { clinical_data }: { clinical_data: ClinicalData }, hospitalId: string | null, corsHeaders: Record<string, string>) {
   // AI-powered symptom analysis (simplified rule-based system)
   const recommendations: DiagnosisRecommendation[] = [];
 
@@ -142,7 +170,7 @@ async function analyzeSymptoms(supabase: any, { clinical_data }: { clinical_data
   );
 }
 
-async function checkDrugInteractions(supabase: any, { medications }: { medications: string[] }) {
+async function checkDrugInteractions(supabase: any, { medications }: { medications: string[] }, corsHeaders: Record<string, string>) {
   // Drug interaction database (simplified)
   const interactions = [
     {
@@ -180,8 +208,8 @@ async function checkDrugInteractions(supabase: any, { medications }: { medicatio
   );
 }
 
-async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: string }) {
-  // Get patient data
+async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: string }, hospitalId: string, corsHeaders: Record<string, string>) {
+  // S0-06 / EDGE-13: the patient (and the embedded rows) must be in the caller's hospital.
   const { data: patient } = await supabase
     .from('patients')
     .select(`
@@ -191,9 +219,15 @@ async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: st
       prescriptions(*)
     `)
     .eq('id', patient_id)
-    .single();
+    .eq('hospital_id', hospitalId)
+    .maybeSingle();
 
-  if (!patient) throw new Error('Patient not found');
+  if (!patient || patient.hospital_id !== hospitalId) {
+    return new Response(
+      JSON.stringify({ error: 'Patient not found' }),
+      { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
 
   // Calculate risk scores
   const riskFactors = {
@@ -217,7 +251,7 @@ async function assessPatientRisk(supabase: any, { patient_id }: { patient_id: st
   );
 }
 
-async function getTreatmentRecommendations(supabase: any, { diagnosis, patient_data }: any) {
+async function getTreatmentRecommendations(supabase: any, { diagnosis, patient_data }: any, corsHeaders: Record<string, string>) {
   // Treatment guidelines database (simplified)
   const treatmentGuidelines: { [key: string]: any } = {
     'hypertension': {
@@ -310,4 +344,4 @@ function generateRiskRecommendations(riskFactors: any): string[] {
   return recommendations;
 }
 
-serve((req) => withRateLimit(req, handler, { limit: 10, windowMs: 60000 }));
+serve((req) => withRateLimit(req, handler, { maxRequests: 10, windowMs: 60000 }));

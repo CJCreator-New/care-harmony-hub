@@ -47,25 +47,52 @@ describe('Phase 1 Audit Remediation Security, RLS & 2FA Verification', () => {
     });
   });
 
-  describe('Ticket 08 (SEC-003): Secure 2FA Secret & Code Generation', () => {
-    const hookSource = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/hooks/useTwoFactorAuth.ts'),
-      'utf8'
-    );
+  describe('Ticket 08 (SEC-003) / S0-10: 2FA uses Supabase Auth MFA, no client-side secrets', () => {
+    const read = (rel: string) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8');
+    const listSources = (dir: string): string[] =>
+      fs.readdirSync(path.resolve(process.cwd(), dir), { withFileTypes: true }).flatMap((entry) => {
+        const rel = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) return listSources(rel);
+        return /\.(ts|tsx)$/.test(entry.name) ? [rel] : [];
+      });
 
-    it('uses window.crypto.getRandomValues for secrets and backup codes', () => {
-      expect(hookSource).toContain('window.crypto.getRandomValues');
-      expect(hookSource).not.toContain('Math.random()');
+    it('removes both copies of the Math.random 2FA hook (ARCH-06)', () => {
+      expect(fs.existsSync(path.resolve(process.cwd(), 'src/hooks/useTwoFactorAuth.ts'))).toBe(false);
+      expect(
+        fs.existsSync(path.resolve(process.cwd(), 'src/lib/hooks/auth/useTwoFactorAuth.ts'))
+      ).toBe(false);
     });
 
-    it('verifies TOTP codes via verify-totp edge function before enabling', () => {
-      expect(hookSource).toContain("supabase.functions.invoke('verify-totp'");
-      expect(hookSource).toContain("supabase.functions.invoke('store-2fa-secret'");
+    it('has no Math.random in the auth hooks or the MFA service', () => {
+      for (const file of [...listSources('src/lib/hooks/auth'), ...listSources('src/lib/auth')]) {
+        expect(read(file), file).not.toContain('Math.random');
+      }
     });
 
-    it('rolls back staged secret on verification failure', () => {
-      expect(hookSource).toContain(".from('two_factor_secrets')");
-      expect(hookSource).toContain('.delete()');
+    it('enrols and verifies through supabase.auth.mfa', () => {
+      const mfa = read('src/lib/auth/mfa.ts');
+      expect(mfa).toContain("supabase.auth.mfa.enroll({");
+      expect(mfa).toContain("factorType: 'totp'");
+      expect(mfa).toContain('supabase.auth.mfa.challenge(');
+      expect(mfa).toContain('supabase.auth.mfa.verify(');
+      expect(mfa).toContain('supabase.auth.mfa.getAuthenticatorAssuranceLevel()');
+    });
+
+    it('makes no client calls to the retired custom 2FA edge functions or table', () => {
+      const retired = [
+        "'generate-2fa-secret'",
+        "'store-2fa-secret'",
+        "'verify-2fa'",
+        "'verify-totp'",
+        "from('two_factor_secrets')",
+      ];
+      for (const file of listSources('src')) {
+        if (file.startsWith('src/integrations/supabase/')) continue;
+        const source = read(file);
+        for (const needle of retired) {
+          expect(source.includes(needle), `${file} references ${needle}`).toBe(false);
+        }
+      }
     });
   });
 

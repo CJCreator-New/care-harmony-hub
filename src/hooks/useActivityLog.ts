@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ACTIVITY_LOG_COLUMNS } from '@/lib/queryColumns';
 import { sanitizeForLog } from '@/utils/sanitize';
 
-export type ActionType = 
+export type ActionType =
   | 'login'
   | 'logout'
   | 'patient_view'
@@ -63,18 +63,12 @@ export function useActivityLog() {
   const { user, hospital } = useAuth();
   const queryClient = useQueryClient();
 
-  const logActivity = useCallback(async ({
-    actionType,
-    entityType,
-    entityId,
-    details = {},
-  }: LogActivityParams) => {
-    if (!user) return;
+  const logActivity = useCallback(
+    async ({ actionType, entityType, entityId, details = {} }: LogActivityParams) => {
+      if (!user) return;
 
-    try {
-      const { error } = await supabase
-        .from('activity_logs')
-        .insert({
+      try {
+        const { error } = await supabase.from('activity_logs').insert({
           user_id: user.id,
           hospital_id: hospital?.id || null,
           action_type: actionType,
@@ -84,67 +78,15 @@ export function useActivityLog() {
           user_agent: navigator.userAgent,
         });
 
-      if (error) {
-        console.error('Error logging activity:', sanitizeForLog(String(error)));
+        if (error) {
+          console.error('Error logging activity:', sanitizeForLog(String(error)));
+        }
+      } catch (err) {
+        console.error('Failed to log activity:', sanitizeForLog(String(err)));
       }
-    } catch (err) {
-      console.error('Failed to log activity:', sanitizeForLog(String(err)));
-    }
-  }, [user, hospital]);
+    },
+    [user, hospital]
+  );
 
   return { logActivity };
-}
-
-export function useActivityLogs(filters?: {
-  actionType?: string;
-  userId?: string;
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-}) {
-  const { hospital } = useAuth();
-
-  return useQuery({
-    queryKey: ['activity-logs', hospital?.id, filters],
-    queryFn: async () => {
-      if (!hospital?.id) return [];
-
-      let query = supabase
-        .from('activity_logs')
-        .select(`
-          ${ACTIVITY_LOG_COLUMNS.list},
-          profiles:user_id (
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .eq('hospital_id', hospital.id)
-        .order('created_at', { ascending: false })
-        .limit(100); // Limit to 100 rows
-
-      if (filters?.actionType) {
-        query = query.eq('action_type', filters.actionType);
-      }
-      if (filters?.userId) {
-        query = query.eq('user_id', filters.userId);
-      }
-      if (filters?.startDate) {
-        query = query.gte('created_at', filters.startDate);
-      }
-      if (filters?.endDate) {
-        query = query.lte('created_at', filters.endDate);
-      }
-      if (filters?.limit) {
-        query = query.limit(filters.limit);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!hospital?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes - aggregates
-  });
 }

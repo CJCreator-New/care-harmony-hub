@@ -45,12 +45,13 @@ describe('useOrderSafety Hook Tests', () => {
   };
 
   beforeEach(() => {
+    // Real AuthContext shape: tenant on profile, roles from user_roles.
+    // (Supabase's User has no hospital_id, and user.role is 'authenticated'.)
     mockUseAuth.mockReturnValue({
-      user: {
-        id: 'doctor-1',
-        hospital_id: 'hospital-test',
-        role: 'doctor',
-      },
+      user: { id: 'doctor-1', role: 'authenticated' },
+      profile: { id: 'profile-1', user_id: 'doctor-1', hospital_id: 'hospital-test' },
+      roles: ['doctor'],
+      primaryRole: 'doctor',
     });
 
     engine = new HeadlessOrderSafetyEngine({

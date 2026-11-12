@@ -1,8 +1,8 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
-import { authorize } from "../_shared/authorize.ts";
+import { getAuthorizedActor } from "../_shared/authorize.ts";
 
 interface Appointment {
   id: string;
@@ -33,8 +33,10 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authError = await authorize(req, ['admin', 'receptionist']);
-  if (authError) return authError;
+  // S0-06: a tenant admin/receptionist processes only their own hospital's
+  // appointments (this used to run across every hospital).
+  const { actor, response: authError } = await getAuthorizedActor(req, ['admin', 'receptionist']);
+  if (authError || !actor) return authError!;
 
   try {
     console.log("Starting appointment reminder check...");
@@ -68,7 +70,8 @@ const handler = async (req: Request): Promise<Response> => {
       `)
       .eq('scheduled_date', tomorrowStr)
       .eq('status', 'scheduled')
-      .eq('reminder_sent', false);
+      .eq('reminder_sent', false)
+      .eq('hospital_id', actor.hospitalId);
 
     if (fetchError) {
       console.error("Error fetching appointments:", fetchError);
@@ -161,7 +164,8 @@ const handler = async (req: Request): Promise<Response> => {
           reminder_sent: true, 
           reminder_sent_at: new Date().toISOString() 
         })
-        .in('id', remindersSent);
+        .in('id', remindersSent)
+        .eq('hospital_id', actor.hospitalId);
 
       if (updateError) {
         console.error("Error updating reminder status:", updateError);

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
 import { getRoleLabel } from '@/types/rbac';
+import { getEdgeFunctionErrorMessage } from '@/lib/onboarding/edgeFunctionError';
 
 const joinSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -128,7 +129,13 @@ export default function JoinPage() {
         },
       });
 
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        // Show the server's reason (for example "Unable to accept invitation")
+        // instead of supabase-js's generic non-2xx message.
+        throw new Error(
+          await getEdgeFunctionErrorMessage(invokeError, 'Failed to complete invitation')
+        );
+      }
       if (!result?.success) throw new Error(result?.error || 'Failed to complete invitation');
 
       if (result.session?.access_token && result.session?.refresh_token) {

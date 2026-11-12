@@ -59,7 +59,8 @@ describe('usePrescriptions', () => {
 
   it('fetches prescriptions with optional status filter', async () => {
     const chain: any = {};
-    const eqMock = vi.fn()
+    const eqMock = vi
+      .fn()
       .mockReturnValueOnce(chain)
       .mockResolvedValueOnce({ data: [mockPrescription], error: null });
     chain.select = vi.fn().mockReturnValue(chain);
@@ -107,15 +108,18 @@ describe('usePrescriptionStats', () => {
     expect(result.current.data).toHaveProperty('dispensed');
     expect(result.current.data).toHaveProperty('today');
   });
-});{
-    vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
-  }
+});
+{
+  vi.clearAllMocks();
+  mockUseAuth.mockReturnValue(createMockAuthContext());
+}
 
 describe('useCreatePrescription', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue(createMockAuthContext());
+    mockUseAuth.mockReturnValue(
+      createMockAuthContext({ primaryRole: 'doctor', roles: ['doctor'] })
+    );
   });
 
   it('inserts prescription, items, and queue entry', async () => {
@@ -165,9 +169,7 @@ describe('useCreatePrescription', () => {
     const { result } = renderHook(() => useCreatePrescription(), { wrapper: createWrapper() });
 
     await act(async () => {
-      await expect(
-        result.current.mutateAsync({ patientId: 'p-1', items: [] })
-      ).rejects.toThrow();
+      await expect(result.current.mutateAsync({ patientId: 'p-1', items: [] })).rejects.toThrow();
     });
   });
 });
@@ -179,6 +181,10 @@ describe('useDispensePrescription', () => {
   });
 
   it('updates prescription status to dispensed and marks items dispensed', async () => {
+    // Dispensing is a pharmacist action; the default admin context lacks prescriptions:write.
+    mockUseAuth.mockReturnValue(
+      createMockAuthContext({ primaryRole: 'pharmacist', roles: ['pharmacist'] })
+    );
     const rxUpdateMock = vi.fn().mockReturnThis();
     const itemsUpdateMock = vi.fn().mockReturnThis();
     const queueUpdateMock = vi.fn().mockReturnThis();
@@ -188,11 +194,17 @@ describe('useDispensePrescription', () => {
     const itemsChain: any = { eq: vi.fn().mockResolvedValue({ error: null }) };
     itemsChain.update = itemsUpdateMock;
     const queueChain: any = {};
-    queueChain.eq = vi.fn()
-      .mockReturnValueOnce(queueChain)
-      .mockResolvedValueOnce({ error: null });
+    queueChain.eq = vi.fn().mockReturnValueOnce(queueChain).mockResolvedValueOnce({ error: null });
     queueChain.update = queueUpdateMock;
+    // The mutation first reads active inventory (stock/expiry checks) before updating records.
+    const medsChain: any = {};
+    medsChain.select = vi.fn().mockReturnValue(medsChain);
+    medsChain.eq = vi
+      .fn()
+      .mockReturnValueOnce(medsChain)
+      .mockResolvedValueOnce({ data: [], error: null });
     mockSupabaseClient.from
+      .mockReturnValueOnce(medsChain)
       .mockReturnValueOnce(rxChain)
       .mockReturnValueOnce(itemsChain)
       .mockReturnValueOnce(queueChain);

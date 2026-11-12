@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { usePatient } from '@/lib/hooks/patients';
 import { toast } from 'sonner';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 
 export interface NursingDischargeChecklistModalProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function NursingDischargeChecklistModal({
   const { data: patient } = usePatient(workflow?.patient_id || '');
 
   // 7 Critical Nursing Safety Gates
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [linesRemoved, setLinesRemoved] = useState(false);
   const [foleyRemoved, setFoleyRemoved] = useState(false);
   const [vitalsStable, setVitalsStable] = useState(false);
@@ -93,7 +95,7 @@ export function NursingDischargeChecklistModal({
     paperworkHandedOver &&
     transportArranged;
 
-  const handleConfirmApprove = async () => {
+  const handleConfirmApprove = async (dischargeReason: string) => {
     if (!allGatesPassed) {
       toast.error('All physical nursing safety gates must be completed prior to discharge.');
       return;
@@ -118,6 +120,8 @@ export function NursingDischargeChecklistModal({
         nurseNotes.trim() ||
         'Physical discharge safety checklist completed. Patient discharged home in stable condition.',
       completedAt: new Date().toISOString(),
+      // Reason captured by the confirmation dialog (required, audited with the transition).
+      dischargeConfirmationReason: dischargeReason,
     };
 
     await onApprove(workflow.id, {
@@ -411,7 +415,7 @@ export function NursingDischargeChecklistModal({
                 <Button
                   type="button"
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={handleConfirmApprove}
+                  onClick={() => setFinalizeOpen(true)}
                   disabled={isLoading || !allGatesPassed}
                 >
                   {isLoading ? (
@@ -459,6 +463,22 @@ export function NursingDischargeChecklistModal({
             </div>
           )}
         </DialogFooter>
+        <ConfirmDestructiveAction
+          open={finalizeOpen}
+          onOpenChange={setFinalizeOpen}
+          title="Complete the physical discharge?"
+          description={
+            <p>
+              {patient ? `${patient.first_name} ${patient.last_name}` : 'The patient'} will be marked as discharged and
+              the bed released for cleaning. This cannot be undone from this screen.
+            </p>
+          }
+          confirmLabel="Complete physical discharge"
+          reasonLabel="Discharge confirmation (recorded in the audit log)"
+          reasonPlaceholder="e.g. Patient collected by daughter, transport confirmed, belongings checked."
+          isPending={isLoading}
+          onConfirm={handleConfirmApprove}
+        />
       </DialogContent>
     </Dialog>
   );

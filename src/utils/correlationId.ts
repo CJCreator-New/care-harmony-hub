@@ -12,6 +12,10 @@
  * Enables end-to-end request tracing across frontend → backend layers
  */
 
+import { createLogger, redactForLog } from '@/utils/logger';
+
+const log = createLogger('correlation');
+
 export interface TraceContext {
   traceId: string;
   spanId: string;
@@ -163,19 +167,46 @@ export async function correlatedFetch(
 }
 
 /**
+ * True when the request goes to the page's own origin. Correlation headers are
+ * not CORS-safelisted, so adding them to a cross-origin request forces a
+ * preflight that most third parties (and, until their allow-list is updated
+ * and redeployed, the Supabase Edge Functions) reject (PERF-01).
+ */
+function isSameOriginRequest(url: string | URL | Request): boolean {
+  if (typeof window === 'undefined' || !window.location) return false;
+  try {
+    const raw = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    return new URL(raw, window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Add correlation ID to Fetch API before sending requests
- * Install as Fetch interceptor via registerFetchInterceptor()
+ * Wrap a fetch explicitly (no global install; S0-02)
+ *
+ * Only same-origin requests are tagged; cross-origin requests (Supabase REST,
+ * Auth, Edge Functions, RxNorm, ...) pass through untouched.
  */
 export function injectCorrelationIdIntoFetch(
   originalFetch: typeof fetch
 ): typeof fetch {
-  return function (url: string | Request, init?: RequestInit) {
+  const wrapped = function (url: string | URL | Request, init?: RequestInit) {
+    if (!isSameOriginRequest(url)) {
+      return originalFetch(url, init);
+    }
+
     const correlationId = getCorrelationId();
     const traceContext = getTraceContext();
 
-    const headers = new Headers(init?.headers || {});
+    // Start from the Request's own headers when no init headers are given, so
+    // fetch(new Request(...)) does not lose them.
+    const baseHeaders =
+      init?.headers ?? (typeof Request !== 'undefined' && url instanceof Request ? url.headers : undefined);
+    const headers = new Headers(baseHeaders || {});
     headers.set('x-correlation-id', correlationId);
-    
+
     if (traceContext) {
       headers.set('x-trace-context', JSON.stringify(traceContext));
     }
@@ -185,23 +216,14 @@ export function injectCorrelationIdIntoFetch(
       headers,
     });
   };
+  (wrapped as any).__correlationIdInterceptor = true;
+  return wrapped as typeof fetch;
 }
 
-/**
- * Register automatic correlation ID injection into global fetch
- * Call this once at app initialization
- * 
- * @example
- * if (typeof window !== 'undefined') {
- *   registerFetchInterceptor();
- * }
- */
-export function registerFetchInterceptor(): void {
-  if (typeof window === 'undefined') return;
-
-  const originalFetch = window.fetch;
-  window.fetch = injectCorrelationIdIntoFetch(originalFetch);
-}
+// S0-02 / PERF-01: there is deliberately no global `window.fetch` patch.
+// Replacing fetch app-wide added non-safelisted headers to cross-origin
+// Supabase calls and broke Edge Function preflights. Use `correlatedFetch` or
+// `injectCorrelationIdIntoFetch(fetch)` explicitly for first-party requests.
 
 /**
  * Extract trace context from HTTP headers (W3C Trace Context format)
@@ -297,12 +319,13 @@ export function logClinicalEvent(
   const correlationId = getCorrelationId();
   const traceContext = getTraceContext();
 
+  // Details are redacted before they are sent or logged (no names, MRN, DOB, notes, contact data).
   const logEntry = {
     timestamp: new Date().toISOString(),
     eventType,
     correlationId,
     traceContext,
-    ...details,
+    ...(redactForLog(details) as Record<string, any>),
   };
 
   // Send to structured logging endpoint
@@ -316,7 +339,7 @@ export function logClinicalEvent(
       body: JSON.stringify(logEntry),
     }).catch(() => {
       // Silently fail if logging endpoint unavailable
-      console.debug(`[Clinical Event] ${eventType}:`, logEntry);
+      log.debug(`clinical event not delivered: ${eventType}`, logEntry);
     });
   }
 }
@@ -331,7 +354,6 @@ export default {
   extractCorrelationIdFromHeaders,
   correlatedFetch,
   injectCorrelationIdIntoFetch,
-  registerFetchInterceptor,
   parseTraceParent,
   generateTraceparent,
   createClinicalContext,

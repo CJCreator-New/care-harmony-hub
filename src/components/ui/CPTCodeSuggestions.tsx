@@ -68,15 +68,15 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600';
-    if (confidence >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
+    if (confidence >= 0.8) return 'text-success';
+    if (confidence >= 0.6) return 'text-warning';
+    return 'text-destructive';
   };
 
   const getConfidenceIcon = (confidence: number) => {
-    if (confidence >= 0.8) return <CheckCircle className="w-4 h-4 text-green-600" />;
-    if (confidence >= 0.6) return <AlertCircle className="w-4 h-4 text-yellow-600" />;
-    return <AlertCircle className="w-4 h-4 text-red-600" />;
+    if (confidence >= 0.8) return <CheckCircle className="w-4 h-4 text-success" />;
+    if (confidence >= 0.6) return <AlertCircle className="w-4 h-4 text-warning" />;
+    return <AlertCircle className="w-4 h-4 text-destructive" />;
   };
 
   const getCategoryIcon = (category: string) => {
@@ -118,15 +118,15 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
 
   if (error) {
     return (
-      <Card className={cn('w-full border-red-200', className)}>
+      <Card className={cn('w-full border-destructive/30', className)}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600">
+          <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertCircle className="w-5 h-5" />
             CPT Code Analysis Error
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-600">{error}</p>
+          <p className="text-destructive">{error}</p>
         </CardContent>
       </Card>
     );
@@ -151,7 +151,7 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {billingIssues.length > 0 && (
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
             <strong>Billing validation:</strong> {billingIssues.join(' ')}
           </div>
         )}
@@ -169,15 +169,25 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
                   const isSelected = selectedCodes.some(code => code.code === suggestion.code);
 
                   return (
+                    // A11Y-08: the row is a keyboard-operable toggle. Its content is block-level, so it cannot be a native <button>.
                     <div
                       key={`${suggestion.code}-${index}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
                       className={cn(
-                        'p-3 rounded-lg border cursor-pointer transition-colors',
+                        'p-3 rounded-lg border cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         isSelected
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:border-primary/50'
                       )}
                       onClick={() => handleCodeSelect(suggestion)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleCodeSelect(suggestion);
+                        }
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -222,12 +232,14 @@ export const CPTCodeSuggestions: React.FC<CPTCodeSuggestionsProps> = ({
                       <Badge key={code.code} variant="default" className="flex items-center gap-1">
                         {code.code}
                         <button
+                          type="button"
+                          aria-label={`Remove CPT code ${code.code}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             const newSelected = selectedCodes.filter(c => c.code !== code.code);
                             onCodesConfirmed?.(newSelected);
                           }}
-                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <X className="w-3 h-3" />
                         </button>

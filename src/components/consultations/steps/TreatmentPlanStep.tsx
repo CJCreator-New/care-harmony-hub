@@ -22,8 +22,13 @@ import {
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { checkPrescriptionSafety } from '@/hooks/usePrescriptionSafety';
-import { PrescriptionSafetyAlerts } from '@/components/prescriptions/PrescriptionSafetyAlerts';
+import { OrderSafetyPanel } from '@/components/prescriptions/OrderSafetyPanel';
+import {
+  toOrderItems,
+  useOrderSafety,
+  type PatientClinicalContext,
+  type UseOrderSafetyReturn,
+} from '@/modules/order-safety';
 import { useAIClinicalSuggestions } from '@/hooks/useAIClinicalSuggestions';
 import { useAIClinicalSupport } from '@/hooks/useAIClinicalSupport';
 
@@ -32,8 +37,10 @@ interface TreatmentPlanStepProps {
   onUpdate: (field: string, value: any) => void;
   patientId?: string;
   consultationId?: string;
-  patientAllergies?: string[];
-  patientMedications?: string[];
+  /** Order-safety evaluation of `data.prescriptions`, owned by the consultation page (it also gates completion). */
+  orderSafety: UseOrderSafetyReturn;
+  /** Patient context used for the draft-row preview. */
+  patientContext: PatientClinicalContext | null;
 }
 
 interface Prescription {
@@ -63,8 +70,8 @@ export function TreatmentPlanStep({
   onUpdate,
   patientId,
   consultationId,
-  patientAllergies = [],
-  patientMedications = [],
+  orderSafety,
+  patientContext,
 }: TreatmentPlanStepProps) {
   const { profile } = useAuth();
   const createLabOrder = useCreateLabOrder();
@@ -96,41 +103,31 @@ export function TreatmentPlanStep({
   const labOrders: LabOrder[] = data.lab_orders || [];
   const referrals = data.referrals || [];
 
-  // Calculate safety alerts for all prescriptions
-  const safetyAlerts = useMemo(() => {
-    const allAllergyAlerts: any[] = [];
-    const allDrugInteractions: any[] = [];
-    const currentMeds = patientMedications.concat(
-      prescriptions.map((p: Prescription) => p.medication_name)
-    );
-
-    for (const rx of prescriptions) {
-      const otherMeds = currentMeds.filter((m: string) => m !== rx.medication_name);
-      const safety = checkPrescriptionSafety(rx.medication_name, patientAllergies, otherMeds);
-      allAllergyAlerts.push(...safety.allergyAlerts);
-      allDrugInteractions.push(...safety.drugInteractions);
-    }
-
-    const hasContraindicated =
-      allDrugInteractions.some((d) => d.severity === 'contraindicated') ||
-      allAllergyAlerts.some((a) => a.severity === 'critical');
-
-    return {
-      allergyAlerts: allAllergyAlerts,
-      drugInteractions: allDrugInteractions,
-      hasWarnings: allAllergyAlerts.length > 0 || allDrugInteractions.length > 0,
-      hasContraindicated,
-    };
-  }, [prescriptions, patientAllergies, patientMedications]);
-
-  // Check new prescription before adding
-  const newPrescriptionSafety = useMemo(() => {
-    if (!newPrescription.medication_name.trim()) return null;
-    const currentMeds = patientMedications.concat(
-      prescriptions.map((p: Prescription) => p.medication_name)
-    );
-    return checkPrescriptionSafety(newPrescription.medication_name, patientAllergies, currentMeds);
-  }, [newPrescription.medication_name, prescriptions, patientAllergies, patientMedications]);
+  // Preview: evaluate the draft row together with the committed rows, so the
+  // prescriber sees allergy/interaction problems before adding it.
+  const draftName = newPrescription.medication_name.trim();
+  const draftItems = useMemo(
+    () =>
+      draftName
+        ? [...toOrderItems(prescriptions, 'rx'), ...toOrderItems([newPrescription], 'draft')]
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftName, newPrescription.dosage, newPrescription.frequency, newPrescription.instructions, prescriptions]
+  );
+  const draftSafety = useOrderSafety({
+    patient: patientContext,
+    items: draftItems,
+    debounceMs: 400,
+    enabled: !!draftName,
+    actingRole: 'doctor',
+  });
+  const draftFindingFilter = (f: { clientItemId?: string; interactingSubject?: string }) =>
+    f.clientItemId === 'draft-0' || (!!f.interactingSubject && f.interactingSubject === draftName);
+  const draftHasIssues = draftSafety.findings.some(
+    (f) => draftFindingFilter(f) && (f.requiresPhysicianOverride || f.isHardStop)
+  );
+  const hasSafetyIssues =
+    !!orderSafety.errorMessage || orderSafety.hardStops.length > 0 || orderSafety.unhandledOverrides.length > 0;
 
   const addPrescription = () => {
     if (newPrescription.medication_name.trim()) {
@@ -244,7 +241,7 @@ export function TreatmentPlanStep({
     try {
       // Get all current medications (existing + new prescriptions)
       const allMedications = [
-        ...patientMedications,
+        ...(patientContext?.activeMedications || []).map((m) => m.drugName),
         ...prescriptions.map((p: Prescription) => p.medication_name),
         ...(newPrescription.medication_name ? [newPrescription.medication_name] : []),
       ].filter(Boolean);
@@ -400,60 +397,25 @@ export function TreatmentPlanStep({
           <CardTitle className="text-base flex items-center gap-2">
             <Pill className="h-4 w-4" />
             Prescriptions
-            {safetyAlerts.hasWarnings && (
+            {hasSafetyIssues && (
               <Badge variant="destructive" className="ml-2">
                 <AlertTriangle className="h-3 w-3 mr-1" />
-                Safety Alert
+                Safety review required
               </Badge>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Safety Alerts */}
-          {safetyAlerts.hasWarnings && (
-            <PrescriptionSafetyAlerts
-              allergyAlerts={safetyAlerts.allergyAlerts}
-              drugInteractions={safetyAlerts.drugInteractions}
-            />
-          )}
+          {/* Fail-closed order safety (order-safety module): findings + per-finding override */}
+          <OrderSafetyPanel safety={orderSafety} />
 
-          {/* Mandatory Clinical Safety Override / Break-Glass */}
-          {safetyAlerts.hasContraindicated && (
-            <div className="p-4 border-2 border-red-500 rounded-lg bg-red-50/90 dark:bg-red-950/40 space-y-3">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
-                <AlertTriangle className="h-5 w-5 text-red-600 animate-pulse shrink-0" />
-                <span>MANDATORY CLINICAL SAFETY OVERRIDE REQUIRED</span>
-              </div>
-              <p className="text-xs text-red-800 dark:text-red-300">
-                One or more medications have a CONTRAINDICATED drug-drug interaction (Level 1) or
-                critical allergy conflict. CareSync safety protocol blocks consultation completion
-                without a documented attending physician clinical override rationale.
-              </p>
-              <div className="space-y-1">
-                <Label
-                  htmlFor="clinical_override_reason"
-                  className="text-xs font-semibold text-red-900 dark:text-red-200"
-                >
-                  Clinical Override Rationale & Risk Mitigation Plan{' '}
-                  <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="clinical_override_reason"
-                  placeholder="e.g., Risk vs benefit evaluated; patient monitored with continuous vitals and rescue medications available; alternative antimicrobial contraindicated..."
-                  value={data.clinical_override_reason || ''}
-                  onChange={(e) => onUpdate('clinical_override_reason', e.target.value)}
-                  className="text-xs bg-white dark:bg-background border-red-300 focus-visible:ring-red-500"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* New Prescription Safety Preview */}
-          {newPrescriptionSafety && !newPrescriptionSafety.isSafe && (
-            <PrescriptionSafetyAlerts
-              allergyAlerts={newPrescriptionSafety.allergyAlerts}
-              drugInteractions={newPrescriptionSafety.drugInteractions}
-              className="border border-warning/20 rounded-md p-3 bg-warning/5"
+          {/* Draft row preview (read-only) */}
+          {draftName && (
+            <OrderSafetyPanel
+              safety={draftSafety}
+              filter={draftFindingFilter}
+              readOnly
+              className="rounded-md border border-warning/30 bg-warning/5 p-3"
             />
           )}
 
@@ -464,9 +426,8 @@ export function TreatmentPlanStep({
               onChange={(e) =>
                 setNewPrescription({ ...newPrescription, medication_name: e.target.value })
               }
-              className={
-                newPrescriptionSafety && !newPrescriptionSafety.isSafe ? 'border-warning' : ''
-              }
+              className={draftHasIssues ? 'border-warning' : ''}
+              aria-invalid={draftHasIssues || undefined}
             />
             <Input
               placeholder="Dosage"
@@ -489,7 +450,7 @@ export function TreatmentPlanStep({
               type="button"
               onClick={addPrescription}
               disabled={!newPrescription.medication_name.trim()}
-              variant={newPrescriptionSafety?.requiresVerification ? 'destructive' : 'default'}
+              variant={draftHasIssues ? 'destructive' : 'default'}
               aria-label="Add prescription"
               title={
                 !newPrescription.medication_name.trim()

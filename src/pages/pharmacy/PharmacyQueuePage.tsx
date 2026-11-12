@@ -38,9 +38,9 @@ export default function PharmacistQueue() {
     },
   ];
 
-  const handleReview = (prescriptionId: string) => {
-    // Navigate to detailed review view
-    window.location.href = `/hospital/pharmacy/prescription/${prescriptionId}`;
+  const handleReview = (_prescriptionId: string) => {
+    // No per-prescription review route exists yet; link to the pharmacy page.
+    window.location.href = '/pharmacy';
   };
 
   return (

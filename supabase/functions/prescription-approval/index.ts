@@ -9,10 +9,11 @@
 
 // @ts-ignore — Deno types
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getAuthorizedActor } from "../_shared/authorize.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 // Roles that can participate in the approval workflow (per-action RBAC enforced below).
 const AUTHORIZED_ROLES = ["admin", "doctor", "pharmacist", "nurse"];
@@ -111,13 +112,15 @@ function getNextState(
  */
 async function performDURCheck(
   supabase: any,
-  prescriptionId: string
+  prescriptionId: string,
+  hospitalId: string
 ): Promise<{ passed: boolean; warnings: string[] }> {
   try {
     const { data: prescription, error } = await supabase
       .from("prescriptions")
       .select("*, items:prescription_items(*), patient:patients(*)")
       .eq("id", prescriptionId)
+      .eq("hospital_id", hospitalId)
       .single();
 
     if (error || !prescription) {
@@ -201,7 +204,7 @@ async function performDURCheck(
     const passed = warnings.length === 0;
     return { passed, warnings };
   } catch (err) {
-    console.error("DUR check error:", err);
+    logEdge('error', 'prescription-approval', { stage: 'dur_check_error', error: err });
     return { passed: false, warnings: ["DUR check failed"] };
   }
 }
@@ -247,25 +250,18 @@ serve(async (req: Request) => {
     const { workflowId, action, reason, durWarnings, notes } = parsed.data;
 
     // Fetch workflow
+    // S0-06 / EDGE-14: the workflow is looked up inside the caller's hospital
+    // (getAuthorizedActor guarantees a hospital), so another tenant's id is a 404.
+    const hospitalId = actor!.hospitalId;
     const { data: workflow, error: workflowError } = await supabase
       .from("prescription_approval_workflows")
       .select("*")
       .eq("id", workflowId)
-      .single();
+      .eq("hospital_id", hospitalId)
+      .maybeSingle();
 
-    if (workflowError || !workflow) {
+    if (workflowError || !workflow || workflow.hospital_id !== hospitalId) {
       return json(404, { error: "Workflow not found" });
-    }
-
-    // ✅ Extract hospital_id from workflow for all subsequent queries
-    const hospitalId = workflow.hospital_id;
-    if (!hospitalId) {
-      return json(400, { error: "Hospital context required for prescription workflow" });
-    }
-
-    // Prevent cross-hospital actions: caller's hospital must match the workflow's.
-    if (actor!.hospitalId && actor!.hospitalId !== hospitalId) {
-      return json(403, { error: "Forbidden - hospital scope mismatch" });
     }
 
     // ─── RBAC Check (per-action) ──────────────────────────────────────────────────
@@ -281,13 +277,8 @@ serve(async (req: Request) => {
       });
     }
 
-    // Resolve the caller's profile id for columns that FK to profiles(id).
-    const { data: callerProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", actorId)
-      .maybeSingle();
-    const profileId = callerProfile?.id ?? null;
+    // The caller's profile id for columns that FK to profiles(id).
+    const profileId = actor!.profileId;
 
     // ─── State Transition Validation ──────────────────────────────────────────────
 
@@ -307,13 +298,13 @@ serve(async (req: Request) => {
 
     // DUR check on approve
     if (action === "approve") {
-      const durResult = await performDURCheck(supabase, workflow.prescription_id);
+      const durResult = await performDURCheck(supabase, workflow.prescription_id, hospitalId);
       updateData.dur_check_passed = durResult.passed;
       updateData.dur_warnings = durResult.warnings;
 
       if (!durResult.passed) {
         // Don't block on DUR warnings, but flag for review
-        console.warn("DUR warnings:", durResult.warnings);
+        logEdge('warn', 'prescription-approval', { stage: 'dur_warnings', count: durResult.warnings.length });
       }
     }
 
@@ -340,6 +331,7 @@ serve(async (req: Request) => {
       .from("prescription_approval_workflows")
       .update(updateData)
       .eq("id", workflowId)
+      .eq("hospital_id", hospitalId)
       .select()
       .single();
 
@@ -386,7 +378,7 @@ serve(async (req: Request) => {
       durWarnings: updateData.dur_warnings,
     });
   } catch (err) {
-    console.error("Workflow handler error:", err);
+    logEdge('error', 'prescription-approval', { stage: 'workflow_handler_error', error: err });
     return json(500, { error: "Workflow action failed" });
   }
 });
