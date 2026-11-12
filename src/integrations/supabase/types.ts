@@ -1843,12 +1843,15 @@ export type Database = {
       lab_alert_escalations: {
         Row: {
           alert_id: string
+          attempt_count: number
           created_at: string
+          delivery_log: Json
           dispatched_at: string | null
           error_message: string | null
           escalation_level: string
           hospital_id: string
           id: string
+          last_attempt_at: string | null
           scheduled_for: string
           status: string
           target_user_id: string | null
@@ -1856,12 +1859,15 @@ export type Database = {
         }
         Insert: {
           alert_id: string
+          attempt_count?: number
           created_at?: string
+          delivery_log?: Json
           dispatched_at?: string | null
           error_message?: string | null
           escalation_level: string
           hospital_id: string
           id?: string
+          last_attempt_at?: string | null
           scheduled_for: string
           status?: string
           target_user_id?: string | null
@@ -1869,12 +1875,15 @@ export type Database = {
         }
         Update: {
           alert_id?: string
+          attempt_count?: number
           created_at?: string
+          delivery_log?: Json
           dispatched_at?: string | null
           error_message?: string | null
           escalation_level?: string
           hospital_id?: string
           id?: string
+          last_attempt_at?: string | null
           scheduled_for?: string
           status?: string
           target_user_id?: string | null
@@ -2010,9 +2019,60 @@ export type Database = {
           },
         ]
       }
+      lab_critical_alert_events: {
+        Row: {
+          actor_profile_id: string | null
+          actor_user_id: string | null
+          alert_id: string
+          created_at: string
+          details: Json
+          escalation_id: string | null
+          escalation_level: string | null
+          event_type: string
+          from_status: string | null
+          hospital_id: string
+          id: number
+          to_status: string | null
+        }
+        Insert: {
+          actor_profile_id?: string | null
+          actor_user_id?: string | null
+          alert_id: string
+          created_at?: string
+          details?: Json
+          escalation_id?: string | null
+          escalation_level?: string | null
+          event_type: string
+          from_status?: string | null
+          hospital_id: string
+          id?: never
+          to_status?: string | null
+        }
+        Update: {
+          actor_profile_id?: string | null
+          actor_user_id?: string | null
+          alert_id?: string
+          created_at?: string
+          details?: Json
+          escalation_id?: string | null
+          escalation_level?: string | null
+          event_type?: string
+          from_status?: string | null
+          hospital_id?: string
+          id?: never
+          to_status?: string | null
+        }
+        Relationships: []
+      }
       lab_critical_alerts: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledgment_channel: string | null
+          acknowledgment_details: Json
+          acknowledgment_notes: string | null
           created_at: string | null
+          created_by: string | null
           critical_range_id: string | null
           er_acknowledged_at: string | null
           er_action_notes: string | null
@@ -2020,8 +2080,9 @@ export type Database = {
           er_notified_at: string | null
           hospital_id: string
           id: string
-          is_resolved: boolean | null
-          lab_result_id: string
+          is_resolved: boolean
+          lab_order_id: string | null
+          lab_result_id: string | null
           metadata: Json | null
           on_call_acknowledged_at: string | null
           on_call_action_notes: string | null
@@ -2032,19 +2093,27 @@ export type Database = {
           primary_acknowledged_at: string | null
           primary_action_notes: string | null
           primary_action_taken: boolean | null
-          primary_doctor_id: string
+          primary_doctor_id: string | null
           primary_notified_at: string | null
           resolution_notes: string | null
           resolved_at: string | null
           resolved_by: string | null
-          result_value: number
+          result_text: string | null
+          result_value: number | null
           severity: string
           test_code: string
           test_name: string
+          unit: string | null
           updated_at: string | null
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledgment_channel?: string | null
+          acknowledgment_details?: Json
+          acknowledgment_notes?: string | null
           created_at?: string | null
+          created_by?: string | null
           critical_range_id?: string | null
           er_acknowledged_at?: string | null
           er_action_notes?: string | null
@@ -2052,8 +2121,9 @@ export type Database = {
           er_notified_at?: string | null
           hospital_id: string
           id?: string
-          is_resolved?: boolean | null
-          lab_result_id: string
+          is_resolved?: boolean
+          lab_order_id?: string | null
+          lab_result_id?: string | null
           metadata?: Json | null
           on_call_acknowledged_at?: string | null
           on_call_action_notes?: string | null
@@ -2064,19 +2134,27 @@ export type Database = {
           primary_acknowledged_at?: string | null
           primary_action_notes?: string | null
           primary_action_taken?: boolean | null
-          primary_doctor_id: string
+          primary_doctor_id?: string | null
           primary_notified_at?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
-          result_value: number
+          result_text?: string | null
+          result_value?: number | null
           severity?: string
           test_code: string
           test_name: string
+          unit?: string | null
           updated_at?: string | null
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledgment_channel?: string | null
+          acknowledgment_details?: Json
+          acknowledgment_notes?: string | null
           created_at?: string | null
+          created_by?: string | null
           critical_range_id?: string | null
           er_acknowledged_at?: string | null
           er_action_notes?: string | null
@@ -2084,8 +2162,9 @@ export type Database = {
           er_notified_at?: string | null
           hospital_id?: string
           id?: string
-          is_resolved?: boolean | null
-          lab_result_id?: string
+          is_resolved?: boolean
+          lab_order_id?: string | null
+          lab_result_id?: string | null
           metadata?: Json | null
           on_call_acknowledged_at?: string | null
           on_call_action_notes?: string | null
@@ -2096,18 +2175,34 @@ export type Database = {
           primary_acknowledged_at?: string | null
           primary_action_notes?: string | null
           primary_action_taken?: boolean | null
-          primary_doctor_id?: string
+          primary_doctor_id?: string | null
           primary_notified_at?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
-          result_value?: number
+          result_text?: string | null
+          result_value?: number | null
           severity?: string
           test_code?: string
           test_name?: string
+          unit?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lab_critical_alerts_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_critical_alerts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lab_critical_alerts_critical_range_id_fkey"
             columns: ["critical_range_id"]
@@ -2120,6 +2215,13 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_critical_alerts_lab_order_id_fkey"
+            columns: ["lab_order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_orders"
             referencedColumns: ["id"]
           },
           {
@@ -3335,6 +3437,63 @@ export type Database = {
           },
         ]
       }
+      mfa_backup_code_attempts: {
+        Row: {
+          attempted_at: string
+          id: number
+          succeeded: boolean
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          id?: never
+          succeeded: boolean
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string
+          id?: never
+          succeeded?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mfa_backup_codes: {
+        Row: {
+          batch_id: string
+          code_hash: string
+          created_at: string
+          hash_version: string
+          id: string
+          pepper_id: string
+          salt: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          code_hash: string
+          created_at?: string
+          hash_version?: string
+          id?: string
+          pepper_id: string
+          salt: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          code_hash?: string
+          created_at?: string
+          hash_version?: string
+          id?: string
+          pepper_id?: string
+          salt?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -3410,6 +3569,100 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      on_call_schedule: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          hospital_id: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          profile_id: string
+          specialty: string
+          starts_at: string
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          hospital_id: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          profile_id: string
+          specialty?: string
+          starts_at: string
+          tier: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          hospital_id?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          profile_id?: string
+          specialty?: string
+          starts_at?: string
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "on_call_schedule_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "on_call_schedule_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "on_call_schedule_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_claim_attempts: {
+        Row: {
+          attempted_at: string
+          client_key: string
+          hospital_id: string | null
+          id: number
+          record_key: string
+          succeeded: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          client_key: string
+          hospital_id?: string | null
+          id?: never
+          record_key: string
+          succeeded: boolean
+        }
+        Update: {
+          attempted_at?: string
+          client_key?: string
+          hospital_id?: string | null
+          id?: never
+          record_key?: string
+          succeeded?: boolean
+        }
+        Relationships: []
       }
       patient_consents: {
         Row: {
@@ -4388,6 +4641,30 @@ export type Database = {
           },
         ]
       }
+      profile_security_answers: {
+        Row: {
+          answer_hash: string
+          hash_scheme: string
+          migrated_at: string
+          question: string | null
+          user_id: string
+        }
+        Insert: {
+          answer_hash: string
+          hash_scheme?: string
+          migrated_at?: string
+          question?: string | null
+          user_id: string
+        }
+        Update: {
+          answer_hash?: string
+          hash_scheme?: string
+          migrated_at?: string
+          question?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -4404,8 +4681,6 @@ export type Database = {
           locked_until: string | null
           password_changed_at: string | null
           phone: string | null
-          security_answer: string | null
-          security_question: string | null
           two_factor_enabled: boolean | null
           two_factor_required: boolean
           updated_at: string
@@ -4426,8 +4701,6 @@ export type Database = {
           locked_until?: string | null
           password_changed_at?: string | null
           phone?: string | null
-          security_answer?: string | null
-          security_question?: string | null
           two_factor_enabled?: boolean | null
           two_factor_required?: boolean
           updated_at?: string
@@ -4448,8 +4721,6 @@ export type Database = {
           locked_until?: string | null
           password_changed_at?: string | null
           phone?: string | null
-          security_answer?: string | null
-          security_question?: string | null
           two_factor_enabled?: boolean | null
           two_factor_required?: boolean
           updated_at?: string
@@ -4464,6 +4735,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles_legacy_2fa_archive: {
+        Row: {
+          archived_at: string
+          backup_codes: string[] | null
+          two_factor_secret: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string
+          backup_codes?: string[] | null
+          two_factor_secret?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_at?: string
+          backup_codes?: string[] | null
+          two_factor_secret?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       purchase_order_items: {
         Row: {
@@ -5722,7 +6014,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_staff_invitation: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_token: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       assign_patient_role: { Args: { p_user_id: string }; Returns: undefined }
+      consume_mfa_backup_code: {
+        Args: { p_code_hashes: string[]; p_user_id: string }
+        Returns: Json
+      }
+      create_hospital_with_admin: {
+        Args: {
+          p_address: string
+          p_city: string
+          p_email: string
+          p_license_number: string
+          p_name: string
+          p_phone: string
+          p_state: string
+          p_user_id: string
+          p_zip: string
+        }
+        Returns: string
+      }
+      current_profile_id: { Args: never; Returns: string }
       expire_break_glass_overrides: { Args: never; Returns: undefined }
       generate_claim_number: {
         Args: { p_hospital_id: string }
@@ -5750,6 +6071,10 @@ export type Database = {
         Returns: number
       }
       get_user_hospital_id: { Args: { _user_id: string }; Returns: string }
+      has_any_role: {
+        Args: { _hospital_id?: string; _roles: string[] }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5758,7 +6083,30 @@ export type Database = {
         Returns: boolean
       }
       increment_failed_login: { Args: { _user_id: string }; Returns: undefined }
+      invoice_hospital_id: { Args: { _invoice_id: string }; Returns: string }
+      invoice_patient_id: { Args: { _invoice_id: string }; Returns: string }
+      invoke_critical_lab_escalation_worker: { Args: never; Returns: number }
       is_account_locked: { Args: { _user_id: string }; Returns: boolean }
+      is_active_principal: { Args: never; Returns: boolean }
+      is_active_staff_of: {
+        Args: { _hospital_id: string; _roles?: string[] }
+        Returns: boolean
+      }
+      is_patient_self: { Args: { _patient_id: string }; Returns: boolean }
+      lab_rls_can_access: {
+        Args: { _hospital_id: string; _roles: string[] }
+        Returns: boolean
+      }
+      lab_rls_is_active_admin: { Args: never; Returns: boolean }
+      lab_rls_profile_active: { Args: { _user_id: string }; Returns: boolean }
+      lab_rls_result_access: {
+        Args: { _hospital_id: string; _lab_order_id: string; _roles: string[] }
+        Returns: boolean
+      }
+      lab_rls_staff_hospital_ids: {
+        Args: { _roles: string[] }
+        Returns: string[]
+      }
       log_security_event: {
         Args: {
           p_details?: Json
@@ -5769,9 +6117,64 @@ export type Database = {
         }
         Returns: undefined
       }
+      mfa_satisfied: { Args: never; Returns: boolean }
+      my_mfa_backup_codes_remaining: { Args: never; Returns: number }
+      my_patient_hospital_ids: { Args: never; Returns: string[] }
+      my_patient_ids: { Args: never; Returns: string[] }
+      my_staff_hospital_ids: { Args: { _roles?: string[] }; Returns: string[] }
+      patient_claim_candidates: {
+        Args: {
+          p_date_of_birth: string
+          p_email: string
+          p_hospital_code: string
+          p_last_name: string
+          p_mrn: string
+        }
+        Returns: {
+          hospital_id: string
+          patient_id: string
+        }[]
+      }
+      patient_dob_as_date:
+        | { Args: { p_text: string }; Returns: string }
+        | { Args: { p_value: string }; Returns: string }
+      patient_hospital_id: { Args: { _patient_id: string }; Returns: string }
+      prescription_hospital_id: {
+        Args: { _prescription_id: string }
+        Returns: string
+      }
+      prescription_patient_id: {
+        Args: { _prescription_id: string }
+        Returns: string
+      }
+      profile_is_active: { Args: { _user_id: string }; Returns: boolean }
+      purchase_order_hospital_id: {
+        Args: { _purchase_order_id: string }
+        Returns: string
+      }
       recompute_two_factor_required: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      register_patient: {
+        Args: {
+          p_date_of_birth: string
+          p_email: string
+          p_hospital_code: string
+          p_last_name: string
+          p_mrn: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      replace_mfa_backup_codes: {
+        Args: {
+          p_code_hashes: string[]
+          p_pepper_id: string
+          p_salt: string
+          p_user_id: string
+        }
+        Returns: number
       }
       reset_failed_login: { Args: { _user_id: string }; Returns: undefined }
       role_requires_2fa: { Args: { p_role: string }; Returns: boolean }
@@ -5828,6 +6231,25 @@ export type Database = {
       user_belongs_to_hospital: {
         Args: { _hospital_id: string; _user_id: string }
         Returns: boolean
+      }
+      user_is_member_of: {
+        Args: { _hospital_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_is_staff_of: {
+        Args: { _hospital_id: string; _user_id: string }
+        Returns: boolean
+      }
+      verify_patient_claim: {
+        Args: {
+          p_client_key: string
+          p_date_of_birth: string
+          p_email: string
+          p_hospital_code: string
+          p_last_name: string
+          p_mrn: string
+        }
+        Returns: Json
       }
     }
     Enums: {
