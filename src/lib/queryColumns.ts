@@ -5,7 +5,7 @@
 export const PATIENT_COLUMNS = {
   list: 'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, blood_type, is_active, created_at',
   detail:
-    'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, address, city, state, zip, blood_type, allergies, chronic_conditions, emergency_contact_name, emergency_contact_phone, insurance_provider, insurance_policy_number, is_active, created_at',
+    'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, address, city, state, zip, blood_type, allergies, chronic_conditions, current_medications, emergency_contact_name, emergency_contact_phone, insurance_provider, insurance_policy_number, is_active, created_at',
   search: 'id, mrn, first_name, last_name, email, phone, date_of_birth',
   minimal: 'id, first_name, last_name, mrn',
 };
@@ -22,10 +22,11 @@ export const APPOINTMENT_COLUMNS = {
 
 export const CONSULTATION_COLUMNS = {
   list: 'id, status, current_step, created_at, patient_id, doctor_id, appointment_id, started_at',
+  // CLIN-05 / CLIN-06: encryption_metadata lets PHI fields decrypt; diagnoses carries the structured ICD-10 codes.
   detail:
-    'id, hospital_id, appointment_id, patient_id, doctor_id, nurse_id, status, current_step, vitals, chief_complaint, history_of_present_illness, hpi_data, hpi_notes, physical_examination, symptoms, provisional_diagnosis, final_diagnosis, treatment_plan, prescriptions, lab_orders, referrals, clinical_notes, follow_up_date, follow_up_notes, handoff_notes, pharmacy_notified, lab_notified, billing_notified, started_at, completed_at, auto_save_data, last_auto_save, created_at, updated_at',
+    'id, hospital_id, appointment_id, patient_id, doctor_id, nurse_id, status, current_step, vitals, chief_complaint, history_of_present_illness, hpi_data, hpi_notes, physical_examination, symptoms, diagnoses, provisional_diagnosis, final_diagnosis, treatment_plan, prescriptions, lab_orders, referrals, clinical_notes, follow_up_date, follow_up_notes, handoff_notes, pharmacy_notified, lab_notified, billing_notified, started_at, completed_at, auto_save_data, last_auto_save, encryption_metadata, created_at, updated_at',
   detailWithoutHpi:
-    'id, hospital_id, appointment_id, patient_id, doctor_id, nurse_id, status, current_step, vitals, chief_complaint, history_of_present_illness, physical_examination, symptoms, provisional_diagnosis, final_diagnosis, treatment_plan, prescriptions, lab_orders, referrals, clinical_notes, follow_up_date, follow_up_notes, handoff_notes, pharmacy_notified, lab_notified, billing_notified, started_at, completed_at, auto_save_data, last_auto_save, created_at, updated_at',
+    'id, hospital_id, appointment_id, patient_id, doctor_id, nurse_id, status, current_step, vitals, chief_complaint, history_of_present_illness, physical_examination, symptoms, diagnoses, provisional_diagnosis, final_diagnosis, treatment_plan, prescriptions, lab_orders, referrals, clinical_notes, follow_up_date, follow_up_notes, handoff_notes, pharmacy_notified, lab_notified, billing_notified, started_at, completed_at, auto_save_data, last_auto_save, encryption_metadata, created_at, updated_at',
   summary: 'id, chief_complaint, status, created_at, patient_id, doctor_id',
 };
 
@@ -84,35 +85,3 @@ export const STAFF_COLUMNS = {
     'id, first_name, last_name, email, phone, role, department, license_number, specializations, hire_date, is_active, created_at',
   directory: 'id, first_name, last_name, email, phone, role, department',
 };
-
-// Utility function to build select queries with hospital scoping
-export function buildHospitalScopedSelect(
-  table: string,
-  columns: string,
-  hospitalId: string
-): string {
-  return `${columns}, hospital_id`;
-}
-
-// Utility function to get columns for a specific view
-export function getColumnsForView(
-  table: string,
-  view: 'list' | 'detail' | 'search' | 'minimal' = 'list'
-): string {
-  const columnSets = {
-    patients: PATIENT_COLUMNS,
-    appointments: APPOINTMENT_COLUMNS,
-    consultations: CONSULTATION_COLUMNS,
-    lab_orders: LAB_ORDER_COLUMNS,
-    medications: MEDICATION_COLUMNS,
-    prescriptions: PRESCRIPTION_COLUMNS,
-    activity_logs: ACTIVITY_LOG_COLUMNS,
-    workflow_tasks: WORKFLOW_TASK_COLUMNS,
-    billing_records: BILLING_COLUMNS,
-    inventory: INVENTORY_COLUMNS,
-    profiles: STAFF_COLUMNS,
-  };
-
-  const tableColumns = columnSets[table as keyof typeof columnSets];
-  return tableColumns?.[view] || '*';
-}

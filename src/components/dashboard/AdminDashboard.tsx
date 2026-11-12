@@ -8,7 +8,6 @@ import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { ResourceManagement } from '@/components/admin/ResourceManagement';
 import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 import { StaffOnboardingWizard } from '@/components/admin/StaffOnboardingWizard';
-import { TestDataSeederCard } from '@/components/admin/TestDataSeederCard';
 import { RealTimeDashboard } from '@/components/admin/RealTimeDashboard';
 import { WorkflowOrchestrationPanel } from '@/components/admin/WorkflowOrchestrationPanel';
 import { WorkflowMetricsDashboard } from '@/components/workflow/WorkflowMetricsDashboard';
@@ -21,7 +20,6 @@ import {
   Settings,
   Building2,
   Bed,
-  Database,
   Activity,
   Zap,
 } from 'lucide-react';
@@ -108,10 +106,6 @@ export function AdminDashboardComponent() {
             <Building2 className="h-4 w-4" />
             Departments
           </TabsTrigger>
-          <TabsTrigger value="testing" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Test Data
-          </TabsTrigger>
           <TabsTrigger value="performance" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Staff Performance
@@ -142,11 +136,6 @@ export function AdminDashboardComponent() {
         </TabsContent>
         <TabsContent value="departments" className="mt-6">
           <DepartmentManagement />
-        </TabsContent>
-        <TabsContent value="testing" className="mt-6">
-          <div className="max-w-2xl">
-            <TestDataSeederCard />
-          </div>
         </TabsContent>
         <TabsContent value="performance" className="mt-6">
           <StaffPerformanceMetrics role="admin" />

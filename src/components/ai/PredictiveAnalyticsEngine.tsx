@@ -19,7 +19,7 @@ import {
   Calculator,
   Clock
 } from 'lucide-react';
-import { useAI } from '@/hooks/useAI';
+import { useAI, AIUnavailableError } from '@/hooks/useAI';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReadmissionRisk {
@@ -177,7 +177,7 @@ export default function PredictiveAnalyticsEngine() {
       console.error('Readmission risk prediction error:', error);
       toast({
         title: "Prediction Failed",
-        description: "Failed to calculate readmission risk. Please try again.",
+        description: error instanceof AIUnavailableError ? error.message : "Failed to calculate readmission risk. Please try again.",
         variant: "destructive"
       });
     }

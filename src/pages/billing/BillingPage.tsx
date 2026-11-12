@@ -51,9 +51,9 @@ import { EnhancedPaymentModal } from '@/components/billing/EnhancedPaymentModal'
 import { ItemizedReceiptModal } from '@/components/billing/ItemizedReceiptModal';
 import { CreatePaymentPlanModal } from '@/components/billing/CreatePaymentPlanModal';
 import { RecordInstallmentModal } from '@/components/billing/RecordInstallmentModal';
-import { InvoiceAdjustmentModal } from '@/components/billing/InvoiceAdjustmentModal';
 import { evaluatePaymentPlanDelinquency } from '@/lib/clinical/billingCycleRules';
 import { formatCurrency } from '@/lib/currency';
+import { DataError, displayStat } from '@/components/common/DataStatus';
 import { usePermissions } from '@/lib/hooks';
 
 const STATUS_CONFIG: Record<
@@ -102,27 +102,31 @@ export default function BillingPage() {
     invoice: null,
     latestPayments: undefined,
   });
-  const [adjustmentModal, setAdjustmentModal] = useState<{
-    open: boolean;
-    invoice: Invoice | null;
-  }>({
-    open: false,
-    invoice: null,
-  });
   const [installmentModal, setInstallmentModal] = useState<{ open: boolean; plan: any | null }>({
     open: false,
     plan: null,
   });
 
-  const { data: invoices, isLoading } = useInvoices();
-  const { data: stats } = useInvoiceStats();
+  const {
+    data: invoices,
+    isLoading,
+    isError: invoicesError,
+    refetch: refetchInvoices,
+  } = useInvoices();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+  } = useInvoiceStats();
   const {
     claims,
     isLoading: claimsLoading,
+    claimsError,
+    refetchClaims,
     submitClaim,
     refreshClaimStatus,
   } = useInsuranceClaims();
-  const { paymentPlans, isLoading: plansLoading } = usePaymentPlans();
+  const { paymentPlans, isLoading: plansLoading, plansError, refetchPlans } = usePaymentPlans();
 
   const filteredInvoices = invoices?.filter((inv) => {
     const matchesSearch =
@@ -182,7 +186,7 @@ export default function BillingPage() {
               <AlertCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.pending || 0}</div>
+              <div className="text-2xl font-bold">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pending })}</div>
               <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
@@ -198,7 +202,7 @@ export default function BillingPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.partial || 0}</div>
+              <div className="text-2xl font-bold">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.partial })}</div>
               <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
@@ -214,7 +218,7 @@ export default function BillingPage() {
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.paid || 0}</div>
+              <div className="text-2xl font-bold">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.paid })}</div>
               <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
@@ -295,7 +299,13 @@ export default function BillingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
+                    {invoicesError ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-4">
+                          <DataError resource="invoices" onRetry={() => refetchInvoices()} />
+                        </TableCell>
+                      </TableRow>
+                    ) : isLoading ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
                           <div className="flex justify-center">
@@ -375,15 +385,20 @@ export default function BillingPage() {
                                     </Button>
                                   )}
 
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                  onClick={() => setAdjustmentModal({ open: true, invoice })}
-                                  title="Apply Waiver, Concession, or Refund"
-                                >
-                                  <SlidersHorizontal className="h-3 w-3" />
-                                </Button>
+                                {/* FUNC-33: adjustments/refunds were authorised by a hardcoded
+                                    client-side PIN and written straight to invoices. Disabled
+                                    until the server-side adjust_invoice RPC lands (S1-01). */}
+                                <span title="Waivers, concessions and refunds are temporarily disabled pending server-side approval. Contact an administrator.">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs text-muted-foreground"
+                                    disabled
+                                    aria-label="Adjustments temporarily disabled"
+                                  >
+                                    <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+                                  </Button>
+                                </span>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -432,7 +447,13 @@ export default function BillingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {claimsLoading ? (
+                    {claimsError ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-4">
+                          <DataError resource="insurance claims" onRetry={() => refetchClaims()} />
+                        </TableCell>
+                      </TableRow>
+                    ) : claimsLoading ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
                           <div className="flex justify-center">
@@ -571,7 +592,13 @@ export default function BillingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {plansLoading ? (
+                    {plansError ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="py-4">
+                          <DataError resource="payment plans" onRetry={() => refetchPlans()} />
+                        </TableCell>
+                      </TableRow>
+                    ) : plansLoading ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center py-8">
                           <div className="flex justify-center">
@@ -694,12 +721,6 @@ export default function BillingPage() {
         onOpenChange={(open) => setReceiptModal({ open, invoice: receiptModal.invoice })}
         invoice={receiptModal.invoice}
         latestPayments={receiptModal.latestPayments}
-      />
-
-      <InvoiceAdjustmentModal
-        open={adjustmentModal.open}
-        onOpenChange={(open) => setAdjustmentModal({ open, invoice: adjustmentModal.invoice })}
-        invoice={adjustmentModal.invoice}
       />
 
       <RecordInstallmentModal

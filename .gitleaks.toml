@@ -1,0 +1,103 @@
+# gitleaks configuration (S0-11: SECF-19, SECF-20, SECF-21, OPS-16).
+# Used by .github/workflows/secret-scan.yml. Runbook:
+# docs/operations/SECRET_ROTATION_AND_HISTORY_PURGE.md
+#
+# Policy
+# - The built-in gitleaks rules stay on (useDefault). The custom rules below add
+#   the credential shapes this repo has leaked before.
+# - The allowlist covers placeholders and fixtures that are safe by
+#   construction. Each entry says why it is safe. Do not allowlist a real value:
+#   rotate it and remove it instead.
+# - The Supabase publishable (anon) key is NOT allowlisted. The client reads it
+#   from VITE_SUPABASE_PUBLISHABLE_KEY at build time (src/integrations/supabase/client.ts),
+#   so no copy is committed in the tree. The copy in history (.env, commits
+#   df8831e..791c933) is rotated and purged per the runbook. It is public by design,
+#   but it belongs to the production project, so a new commit of it should still
+#   be reviewed. If a future change deliberately commits a publishable key,
+#   allowlist that exact value here with a justification.
+
+title = "CareSync HIMS secret scanning"
+
+[extend]
+useDefault = true
+
+# Supabase "new style" secret key. Its publishable counterpart (sb_publishable_) is public by design.
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret API key (sb_secret_...)"
+regex = '''\bsb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+# Literal provider API keys: OpenAI-style sk-, sk-proj-, and Anthropic-style sk-ant-.
+# Same shape as PROVIDER_KEY_PATTERN in scripts/security/check-client-secrets.mjs, which
+# checks source and built bundles. No allowlist entry covers this shape.
+[[rules]]
+id = "provider-api-key-literal"
+description = "Literal provider API key (sk-, sk-proj-, sk-ant-)"
+regex = '''\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-"]
+
+# Legacy Supabase JWT keys whose payload carries role=service_role. The three
+# alternatives are the base64url encodings of "service_role" at each byte offset.
+[[rules]]
+id = "supabase-service-role-jwt"
+description = "Supabase service_role JWT"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*(?:c2VydmljZV9yb2xl|NlcnZpY2Vfcm9sZ|zZXJ2aWNlX3JvbG)[A-Za-z0-9_-]*\.[A-Za-z0-9_-]{10,}'''
+keywords = ["eyj"]
+
+# Literal secrets assigned in compose, env and shell files. SECF-19 and OPS-06 found
+# these in docker-compose*.yml, .env and the scripts/test-*.sh|ps1 helpers.
+# Values that start with $, {, ?, : or - (env substitution) or < (placeholder) do not match.
+[[rules]]
+id = "literal-secret-assignment"
+description = "Literal secret assigned in a compose/env/shell file"
+regex = '''(?i)\b[A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|TOKEN|API_KEY|ENCRYPTION_KEY|SERVICE_ROLE_KEY)\s*[=:]\s*["']?([^\s"'$<{?:-][^\s"'}]{7,})'''
+secretGroup = 1
+path = '''(?i)(?:docker-compose[^/]*\.ya?ml|(?:^|/)\.env(?:\.[a-z0-9_-]+)*|\.sh|\.ps1)$'''
+keywords = ["password", "passwd", "secret", "token", "api_key", "encryption_key", "service_role_key"]
+
+# Postgres connection strings with an inline password in compose/env files (OPS-06).
+[[rules]]
+id = "postgres-url-literal-password"
+description = "Postgres connection string with a literal password in a compose/env file"
+regex = '''postgres(?:ql)?://[^:\s/@]+:([^@\s$<{\[][^@\s]{5,})@'''
+secretGroup = 1
+path = '''(?i)(?:docker-compose[^/]*\.ya?ml|(?:^|/)\.env(?:\.[a-z0-9_-]+)*)$'''
+keywords = ["postgres"]
+
+# Kong declarative config: consumer key-auth credentials and plugin keys (loggly) must be
+# ${VAR} placeholders that a deploy-time render step (former Kong stack, removed from the tree) fills in.
+[[rules]]
+id = "kong-declarative-literal-key"
+description = "Literal key in a Kong declarative config"
+regex = '''(?m)^\s*key:\s*["']?([^"'\s$][^"'\s]{7,})'''
+secretGroup = 1
+path = '''(?i)(?:^|/)kong[^/]*\.ya?ml$'''
+keywords = ["key:"]
+
+[allowlist]
+description = "Placeholders and fixtures that are safe by construction"
+# Matched against the extracted secret (the default regexTarget).
+regexes = [
+  # Env substitution: ${VAR}, ${VAR:?message}, ${VAR:-default}. These values are resolved at deploy time.
+  '''^\$\{[A-Za-z0-9_]+(?::[?-][^}]*)?\}$''',
+  # DEV-only mock-auth password in .env.test. It is honoured only by a DEV build with
+  # VITE_E2E_MOCK_AUTH=true (src/contexts/AuthContext.tsx), and scripts/create-test-users.js
+  # refuses it for real accounts.
+  '''^MockAuthOnly-NotARealAccount-0$''',
+  # Canary values that ci-pipeline.yml feeds into a build to prove that no VITE_* secret reaches dist/.
+  '''^AUDITCANARY_[A-Z_]+$''',
+  # Documentation placeholders.
+  '''(?i)^<[^>]*>$''',
+  '''(?i)^your[-_][a-z0-9_-]*$''',
+  '''(?i)^(?:change-?me|placeholder|example|redacted)[a-z0-9_-]*$''',
+  # Well-known defaults for disposable local or CI containers, such as postgres:postgres in service containers.
+  '''^(?:postgres|password|test|admin)$''',
+]
+paths = [
+  '''(?:^|/)package-lock\.json$''',
+  '''(?:^|/)node_modules/''',
+  # Fixture JWTs (header + fake payload) used to test token parsing. They are not signed by any project.
+  '''^tests/critical-lab/criticalLabEscalationLogic\.test\.ts$''',
+  '''^tests/security/owasp-top-10\.test\.ts$''',
+]

@@ -4,20 +4,25 @@ import { ShieldAlert } from 'lucide-react';
 import { TwoFactorSetup } from '@/components/auth/TwoFactorSetup';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMfaAssurance } from '@/lib/hooks/auth/useMfaAssurance';
 
 /**
- * Mandatory 2FA enrollment gate for privileged clinical roles (admin/doctor).
- * Reached via ProtectedRoute when `pendingTwoFactor` is true; the user cannot
- * access PHI until two-factor authentication is enabled.
+ * Mandatory 2FA enrolment for privileged clinical roles (admin/doctor).
+ * The route guard sends a user here when their role requires a second factor
+ * and they have no verified Supabase MFA TOTP factor. This includes users who
+ * had enabled the retired custom 2FA: that enrolment is not carried over.
+ * Completing `mfa.verify` upgrades the session to aal2, after which the guard
+ * lets them through.
  */
 export default function MandatoryTwoFactorSetupPage() {
-  const { reloadProfile, logout, primaryRole } = useAuth();
+  const { logout, primaryRole } = useAuth();
+  const { refresh } = useMfaAssurance();
   const navigate = useNavigate();
   const [finishing, setFinishing] = useState(false);
 
-  const handleEnabled = async () => {
+  const handleEnabled = () => {
     setFinishing(true);
-    await reloadProfile();
+    refresh();
     navigate('/dashboard', { replace: true });
   };
 
@@ -31,8 +36,12 @@ export default function MandatoryTwoFactorSetupPage() {
           <h1 className="text-2xl font-semibold">Two-factor authentication required</h1>
           <p className="text-muted-foreground mt-2 max-w-md">
             Your role{primaryRole ? ` (${primaryRole})` : ''} has access to protected health
-            information. To meet our security policy, you must enable two-factor
-            authentication before continuing.
+            information. To meet our security policy, you must set up an authenticator app
+            before continuing.
+          </p>
+          <p className="text-muted-foreground mt-2 max-w-md text-sm">
+            If you set up two-factor authentication before, our sign-in system has changed and
+            you need to add your authenticator again. You can remove the old entry from your app.
           </p>
         </div>
 

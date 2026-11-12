@@ -37,18 +37,19 @@ CareSync HIMS follows the standard testing pyramid:
 ```
 
 ### Test Distribution
+
 - **Unit Tests**: 70% (~500 tests)
 - **Integration Tests**: 20% (~200 tests)
 - **E2E Tests**: 10% (~50 tests, covering critical workflows)
 
 ### Test Coverage Goals
 
-| Category | Minimum Coverage | Target Coverage |
-|----------|---|---|
-| Backend / API | 75% | 85%+ |
-| Frontend components | 60% | 75%+ |
-| Hooks & utilities | 80% | 90%+ |
-| Critical paths (Rx, Lab, Billing) | 90% | 95%+ |
+| Category                          | Minimum Coverage | Target Coverage |
+| --------------------------------- | ---------------- | --------------- |
+| Backend / API                     | 75%              | 85%+            |
+| Frontend components               | 60%              | 75%+            |
+| Hooks & utilities                 | 80%              | 90%+            |
+| Critical paths (Rx, Lab, Billing) | 90%              | 95%+            |
 
 ---
 
@@ -73,7 +74,6 @@ import { vi } from 'vitest';
 vi.mock('@/services/supabase');
 
 describe('usePatients', () => {
-  
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -82,25 +82,25 @@ describe('usePatients', () => {
     // Arrange
     const mockPatients = [
       { id: '1', first_name: 'John', last_name: 'Smith' },
-      { id: '2', first_name: 'Jane', last_name: 'Doe' }
+      { id: '2', first_name: 'Jane', last_name: 'Doe' },
     ];
-    
+
     vi.spyOn(supabaseModule, 'supabase', 'get').mockReturnValue({
       from: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             order: vi.fn().mockReturnValue({
               data: mockPatients,
-              error: null
-            })
-          })
-        })
-      })
+              error: null,
+            }),
+          }),
+        }),
+      }),
     } as any);
 
     // Act
     const { result } = renderHook(() => usePatients(), {
-      wrapper: AuthProvider
+      wrapper: AuthProvider,
     });
 
     // Assert
@@ -112,22 +112,22 @@ describe('usePatients', () => {
 
   test('handles error gracefully', async () => {
     const mockError = new Error('Network error');
-    
+
     vi.spyOn(supabaseModule, 'supabase', 'get').mockReturnValue({
       from: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             order: vi.fn().mockReturnValue({
               data: null,
-              error: mockError
-            })
-          })
-        })
-      })
+              error: mockError,
+            }),
+          }),
+        }),
+      }),
     } as any);
 
     const { result } = renderHook(() => usePatients(), {
-      wrapper: AuthProvider
+      wrapper: AuthProvider,
     });
 
     await waitFor(() => {
@@ -135,19 +135,18 @@ describe('usePatients', () => {
       expect(result.current.isLoading).toBe(false);
     });
   });
-
 });
 ```
 
 ### What to Unit Test
 
-| Item | Example |
-|------|---------|
-| **Hooks** | `usePatients()`, `usePrescriptions()`, `usePermissions()` |
-| **Utilities** | `sanitizeInput()`, `formatDate()`, `calculateAge()` |
-| **Business Logic** | Drug interaction checking, dosage validation |
-| **Components (isolated)** | Button, Input, Modal (without real data) |
-| **Permission checking** | `hasPermission('patients:read')` returns true/false |
+| Item                      | Example                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| **Hooks**                 | `usePatients()`, `usePrescriptions()`, `usePermissions()` |
+| **Utilities**             | `sanitizeInput()`, `formatDate()`, `calculateAge()`       |
+| **Business Logic**        | Drug interaction checking, dosage validation              |
+| **Components (isolated)** | Button, Input, Modal (without real data)                  |
+| **Permission checking**   | `hasPermission('patients:read')` returns true/false       |
 
 ### Unit Test Checklist
 
@@ -177,28 +176,26 @@ import { supabase } from '@/services/supabase';
 import { vi } from 'vitest';
 
 describe('Prescription Approval Workflow', () => {
-
   test('prescription can be created and approved by pharmacist', async () => {
     // Arrange - Set up test data in real test database
     const testPatient = await setupTestPatient({
-      hospital_id: TEST_HOSPITAL_ID
+      hospital_id: TEST_HOSPITAL_ID,
     });
-    
+
     const testDoctor = await setupTestUser({
       role: 'doctor',
-      hospital_id: TEST_HOSPITAL_ID
+      hospital_id: TEST_HOSPITAL_ID,
     });
-    
+
     const testPharmacist = await setupTestUser({
       role: 'pharmacist',
-      hospital_id: TEST_HOSPITAL_ID
+      hospital_id: TEST_HOSPITAL_ID,
     });
 
     // Act 1 - Doctor creates prescription
-    const { result: doctorResult } = renderHook(
-      () => usePrescriptions(),
-      { wrapper: AuthProviderWithUser(testDoctor) }
-    );
+    const { result: doctorResult } = renderHook(() => usePrescriptions(), {
+      wrapper: AuthProviderWithUser(testDoctor),
+    });
 
     await waitFor(() => {
       doctorResult.current.createPrescription({
@@ -206,7 +203,7 @@ describe('Prescription Approval Workflow', () => {
         drug_name: 'Amoxicillin',
         dose: 500,
         unit: 'mg',
-        frequency: 'twice daily'
+        frequency: 'twice daily',
       });
     });
 
@@ -216,14 +213,13 @@ describe('Prescription Approval Workflow', () => {
       .select('*')
       .eq('patient_id', testPatient.id)
       .single();
-    
+
     expect(createdPrescription.data.status).toBe('pending_approval');
 
     // Act 2 - Pharmacist approves
-    const { result: pharmacistResult } = renderHook(
-      () => useApprovalWorkflow(),
-      { wrapper: AuthProviderWithUser(testPharmacist) }
-    );
+    const { result: pharmacistResult } = renderHook(() => useApprovalWorkflow(), {
+      wrapper: AuthProviderWithUser(testPharmacist),
+    });
 
     await waitFor(() => {
       pharmacistResult.current.approvePrescription(createdPrescription.data.id);
@@ -235,21 +231,20 @@ describe('Prescription Approval Workflow', () => {
       .select('*')
       .eq('id', createdPrescription.data.id)
       .single();
-    
+
     expect(approvedPrescription.data.status).toBe('approved');
   });
-
 });
 ```
 
 ### What to Integration Test
 
-| Workflow | Coverage |
-|----------|----------|
-| **Appointment → Consultation** | Patient books → Check-in → Doctor consultation → Notes saved |
-| **Prescription Creation → Approval** | Doctor creates → Validation → Pharmacist approval → Dispensing |
+| Workflow                              | Coverage                                                                          |
+| ------------------------------------- | --------------------------------------------------------------------------------- |
+| **Appointment → Consultation**        | Patient books → Check-in → Doctor consultation → Notes saved                      |
+| **Prescription Creation → Approval**  | Doctor creates → Validation → Pharmacist approval → Dispensing                    |
 | **Lab Order → Result → Notification** | Order created → Specimen collected → Result entered → Approved → Patient notified |
-| **Multi-role Workflows** | Receptionist check-in → Nurse vitals → Doctor consultation |
+| **Multi-role Workflows**              | Receptionist check-in → Nurse vitals → Doctor consultation                        |
 
 ### Integration Test Checklist
 
@@ -280,7 +275,6 @@ import { loginAs } from '@/test/utils/auth';
 import { createTestPatient } from '@/test/utils/fixtures';
 
 test.describe('Doctor - Create & Sign Consultation', () => {
-
   test('should create consultation and sign', async ({ page, context }) => {
     // Setup
     const doctor = await loginAs('doctor', context);
@@ -290,45 +284,45 @@ test.describe('Doctor - Create & Sign Consultation', () => {
     await page.goto('/dashboard');
     await page.fill('[placeholder="Search patient"]', patient.first_name);
     await page.click(`text=${patient.first_name} ${patient.last_name}`);
-    
+
     // Verify patient details loaded
     await expect(page.locator(`text=${patient.first_name}`)).toBeVisible();
 
     // Start consultation
     await page.click('button:has-text("Start Consultation")');
-    
+
     // Verify consultation form loads
     await expect(page.locator('[name="chief_complaint"]')).toBeVisible();
 
     // Fill chief complaint
     await page.fill('[name="chief_complaint"]', 'Persistent cough for 3 days');
-    
+
     // Fill assessment
     await page.fill('[name="assessment"]', 'Acute bronchitis');
-    
+
     // Add medication
     await page.click('button:has-text("Add Medication")');
     await page.fill('[name="drug_name"]', 'Amoxicillin');
     await page.fill('[name="dose"]', '500');
     await page.selectOption('[name="unit"]', 'mg');
-    
+
     // System checks interactions automatically
     await expect(page.locator('text=No interactions')).toBeVisible({ timeout: 5000 });
-    
+
     // Set follow-up
     await page.selectOption('[name="followup_days"]', '3');
-    
+
     // Sign consultation
     await page.click('button:has-text("Sign Consultation")');
-    
+
     // E-signature modal appears
     await expect(page.locator('text=Enter PIN to sign')).toBeVisible();
-    await page.fill('[name="signature_pin"]', '1234');  // Test PIN
+    await page.fill('[name="signature_pin"]', '1234'); // Test PIN
     await page.click('button:has-text("Sign")');
-    
+
     // Verify success
     await expect(page.locator('text=Consultation signed successfully')).toBeVisible();
-    
+
     // Verify prescription sent to pharmacy
     const notificationText = await page.locator('[role="status"]').textContent();
     expect(notificationText).toContain('Prescription sent to pharmacy');
@@ -337,24 +331,23 @@ test.describe('Doctor - Create & Sign Consultation', () => {
   test('should handle drug interaction warning', async ({ page, context }) => {
     const doctor = await loginAs('doctor', context);
     const patient = await createTestPatientWithMedications([
-      'Warfarin 5mg'  // Blood thinner
+      'Warfarin 5mg', // Blood thinner
     ]);
 
     await page.goto('/dashboard');
     // ... navigate to patient, start consultation ...
-    
+
     // Add conflicting medication
     await page.fill('[name="drug_name"]', 'Aspirin');
     await page.fill('[name="dose"]', '500');
-    
+
     // System detects interaction
     await expect(page.locator('text=Interaction Warning')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=Bleeds with Warfarin')).toBeVisible();
-    
+
     // Doctor can acknowledge or cancel
     await page.click('button:has-text("Continue with caution")');
   });
-
 });
 ```
 
@@ -362,15 +355,15 @@ test.describe('Doctor - Create & Sign Consultation', () => {
 
 **Critical user workflows** (not everything):
 
-| Workflow | Priority | Approx. Time |
-|----------|----------|---|
-| Doctor appointments end-to-end | P0 | 15 min |
-| Prescription approval workflow | P0 | 10 min |
-| Lab order & result workflow | P0 | 20 min |
-| Patient appointment booking | P1 | 12 min |
-| Multi-role collaboration | P1 | 20 min |
-| Permission-based access control | P1 | 10 min |
-| Error handling & recovery | P2 | 8 min |
+| Workflow                        | Priority | Approx. Time |
+| ------------------------------- | -------- | ------------ |
+| Doctor appointments end-to-end  | P0       | 15 min       |
+| Prescription approval workflow  | P0       | 10 min       |
+| Lab order & result workflow     | P0       | 20 min       |
+| Patient appointment booking     | P1       | 12 min       |
+| Multi-role collaboration        | P1       | 20 min       |
+| Permission-based access control | P1       | 10 min       |
+| Error handling & recovery       | P2       | 8 min        |
 
 ### E2E Test Organization
 
@@ -428,7 +421,7 @@ tests/e2e/
 export async function setupTestDatabase() {
   // Create isolated test schema
   await supabase.rpc('setup_test_schema', {
-    schema_name: `test_${testRunId}`
+    schema_name: `test_${testRunId}`,
   });
 
   // Reset sequences
@@ -438,7 +431,7 @@ export async function setupTestDatabase() {
 export async function teardownTestDatabase() {
   // Clean up test data
   await supabase.rpc('teardown_test_schema', {
-    schema_name: `test_${testRunId}`
+    schema_name: `test_${testRunId}`,
   });
 }
 ```
@@ -452,13 +445,13 @@ export async function createTestUser(role: UserRole) {
     email: `test-${role}-${Date.now()}@caresync-test.local`,
     password: 'Test1234!',
     role,
-    hospital_id: TEST_HOSPITAL_ID
+    hospital_id: TEST_HOSPITAL_ID,
   };
 
   // Create in auth system
   const { user, session } = await supabase.auth.signUpWithPassword({
     email: testUser.email,
-    password: testUser.password
+    password: testUser.password,
   });
 
   // Create user record
@@ -466,7 +459,7 @@ export async function createTestUser(role: UserRole) {
     id: user.id,
     email: user.email,
     role,
-    hospital_id: TEST_HOSPITAL_ID
+    hospital_id: TEST_HOSPITAL_ID,
   });
 
   return { user, session, ...testUser };
@@ -474,16 +467,18 @@ export async function createTestUser(role: UserRole) {
 
 export async function loginAs(role: UserRole, context: BrowserContext) {
   const testUser = await createTestUser(role);
-  
+
   // Set auth token in browser storage
-  await context.addCookies([{
-    name: 'auth_token',
-    value: testUser.session.access_token,
-    domain: 'localhost',
-    path: '/',
-    httpOnly: true,
-    sameSite: 'Strict'
-  }]);
+  await context.addCookies([
+    {
+      name: 'auth_token',
+      value: testUser.session.access_token,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Strict',
+    },
+  ]);
 
   return testUser;
 }
@@ -502,14 +497,10 @@ export async function createTestPatient(overrides?: Partial<Patient>) {
     phone: faker.phone.number('+1 ### ### ####'),
     gender: faker.helpers.arrayElement(['M', 'F', 'O']),
     hospital_id: TEST_HOSPITAL_ID,
-    ...overrides
+    ...overrides,
   };
 
-  const { data, error } = await supabase
-    .from('patients')
-    .insert(defaultPatient)
-    .select()
-    .single();
+  const { data, error } = await supabase.from('patients').insert(defaultPatient).select().single();
 
   if (error) throw error;
   return data;
@@ -530,7 +521,7 @@ export async function createTestPatientWithMedications(
       frequency: 'daily',
       status: 'active',
       start_date: new Date(),
-      hospital_id: TEST_HOSPITAL_ID
+      hospital_id: TEST_HOSPITAL_ID,
     });
   }
 
@@ -575,19 +566,19 @@ npm run test:security
 # Run accessibility tests
 npm run test:accessibility
 
-# Run performance tests
-npm run test:performance
+# Run the k6 load test (manual, needs k6 installed)
+npm run test:load
 ```
 
 ### Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `vitest.config.ts` | Unit test configuration |
+| File                           | Purpose                 |
+| ------------------------------ | ----------------------- |
+| `vitest.config.ts`             | Unit test configuration |
 | `vitest.integration.config.ts` | Integration test config |
-| `playwright.config.ts` | E2E test base config |
-| `playwright.roles.config.ts` | E2E config per role |
-| `jest.setup.ts` | Global test setup |
+| `playwright.config.ts`         | E2E test base config    |
+| `playwright.roles.config.ts`   | E2E config per role     |
+| `jest.setup.ts`                | Global test setup       |
 
 ---
 
@@ -619,18 +610,18 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       all: true,
-      lines: 75,      // Fail if < 75% line coverage
-      functions: 75,  // Fail if < 75% function coverage
-      branches: 70,   // Fail if < 70% branch coverage
+      lines: 75, // Fail if < 75% line coverage
+      functions: 75, // Fail if < 75% function coverage
+      branches: 70, // Fail if < 70% branch coverage
       statements: 75, // Fail if < 75% statement coverage
-      
+
       // Exceptions for UI components
       exclude: [
-        'src/components/ui/**',  // shadcn primitives
-        'src/pages/**'  // Page components have lower coverage
-      ]
-    }
-  }
+        'src/components/ui/**', // shadcn primitives
+        'src/pages/**', // Page components have lower coverage
+      ],
+    },
+  },
 });
 ```
 
@@ -659,11 +650,11 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-      
+
       - run: npm ci
       - run: npm run test:unit -- --coverage
       - run: npm run test:unit -- --coverage > coverage.txt
-      
+
       - name: Comment coverage on PR
         uses: actions/github-script@v7
         with:
@@ -706,18 +697,18 @@ jobs:
     strategy:
       matrix:
         role: [admin, doctor, nurse, patient, pharmacist, lab_tech]
-    
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: npm ci
       - run: npx playwright install --with-deps
-      
+
       - run: npm run test:e2e -- --project=${{ matrix.role }}
         env:
           PLAYWRIGHT_HEADED: false
           BASE_URL: https://staging.caresync.local
-      
+
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -786,10 +777,10 @@ test('prescription approval workflow', async () => {
   // ARRANGE: Set up test data and mocks
   const testPatient = await createTestPatient();
   const testPrescription = { patient_id: testPatient.id, ... };
-  
+
   // ACT: Perform the action being tested
   await approvePrescription(testPrescription.id);
-  
+
   // ASSERT: Verify the result
   expect(prescription.status).toBe('approved');
   expect(pharmacy.received_notification).toBe(true);
@@ -807,11 +798,11 @@ beforeEach(() => {
 });
 
 test('test 1', () => {
-  testPatient.name = 'Jane';  // Modifies shared state
+  testPatient.name = 'Jane'; // Modifies shared state
 });
 
 test('test 2', () => {
-  expect(testPatient.name).toBe('John');  // FAILS! Was modified by test1
+  expect(testPatient.name).toBe('John'); // FAILS! Was modified by test1
 });
 
 // ✅ RIGHT: Each test has its own data
@@ -873,8 +864,9 @@ test.skip('deprecated: old prescription format', async () => {
 ---
 
 **For more examples?** See test files in:
+
 - `tests/unit/` — Unit test examples
-- `tests/integration/` — Integration test examples  
+- `tests/integration/` — Integration test examples
 - `tests/e2e/` — E2E test examples
 
 **Questions?** Reference [DEVELOPMENT_STANDARDS.md](./DEVELOPMENT_STANDARDS.md#testing-standards) for coding patterns.

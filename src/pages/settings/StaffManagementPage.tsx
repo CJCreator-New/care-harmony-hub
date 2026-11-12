@@ -6,6 +6,7 @@ import { useStaffInvitations, StaffInvitation } from '@/hooks/useStaffInvitation
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -88,6 +89,7 @@ function StaffManagementPageContent() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [inviteToCancel, setInviteToCancel] = useState<{ id: string; email: string } | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'staff' | 'invitations'>('staff');
@@ -121,38 +123,32 @@ function StaffManagementPageContent() {
 
     setIsLoadingStaff(true);
     try {
-      // Fetch active staff profiles for the hospital.
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, user_id, first_name, last_name, email, phone, avatar_url, created_at')
+      // Staff are the accounts that hold at least one non-patient role in this
+      // hospital. This is derived from user_roles, not profiles.is_staff: the
+      // onboarding paths never set that flag, so the list was empty (FUNC-04).
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
         .eq('hospital_id', profile.hospital_id)
-        .eq('is_staff', true);
+        .neq('role', 'patient');
 
-      if (profilesError) throw profilesError;
-      if (!profiles || profiles.length === 0) {
+      if (rolesError) throw rolesError;
+
+      const roles = (rolesData || []) as Array<{ user_id: string; role: string }>;
+      const userIds = [...new Set(roles.map((r) => r.user_id).filter(Boolean))];
+      if (userIds.length === 0) {
         setStaffMembers([]);
         return;
       }
 
-      const userIds = profiles.map((p) => p.user_id).filter(Boolean);
-      let roles: Array<{ user_id: string; role: string }> = [];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, user_id, first_name, last_name, email, phone, avatar_url, created_at')
+        .eq('hospital_id', profile.hospital_id)
+        .in('user_id', userIds);
 
-      // Fetch roles only when we have valid user ids.
-      if (userIds.length > 0) {
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role')
-          .eq('hospital_id', profile.hospital_id)
-          .in('user_id', userIds);
-
-        // Roles are additive metadata; don't block staff list when this secondary
-        // query fails due to transient/RLS issues.
-        if (rolesError) {
-          console.warn('Unable to load staff roles:', rolesError);
-        } else {
-          roles = (rolesData || []) as Array<{ user_id: string; role: string }>;
-        }
-      }
+      if (profilesError) throw profilesError;
+      const profiles = profilesData || [];
 
       // Combine profiles with roles
       const staffWithRoles = profiles.map((p) => ({
@@ -187,21 +183,23 @@ function StaffManagementPageContent() {
     setInvitations(data);
   };
 
-  const handleCancelInvitation = async (id: string) => {
-    const result = await cancelInvitation(id);
+  // Throws on failure so the confirmation stays open and the reason is not lost.
+  const handleCancelInvitation = async (id: string, reason: string) => {
+    const result = await cancelInvitation(id, reason);
     if (result.error) {
       toast({
         title: 'Error',
         description: result.error,
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Invitation cancelled',
-        description: 'The invitation has been cancelled',
-      });
-      loadInvitations();
+      throw new Error(result.error);
     }
+    toast({
+      title: 'Invitation cancelled',
+      description: 'The invitation has been cancelled',
+    });
+    setInviteToCancel(null);
+    loadInvitations();
   };
 
   const handleResendInvitation = async (id: string) => {
@@ -215,7 +213,7 @@ function StaffManagementPageContent() {
     } else {
       toast({
         title: 'Invitation resent',
-        description: 'A new invitation has been sent',
+        description: 'A new join link was generated. The previous link no longer works.',
       });
       loadInvitations();
     }
@@ -475,7 +473,7 @@ function StaffManagementPageContent() {
                               Resend
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleCancelInvitation(invitation.id)}
+                              onClick={() => setInviteToCancel({ id: invitation.id, email: invitation.email })}
                               className="text-destructive"
                             >
                               <XCircle className="h-4 w-4 mr-2" />
@@ -504,6 +502,22 @@ function StaffManagementPageContent() {
         onOpenChange={setEditModalOpen}
         staff={selectedStaff}
         onSuccess={loadStaffMembers}
+      />
+
+      <ConfirmDestructiveAction
+        open={inviteToCancel !== null}
+        onOpenChange={(open) => {
+          if (!open) setInviteToCancel(null);
+        }}
+        title="Cancel this invitation?"
+        description={
+          <p>
+            The invitation sent to {inviteToCancel?.email} will stop working. You can send a new one later.
+            The reason is saved in the audit history.
+          </p>
+        }
+        confirmLabel="Cancel invitation"
+        onConfirm={(reason) => handleCancelInvitation(inviteToCancel?.id ?? '', reason)}
       />
 
       <DeactivateStaffDialog

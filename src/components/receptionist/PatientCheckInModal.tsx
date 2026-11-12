@@ -39,13 +39,18 @@ import { useUnifiedCheckIn } from '@/hooks/useUnifiedCheckIn';
 import { format } from 'date-fns';
 import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { toast } from 'sonner';
+import {
+  CHECK_IN_PROGRESS_STEPS,
+  INITIAL_CHECK_IN_STEP,
+  backTarget,
+  transition,
+  type CheckInStep,
+} from './checkInFlow';
 
 interface PatientCheckInModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-type CheckInStep = 'search' | 'verify' | 'insurance' | 'copay' | 'complete' | 'express';
 
 interface SelectedPatient {
   id: string;
@@ -62,7 +67,9 @@ interface SelectedPatient {
 }
 
 export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalProps) {
-  const [step, setStep] = useState<CheckInStep>('search');
+  const [step, setStep] = useState<CheckInStep>(INITIAL_CHECK_IN_STEP);
+  // All forward/back moves go through the transition table in checkInFlow.ts.
+  const goTo = (next: CheckInStep) => setStep((current) => transition(current, next));
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<SelectedPatient | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -104,7 +111,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         notes: isolationReason ? `Infection screening: ${isolationReason}` : undefined,
       });
       setCompletedQueueNumber(queueNumber);
-      setStep('complete');
+      goTo('complete');
     } catch (error) {
       toast.error('Express check-in failed');
     }
@@ -113,7 +120,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setStep('search');
+      setStep(INITIAL_CHECK_IN_STEP);
       setSearchTerm('');
       setSelectedPatient(null);
       setSelectedAppointment(null);
@@ -150,7 +157,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       // Auto-enable walk-in for patients with no scheduled appointment.
       setIsWalkIn(true);
     }
-    setStep('verify');
+    goTo('verify');
   };
 
   useEffect(() => {
@@ -170,11 +177,11 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
       toast.error('Please verify patient identity');
       return;
     }
-    setStep('insurance');
+    goTo('insurance');
   };
 
   const handleVerifyInsurance = () => {
-    setStep('copay');
+    goTo('copay');
   };
 
   const handleCompleteCheckIn = async () => {
@@ -212,7 +219,7 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         });
         setCompletedQueueNumber(queueNumber);
       }
-      setStep('complete');
+      goTo('complete');
     } catch (error) {
       // Error is handled by the mutation
     }
@@ -595,56 +602,6 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
     </div>
   );
 
-  const renderExpressStep = () => (
-    <div className="text-center py-8 space-y-4">
-      <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-        <Zap className="h-8 w-8 text-primary" />
-      </div>
-      <div>
-        <h3 className="text-lg font-semibold">Express Check-In</h3>
-        <p className="text-muted-foreground">
-          Confirm details for {selectedPatient?.first_name} {selectedPatient?.last_name}
-        </p>
-      </div>
-
-      <Card className="max-w-sm mx-auto">
-        <CardContent className="pt-4 space-y-3">
-          <div className="text-left space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Patient:</span>
-              <span className="text-sm font-medium">
-                {selectedPatient?.first_name} {selectedPatient?.last_name}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Insurance:</span>
-              <span className="text-sm font-medium">
-                {selectedPatient?.insurance_provider || 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Appointment:</span>
-              <span className="text-sm font-medium">
-                {selectedAppointment ? selectedAppointment.scheduled_time : 'Walk-In'}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex gap-2 justify-center">
-        <Checkbox
-          id="sendSmsExpress"
-          checked={sendSmsConfirmation}
-          onCheckedChange={(checked) => setSendSmsConfirmation(checked as boolean)}
-        />
-        <Label htmlFor="sendSmsExpress" className="text-sm">
-          Send SMS confirmation
-        </Label>
-      </div>
-    </div>
-  );
-
   const renderCompleteStep = () => (
     <div className="text-center py-8 space-y-4">
       <div className="h-16 w-16 rounded-full bg-success/20 flex items-center justify-center mx-auto">
@@ -703,8 +660,6 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         return 'Insurance Verification';
       case 'copay':
         return 'Co-Pay Collection';
-      case 'express':
-        return 'Express Check-In';
       case 'complete':
         return 'Check-In Complete';
     }
@@ -721,13 +676,13 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         </DialogHeader>
 
         {/* Step Indicator */}
-        {step !== 'complete' && step !== 'express' && (
+        {step !== 'complete' && (
           <div className="flex items-center gap-1 mb-4">
-            {(['search', 'verify', 'insurance', 'copay'] as CheckInStep[]).map((s, i) => (
+            {CHECK_IN_PROGRESS_STEPS.map((s, i) => (
               <div
                 key={s}
                 className={`flex-1 h-1 rounded-full ${
-                  ['search', 'verify', 'insurance', 'copay'].indexOf(step) >= i
+                  (CHECK_IN_PROGRESS_STEPS as readonly CheckInStep[]).indexOf(step) >= i
                     ? 'bg-primary'
                     : 'bg-muted'
                 }`}
@@ -740,7 +695,6 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
         {step === 'verify' && renderVerifyStep()}
         {step === 'insurance' && renderInsuranceStep()}
         {step === 'copay' && renderCopayStep()}
-        {step === 'express' && renderExpressStep()}
         {step === 'complete' && renderCompleteStep()}
 
         <DialogFooter>
@@ -760,15 +714,12 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                 Cancel
               </Button>
               <div className="flex gap-2">
-                {step !== 'express' && (
+                {backTarget(step) !== null && (
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const steps: CheckInStep[] = ['search', 'verify', 'insurance', 'copay'];
-                      const currentIndex = steps.indexOf(step);
-                      if (currentIndex > 0) {
-                        setStep(steps[currentIndex - 1]);
-                      }
+                      const back = backTarget(step);
+                      if (back) goTo(back);
                     }}
                   >
                     Back
@@ -784,12 +735,6 @@ export function PatientCheckInModal({ open, onOpenChange }: PatientCheckInModalP
                   <Button onClick={handleCompleteCheckIn} disabled={isPending}>
                     {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Complete Check-In
-                  </Button>
-                )}
-                {step === 'express' && (
-                  <Button onClick={handleCompleteCheckIn} disabled={isPending}>
-                    {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Confirm Express Check-In
                   </Button>
                 )}
               </div>

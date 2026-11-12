@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { expect, test, type Page } from '@playwright/test';
 import { setTestRole, setupApiMocks } from './utils/test-helpers';
 
@@ -13,12 +14,12 @@ async function applyRole(page: Page, role: Role, route: string) {
     patient: process.env.E2E_PATIENT_EMAIL || 'patient@testgeneral.com',
   };
   const passwordByRole: Record<Role, string> = {
-    receptionist: process.env.E2E_RECEPTIONIST_PASSWORD || 'TestPass123!',
-    nurse: process.env.E2E_NURSE_PASSWORD || 'TestPass123!',
-    doctor: process.env.E2E_DOCTOR_PASSWORD || 'TestPass123!',
-    pharmacist: process.env.E2E_PHARMACIST_PASSWORD || 'TestPass123!',
-    lab_technician: process.env.E2E_LAB_TECHNICIAN_PASSWORD || 'TestPass123!',
-    patient: process.env.E2E_PATIENT_PASSWORD || 'TestPass123!',
+    receptionist: process.env.E2E_RECEPTIONIST_PASSWORD || E2E_TEST_PASSWORD,
+    nurse: process.env.E2E_NURSE_PASSWORD || E2E_TEST_PASSWORD,
+    doctor: process.env.E2E_DOCTOR_PASSWORD || E2E_TEST_PASSWORD,
+    pharmacist: process.env.E2E_PHARMACIST_PASSWORD || E2E_TEST_PASSWORD,
+    lab_technician: process.env.E2E_LAB_TECHNICIAN_PASSWORD || E2E_TEST_PASSWORD,
+    patient: process.env.E2E_PATIENT_PASSWORD || E2E_TEST_PASSWORD,
   };
 
   await page.addInitScript(

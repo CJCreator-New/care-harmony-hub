@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { withRateLimit } from "../_shared/rateLimit.ts";
+import { logEdge } from '../_shared/sanitizeLog.ts';
 
 interface HealthCheckResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -38,7 +39,7 @@ async function checkExternalApi(url: string, timeoutMs: number = 5000): Promise<
     clearTimeout(timeoutId);
     return response.ok || response.status < 500;
   } catch (error) {
-    console.error(`External API check failed for ${url}:`, error);
+    logEdge('error', 'health-check', { stage: 'external_api_check_failed_for_url', error: error });
     return false;
   }
 }
@@ -111,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { error } = await supabase.from('hospitals').select('count').limit(1).single();
       databaseStatus = error ? 'unhealthy' : 'healthy';
     } catch (error) {
-      console.error('Database health check failed:', error);
+      logEdge('error', 'health-check', { stage: 'database_health_check_failed', error: error });
     }
 
     // Check auth service
@@ -121,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
       await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
       authStatus = 'healthy';
     } catch (error) {
-      console.error('Auth health check failed:', error);
+      logEdge('error', 'health-check', { stage: 'auth_health_check_failed', error: error });
     }
 
     // Check storage service
@@ -130,7 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { error } = await supabase.storage.listBuckets();
       storageStatus = error ? 'unhealthy' : 'healthy';
     } catch (error) {
-      console.error('Storage health check failed:', error);
+      logEdge('error', 'health-check', { stage: 'storage_health_check_failed', error: error });
     }
 
     // Check external APIs (with timeout protection)
@@ -143,7 +144,7 @@ const handler = async (req: Request): Promise<Response> => {
         lovableAiStatus = await checkExternalApi(lovableAiUrl) ? 'healthy' : 'unhealthy';
       }
     } catch (error) {
-      console.error('Lovable AI health check error:', error);
+      logEdge('error', 'health-check', { stage: 'lovable_ai_health_check_error', error: error });
       lovableAiStatus = 'unhealthy';
     }
 
@@ -154,7 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
         emailServiceStatus = await checkExternalApi(emailServiceUrl) ? 'healthy' : 'unhealthy';
       }
     } catch (error) {
-      console.error('Email service health check error:', error);
+      logEdge('error', 'health-check', { stage: 'email_service_health_check_error', error: error });
       emailServiceStatus = 'unhealthy';
     }
 
@@ -206,7 +207,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Health check error:", error);
+    logEdge('error', 'health-check', { stage: 'health_check_error', error: error });
 
     const errorResponse: HealthCheckResponse = {
       status: 'unhealthy',

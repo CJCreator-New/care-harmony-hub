@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, RotateCcw, CheckCircle2, XCircle, FileText, Loader2 } from 'lucide-react';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { usePatient } from '@/lib/hooks/patients';
 import { toast } from 'sonner';
 
@@ -34,14 +35,12 @@ export function DischargeResubmissionModal({
 }: DischargeResubmissionModalProps) {
   const { data: patient } = usePatient(workflow?.patient_id || '');
   const [remediationNotes, setRemediationNotes] = useState('');
-  const [cancelReason, setCancelReason] = useState('');
-  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       setRemediationNotes('');
-      setCancelReason('');
-      setShowCancelConfirmation(false);
+      setCancelOpen(false);
     }
   }, [open]);
 
@@ -65,15 +64,6 @@ export function DischargeResubmissionModal({
     };
 
     await onResubmit(workflow.id, updatedMetadata);
-  };
-
-  const handleConfirmCancel = async () => {
-    if (cancelReason.trim().length < 5) {
-      toast.error('Please enter a cancellation rationale (min 5 characters).');
-      return;
-    }
-
-    await onCancel(workflow.id, cancelReason.trim());
   };
 
   return (
@@ -119,113 +109,83 @@ export function DischargeResubmissionModal({
             </p>
           </div>
 
-          {!showCancelConfirmation ? (
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="remediation-notes"
-                className="text-xs font-semibold flex items-center gap-1"
-              >
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                Doctor's Clinical Remediation & Order Adjustments *
-              </Label>
-              <Textarea
-                id="remediation-notes"
-                value={remediationNotes}
-                onChange={(e) => setRemediationNotes(e.target.value)}
-                placeholder="e.g. Reviewed pharmacy interaction. Discontinued Lisinopril, replaced with Amlodipine 5mg oral daily. Cleared for re-reconciliation."
-                rows={4}
-                className="text-xs"
-              />
-            </div>
-          ) : (
-            <div className="space-y-1.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-              <Label htmlFor="cancel-notes" className="text-xs font-semibold text-destructive">
-                Workflow Cancellation Rationale *
-              </Label>
-              <Textarea
-                id="cancel-notes"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Patient condition requires extended admission. Discharge aborted."
-                rows={3}
-                className="text-xs"
-              />
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="remediation-notes"
+              className="text-xs font-semibold flex items-center gap-1"
+            >
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              Doctor's Clinical Remediation & Order Adjustments *
+            </Label>
+            <Textarea
+              id="remediation-notes"
+              value={remediationNotes}
+              onChange={(e) => setRemediationNotes(e.target.value)}
+              placeholder="e.g. Reviewed pharmacy interaction. Discontinued Lisinopril, replaced with Amlodipine 5mg oral daily. Cleared for re-reconciliation."
+              rows={4}
+              className="text-xs"
+            />
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0 justify-between">
-          {!showCancelConfirmation ? (
-            <div className="flex justify-between w-full">
-              <Button
-                type="button"
-                variant="outline"
-                className="text-destructive hover:bg-destructive/10"
-                onClick={() => setShowCancelConfirmation(true)}
-                disabled={isLoading}
-              >
-                <XCircle className="h-4 w-4 mr-1.5" />
-                Cancel Workflow Completely
-              </Button>
-              <div className="flex gap-2">
+          <div className="flex justify-between w-full">
+            <ConfirmDestructiveAction
+              open={cancelOpen}
+              onOpenChange={setCancelOpen}
+              trigger={
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  className="text-destructive hover:bg-destructive/10"
                   disabled={isLoading}
                 >
-                  Close
+                  <XCircle className="h-4 w-4 mr-1.5" />
+                  Cancel Workflow Completely
                 </Button>
-                <Button
-                  type="button"
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
-                  onClick={handleConfirmResubmit}
-                  disabled={isLoading || remediationNotes.trim().length < 5}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                      Resubmitting...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                      Resubmit to Pharmacy
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-end gap-2 w-full">
+              }
+              title="Cancel this discharge workflow?"
+              description={
+                <p>
+                  The discharge order for {patient ? `${patient.first_name} ${patient.last_name}` : 'this patient'} will
+                  be cancelled and cannot be resubmitted. The rationale is saved in the audit history.
+                </p>
+              }
+              confirmLabel="Confirm cancellation"
+              reasonLabel="Cancellation rationale"
+              reasonPlaceholder="e.g. Patient condition requires extended admission. Discharge aborted."
+              isPending={isLoading}
+              onConfirm={(reason) => onCancel(workflow.id, reason)}
+            />
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowCancelConfirmation(false)}
+                onClick={() => onOpenChange(false)}
                 disabled={isLoading}
               >
-                Back to Remediation
+                Close
               </Button>
               <Button
                 type="button"
-                variant="destructive"
-                onClick={handleConfirmCancel}
-                disabled={isLoading || cancelReason.trim().length < 5}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={handleConfirmResubmit}
+                disabled={isLoading || remediationNotes.trim().length < 5}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                    Cancelling...
+                    Resubmitting...
                   </>
                 ) : (
                   <>
-                    <XCircle className="h-4 w-4 mr-1.5" />
-                    Confirm Cancellation
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                    Resubmit to Pharmacy
                   </>
                 )}
               </Button>
             </div>
-          )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

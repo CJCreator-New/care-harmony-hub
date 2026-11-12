@@ -59,7 +59,7 @@ export function useSuppliers() {
     queryKey: ['suppliers', hospital?.id],
     queryFn: async () => {
       if (!hospital?.id) return [];
-      
+
       const { data, error } = await supabase
         .from('suppliers')
         .select('*')
@@ -81,19 +81,21 @@ export function useCreateSupplier() {
   return useMutation({
     mutationFn: async (supplier: Partial<Supplier>) => {
       if (!hospital?.id) throw new Error('No hospital');
-      
+
       const { data, error } = await supabase
         .from('suppliers')
-        .insert([{
-          name: supplier.name || '',
-          contact_person: supplier.contact_person,
-          email: supplier.email,
-          phone: supplier.phone,
-          address: supplier.address,
-          payment_terms: supplier.payment_terms,
-          notes: supplier.notes,
-          hospital_id: hospital.id,
-        }])
+        .insert([
+          {
+            name: supplier.name || '',
+            contact_person: supplier.contact_person,
+            email: supplier.email,
+            phone: supplier.phone,
+            address: supplier.address,
+            payment_terms: supplier.payment_terms,
+            notes: supplier.notes,
+            hospital_id: hospital.id,
+          },
+        ])
         .select()
         .single();
 
@@ -110,31 +112,6 @@ export function useCreateSupplier() {
   });
 }
 
-export function useUpdateSupplier() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Supplier> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('suppliers')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      toast.success('Supplier updated successfully');
-    },
-    onError: (error) => {
-      toast.error('Failed to update supplier: ' + error.message);
-    },
-  });
-}
-
 export function usePurchaseOrders() {
   const { hospital } = useAuth();
 
@@ -142,13 +119,15 @@ export function usePurchaseOrders() {
     queryKey: ['purchase-orders', hospital?.id],
     queryFn: async () => {
       if (!hospital?.id) return [];
-      
+
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select(`
+        .select(
+          `
           *,
           supplier:suppliers(*)
-        `)
+        `
+        )
         .eq('hospital_id', hospital.id)
         .order('created_at', { ascending: false });
 
@@ -164,19 +143,22 @@ export function useCreatePurchaseOrder() {
   const { hospital, profile } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ 
-      supplier_id, 
-      items, 
+    mutationFn: async ({
+      supplier_id,
+      items,
       notes,
-      expected_delivery_date 
-    }: { 
-      supplier_id: string; 
-      items: Omit<PurchaseOrderItem, 'id' | 'purchase_order_id' | 'created_at' | 'received_quantity'>[];
+      expected_delivery_date,
+    }: {
+      supplier_id: string;
+      items: Omit<
+        PurchaseOrderItem,
+        'id' | 'purchase_order_id' | 'created_at' | 'received_quantity'
+      >[];
       notes?: string;
       expected_delivery_date?: string;
     }) => {
       if (!hospital?.id || !profile?.id) throw new Error('No hospital or profile');
-      
+
       // Generate order number
       const { data: orderNumber } = await supabase.rpc('generate_po_number', {
         p_hospital_id: hospital.id,
@@ -211,9 +193,7 @@ export function useCreatePurchaseOrder() {
         total: item.total,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('purchase_order_items')
-        .insert(orderItems);
+      const { error: itemsError } = await supabase.from('purchase_order_items').insert(orderItems);
 
       if (itemsError) throw itemsError;
 
@@ -236,7 +216,7 @@ export function useUpdatePurchaseOrderStatus() {
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updates: Record<string, unknown> = { status };
-      
+
       if (status === 'received') {
         updates.received_at = new Date().toISOString();
         updates.received_by = profile?.id;

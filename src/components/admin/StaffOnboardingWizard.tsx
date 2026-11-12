@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -73,7 +72,7 @@ interface StaffOnboardingWizardProps {
 }
 
 export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps) {
-  const { hospital, user } = useAuth();
+  const { hospital, profile } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
@@ -84,7 +83,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
     lastName: '',
     email: '',
     roles: [] as Role[],
-    sendInvite: true,
     customMessage: '',
   });
 
@@ -115,6 +113,16 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
           toast({ title: 'No roles selected', description: 'Please select at least one role.', variant: 'destructive' });
           return false;
         }
+        if (formData.roles.length > 1) {
+          // Only one invitation per email can be pending, and the wizard cannot
+          // carry several roles. Refuse here rather than silently dropping roles.
+          toast({
+            title: 'One role per invitation',
+            description: 'Select a single role. Send a separate invitation for each additional role.',
+            variant: 'destructive',
+          });
+          return false;
+        }
         return true;
       default:
         return true;
@@ -136,22 +144,21 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
 
     setIsLoading(true);
     try {
-      if (!user) throw new Error('Not authenticated');
+      // invited_by references profiles.id (not the auth user id).
+      if (!profile?.id) throw new Error('Your profile is not ready yet. Reload the page and try again.');
+      if (formData.roles.length !== 1) throw new Error('Select exactly one role per invitation.');
 
-      // Create staff invitations - ONLY ONE AT A TIME to avoid unique constraint conflict on (hospital_id, email, status)
-      // The DB schema only supports one role per invitation record.
-      // We take the first role or loop carefully, but 409 will happen if we do multiple rows for same email.
-      const invitations = formData.roles.slice(0, 1).map(role => ({
+      // A single invitation: a second pending row for the same email would violate
+      // UNIQUE(hospital_id, email, status) on staff_invitations.
+      const invitations = formData.roles.map(role => ({
         hospital_id: hospital.id,
         email: formData.email.toLowerCase(),
         role: role,
-        invited_by: user.id,
+        invited_by: profile.id,
         token: crypto.randomUUID(),
         status: 'pending' as const,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
-
-      if (invitations.length === 0) throw new Error('No roles selected');
 
       const { error } = await supabase
         .from('staff_invitations')
@@ -165,8 +172,8 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
       }
 
       toast({
-        title: 'Success!',
-        description: `Invitation sent to ${formData.email}.`,
+        title: 'Invitation created',
+        description: `Invitation created for ${formData.email}. No email is sent yet.`,
       });
 
       // Reset and close
@@ -175,7 +182,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
         lastName: '',
         email: '',
         roles: [],
-        sendInvite: true,
         customMessage: '',
       });
       setStep(1);
@@ -263,7 +269,7 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
                 placeholder="john.doe@hospital.com"
               />
               <p className="text-xs text-muted-foreground">
-                An invitation will be sent to this email address.
+                No email is sent yet. You will share a join link with this person from Staff Management.
               </p>
             </div>
           </div>
@@ -362,16 +368,6 @@ export function StaffOnboardingWizard({ onComplete }: StaffOnboardingWizardProps
               </CardContent>
             </Card>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="sendInvite"
-                checked={formData.sendInvite}
-                onCheckedChange={(checked) => setFormData(p => ({ ...p, sendInvite: checked as boolean }))}
-              />
-              <Label htmlFor="sendInvite" className="text-sm">
-                Send email invitation immediately
-              </Label>
-            </div>
           </div>
         )}
 

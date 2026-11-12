@@ -12,13 +12,14 @@
  * - Security: PHI encryption, no data leaks
  */
 
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect, Page } from '@playwright/test';
 
 // Test fixtures
 const TEST_DOCTOR_EMAIL = 'doctor+test@caresync.local';
-const TEST_DOCTOR_PASSWORD = 'SecurePass123!';
+const TEST_DOCTOR_PASSWORD = process.env.E2E_DOCTOR_PASSWORD || E2E_TEST_PASSWORD; // S0-11: no literal
 const TEST_PATIENT_EMAIL = 'patient+test@caresync.local';
-const TEST_PATIENT_PASSWORD = 'SecurePass123!';
+const TEST_PATIENT_PASSWORD = process.env.E2E_PATIENT_PASSWORD || E2E_TEST_PASSWORD; // S0-11: no literal
 const TEST_PATIENT_MRN = 'MRN-2026-001';
 
 /**
@@ -242,7 +243,7 @@ test('E2E-005: Non-authorized user cannot access clinical notes (RBAC)', async (
 
   // Login as OTHER PATIENT (different patient)
   const OTHER_PATIENT_EMAIL = 'other-patient@caresync.local';
-  const OTHER_PATIENT_PASSWORD = 'OtherPass123!';
+  const OTHER_PATIENT_PASSWORD = process.env.E2E_OTHER_PATIENT_PASSWORD || E2E_TEST_PASSWORD; // S0-11: no literal
 
   await otherPage.goto('/login');
   await otherPage.fill('input[type="email"]', OTHER_PATIENT_EMAIL);

@@ -6,8 +6,6 @@
  */
 
 import { UserRole, ROLE_PERMISSIONS, ROLE_HIERARCHY, ROLE_INFO, PermissionCategory } from '@/types/rbac';
-import { AdminRBACManager, ADMIN_ROLE_PERMISSIONS, ADMIN_ROLE_HIERARCHY } from './adminRBACManager';
-import { DoctorRBACManager, DOCTOR_PERMISSIONS } from './doctorRBACManager';
 
 // Define all possible cross-role workflow paths
 export const CROSS_ROLE_WORKFLOWS = {

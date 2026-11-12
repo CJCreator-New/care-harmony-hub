@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { PatientPrepModal } from './PatientPrepModal';
 import { format, differenceInMinutes } from 'date-fns';
+import { DataError } from '@/components/common/DataStatus';
 
 export function NursePatientQueue({
   onRecordVitals,
@@ -32,6 +33,7 @@ export function NursePatientQueue({
   const {
     data: queuePatients = [],
     isLoading,
+    isError: queueError,
     refetch,
   } = useQuery<any[]>({
     queryKey: ['nurse-queue', hospital?.id],
@@ -207,7 +209,9 @@ export function NursePatientQueue({
 
           {/* Queue List */}
           <ScrollArea className="h-[600px]">
-            {isLoading ? (
+            {queueError ? (
+              <DataError resource="the patient queue" onRetry={() => void refetch()} />
+            ) : isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>

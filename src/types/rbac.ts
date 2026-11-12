@@ -4,6 +4,17 @@
 export type UserRole =
   'admin' | 'doctor' | 'nurse' | 'receptionist' | 'pharmacist' | 'lab_technician' | 'patient';
 
+// The seven canonical roles (ADR-0002). Every role check in src/ must resolve to one of these.
+export const CANONICAL_ROLES: readonly UserRole[] = [
+  'admin',
+  'doctor',
+  'nurse',
+  'receptionist',
+  'pharmacist',
+  'lab_technician',
+  'patient',
+] as const;
+
 // Permission Categories
 export enum PermissionCategory {
   // Patient Management
@@ -310,21 +321,12 @@ export function getRoleLabel(role?: string | null): string {
     .join(' ');
 }
 
-// Permission Checking Functions
+// Exact-match lookup only. No wildcards: a permission is granted only when the
+// matrix lists it for that role (deny by default). Application code should call
+// the `@/modules/rbac` entry point rather than this data helper.
 export function hasPermission(role: UserRole | undefined, permission: Permission): boolean {
-  if (!role) return false;
-
-  const rolePermissions = ROLE_PERMISSIONS[role] || [];
-
-  // Check exact permission match
-  if (rolePermissions.includes(permission)) return true;
-
-  // Check wildcard permissions (e.g., 'patient:read' covers 'patient:*')
-  const [category] = permission.split(':');
-  const wildcardPermission = `${category}:*` as Permission;
-  if (rolePermissions.includes(wildcardPermission)) return true;
-
-  return false;
+  if (!role || !isValidRole(role)) return false;
+  return ROLE_PERMISSIONS[role].includes(permission);
 }
 
 export function hasAnyPermission(role: UserRole | undefined, permissions: Permission[]): boolean {
@@ -345,27 +347,6 @@ export function canAccessRole(userRole: UserRole, targetRole: UserRole): boolean
 
   // Users can only access their own role level or below
   return ROLE_HIERARCHY[targetRole] <= ROLE_HIERARCHY[userRole];
-}
-
-export function getAccessibleRoutes(role: UserRole): string[] {
-  const routes: string[] = ['/dashboard'];
-
-  if (hasPermission(role, PermissionCategory.PATIENT_READ)) routes.push('/patients');
-  if (hasPermission(role, PermissionCategory.APPOINTMENT_READ)) routes.push('/appointments');
-  if (hasPermission(role, PermissionCategory.CONSULTATION_READ)) routes.push('/consultations');
-  if (hasPermission(role, PermissionCategory.PRESCRIPTION_READ)) routes.push('/prescriptions');
-  if (hasPermission(role, PermissionCategory.LAB_READ)) routes.push('/laboratory');
-  if (hasPermission(role, PermissionCategory.PHARMACY_READ)) routes.push('/pharmacy');
-  if (hasPermission(role, PermissionCategory.INVENTORY_READ)) routes.push('/inventory');
-  if (hasPermission(role, PermissionCategory.BILLING_READ)) routes.push('/billing');
-  if (hasPermission(role, PermissionCategory.REPORTS_READ)) routes.push('/reports');
-  if (hasPermission(role, PermissionCategory.QUEUE_READ)) routes.push('/queue');
-  if (hasPermission(role, PermissionCategory.TELEMEDICINE_READ)) routes.push('/telemedicine');
-  if (hasPermission(role, PermissionCategory.STAFF_READ)) routes.push('/settings/staff');
-  if (hasPermission(role, PermissionCategory.SETTINGS_READ)) routes.push('/settings');
-  if (hasPermission(role, PermissionCategory.PORTAL_ACCESS)) routes.push('/patient/portal');
-
-  return routes;
 }
 
 // Role Validation

@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect } from '@playwright/test';
 
 test.describe('Performance Tests', () => {
@@ -21,7 +22,7 @@ test.describe('Performance Tests', () => {
     // Login first
     await page.goto('/hospital/login');
     await page.fill('input[type="email"]', 'admin@testgeneral.com');
-    await page.fill('input[type="password"]', 'TestPass123!');
+    await page.fill('input[type="password"]', E2E_TEST_PASSWORD);
     await page.click('button[type="submit"]');
 
     // Wait for redirect to dashboard
@@ -45,7 +46,7 @@ test.describe('Performance Tests', () => {
     // Login
     await page.goto('/hospital/login');
     await page.fill('input[type="email"]', 'admin@testgeneral.com');
-    await page.fill('input[type="password"]', 'TestPass123!');
+    await page.fill('input[type="password"]', E2E_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
 
@@ -77,7 +78,7 @@ test.describe('Performance Tests', () => {
     // Login
     await page.goto('/hospital/login');
     await page.fill('input[type="email"]', 'admin@testgeneral.com');
-    await page.fill('input[type="password"]', 'TestPass123!');
+    await page.fill('input[type="password"]', E2E_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
 
@@ -100,7 +101,7 @@ test.describe('Performance Tests', () => {
     // Login
     await page.goto('/hospital/login');
     await page.fill('input[type="email"]', 'admin@testgeneral.com');
-    await page.fill('input[type="password"]', 'TestPass123!');
+    await page.fill('input[type="password"]', E2E_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
 
@@ -122,7 +123,7 @@ test.describe('Performance Tests', () => {
     // Login
     await page.goto('/hospital/login');
     await page.fill('input[type="email"]', 'doctor@testgeneral.com');
-    await page.fill('input[type="password"]', 'TestPass123!');
+    await page.fill('input[type="password"]', E2E_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
 
@@ -146,7 +147,7 @@ test.describe('Performance Tests', () => {
     // Login
     await page.goto('/hospital/login');
     await page.fill('input[type="email"]', 'admin@testgeneral.com');
-    await page.fill('input[type="password"]', 'TestPass123!');
+    await page.fill('input[type="password"]', E2E_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
 

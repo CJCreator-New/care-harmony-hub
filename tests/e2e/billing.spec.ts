@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect } from '@playwright/test';
 
 test.describe('Billing & Payment Processing', () => {
@@ -5,7 +6,7 @@ test.describe('Billing & Payment Processing', () => {
     // Login as receptionist (handles billing)
     await page.goto('/hospital/login');
     await page.getByLabel('Email').fill('receptionist@testgeneral.com');
-    await page.getByLabel('Password').fill('TestPass123!');
+    await page.getByLabel('Password').fill(E2E_TEST_PASSWORD);
     await page.getByRole('button', { name: /sign in|login/i }).click();
     await expect(page).toHaveURL(/.*dashboard.*/);
   });

@@ -1,33 +1,13 @@
--- Fix MRN format
-UPDATE patients
-SET mrn = 'MRN' || LPAD(SUBSTRING(mrn FROM 4), 8, '0')
-WHERE mrn LIKE 'MRN%' AND LENGTH(mrn) < 11;
-
--- Fix gender mismatches based on first name
-UPDATE patients
-SET gender = 'female'
-WHERE first_name IN ('Jane', 'Sarah', 'Emily', 'Lisa', 'Maria', 'Jennifer', 'Patricia', 'Linda', 'Barbara', 'Elizabeth', 'Susan', 'Jessica');
-
-UPDATE patients
-SET gender = 'male'
-WHERE first_name IN ('John', 'Michael', 'David', 'Robert', 'James', 'William', 'Richard', 'Charles', 'Joseph', 'Thomas', 'Christopher', 'Daniel');
-
--- Remove "CJ_Creator's Org" from patients and cascade
-DELETE FROM patients
-WHERE first_name LIKE '%Creator%' OR last_name LIKE '%Creator%' OR first_name = 'CJ_Creator''s Org';
-
--- Remove duplicate patient_queue entries (keep earliest for each patient that is not completed)
-DELETE FROM patient_queue
-WHERE id IN (
-  SELECT id
-  FROM (
-    SELECT id,
-           ROW_NUMBER() OVER (
-             PARTITION BY patient_id 
-             ORDER BY created_at ASC
-           ) as row_num
-    FROM patient_queue
-    WHERE status IN ('waiting', 'called', 'in_prep')
-  ) t
-  WHERE t.row_num > 1
-);
+-- NEUTRALIZED (roadmap S0-05, issue DB-11). This file is intentionally a no-op.
+--
+-- It used to run, against every hospital's data and with no audit trail:
+--   * UPDATE patients SET mrn = 'MRN' || LPAD(...)   (MRN rewrite; LPAD truncates)
+--   * UPDATE patients SET gender = ... WHERE first_name IN (...)   (gender guessed from first name)
+--   * DELETE FROM patients WHERE first_name/last_name LIKE '%Creator%'   (cascades to clinical tables)
+--   * DELETE FROM patient_queue ...   (deduplication of live queue rows)
+-- Those were test-data fixes, not schema changes. Test-data clean-up belongs in
+-- seed scripts; production data corrections must be reviewed, hospital-scoped,
+-- audited and reversible. The version stays in the history so environments that
+-- already recorded it are unaffected; fresh environments now apply nothing.
+-- tests/security/s0-05-destructive-endpoints.test.ts fails if PHI DML returns.
+DO $noop$ BEGIN NULL; END $noop$;

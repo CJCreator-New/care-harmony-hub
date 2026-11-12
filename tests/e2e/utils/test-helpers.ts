@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from '../support/test-credentials';
 import { Page, expect } from '@playwright/test';
 
 // Generate unique identifier for this test run to ensure fresh data
@@ -20,7 +21,7 @@ export const TEST_DATA = {
     firstName: 'John',
     lastName: 'Admin',
     email: 'admin@testgeneral.com',
-    password: 'TestPass123!'
+    password: E2E_TEST_PASSWORD
   },
   
   PATIENT: {
@@ -112,7 +113,7 @@ const MOCK_EMAIL: Record<string, string> = {
  */
 export async function loginAs(page: Page, role: string): Promise<void> {
   const email = process.env[`E2E_${role.toUpperCase()}_EMAIL`] ?? MOCK_EMAIL[role] ?? `${role}@testgeneral.com`;
-  const password = process.env[`E2E_${role.toUpperCase()}_PASSWORD`] ?? 'TestPass123!';
+  const password = process.env[`E2E_${role.toUpperCase()}_PASSWORD`] ?? E2E_TEST_PASSWORD;
 
   // addInitScript accumulates across calls on the same page object — clear
   // previous scripts by creating a fresh context via goto to about:blank first,

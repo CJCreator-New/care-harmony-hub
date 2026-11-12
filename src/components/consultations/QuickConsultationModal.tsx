@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,15 @@ import { CPTCodeMapper } from './CPTCodeMapper';
 import { ICD10Code, StructuredDiagnosis } from '@/types/icd10';
 import { useUpdateConsultation } from '@/hooks/useConsultations';
 import { useCreatePrescription } from '@/lib/hooks/pharmacy';
+import { OrderSafetyPanel } from '@/components/prescriptions/OrderSafetyPanel';
+import {
+  buildPrescriptionSafetyColumns,
+  overrideSummary,
+  toOrderItems,
+  useOrderSafety,
+  usePatientClinicalContext,
+  type SafetyClearanceReceipt,
+} from '@/modules/order-safety';
 import { useCreateLabOrder } from '@/hooks/useLabOrders';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
@@ -53,6 +62,21 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
   const updateConsultation = useUpdateConsultation();
   const createPrescription = useCreatePrescription();
   const createLabOrder = useCreateLabOrder();
+
+  // Fail-closed order safety for the quick-consultation prescriptions (S0-07).
+  const safetyContext = usePatientClinicalContext({
+    patientId: consultation?.patient_id,
+    enabled: open && !!consultation?.patient_id,
+  });
+  const rxOrderItems = useMemo(() => toOrderItems(prescriptions, 'quick'), [prescriptions]);
+  const orderSafety = useOrderSafety({
+    patient: safetyContext.context,
+    items: rxOrderItems,
+    actingRole: 'doctor',
+    enabled: open,
+    isContextLoading: safetyContext.isLoading,
+    contextError: safetyContext.loadError,
+  });
   const { triggerWorkflow } = useWorkflowOrchestrator();
   const { recordOperation, recordCustomEvent, recordError } = useClinicalMetrics();
 
@@ -89,10 +113,60 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
     setNewLabOrder({ test: '', priority: 'routine' });
   };
 
+  const getUnsentOrderMessage = (): string | null => {
+    if (newRx.medication.trim()) {
+      return `"${newRx.medication.trim()}" was typed but not added. Click "+ Add Prescription" or clear it before completing.`;
+    }
+    if (newLabOrder.test.trim()) {
+      return `"${newLabOrder.test.trim()}" was typed but not added. Click "+ Add Lab Order" or clear it before completing.`;
+    }
+    if (prescriptions.length > 0 && !notifyPharmacy) {
+      return `${prescriptions.length} prescription(s) entered but "Send to Pharmacy" is not ticked. Tick "Send to Pharmacy" to issue them, or remove them before completing.`;
+    }
+    if (labOrders.length > 0 && !notifyLab) {
+      return `${labOrders.length} lab order(s) entered but "Send to Lab" is not ticked. Tick "Send to Lab" to order them, or remove them before completing.`;
+    }
+    return null;
+  };
+
   const handleComplete = async () => {
     if (!diagnosis) {
       toast.error('Please add a diagnosis');
       return;
+    }
+
+    // A clinical order the doctor entered is never silently discarded. In this
+    // system a saved prescription IS a pharmacy order (useCreatePrescription
+    // queues it for pharmacist review, ADR-0004) and there is no "not routed"
+    // status, so "Send to Pharmacy" cannot be optional for entered prescriptions.
+    // Same for lab orders and "Send to Lab". Block instead of dropping them.
+    const unsentOrderMessage = getUnsentOrderMessage();
+    if (unsentOrderMessage) {
+      toast.error(unsentOrderMessage);
+      return;
+    }
+
+    const willCreatePrescriptions = prescriptions.length > 0;
+    let safetyReceipt: SafetyClearanceReceipt | null = null;
+    if (willCreatePrescriptions) {
+      if (!orderSafety.canProceed) {
+        toast.error(
+          orderSafety.errorMessage
+            ? `Cannot complete: ${orderSafety.errorMessage}`
+            : orderSafety.hardStops.length > 0
+              ? `Cannot complete: ${orderSafety.hardStops[0].title}. Change the prescription.`
+              : orderSafety.unhandledOverrides.length > 0
+                ? `Cannot complete: document a clinical override for ${orderSafety.unhandledOverrides.length} medication safety finding(s).`
+                : 'Medication safety checks are still running. Try again in a moment.'
+        );
+        return;
+      }
+      try {
+        safetyReceipt = await orderSafety.clearAndSign('DOCTOR_PRESCRIBE');
+      } catch (error) {
+        toast.error(`Prescription safety clearance failed: ${getErrorMessage(error)}`);
+        return;
+      }
     }
 
     setIsCompleting(true);
@@ -108,7 +182,7 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
       const patientName = `${consultation.patient?.first_name} ${consultation.patient?.last_name}`;
 
       // Handle prescriptions
-      if (prescriptions.length > 0 && notifyPharmacy) {
+      if (willCreatePrescriptions) {
         // Phase 3B: Record prescription creation with telemetry
         const prescriptionResult = await recordOperation(
           {
@@ -132,7 +206,10 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                 duration: rx.duration,
                 instructions: rx.instructions,
               })),
-              notes,
+              notes: [notes, overrideSummary(orderSafety.findings, safetyReceipt?.overridesApplied ?? [])]
+                .filter(Boolean)
+                .join('\n'),
+              safety: buildPrescriptionSafetyColumns(orderSafety.findings, safetyReceipt),
             });
           }
         );
@@ -155,8 +232,8 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
         }, 'quick prescription creation');
       }
 
-      // Handle lab orders
-      if (labOrders.length > 0 && notifyLab) {
+      // Handle lab orders (unsent lab orders were blocked above)
+      if (labOrders.length > 0) {
         for (const order of labOrders) {
           // Use createLabOrder so the durable lab_queue entry is also created
           const labOrder = await createLabOrder.mutateAsync({
@@ -303,6 +380,13 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                     <Button size="sm" variant="ghost" className="h-5 px-1 shrink-0" onClick={() => setPrescriptions(prev => prev.filter((_, idx) => idx !== i))}>×</Button>
                   </div>
                 ))}
+                {prescriptions.length > 0 && <OrderSafetyPanel safety={orderSafety} />}
+                {prescriptions.length > 0 && !notifyPharmacy && (
+                  <p role="alert" className="text-xs text-amber-700">
+                    Tick &quot;Send to Pharmacy&quot; to issue these prescriptions, or remove them. The
+                    consultation cannot be completed with unsent prescriptions.
+                  </p>
+                )}
                 <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
                     id="notify-pharmacy"
@@ -356,6 +440,12 @@ export function QuickConsultationModal({ open, onOpenChange, consultation }: Qui
                     <Button size="sm" variant="ghost" className="h-5 px-1 shrink-0" onClick={() => setLabOrders(prev => prev.filter((_, idx) => idx !== i))}>×</Button>
                   </div>
                 ))}
+                {labOrders.length > 0 && !notifyLab && (
+                  <p role="alert" className="text-xs text-amber-700">
+                    Tick &quot;Send to Lab&quot; to order these tests, or remove them. The consultation
+                    cannot be completed with unsent lab orders.
+                  </p>
+                )}
                 <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
                     id="notify-lab"

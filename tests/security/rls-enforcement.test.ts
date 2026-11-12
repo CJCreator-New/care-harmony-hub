@@ -388,7 +388,7 @@ describe('Phase 3A: HIPAA Row-Level Security (RLS) Test Framework', () => {
    * ✅ No role escalation possible
    * ✅ All data access properly scoped
    * 
-   * Documentation: docs/HIPAA_AUDIT/02_PHI_ACCESS_PATHS.md
+   * Documentation: docs/HIPAA_AUDIT/02_PHI_ACCESS_PATHS.md (removed; see git history)
    * 
    * Next: RBAC Endpoint Audit Tests (40 tests)
    */

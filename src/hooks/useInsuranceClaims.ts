@@ -92,7 +92,7 @@ export const useInsuranceClaims = () => {
     }
   };
 
-  const { data: claims, isLoading } = useQuery({
+  const { data: claims, isLoading, isError: claimsError, refetch: refetchClaims } = useQuery({
     queryKey: ['insurance-claims', hospitalId],
     queryFn: async () => {
       if (!hospitalId) return [];
@@ -341,6 +341,8 @@ export const useInsuranceClaims = () => {
     totalApprovedAmount,
     totalPaidAmount,
     isLoading,
+    claimsError,
+    refetchClaims,
     createClaim,
     updateClaim,
     submitClaim,

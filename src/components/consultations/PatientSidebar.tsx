@@ -19,7 +19,7 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { useDataMasking } from '@/hooks/useDataProtection';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { evaluateVitalSigns, type VitalSignsEvaluation } from '@/modules/vital-signs';
+import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, type VitalSignsEvaluationResult } from '@/modules/vital-signs';
 
 interface PatientSidebarProps {
   patient?: {
@@ -43,9 +43,10 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
   const { logActivity } = useActivityLog();
   const { maskData } = useDataMasking();
 
-  const vitalEval: VitalSignsEvaluation | null = useMemo(() => {
-    if (!vitals || Object.keys(vitals).length === 0) return null;
-    return evaluateVitalSigns(vitals);
+  const vitalEval: VitalSignsEvaluationResult | null = useMemo(() => {
+    const input = fromVitalsRecord(vitals);
+    if (!hasNews2Parameters(input)) return null;
+    return evaluateVitalSigns(input);
   }, [vitals]);
 
   useEffect(() => {
@@ -144,14 +145,14 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
                   variant={
                     vitalEval.news2.riskLevel === 'high'
                       ? 'destructive'
-                      : vitalEval.news2.riskLevel === 'medium'
+                      : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
                         ? 'secondary'
                         : 'outline'
                   }
                   className={
                     vitalEval.news2.riskLevel === 'high'
                       ? 'bg-red-600 text-white font-bold animate-pulse'
-                      : vitalEval.news2.riskLevel === 'medium'
+                      : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
                         ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
                   }
@@ -160,11 +161,13 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
                 </Badge>
               </div>
 
-              {vitalEval.news2.totalScore >= 5 && (
-                <div className="p-2 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-800 dark:text-red-300 flex items-start gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-red-600 shrink-0" />
+              {(vitalEval.news2.totalScore >= 5 || vitalEval.news2.hasRedFlag) && (
+                <div
+                  role={vitalEval.news2.riskLevel === 'high' ? 'alert' : 'status'}
+                  className="p-2 rounded bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-800 dark:text-red-300 flex items-start gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-red-600 shrink-0" aria-hidden="true" />
                   <div>
-                    <span className="font-semibold">Response: </span>
+                    <span className="font-semibold">NEWS2 {vitalEval.news2.totalScore} response: </span>
                     {vitalEval.news2.clinicalResponse}
                   </div>
                 </div>
@@ -188,7 +191,11 @@ export function PatientSidebar({ patient, vitals }: PatientSidebarProps) {
                 {vitals?.temperature && (
                   <div>
                     Temp:{' '}
-                    <span className="font-medium text-foreground">{vitals.temperature}°C</span>
+                    <span className="font-medium text-foreground">
+                      {vitalEval?.normalized.temperatureCelsius != null
+                        ? `${vitalEval.normalized.temperatureCelsius}°C`
+                        : vitals.temperature}
+                    </span>
                   </div>
                 )}
                 {(vitals?.blood_pressure || (vitals?.systolic_bp && vitals?.diastolic_bp)) && (

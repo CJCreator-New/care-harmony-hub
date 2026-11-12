@@ -24,14 +24,25 @@ import { usePharmacyStats, usePendingPrescriptions } from '@/hooks/usePharmacyLa
 import { LowStockAlert } from '@/components/inventory/LowStockAlert';
 import { format, formatDistanceToNow } from 'date-fns';
 import { DashboardPageTransition, DashboardSection } from './DashboardPageTransition';
+import { DataError, displayStat } from '@/components/common/DataStatus';
 import { EmptyState } from '@/components/ui/empty-state';
 
 export function PharmacistDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const { data: stats, isLoading: statsLoading } = usePharmacyStats();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = usePharmacyStats();
   const { data: inventoryStats } = useMedicationStats();
-  const { data: pendingRx, isLoading: rxLoading } = usePendingPrescriptions();
+  const {
+    data: pendingRx,
+    isLoading: rxLoading,
+    isError: rxError,
+    refetch: refetchRx,
+  } = usePendingPrescriptions();
 
   // Enable realtime updates
   usePrescriptionsRealtime();
@@ -106,7 +117,7 @@ export function PharmacistDashboard() {
           <Link to="/pharmacy?tab=refills">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refill Requests
-            {(stats?.refillRequests || 0) > 0 && (
+            {!statsError && (stats?.refillRequests ?? 0) > 0 && (
               <Badge variant="destructive" className="ml-2">{stats?.refillRequests}</Badge>
             )}
           </Link>
@@ -116,31 +127,32 @@ export function PharmacistDashboard() {
 
       <DashboardSection>
       {/* Stats Grid */}
+      {statsError && <DataError resource="pharmacy figures" onRetry={() => refetchStats()} className="mb-4" />}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Pending Rx"
-          value={statsLoading ? '--' : String(stats?.pending || 0)}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pending })}
           subtitle="To dispense"
           icon={FileText}
           variant="warning"
         />
         <StatsCard
           title="Dispensed Today"
-          value={statsLoading ? '--' : String(stats?.dispensedToday || 0)}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.dispensedToday })}
           subtitle="Completed"
           icon={CheckCircle2}
           variant="success"
         />
         <StatsCard
           title="Refill Requests"
-          value={statsLoading ? '--' : String(stats?.refillRequests || 0)}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.refillRequests })}
           subtitle="Pending review"
           icon={RefreshCw}
           variant="primary"
         />
         <StatsCard
           title="Drug Alerts"
-          value={statsLoading ? '--' : String(stats?.drugInteractionAlerts || 0)}
+          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.drugInteractionAlerts })}
           subtitle="Need attention"
           icon={AlertTriangle}
           variant="danger"
@@ -163,8 +175,12 @@ export function PharmacistDashboard() {
               </Button>
             </CardHeader>
             <CardContent>
-              {rxLoading ? (
-                <div className="flex items-center justify-center py-12">
+              {rxError ? (
+                <div className="p-4">
+                  <DataError resource="pending prescriptions" onRetry={() => refetchRx()} />
+                </div>
+              ) : rxLoading ? (
+                <div role="status" aria-label="Loading pending prescriptions" className="flex items-center justify-center py-12">
                   <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
                 </div>
               ) : pendingRx && pendingRx.length > 0 ? (

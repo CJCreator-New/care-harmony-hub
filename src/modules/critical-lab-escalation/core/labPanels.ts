@@ -3,6 +3,27 @@
  * Compliant with CLIA / CAP Critical Value reporting requirements.
  */
 
+/**
+ * A reference range that applies only to some patients (CLIN-16). Fields left
+ * undefined keep the parameter's base value. Age is in years: `minAgeYears`
+ * inclusive, `maxAgeYears` exclusive.
+ */
+export interface DemographicRange {
+  readonly sex?: 'M' | 'F';
+  readonly minAgeYears?: number;
+  readonly maxAgeYears?: number;
+  readonly normalMin?: number;
+  readonly normalMax?: number;
+  readonly criticalLow?: number;
+  readonly criticalHigh?: number;
+}
+
+/** Patient facts that select a reference range. Missing facts select the base (unisex, adult-agnostic) range. */
+export interface LabPatientContext {
+  readonly ageYears?: number | null;
+  readonly sex?: string | null;
+}
+
 export interface LabParameterDefinition {
   readonly id: string;
   readonly name: string;
@@ -12,6 +33,7 @@ export interface LabParameterDefinition {
   readonly criticalLow?: number;
   readonly criticalHigh?: number;
   readonly description?: string;
+  readonly demographicRanges?: readonly DemographicRange[];
 }
 
 export interface LabPanelDefinition {
@@ -59,6 +81,12 @@ export const STANDARD_LAB_PANELS: Record<string, LabPanelDefinition> = {
         normalMax: 17.5,
         criticalLow: 7.0,
         criticalHigh: 20.0,
+        demographicRanges: [
+          // Neonates (first month) have physiologically high haemoglobin.
+          { maxAgeYears: 0.08, normalMin: 13.5, normalMax: 21.5, criticalHigh: 25.0 },
+          { sex: 'M', minAgeYears: 18, normalMin: 13.5, normalMax: 17.5 },
+          { sex: 'F', minAgeYears: 18, normalMin: 12.0, normalMax: 15.5 },
+        ],
       },
       {
         id: 'wbc',
@@ -103,6 +131,8 @@ export const STANDARD_LAB_PANELS: Record<string, LabPanelDefinition> = {
         normalMax: 5.1,
         criticalLow: 2.8,
         criticalHigh: 6.2,
+        // Neonatal potassium runs higher than the adult panic value (CLIN-16).
+        demographicRanges: [{ maxAgeYears: 0.08, normalMin: 3.0, normalMax: 6.0, criticalHigh: 7.0 }],
       },
       {
         id: 'na',
@@ -240,58 +270,67 @@ export const STANDARD_LAB_PANELS: Record<string, LabPanelDefinition> = {
   },
 };
 
+/**
+ * True when `term` occurs in `text` as a whole word or phrase. Substring matching
+ * mapped "Fasting Lipid Profile" to LFT ("ast") and "PTH" to coagulation ("pt") (CLIN-16).
+ */
+function hasTerm(text: string, term: string): boolean {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`).test(text);
+}
+
+const PANEL_TERMS: ReadonlyArray<{ panel: LabPanelDefinition; terms: readonly string[] }> = [
+  { panel: STANDARD_LAB_PANELS.cbc, terms: ['cbc', 'blood count', 'hemoglobin', 'platelet'] },
+  {
+    panel: STANDARD_LAB_PANELS.bmp,
+    terms: ['bmp', 'metabolic', 'electrolyte', 'potassium', 'glucose', 'creatinine'],
+  },
+  { panel: STANDARD_LAB_PANELS.cardiac, terms: ['troponin', 'cardiac', 'bnp', 'ck-mb'] },
+  { panel: STANDARD_LAB_PANELS.coag, terms: ['coag', 'pt', 'inr', 'aptt'] },
+  { panel: STANDARD_LAB_PANELS.lft, terms: ['lft', 'liver', 'alt', 'ast', 'bilirubin'] },
+];
+
 export function matchLabPanel(testName: string): LabPanelDefinition | null {
   const lower = testName.toLowerCase().trim();
-  if (
-    lower.includes('cbc') ||
-    lower.includes('blood count') ||
-    lower.includes('hemoglobin') ||
-    lower.includes('platelet')
-  ) {
-    return STANDARD_LAB_PANELS.cbc;
-  }
-  if (
-    lower.includes('bmp') ||
-    lower.includes('metabolic') ||
-    lower.includes('electrolyte') ||
-    lower.includes('potassium') ||
-    lower.includes('glucose') ||
-    lower.includes('creatinine')
-  ) {
-    return STANDARD_LAB_PANELS.bmp;
-  }
-  if (
-    lower.includes('troponin') ||
-    lower.includes('cardiac') ||
-    lower.includes('bnp') ||
-    lower.includes('ck-mb')
-  ) {
-    return STANDARD_LAB_PANELS.cardiac;
-  }
-  if (
-    lower.includes('coag') ||
-    lower.includes('pt') ||
-    lower.includes('inr') ||
-    lower.includes('aptt')
-  ) {
-    return STANDARD_LAB_PANELS.coag;
-  }
-  if (
-    lower.includes('lft') ||
-    lower.includes('liver') ||
-    lower.includes('alt') ||
-    lower.includes('ast') ||
-    lower.includes('bilirubin')
-  ) {
-    return STANDARD_LAB_PANELS.lft;
+  for (const { panel, terms } of PANEL_TERMS) {
+    if (terms.some((term) => hasTerm(lower, term))) return panel;
   }
   return null;
 }
 
-export function evaluateNumericParameter(
+/**
+ * The parameter with the reference range that applies to this patient (CLIN-16).
+ * The first matching demographic range overrides the base values; unknown age or sex keeps the base.
+ */
+export function resolveParameterForPatient(
   param: LabParameterDefinition,
-  value: number
+  patient?: LabPatientContext
+): LabParameterDefinition {
+  if (!patient || !param.demographicRanges) return param;
+  const sex = typeof patient.sex === 'string' ? patient.sex.trim().toUpperCase() : undefined;
+  const age = typeof patient.ageYears === 'number' && Number.isFinite(patient.ageYears) ? patient.ageYears : undefined;
+  const range = param.demographicRanges.find((r) => {
+    if (r.sex && sex !== r.sex) return false;
+    if (r.minAgeYears !== undefined && (age === undefined || age < r.minAgeYears)) return false;
+    if (r.maxAgeYears !== undefined && (age === undefined || age >= r.maxAgeYears)) return false;
+    return true;
+  });
+  if (!range) return param;
+  return {
+    ...param,
+    normalMin: range.normalMin ?? param.normalMin,
+    normalMax: range.normalMax ?? param.normalMax,
+    criticalLow: range.criticalLow ?? param.criticalLow,
+    criticalHigh: range.criticalHigh ?? param.criticalHigh,
+  };
+}
+
+export function evaluateNumericParameter(
+  baseParam: LabParameterDefinition,
+  value: number,
+  patient?: LabPatientContext
 ): ParameterEvaluationResult {
+  const param = resolveParameterForPatient(baseParam, patient);
   let status: ParameterEvaluationStatus = 'normal';
   let isCritical = false;
   let alertMessage: string | undefined;
@@ -326,7 +365,8 @@ export function evaluateNumericParameter(
 
 export function evaluateLabPanel(
   panel: LabPanelDefinition,
-  rawValues: Record<string, number | string | undefined | null>
+  rawValues: Record<string, number | string | undefined | null>,
+  patient?: LabPatientContext
 ): PanelEvaluationResult {
   const results: ParameterEvaluationResult[] = [];
   const criticalItems: string[] = [];
@@ -337,7 +377,7 @@ export function evaluateLabPanel(
     if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
       const numVal = typeof rawVal === 'number' ? rawVal : parseFloat(rawVal);
       if (Number.isFinite(numVal)) {
-        const evalRes = evaluateNumericParameter(param, numVal);
+        const evalRes = evaluateNumericParameter(param, numVal, patient);
         results.push(evalRes);
 
         const statusTag = evalRes.isCritical

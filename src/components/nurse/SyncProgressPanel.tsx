@@ -5,14 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Download, Database, Zap } from 'lucide-react';
-import { format } from 'date-fns';
+import { Upload, Database, Zap } from 'lucide-react';
 
 export function SyncProgressPanel() {
   const { cache, isOnline, syncData, pendingActionCount } = useOfflineSync();
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
 
   const syncProgress = pendingActionCount === 0 
     ? 100 
@@ -45,62 +43,6 @@ export function SyncProgressPanel() {
       setIsSyncing(false);
     }
   }, [isOnline, syncData, pendingActionCount, toast]);
-
-  const handleExportData = useCallback(async () => {
-    try {
-      setExportProgress(25);
-      
-      // Prepare export data
-      const exportData = {
-        exportedAt: new Date().toISOString(),
-        vitals: cache.vitals || [],
-        medications: cache.medications || [],
-        patientData: cache.patientData || [],
-        pendingActions: cache.pendingActions || [],
-        metadata: {
-          vitalCount: cache.vitals?.length || 0,
-          medicationCount: cache.medications?.length || 0,
-          patientCount: cache.patientData?.length || 0,
-          pendingActionCount: cache.pendingActions?.length || 0
-        }
-      };
-
-      setExportProgress(60);
-
-      // Create JSON blob
-      const dataStr = JSON.stringify(exportData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      
-      setExportProgress(80);
-
-      // Create download link
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `offline-data-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setExportProgress(100);
-      
-      toast({
-        title: "Export complete",
-        description: `Downloaded ${exportData.metadata.vitalCount} vitals and ${exportData.metadata.pendingActionCount} pending actions`
-      });
-
-      // Reset progress after delay
-      setTimeout(() => setExportProgress(0), 2000);
-    } catch (error) {
-      toast({
-        title: "Export failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive"
-      });
-      setExportProgress(0);
-    }
-  }, [cache, toast]);
 
   const totalRecords = (cache.vitals?.length || 0) + 
                       (cache.medications?.length || 0) + 
@@ -170,24 +112,7 @@ export function SyncProgressPanel() {
             <Upload className="h-4 w-4 mr-2" />
             {isSyncing ? "Syncing..." : "Sync Now"}
           </Button>
-          <Button
-            onClick={handleExportData}
-            variant="outline"
-            disabled={totalRecords === 0}
-            className="flex-1"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
         </div>
-
-        {/* Export Progress */}
-        {exportProgress > 0 && exportProgress < 100 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium">Exporting...</p>
-            <Progress value={exportProgress} className="h-1" />
-          </div>
-        )}
 
         {/* Storage Info */}
         <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -198,7 +123,7 @@ export function SyncProgressPanel() {
               {totalRecords} records cached locally • Auto-syncs when online
             </p>
             <p className="mt-1">
-              Data is encrypted and stored in IndexedDB (50MB capacity)
+              Encrypted on this device for your signed-in session and erased when you sign out
             </p>
           </div>
         </div>

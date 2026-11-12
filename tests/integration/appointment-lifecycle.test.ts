@@ -1,7 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { supabase } from '@/integrations/supabase/query-helper';
+import { describe, it, expect, beforeAll } from 'vitest';
 
-describe('Appointment Lifecycle Integration', () => {
+// This suite needs a live Supabase backend. query-helper throws at import time when
+// VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY are unset, so it is loaded lazily
+// and the suite is skipped (not failed) when those env vars are absent.
+const hasLiveBackend = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+);
+const describeWithBackend = hasLiveBackend ? describe : describe.skip;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let supabase: any;
+
+describeWithBackend('Appointment Lifecycle Integration', () => {
+  beforeAll(async () => {
+    ({ supabase } = await import('@/integrations/supabase/query-helper'));
+  });
+
   const testHospitalId = 'test-hospital-id';
   const testPatientId = 'test-apt-patient';
   const testDoctorId = 'test-apt-doctor';
@@ -77,14 +91,14 @@ describe('Appointment Lifecycle Integration', () => {
         appointment_id: appointment.id,
         hospital_id: testHospitalId,
         invoice_number: 'TEST-INV-001',
-        total: 150.00,
+        total: 150.0,
         status: 'pending',
       })
       .select()
       .single();
 
     expect(invoice?.status).toBe('pending');
-    expect(invoice?.total).toBe(150.00);
+    expect(invoice?.total).toBe(150.0);
   });
 
   it('should handle appointment cancellation', async () => {

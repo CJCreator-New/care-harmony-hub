@@ -1,250 +1,178 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Shield, Copy, Check, AlertCircle } from 'lucide-react';
+import { Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import {
+  cancelTotpEnrollment,
+  confirmTotpEnrollment,
+  startTotpEnrollment,
+  type PendingTotpEnrollment,
+} from '@/lib/auth/mfa';
 
-export function TwoFactorSetup({ onEnabled }: { onEnabled?: () => void } = {}) {
-  const { user } = useAuth();
-  const [isEnabled, setIsEnabled] = useState(false);
+interface TwoFactorSetupProps {
+  /** Called after the factor is verified (the session is now aal2). */
+  onEnabled?: () => void;
+  /** Called after the user abandons the enrolment (the unverified factor is removed). */
+  onCancel?: () => void;
+}
+
+/**
+ * TOTP enrolment through Supabase Auth MFA:
+ * enroll -> show QR/secret -> challenge + verify a code from the app.
+ * The factor only counts once `verify` succeeds; unverified factors are
+ * removed on cancel, on retry and when the component unmounts.
+ */
+export function TwoFactorSetup({ onEnabled, onCancel }: TwoFactorSetupProps = {}) {
+  const [pending, setPending] = useState<PendingTotpEnrollment | null>(null);
+  const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [secret, setSecret] = useState('');
-  const [qrCode, setQrCode] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pendingFactorRef = useRef<string | null>(null);
 
-  const generateSecret = async () => {
+  // Remove an unverified factor if the user navigates away mid-enrolment.
+  useEffect(() => {
+    return () => {
+      if (pendingFactorRef.current) void cancelTotpEnrollment(pendingFactorRef.current);
+    };
+  }, []);
+
+  const start = async () => {
     setIsLoading(true);
+    setError(null);
+    setCode('');
     try {
-      // Generate TOTP secret
-      const { data, error } = await supabase.functions.invoke('generate-2fa-secret');
-      
-      if (error) throw error;
-      
-      setSecret(data.secret);
-      setQrCode(data.qrCode || data.qrCodeUri || '');
-      setBackupCodes(data.backupCodes);
-      toast.success('2FA secret generated');
-    } catch (error) {
-      toast.error('Failed to generate 2FA secret');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const verify2FA = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      toast.error('Please enter a valid 6-digit code');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-2fa', {
-        body: { secret, code: verificationCode }
-      });
-
-      if (error) throw error;
-
-      if (data.valid) {
-        const { data: storeResult, error: storeError } = await supabase.functions.invoke('store-2fa-secret', {
-          body: { secret, backupCodes }
-        });
-
-        if (storeError) throw storeError;
-        if (!storeResult?.success) {
-          throw new Error(storeResult?.error || 'Failed to enable 2FA');
-        }
-
-        setIsEnabled(true);
-        toast.success('2FA enabled successfully');
-        onEnabled?.();
-      } else {
-        toast.error('Invalid verification code');
+      if (pendingFactorRef.current) {
+        await cancelTotpEnrollment(pendingFactorRef.current);
+        pendingFactorRef.current = null;
       }
-    } catch (error) {
-      toast.error('Failed to verify 2FA code');
+      const enrollment = await startTotpEnrollment();
+      pendingFactorRef.current = enrollment.factorId;
+      setPending(enrollment);
+    } catch (err) {
+      setPending(null);
+      setError(err instanceof Error ? err.message : 'Could not start enrolment');
+      toast.error('Could not start two-factor setup');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const disable2FA = async () => {
+  const verify = async () => {
+    if (!pending) return;
     setIsLoading(true);
+    setError(null);
     try {
-    if (!user?.id) {
-        toast.error('User not authenticated');
-        return;
-      }
-
-      const { error: secretError } = await supabase
-        .from('two_factor_secrets')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (secretError) throw secretError;
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          two_factor_enabled: false,
-          two_factor_secret: null
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setIsEnabled(false);
-      setSecret('');
-      setQrCode('');
-      setBackupCodes([]);
-      toast.success('2FA disabled');
-    } catch (error) {
-      toast.error('Failed to disable 2FA');
+      await confirmTotpEnrollment(pending.factorId, code);
+      pendingFactorRef.current = null;
+      setPending(null);
+      setCode('');
+      toast.success('Two-factor authentication enabled');
+      onEnabled?.();
+    } catch (err) {
+      setCode('');
+      setError(err instanceof Error ? err.message : 'Invalid code');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const copyBackupCodes = () => {
-    navigator.clipboard.writeText(backupCodes.join('\n'));
-    setCopied(true);
-    toast.success('Backup codes copied');
-    setTimeout(() => setCopied(false), 2000);
+  const cancel = async () => {
+    setIsLoading(true);
+    if (pendingFactorRef.current) await cancelTotpEnrollment(pendingFactorRef.current);
+    pendingFactorRef.current = null;
+    setPending(null);
+    setCode('');
+    setError(null);
+    setIsLoading(false);
+    onCancel?.();
   };
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Two-Factor Authentication
-            </CardTitle>
-            <CardDescription>
-              Add an extra layer of security to your account
-            </CardDescription>
-          </div>
-          {isEnabled && (
-            <Badge variant="success">Enabled</Badge>
-          )}
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5" />
+          Two-Factor Authentication
+        </CardTitle>
+        <CardDescription>Add an extra layer of security to your account</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!isEnabled && !secret && (
+        {!pending && (
           <div className="space-y-4">
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
               <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium mb-1">Enhance your account security</p>
+                <p className="font-medium mb-1">Use an authenticator app</p>
                 <p className="text-muted-foreground">
-                  Two-factor authentication adds an extra layer of protection by requiring a code from your authenticator app in addition to your password.
+                  You will scan a QR code with an authenticator app (Google Authenticator,
+                  Microsoft Authenticator, Authy, 1Password…) and confirm with a 6-digit code.
                 </p>
               </div>
             </div>
-            <Button onClick={generateSecret} disabled={isLoading}>
-              Enable 2FA
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+            <Button onClick={start} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Set up authenticator
             </Button>
           </div>
         )}
 
-        {!isEnabled && secret && (
+        {pending && (
           <div className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Step 1: Scan QR Code</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
-              </p>
-              {qrCode && (
-                <div className="flex justify-center p-4 bg-white rounded-lg">
-                  <img src={qrCode} alt="2FA QR Code" className="w-48 h-48" />
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Or enter this code manually: <code className="bg-muted px-2 py-1 rounded">{secret}</code>
+              <h4 className="font-medium mb-2">Step 1: Scan the QR code</h4>
+              <div className="flex justify-center p-4 bg-white rounded-lg">
+                <img src={pending.qrCode} alt="Authenticator QR code" className="w-48 h-48" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 text-center break-all">
+                Or enter this key manually:{' '}
+                <code className="bg-muted px-2 py-1 rounded">{pending.secret}</code>
               </p>
             </div>
 
             <div>
-              <h4 className="font-medium mb-2">Step 2: Verify Code</h4>
+              <h4 className="font-medium mb-2">Step 2: Enter the code from the app</h4>
               <div className="space-y-2">
-                <Label htmlFor="verification-code">Enter 6-digit code from your app</Label>
+                <Label htmlFor="verification-code">6-digit code</Label>
                 <Input
                   id="verification-code"
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   maxLength={6}
                   placeholder="000000"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && code.length === 6 && !isLoading) void verify();
+                  }}
                 />
               </div>
-              <Button 
-                onClick={verify2FA} 
-                disabled={isLoading || verificationCode.length !== 6}
-                className="mt-4"
-              >
-                Verify and Enable
-              </Button>
-            </div>
-
-            {backupCodes.length > 0 && (
-              <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-warning" />
-                  Backup Codes
-                </h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Save these codes in a safe place. You can use them to access your account if you lose your device.
+              {error && (
+                <p className="text-sm text-destructive mt-2" role="alert">
+                  {error}
                 </p>
-                <div className="bg-background p-3 rounded font-mono text-sm space-y-1">
-                  {backupCodes.map((code) => (
-                    <div key={code}>{code}</div>
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyBackupCodes}
-                  className="mt-3"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy Codes
-                    </>
-                  )}
+              )}
+              <div className="flex flex-wrap gap-2 mt-4">
+                <Button onClick={verify} disabled={isLoading || code.length !== 6}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Verify and enable
+                </Button>
+                <Button variant="outline" onClick={start} disabled={isLoading}>
+                  New QR code
+                </Button>
+                <Button variant="ghost" onClick={cancel} disabled={isLoading}>
+                  Cancel
                 </Button>
               </div>
-            )}
-          </div>
-        )}
-
-        {isEnabled && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-success/10 border border-success/20 rounded-lg">
-              <Shield className="h-5 w-5 text-success mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium mb-1">2FA is active</p>
-                <p className="text-muted-foreground">
-                  Your account is protected with two-factor authentication.
-                </p>
-              </div>
             </div>
-            <Button variant="destructive" onClick={disable2FA} disabled={isLoading}>
-              Disable 2FA
-            </Button>
           </div>
         )}
       </CardContent>

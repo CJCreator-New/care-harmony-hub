@@ -2,20 +2,28 @@
 
 /**
  * Test Users Creation Script
- * Creates test users in Supabase Auth for E2E testing
+ * Creates test users in Supabase Auth for E2E testing.
+ *
+ * S0-11 / SECF-21 / OPS-17:
+ * - Refuses to run against the production Supabase project (ref from supabase/config.toml).
+ *   Use a local stack (`supabase start`) or the dedicated test/staging project.
+ * - No shared password in the repo. Supply a per-run password via E2E_TEST_PASSWORD
+ *   (or per role via E2E_<ROLE>_PASSWORD, e.g. E2E_LAB_TECHNICIAN_PASSWORD).
+ *   Passwords are never printed.
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { exitIfProductionTarget } from './lib/supabase-target-guard.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables
+// Load environment variables (.env is optional when SUPABASE_URL is exported)
 const envPath = join(__dirname, '..', '.env');
-const envContent = readFileSync(envPath, 'utf-8');
+const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
 const envVars = {};
 envContent.split('\n').forEach(line => {
   const [key, value] = line.split('=');
@@ -24,8 +32,29 @@ envContent.split('\n').forEach(line => {
   }
 });
 
-const supabaseUrl = envVars.VITE_SUPABASE_URL;
-const supabaseKey = envVars.VITE_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || envVars.VITE_SUPABASE_URL;
+
+if (!supabaseUrl) {
+  console.error('SUPABASE_URL (or VITE_SUPABASE_URL in .env) is required');
+  process.exit(1);
+}
+exitIfProductionTarget(supabaseUrl, 'SUPABASE_URL / VITE_SUPABASE_URL', 'scripts/create-test-users.js');
+
+const MOCK_AUTH_PASSWORD = 'MockAuthOnly-NotARealAccount-0'; // .env.test, DEV mock auth only
+
+/** Per-run password: E2E_<ROLE>_PASSWORD, else E2E_TEST_PASSWORD. Never a repo literal. */
+function passwordFor(envRole) {
+  const value = process.env[`E2E_${envRole}_PASSWORD`] || process.env.E2E_TEST_PASSWORD || '';
+  if (value.length < 12) {
+    console.error(`Set E2E_TEST_PASSWORD (or E2E_${envRole}_PASSWORD) to a per-run password of at least 12 characters.`);
+    process.exit(1);
+  }
+  if (value === MOCK_AUTH_PASSWORD || value === envVars.VITE_E2E_MOCK_PASSWORD) {
+    console.error('Do not reuse the committed mock-auth password (VITE_E2E_MOCK_PASSWORD) for real accounts.');
+    process.exit(1);
+  }
+  return value;
+}
 
 // You'll need the service role key for creating users
 // This should be set in your environment or passed as an argument
@@ -49,7 +78,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440003', // Admin user ID
     email: 'admin@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('ADMIN'),
     user_metadata: {
       first_name: 'Admin',
       last_name: 'User',
@@ -59,7 +88,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440005', // Doctor user ID
     email: 'doctor@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('DOCTOR'),
     user_metadata: {
       first_name: 'Dr. Jane',
       last_name: 'Smith',
@@ -69,7 +98,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440007', // Nurse user ID
     email: 'nurse@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('NURSE'),
     user_metadata: {
       first_name: 'Nancy',
       last_name: 'Nurse',
@@ -79,7 +108,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440009', // Receptionist user ID
     email: 'reception@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('RECEPTIONIST'),
     user_metadata: {
       first_name: 'Rachel',
       last_name: 'Receptionist',
@@ -89,7 +118,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440011', // Pharmacist user ID
     email: 'pharmacy@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('PHARMACIST'),
     user_metadata: {
       first_name: 'Phil',
       last_name: 'Pharmacist',
@@ -99,7 +128,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440013', // Lab Tech user ID
     email: 'lab@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('LAB_TECHNICIAN'),
     user_metadata: {
       first_name: 'Larry',
       last_name: 'LabTech',
@@ -109,7 +138,7 @@ const testUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440015', // Patient user ID
     email: 'patient@testgeneral.com',
-    password: 'TestPass123!',
+    password: passwordFor('PATIENT'),
     user_metadata: {
       first_name: 'John',
       last_name: 'Patient',
@@ -149,7 +178,7 @@ async function createTestUsers() {
 
   console.log('\n🎉 Test users creation completed!');  console.log('\n📋 Test User Credentials:');
   testUsers.forEach(user => {
-    console.log(`  ${user.email} / ${user.password} (Role: ${user.user_metadata.role})`);
+    console.log(`  ${user.email} (Role: ${user.user_metadata.role}) - password from env, not printed`);
   });
   console.log('\n� User IDs for reference:');
   testUsers.forEach(user => {

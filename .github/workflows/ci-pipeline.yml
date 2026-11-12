@@ -1,24 +1,99 @@
-name: Continuous Integration Pipeline
+name: CI Pipeline
+
+# S1-07 (OPS-01, OPS-03, SECF-27, OPS-02, TEST-01, TEST-02, TEST-10, OPS-19, OPS-11).
+#
+# Every job below is blocking: no job uses continue-on-error or "|| true".
+# Each job's `name:` is the status-check name that branch protection requires.
+# The list of required checks, and how to enable them, is in
+# docs/operations/CI_REQUIRED_CHECKS.md. Only the "CI required gates" job is
+# needed for a single required check, but the per-job checks are listed too so
+# a failure is visible in the PR without opening the summary.
 
 on:
   pull_request:
     branches: [main, develop]
   push:
     branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pipeline-${{ github.ref }}
+  # Cancel superseded PR runs only. A push to main or develop always finishes,
+  # so the gate result for that commit is never left unevaluated.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  # dependency-cruiser 18 (Architecture boundaries) and lint-staged 17 need Node 22 or later.
+  NODE_VERSION: '22'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ========================================
-  # UNIT TESTS: 2-3 minute execution
-  # ========================================
-  unit-tests:
-    name: Unit Tests
+  type-check:
+    name: Type check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Type-check app and node configs
+        run: npm run type-check
+      # ARCH-01: fail if the app config stops compiling real source (vacuous gate).
+      # Every tracked non-test file under src/ must be in the set tsc checks. The only
+      # exception is the Supabase client, which tsconfig.app.json excludes.
+      - name: Guard against a vacuous type gate
+        run: |
+          set -eo pipefail
+          npx tsc -p tsconfig.app.json --listFilesOnly | grep "^$PWD/src/" | sed "s|^$PWD/||" | sort > tsc-checked.txt
+          git ls-files 'src/*.ts' 'src/*.tsx' \
+            | { grep -vE '\.test\.tsx?$|/__tests__/|^src/test/|^src/integrations/supabase/client\.ts$' || true; } \
+            | sort > tsc-expected.txt
+          echo "tsc checked $(wc -l < tsc-checked.txt) of $(wc -l < tsc-expected.txt) app source files"
+          test -s tsc-expected.txt
+          MISSING=$(comm -13 tsc-checked.txt tsc-expected.txt)
+          if [ -n "$MISSING" ]; then
+            echo "Not type-checked:"; echo "$MISSING"; exit 1
+          fi
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  architecture-boundaries:
+    name: Architecture boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint:boundaries
+
+  unit-tests:
+    name: Unit tests (vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # TEST-02 / TEST-10: `npm run test:unit:all` is the whole default vitest suite (every
+    # non-E2E file), not the old `src/test` subset. Playwright specs are excluded by vitest.config.ts.
     services:
       postgres:
         image: postgres:15-alpine
@@ -32,204 +107,191 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/caresync_test
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+      - run: npm ci
+      - run: npm run test:unit:all
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run TypeScript check
-        run: npm run type-check
-
-      - name: Run linter
-        run: npm run lint -- --format json > lint-report.json
-
-      - name: Run unit tests
-        run: npm run test:unit -- --coverage --reporter=json --outputFile=coverage.json
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/caresync_test
-          NODE_ENV: test
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        continue-on-error: true
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.json
-          flags: unit
-          fail_ci_if_error: false
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: |
-            coverage.json
-            lint-report.json
-
-  # ========================================
-  # SECURITY SCANNING: 2-4 minute execution
-  # ========================================
-  security-scan:
-    name: Security Scan (OWASP)
+  # Runs on every PR (not path-filtered) so it can be a required check. It validates
+  # every migration in supabase/migrations, not only changed files.
+  migration-reversibility:
+    name: Migration reversibility
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+      - run: npm ci
+      # No DROP COLUMN, DROP TABLE, DROP CONSTRAINT, TRUNCATE or unscoped DELETE in migrations.
+      - run: npm run validate:migrations
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run npm audit (dependencies)
-        run: npm audit --json > npm-audit.json || true
-
-      - name: Run SAST (SonarQube scanner)
-        if: env.SONAR_TOKEN != ''
-        continue-on-error: true
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=caresync-hims
-            -Dsonar.sources=src
-            -Dsonar.exclusions=**/*.test.ts,**/node_modules/**
-
-      - name: Check security regressions
-        run: npm run test:security
-
-      - name: Validate RLS Policies
-        run: npx tsx scripts/validate-rls.ts
-        env:
-          CI: 'true'
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Upload security results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-scan-results
-          path: npm-audit.json
-
-  # ========================================
-  # ACCESSIBILITY SCAN: 1-2 minute execution
-  # ========================================
-  accessibility-scan:
-    name: Accessibility Scan (WCAG 2.1)
+  client-secrets:
+    name: Client secret source scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+      - run: npm ci
+      # SECF-03: no provider secret pattern in src/.
+      - run: npm run security:client-secrets
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build for accessibility testing
-        run: npm run build
-
-      - name: Run accessibility tests
-        run: npm run test:accessibility -- --reporter=json > a11y-results.json || true
-
-      - name: Upload accessibility results
-        if: always()
-        uses: actions/upload-artifact@v4
+  dependency-audit:
+    name: Dependency audit (runtime, high and critical)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          name: accessibility-results
-          path: a11y-results.json
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      # OPS-19 / SECF-27: production dependencies with high or critical advisories fail.
+      - run: npm audit --omit=dev --audit-level=high
 
-  # ========================================
-  # BUILD VALIDATION: 1-2 minute execution
-  # ========================================
+  security-tests:
+    name: Security tests (vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:security
+
+  accessibility-tests:
+    name: Accessibility tests (vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      # OPS-03: no `|| true`. An axe or WCAG regression fails the PR.
+      - run: npm run test:accessibility
+
   build:
-    name: Build Verification
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [unit-tests, security-scan]
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build production bundle
-        run: npm run build
+      - run: npm ci
+      - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
 
-      - name: Verify bundle size
+  bundle-canary:
+    name: Bundle canary scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      # SECF-03: build with canary values in every former provider-secret VITE_* var
+      # and fail if any canary reaches the public bundle. The values are fixed dummies,
+      # not secrets; the stub Supabase values only satisfy the build.
+      - name: Canary build and scan
         run: |
-          SIZE=$(du -sh dist | cut -f1)
-          echo "📦 Bundle size: $SIZE"
-          if [ $(du -sm dist | cut -f1) -gt 5 ]; then
-            echo "⚠️ Warning: Bundle size exceeds 5MB"
-          fi
+          npx vite build --outDir dist-canary
+          npm run security:bundle-secrets -- dist-canary
+        env:
+          VITE_SUPABASE_URL: https://stub.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: stub
+          VITE_OPENAI_API_KEY: AUDITCANARY_OPENAI
+          VITE_ANTHROPIC_API_KEY: AUDITCANARY_ANTHROPIC
+          VITE_TWILIO_ACCOUNT_SID: AUDITCANARY_TWILIO_SID
+          VITE_TWILIO_AUTH_TOKEN: AUDITCANARY_TWILIO_TOKEN
+          VITE_LOVABLE_API_KEY: AUDITCANARY_LOVABLE
+          VITE_API_KEY: AUDITCANARY_API_KEY
+          VITE_E2E_MOCK_PASSWORD: AUDITCANARY_E2E_MOCK_PASSWORD
+          OPENAI_API_KEY: AUDITCANARY_RAW_OPENAI
+          ANTHROPIC_API_KEY: AUDITCANARY_RAW_ANTHROPIC
 
-      - name: Upload build artifacts
+  e2e-smoke:
+    name: E2E smoke (Playwright, chromium)
+    # Pinned: the installed Playwright has no browser build for the image that
+    # ubuntu-latest now resolves to. Move this forward together with @playwright/test.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      # TEST-01: the Playwright config and every spec must load. A broken import
+      # makes this fail instead of silently running zero tests.
+      # A list with zero tests exits 0, so the count is checked explicitly.
+      - name: Playwright config and specs must load
+        run: |
+          set -o pipefail
+          npx playwright test --list --project=chromium | tee playwright-list.txt
+          grep -E '^Total: [1-9][0-9]* tests?' playwright-list.txt
+      # playwright.config.ts sets headless: false, so run under a virtual display.
+      # The webServer block in that config starts Vite on port 8080.
+      - name: Run @smoke tests
+        env:
+          CI: 'true'
+        run: xvfb-run --auto-servernum npx playwright test --grep @smoke --project=chromium
+      - name: Upload Playwright report on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifact
-          path: dist/
-          retention-days: 7
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
 
-  # ========================================
-  # DOCKER BUILD & PUSH: 3-5 minute execution
-  # ========================================
   docker-build:
-    name: Docker Build & Push
+    name: Docker build and push
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    needs: [build]
-
+    needs: [build, bundle-canary]
     permissions:
       contents: read
       packages: write
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -238,9 +300,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v5
         with:
           context: .
           push: true
@@ -250,28 +310,29 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
           file: ./Dockerfile
 
-  # ========================================
-  # CI SUMMARY: Final status check
-  # ========================================
-  ci-summary:
-    name: CI Pipeline Summary
+  # Single status check for branch protection. Fails unless every gate above succeeded.
+  # A skipped or cancelled gate is also a failure.
+  required-gates:
+    name: CI required gates
     runs-on: ubuntu-latest
     if: always()
-    needs: [unit-tests, security-scan, accessibility-scan, build, docker-build]
-
+    needs:
+      - type-check
+      - lint
+      - architecture-boundaries
+      - unit-tests
+      - migration-reversibility
+      - client-secrets
+      - dependency-audit
+      - security-tests
+      - accessibility-tests
+      - build
+      - bundle-canary
+      - e2e-smoke
     steps:
-      - name: Check CI Success
+      - name: Every required gate must succeed
+        env:
+          RESULTS: ${{ toJson(needs) }}
         run: |
-          echo "✅ CI Pipeline Summary"
-          echo "- Unit Tests: ${{ needs.unit-tests.result }}"
-          echo "- Security: ${{ needs.security-scan.result }}"
-          echo "- Accessibility: ${{ needs.accessibility-scan.result }}"
-          echo "- Build: ${{ needs.build.result }}"
-          echo "- Docker: ${{ needs.docker-build.result }}"
-
-      - name: Fail on any failure
-        if: |
-          needs.unit-tests.result == 'failure' ||
-          needs.security-scan.result == 'failure' ||
-          needs.build.result == 'failure'
-        run: exit 1
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null

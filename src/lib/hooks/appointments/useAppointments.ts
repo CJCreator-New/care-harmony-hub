@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { APPOINTMENT_COLUMNS } from '@/lib/queryColumns';
 import { createClinicalSpan, recordClinicalMetric } from '@/utils/telemetry';
 import { getCorrelationId } from '@/utils/correlationId';
-import { captureException } from '@/utils/errorTracking';
+import { captureException } from '@/lib/monitoring/sentry';
 
 export type AppointmentStatus = 'scheduled' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
 export type PriorityLevel = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
@@ -270,7 +270,12 @@ export function useUpdateAppointment() {
   const { logActivity } = useActivityLog();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Appointment> & { id: string }) => {
+    // cancellationReason is audit-only: it is written to the activity log, not to the appointment row.
+    mutationFn: async ({
+      id,
+      cancellationReason: _cancellationReason,
+      ...updates
+    }: Partial<Appointment> & { id: string; cancellationReason?: string }) => {
       const span = createClinicalSpan('appointment.update', {
         'hospital.id': hospital?.id,
         'appointment.id': id,
@@ -305,7 +310,7 @@ export function useUpdateAppointment() {
         span.end();
       }
     },
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       
       recordClinicalMetric('appointment.update.latency', 0, {
@@ -313,9 +318,10 @@ export function useUpdateAppointment() {
         'status': 'success',
       });
       
-      // Log activity
+      // Log activity. Cancellations carry the user-entered reason (UX-02).
+      const isCancellation = data.status === 'cancelled';
       await logActivity({
-        actionType: 'appointment_update',
+        actionType: isCancellation ? 'appointment_cancel' : 'appointment_update',
         entityType: 'appointment',
         entityId: data.id,
         details: {
@@ -323,6 +329,7 @@ export function useUpdateAppointment() {
           status: data.status,
           updated_fields: Object.keys(data),
           correlation_id: getCorrelationId(hospital?.id),
+          ...(isCancellation ? { reason: variables.cancellationReason?.trim() || null } : {}),
         }
       });
       

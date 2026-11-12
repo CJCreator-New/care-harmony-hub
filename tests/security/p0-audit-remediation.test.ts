@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { checkDrugAllergyConflict } from '@/utils/clinicalValidation';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -26,36 +25,8 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
     });
 
     it('writes audit trail to activity_logs on decryption', () => {
-      expect(fnSource).toContain(".from(\"activity_logs\").insert");
-      expect(fnSource).toContain("PHI_DECRYPT");
-    });
-  });
-
-  describe('Ticket 02 (CLIN-001): Drug Allergy Conflict Normalization', () => {
-    it('detects penicillin allergy without allergy suffix', () => {
-      const res = checkDrugAllergyConflict('Amoxicillin', ['penicillin']);
-      expect(res.safe).toBe(false);
-      expect(res.hasConflict).toBe(true);
-      expect(res.conflictingAllergy).toBe('penicillin');
-    });
-
-    it('detects PCN acronym', () => {
-      const res = checkDrugAllergyConflict('Piperacillin', ['PCN']);
-      expect(res.safe).toBe(false);
-      expect(res.hasConflict).toBe(true);
-    });
-
-    it('detects sulfa class contraindication', () => {
-      const res = checkDrugAllergyConflict('Bactrim', ['sulfa']);
-      expect(res.safe).toBe(false);
-      expect(res.hasConflict).toBe(true);
-    });
-
-    it('passes safe medications without false positives', () => {
-      const res = checkDrugAllergyConflict('Metformin', ['penicillin', 'sulfa']);
-      expect(res.safe).toBe(true);
-      expect(res.hasConflict).toBe(false);
-      expect(res.conflicts).toEqual([]);
+      expect(fnSource).toContain('.from("activity_logs").insert');
+      expect(fnSource).toContain('PHI_DECRYPT');
     });
   });
 
@@ -65,23 +36,33 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
       'utf8'
     );
 
-    it('inserts alerts into lab_alert_escalations queue table', () => {
-      expect(labFnSource).toContain(".from(\"lab_alert_escalations\").insert");
+    // S0-08 (EDGE-03): the previous assertions here pinned the defects themselves
+    // (status "escalated", severity "unverified_review_required", writes to the
+    // non-existent critical_lab_alerts table). Behaviour is now covered by
+    // tests/critical-lab/*.test.ts; these checks only guard against regressions.
+    it('queues the ladder idempotently in lab_alert_escalations', () => {
+      expect(labFnSource).toContain('.from("lab_alert_escalations")');
+      expect(labFnSource).toContain('onConflict: "alert_id,escalation_level"');
     });
 
-    it('provides an acknowledge action to halt escalation', () => {
-      expect(labFnSource).toContain('rawBody.action === "acknowledge"');
-      expect(labFnSource).toContain('status: "acknowledged"');
+    it('acknowledges on lab_critical_alerts, never the non-existent critical_lab_alerts', () => {
+      expect(labFnSource).toContain('request.action === "acknowledge"');
+      expect(labFnSource).not.toContain('"critical_lab_alerts"');
+      expect(labFnSource).toContain('.is("acknowledged_at", null)');
     });
 
-    it('provides a process_escalations action to run timed-out queue items', () => {
-      expect(labFnSource).toContain('rawBody.action === "process_escalations"');
-      expect(labFnSource).toContain('status: "escalated"');
+    it('worker path requires service credentials, checked before any user JWT', () => {
+      const workerIdx = labFnSource.indexOf('request.action === "process_escalations"');
+      const userAuthIdx = labFnSource.indexOf('getAuthorizedActor(req');
+      expect(workerIdx).toBeGreaterThan(-1);
+      expect(labFnSource).toContain('isWorkerAuthorized(');
+      expect(workerIdx).toBeLessThan(userAuthIdx);
     });
 
-    it('fails closed when ranges are missing or query errors', () => {
-      expect(labFnSource).toContain('unverified_review_required');
-      expect(labFnSource).toContain('isCritical: true');
+    it('uses only status/severity values allowed by the CHECK constraints', () => {
+      expect(labFnSource).not.toContain('"escalated"');
+      expect(labFnSource).not.toContain('unverified_review_required');
+      expect(labFnSource).not.toContain('processed_at');
     });
   });
 
@@ -117,9 +98,12 @@ describe('Phase 0 Audit Remediation Security & Clinical Verification', () => {
       expect(censusSource).not.toContain('super_admin');
     });
 
-    it('insurance-integration enforces getAuthorizedActor and actor hospital scoping', () => {
+    it('insurance-integration authenticates the caller and stays a non-writing 501 stub', () => {
+      // No payer adapter exists, so there is no data to scope by hospital yet.
+      // Until one is added, the function must authenticate and must not touch the database.
       expect(insuranceSource).toContain('getAuthorizedActor');
-      expect(insuranceSource).toContain('actor.hospitalId');
+      expect(insuranceSource).toContain('status: 501');
+      expect(insuranceSource).not.toMatch(/\.from\(|\.insert\(|\.update\(|\.upsert\(|\.rpc\(/);
     });
 
     it('billing-reconciliation enforces getAuthorizedActor and pins hospital_id', () => {

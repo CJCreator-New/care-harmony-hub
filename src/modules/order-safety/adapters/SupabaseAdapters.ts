@@ -4,6 +4,14 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { fieldEncryption } from '@/utils/dataProtection';
+import { mergeIntakeIntoPatientRecord, type IntakeClinicalText } from '../core/intakeRecord';
+import {
+  ageFromDateOfBirth,
+  mapGender,
+  medicationsFromRecord,
+  normalizeAllergyList,
+} from '../core/orderIntent';
 import {
   ActivePatientMedication,
   AuditLoggerPort,
@@ -19,45 +27,29 @@ export class SupabaseLocalDdiAdapter implements LocalDdiRepositoryPort {
     patientId: string,
     hospitalId: string
   ): Promise<readonly ActivePatientMedication[]> {
-    try {
-      const { data, error } = await supabase
-        .from('prescriptions')
-        .select('drug_name, drug_rxcui, dosage')
-        .eq('patient_id', patientId)
-        .eq('hospital_id', hospitalId)
-        .eq('status', 'active');
-
-      if (error) {
-        console.warn('Failed to fetch patient active prescriptions from Supabase:', error.message);
-        return [];
-      }
-
-      return (data || []).map((row: any) => ({
-        drugName: row.drug_name || '',
-        drugRxcui: row.drug_rxcui || undefined,
-        dosageMg: typeof row.dosage === 'number' ? row.dosage : undefined,
-      }));
-    } catch (err) {
-      console.warn('Unexpected error in SupabaseLocalDdiAdapter:', err);
-      return [];
-    }
+    const { medications } = await loadActivePrescriptionMedications(patientId, hospitalId);
+    return medications;
   }
 
   async findLocalContraindications(
     drugNameOrRxcui: string,
     hospitalId: string
   ): Promise<readonly LocalContraindicationRule[]> {
+    // Only letters, digits, spaces, dots and hyphens reach the PostgREST filter:
+    // commas, parentheses and quotes would change the .or() expression (SECF-18).
+    const term = drugNameOrRxcui.replace(/[^a-zA-Z0-9 .-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (term.length < 2) return [];
     try {
       const { data, error } = await supabase
         .from('drug_interactions')
         .select('drug_a, drug_b, severity, description')
         .eq('hospital_id', hospitalId)
-        .or(`drug_a.ilike.%${drugNameOrRxcui}%,drug_b.ilike.%${drugNameOrRxcui}%`);
+        .or(`drug_a.ilike.%${term}%,drug_b.ilike.%${term}%`);
 
       if (error || !data) return [];
 
       return data.map((row: any) => {
-        const isDrugA = row.drug_a.toLowerCase().includes(drugNameOrRxcui.toLowerCase());
+        const isDrugA = String(row.drug_a || '').toLowerCase().includes(term.toLowerCase());
         const otherDrug = isDrugA ? row.drug_b : row.drug_a;
         return {
           primaryDrug: drugNameOrRxcui,
@@ -157,6 +149,41 @@ export class HttpRxNormAdapter implements RxNormTerminologyPort {
   }
 }
 
+/**
+ * Writes order-safety audit events to public.activity_logs, the audit table the
+ * rest of the application uses (public.audit_logs is not present in the live
+ * schema; audit item DB-08).
+ */
+export class SupabaseActivityLogAuditAdapter implements AuditLoggerPort {
+  async logSafetyEvent(event: AuditSafetyEvent): Promise<string> {
+    try {
+      const overridesCount = Number((event.details as Record<string, unknown>)?.overridesCount ?? 0);
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .insert({
+          hospital_id: event.hospitalId,
+          user_id: event.performedBy,
+          action_type: event.actionType,
+          entity_type: event.resourceType,
+          entity_id: event.resourceId ?? null,
+          details: event.details,
+          severity: overridesCount > 0 ? 'warning' : 'info',
+        })
+        .select('id')
+        .single();
+      if (error) {
+        console.warn('Failed to insert order safety activity log entry:', error.message);
+        return 'unrecorded-audit-fallback';
+      }
+      return data?.id || 'logged-audit-id';
+    } catch (err) {
+      console.warn('Activity log audit exception:', err);
+      return 'unrecorded-audit-exception';
+    }
+  }
+}
+
+/** @deprecated writes to public.audit_logs, which the live schema lacks. Use SupabaseActivityLogAuditAdapter. */
 export class SupabaseAuditLoggerAdapter implements AuditLoggerPort {
   async logSafetyEvent(event: AuditSafetyEvent): Promise<string> {
     try {
@@ -183,5 +210,179 @@ export class SupabaseAuditLoggerAdapter implements AuditLoggerPort {
       console.warn('Audit logger exception:', err);
       return 'unrecorded-audit-exception';
     }
+  }
+}
+
+// ─── Patient clinical context loader (fail-closed) ─────────────────────────────
+
+const INACTIVE_PRESCRIPTION_STATUSES = '(cancelled,rejected,discontinued,expired)';
+const ENCRYPTED_PREFIX = '__ENCRYPTED__';
+
+/**
+ * Medications on the patient's recent, not-cancelled prescriptions in this
+ * hospital. Encrypted medication names are decrypted in one batch. Anything
+ * that cannot be read is reported in `gaps`, never silently dropped.
+ */
+export async function loadActivePrescriptionMedications(
+  patientId: string,
+  hospitalId: string,
+  options: { excludePrescriptionId?: string; lookbackDays?: number } = {}
+): Promise<{ medications: ActivePatientMedication[]; gaps: string[] }> {
+  const gaps: string[] = [];
+  const since = new Date(Date.now() - (options.lookbackDays ?? 90) * 86400000).toISOString();
+  let query = supabase
+    .from('prescriptions')
+    .select('id, status, created_at, prescription_items(*)')
+    .eq('patient_id', patientId)
+    .eq('hospital_id', hospitalId)
+    .gte('created_at', since)
+    .not('status', 'in', INACTIVE_PRESCRIPTION_STATUSES);
+  if (options.excludePrescriptionId) query = query.neq('id', options.excludePrescriptionId);
+
+  const { data, error } = await query;
+  if (error) {
+    return { medications: [], gaps: ['existing prescriptions could not be loaded'] };
+  }
+
+  const items = (data || []).flatMap((rx: any) => (Array.isArray(rx.prescription_items) ? rx.prescription_items : []));
+  const plain: string[] = [];
+  const encrypted: Array<{ meta: any }> = [];
+  let unreadable = 0;
+  for (const item of items) {
+    const name = typeof item?.medication_name === 'string' ? item.medication_name : '';
+    if (!name) continue;
+    if (name.startsWith(ENCRYPTED_PREFIX)) {
+      const meta = item?.encryption_metadata?.medication_name;
+      if (meta) encrypted.push({ meta });
+      else unreadable++;
+    } else {
+      plain.push(name);
+    }
+  }
+  if (encrypted.length > 0) {
+    try {
+      // phi-crypto refuses non-admin decryption without a resource context
+      // (supabase/functions/phi-crypto/index.ts, SEC-001) and re-checks that
+      // the caller can read that resource under RLS. These items were just read
+      // through this patient's prescriptions, so the patient is the resource.
+      const decrypted = await fieldEncryption.decryptFields(
+        encrypted.map((e) => e.meta),
+        { resourceType: 'patients', resourceId: patientId }
+      );
+      // Walk the requested items, not the response, so a short response leaves
+      // gaps instead of silently dropping medications. A value equal to the
+      // ciphertext (decryptFields' test-mode fallback) is not a drug name.
+      encrypted.forEach((e, i) => {
+        const n = Array.isArray(decrypted) ? decrypted[i] : undefined;
+        if (typeof n === 'string' && n && !n.startsWith(ENCRYPTED_PREFIX) && n !== e.meta?.encrypted) {
+          plain.push(n);
+        } else {
+          unreadable++;
+        }
+      });
+    } catch {
+      unreadable += encrypted.length;
+    }
+  }
+  if (unreadable > 0) {
+    gaps.push(`${unreadable} existing prescription item(s) could not be decrypted for interaction screening`);
+  }
+  const medications = [...new Map(plain.map((n) => [n.toLowerCase().trim(), { drugName: n.trim() }])).values()];
+  return { medications, gaps };
+}
+
+export interface LoadedPatientRecord {
+  readonly patientId: string;
+  readonly hospitalId: string;
+  readonly ageYears?: number;
+  readonly ageMonths?: number;
+  readonly gender?: 'M' | 'F' | 'O';
+  readonly allergies: string[];
+  readonly allergyStatusUnknown: boolean;
+  readonly homeMedications: Array<{ drugName: string; dosageMg?: number }>;
+  readonly activePrescriptionMedications: ActivePatientMedication[];
+  readonly gaps: string[];
+}
+
+/**
+ * Loads everything the order-safety engine needs about a patient. Never throws:
+ * failures become `gaps`, which the engine turns into a fail-closed finding.
+ */
+export async function loadPatientClinicalRecord(
+  patientId: string,
+  options: { excludePrescriptionId?: string; lookbackDays?: number } = {}
+): Promise<LoadedPatientRecord | null> {
+  const { data: patient, error } = await supabase
+    .from('patients')
+    .select('id, hospital_id, date_of_birth, gender, allergies, current_medications')
+    .eq('id', patientId)
+    .maybeSingle();
+
+  if (error || !patient) return null;
+
+  const gaps: string[] = [];
+  const age = ageFromDateOfBirth((patient as any).date_of_birth);
+  if (!age) gaps.push('date of birth missing or invalid (pediatric dose screening not possible)');
+  const { allergies, recorded } = normalizeAllergyList((patient as any).allergies);
+  const homeMedications = medicationsFromRecord((patient as any).current_medications);
+
+  let activePrescriptionMedications: ActivePatientMedication[] = [];
+  try {
+    const active = await loadActivePrescriptionMedications(patientId, (patient as any).hospital_id, options);
+    activePrescriptionMedications = active.medications;
+    gaps.push(...active.gaps);
+  } catch {
+    gaps.push('existing prescriptions could not be loaded');
+  }
+
+  return {
+    patientId,
+    hospitalId: (patient as any).hospital_id,
+    ...(age ? { ageYears: age.ageYears, ageMonths: age.ageMonths } : {}),
+    gender: mapGender((patient as any).gender),
+    allergies,
+    allergyStatusUnknown: !recorded,
+    homeMedications,
+    activePrescriptionMedications,
+    gaps,
+  };
+}
+
+/**
+ * Writes allergies / home medications captured at intake into the patient's
+ * structured record (CLIN-14). Additive merge, see `mergeIntakeIntoPatientRecord`.
+ * Never throws; callers should warn the user when `ok` is false, because the
+ * prescriber's safety screen will not see the intake allergies.
+ */
+export async function writeIntakeToPatientRecord(
+  patientId: string,
+  intake: IntakeClinicalText
+): Promise<{ ok: boolean; changed: boolean; error?: string }> {
+  try {
+    if (!patientId) return { ok: false, changed: false, error: 'patient id missing' };
+    if (!intake.allergies?.trim() && !intake.currentMedications?.trim()) return { ok: true, changed: false };
+    const { data, error } = await supabase
+      .from('patients')
+      .select('allergies, current_medications')
+      .eq('id', patientId)
+      .maybeSingle();
+    if (error || !data) return { ok: false, changed: false, error: error?.message ?? 'patient not found' };
+    const patch = mergeIntakeIntoPatientRecord(data as any, intake);
+    if (!patch) return { ok: true, changed: false };
+    // `.select` makes PostgREST return the updated rows. Without it, an UPDATE
+    // that row-level security filters out "succeeds" with no error and no
+    // change, and the nurse never sees the could-not-save warning.
+    const { data: updated, error: updateError } = await supabase
+      .from('patients')
+      .update(patch as any)
+      .eq('id', patientId)
+      .select('id');
+    if (updateError) return { ok: false, changed: false, error: updateError.message };
+    if (!Array.isArray(updated) || updated.length === 0) {
+      return { ok: false, changed: false, error: 'patient record was not updated (not permitted or not found)' };
+    }
+    return { ok: true, changed: true };
+  } catch (err) {
+    return { ok: false, changed: false, error: err instanceof Error ? err.message : String(err) };
   }
 }

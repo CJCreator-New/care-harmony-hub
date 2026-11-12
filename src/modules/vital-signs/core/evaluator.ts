@@ -118,6 +118,7 @@ export function evaluateVitalSigns(input: VitalSignsInput): VitalSignsEvaluation
   const news2 = calculateNews2Score({
     respiratoryRate: respRate,
     oxygenSaturation: spo2,
+    spo2Scale: input.spo2Scale,
     supplementalOxygen: !!input.supplementalOxygen,
     bloodPressureSystolic: systolic,
     heartRate,
@@ -171,11 +172,23 @@ export function evaluateVitalSigns(input: VitalSignsInput): VitalSignsEvaluation
           : 'All vital signs within acceptable clinical thresholds.',
   };
 
+  // 10. NEWS2 completeness: a missing parameter scores 0, so the caller must be told (CLIN-12).
+  const missingParameters: string[] = [];
+  if (respRate === null) missingParameters.push('respiratoryRate');
+  if (spo2 === null) missingParameters.push('oxygenSaturation');
+  if (input.supplementalOxygen === undefined) missingParameters.push('supplementalOxygen');
+  if (systolic === null) missingParameters.push('bloodPressureSystolic');
+  if (heartRate === null) missingParameters.push('heartRate');
+  if (input.consciousness === undefined) missingParameters.push('consciousness');
+  if (tempC === null) missingParameters.push('temperature');
+
   return {
     normalized,
     news2,
     criticalAlert,
     validationErrors,
     isValid: Object.keys(validationErrors).length === 0,
+    isComplete: missingParameters.length === 0,
+    missingParameters,
   };
 }

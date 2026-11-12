@@ -311,7 +311,7 @@ describe('Phase 3A: HIPAA Audit Trail Tests (Practical)', () => {
    * ✅ Masking functions work correctly
    * ✅ RLS policies enforced
    *
-   * Documentation: docs/HIPAA_AUDIT/01_PHI_INVENTORY.md
+   * Documentation: docs/HIPAA_AUDIT/01_PHI_INVENTORY.md (removed; see git history)
    *
    * Next: RLS Enforcement Tests (25 tests)
    */

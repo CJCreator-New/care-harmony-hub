@@ -4,6 +4,7 @@
  */
 
 // @ts-ignore — Deno types
+import { logEdge } from '../_shared/sanitizeLog.ts';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { getAuthorizedActor } from '../_shared/authorize.ts';
@@ -216,6 +217,8 @@ serve(async (req: Request) => {
       error: errorMsg,
     });
   } catch (err: any) {
-    return json(500, { error: 'Pediatric dosing calculation failed', details: err.message });
+    const requestId = crypto.randomUUID();
+    logEdge('error', 'pediatric-dosing', { stage: 'calculation', request_id: requestId, error: err });
+    return json(500, { error: 'Pediatric dosing calculation failed', request_id: requestId });
   }
 });

@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from './support/test-credentials';
 import { test, expect } from '@playwright/test';
 
 // Helper function for more resilient clicks
@@ -18,7 +19,7 @@ test.describe('Authentication Flow', () => {
     const runId = Date.now().toString().slice(-6);
     const adminEmail = `admin_${runId}@testgeneral.com`;
     const hospitalEmail = `hospital_${runId}@testgeneral.com`;
-    const password = 'TestPass123!';
+    const password = E2E_TEST_PASSWORD;
 
     await page.goto('/hospital/signup');
     

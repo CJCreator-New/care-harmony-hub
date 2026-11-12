@@ -1,74 +1,150 @@
 /**
- * Sanitize log messages for Deno Edge Functions (Supabase)
+ * PHI-safe logging for Deno Edge Functions (Supabase).
  *
- * Removes PHI (Personally Identifiable Health Information):
- * - SSN (XXX-XX-XXXX)
- * - Credit cards (16-digit)
- * - Email addresses
- * - Phone numbers
- * - Medical Record Numbers (MRN)
- * - High-risk key names (patient_name, diagnosis, prescription, etc.)
+ * This is the ONE redaction path for edge-function logs. Every log line that
+ * carries structured data should go through `logEdge` (or be pre-processed with
+ * `redactLogValue`). The key list below must stay identical to
+ * `REDACTED_KEY_WORDS` in `src/utils/logger.ts`; `tests/telemetry/` enforces parity.
  *
- * HIPAA Compliance: Ensures no sensitive patient data in logs
+ * Redaction rules
+ * - Object keys are split into words (snake_case, kebab-case, dots, camelCase)
+ *   and any key containing a sensitive word has its value replaced with
+ *   `[redacted]`. `patient_name`, `firstName`, `dob`, `medication_name`,
+ *   `clinical_notes`, `contact_email` are all redacted.
+ * - String values are scrubbed for SSN, card numbers, e-mail addresses, phone
+ *   numbers, MRN and DOB labels.
+ * - Nested objects and arrays are walked (bounded depth). Error objects are
+ *   reduced to their name and scrubbed message: stacks and raw error bodies are
+ *   not logged.
+ *
+ * HIPAA: no patient names, MRNs, DOB, medication names, free-text notes,
+ * contact details or record payloads may reach function logs through this module.
  */
 
-export function sanitizeLogMessage(message: unknown): string {
-  // Ensure message is a string
-  const msg = typeof message === 'string' ? message : String(message || '');
+/** Words that mark a key as holding PHI or contact data. Keep in sync with the client. */
+export const REDACTED_KEY_WORDS: readonly string[] = [
+  'name',
+  'mrn',
+  'uhid',
+  'dob',
+  'birth',
+  'medication',
+  'medications',
+  'notes',
+  'diagnosis',
+  'diagnoses',
+  'email',
+  'phone',
+  'mobile',
+  'address',
+  'ssn',
+  'allergies',
+  'allergy',
+];
 
-  // Remove potential PHI from log messages
-  return msg
-    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]') // SSN: 123-45-6789
-    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD]') // Credit card: 1234-5678-9012-3456
-    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL]') // Email: name@domain
-    .replace(/\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b/g, '[PHONE]') // Phone: 555-123-4567
-    .replace(/\bMRN\s*[:#]?\s*[\w\-]{4,12}\b/gi, '[MRN]') // Medical Record Number
-    .replace(/\bDOB\s*[:#]?\s*[\d/\-]{8,10}\b/gi, '[DOB]') // Date of Birth
-    .substring(0, 5000); // Limit log message length
+export const REDACTED_VALUE = '[redacted]';
+
+const MAX_DEPTH = 6;
+const MAX_STRING_LENGTH = 5000;
+
+/** Split a key into lower-case words: `patientName`, `patient_name`, `patient-name` -> [patient, name]. */
+function keyWords(key: string): string[] {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .split(/[^A-Za-z0-9]+|_/)
+    .filter(Boolean)
+    .map((w) => w.toLowerCase());
+}
+
+export function isSensitiveKey(key: string): boolean {
+  return keyWords(key).some((w) => REDACTED_KEY_WORDS.includes(w));
 }
 
 /**
- * Sanitize objects for logging - masks high-risk field names
- * Returns a sanitized representation safe for logs
+ * Scrub free text. Replaces SSNs, card numbers, e-mail addresses, phone numbers,
+ * MRN and DOB labels, and caps the length.
  */
-export function sanitizeObjectForLog(obj: unknown): string {
-  if (typeof obj !== 'object' || obj === null) {
-    return sanitizeLogMessage(String(obj));
+export function sanitizeLogMessage(message: unknown): string {
+  const msg = typeof message === 'string' ? message : String(message ?? '');
+
+  return msg
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]')
+    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD]')
+    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]')
+    .replace(/\b\d{3}[\s-]?\d{3}[\s-]?\d{4}\b/g, '[PHONE]')
+    .replace(/\bMRN\s*[:#]?\s*[\w-]{4,12}\b/gi, '[MRN]')
+    .replace(/\bDOB\s*[:#]?\s*[\d/-]{8,10}\b/gi, '[DOB]')
+    .substring(0, MAX_STRING_LENGTH);
+}
+
+/**
+ * Recursively redact a value for logging. Returns a new value; the input is not mutated.
+ */
+export function redactLogValue(value: unknown, depth = 0): unknown {
+  if (value === null || value === undefined) return value;
+
+  if (typeof value === 'string') return sanitizeLogMessage(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'function' || typeof value === 'symbol') return undefined;
+
+  if (depth >= MAX_DEPTH) return '[truncated]';
+
+  if (value instanceof Error) {
+    return { name: value.name, message: sanitizeLogMessage(value.message) };
   }
 
-  const highRiskFields = [
-    'patient_name', 'patientName',
-    'first_name', 'lastName',
-    'diagnosis', 'diagnoses',
-    'prescription', 'medications', 'medication_name',
-    'treatment_plan', 'clinical_notes', 'notes',
-    'mrn', 'medical_record_number',
-    'ssn', 'social_security_number',
-    'insurance_number',
-    'phone', 'phone_number',
-    'address', 'email',
-    'date_of_birth', 'dob',
-    'blood_type', 'allergies',
-    'chief_complaint', 'symptoms'
-  ];
+  if (Array.isArray(value)) {
+    return value.map((item) => redactLogValue(item, depth + 1));
+  }
 
-  try {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      if (highRiskFields.some(field => key.toLowerCase().includes(field))) {
-        sanitized[key] = '[REDACTED_PHI]';
-      } else if (typeof value === 'object' && value !== null) {
-        sanitized[key] = '[REDACTED_COMPLEX]';
-      } else if (typeof value === 'string') {
-        sanitized[key] = sanitizeLogMessage(value);
-      } else {
-        sanitized[key] = value;
-      }
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = isSensitiveKey(key) ? REDACTED_VALUE : redactLogValue(inner, depth + 1);
     }
-    return JSON.stringify(sanitized);
+    return out;
+  }
+
+  return undefined;
+}
+
+/**
+ * Serialise a value for logging with the same redaction as `redactLogValue`.
+ * Never throws.
+ */
+export function sanitizeObjectForLog(obj: unknown): string {
+  try {
+    return JSON.stringify(redactLogValue(obj)) ?? 'null';
   } catch {
     return '[UNABLE_TO_SANITIZE]';
   }
 }
 
 export const sanitizeForLog = sanitizeLogMessage;
+
+export type EdgeLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * The single log sink for edge functions. Redacts `data` and writes one line
+ * to the matching console method. `tag` is a short, PHI-free label such as
+ * `critical-lab-check` or `Metric`.
+ */
+export function logEdge(level: EdgeLogLevel, tag: string, data?: unknown): void {
+  const label = `[${sanitizeLogMessage(tag)}]`;
+  const payload = data === undefined ? '' : ` ${sanitizeObjectForLog(data)}`;
+  const line = `${label}${payload}`;
+  switch (level) {
+    case 'error':
+      console.error(line);
+      break;
+    case 'warn':
+      console.warn(line);
+      break;
+    case 'debug':
+      console.debug(line);
+      break;
+    default:
+      console.info(line);
+  }
+}

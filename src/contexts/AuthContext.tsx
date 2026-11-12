@@ -17,6 +17,8 @@ import { biometricAuthManager } from '@/utils/biometricAuth';
 import { useSessionTimeout } from '@/lib/hooks/auth';
 import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/monitoring/sentry';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
+import { purgeClientState } from '@/lib/security/purgeClientState';
+import { getEdgeFunctionErrorMessage } from '@/lib/onboarding/edgeFunctionError';
 
 interface Profile {
   id: string;
@@ -61,9 +63,20 @@ interface AuthContextType {
     lastName: string
   ) => Promise<{ error: Error | null; userId?: string }>;
   logout: () => Promise<void>;
-  createHospitalAndProfile: (hospitalData: Partial<Hospital>) => Promise<{ error: Error | null }>;
+  /**
+   * Creates the hospital for the signed-in account and makes it the first admin.
+   * Pass the `userId` returned by `signup()`: the caller's React state can be
+   * stale right after sign-up (FUNC-03), so it must not be relied on here.
+   */
+  createHospitalAndProfile: (
+    hospitalData: Partial<Hospital>,
+    userId?: string
+  ) => Promise<{ error: Error | null }>;
   pendingRoleSelection: boolean;
-  /** True when a privileged role (admin/doctor) must enable 2FA before accessing PHI. */
+  /**
+   * @deprecated Derived from the retired custom-2FA flag `two_factor_enabled`.
+   * Route enforcement uses Supabase Auth MFA via `useMfaAssurance` instead.
+   */
   pendingTwoFactor: boolean;
   /** Re-fetch profile/roles for the current user (e.g. after enabling 2FA). */
   reloadProfile: () => Promise<void>;
@@ -293,59 +306,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const resetAuthState = useCallback(() => {
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setHospital(null);
+    setRoles([]);
+    setPreferredRole(null);
+    setIsProfileReady(false);
+    setPendingRoleSelection(false);
+  }, []);
+
+  // SECF-05: every logout path (manual, idle auto-logoff) ends with a full
+  // client-state purge, and nothing in here may throw or block the logout.
   const logout = useCallback(async () => {
     if (isE2EMockAuthEnabled) {
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      setHospital(null);
-      setRoles([]);
-      setPreferredRole(null);
-      setIsProfileReady(false);
-      try {
-        window.localStorage.removeItem(E2E_MOCK_AUTH_STORAGE_KEY);
-        window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
-        window.localStorage.removeItem('testRole');
-      } catch {
-        // Ignore storage errors
-      }
-      setPendingRoleSelection(false);
+      resetAuthState();
+      await purgeClientState();
       clearSentryUser();
       return;
     }
 
-    try {
-      if (user) {
-        // Log logout event
+    const userId = user?.id ?? null;
+
+    // Hide PHI immediately; the network calls below can take a while offline.
+    resetAuthState();
+    clearSentryUser();
+
+    if (userId) {
+      try {
         await supabase.rpc('log_security_event', {
-          p_user_id: user.id,
+          p_user_id: userId,
           p_event_type: 'logout',
           p_user_agent: navigator.userAgent,
           p_details: {},
           p_severity: 'info',
         });
+      } catch (error) {
+        console.warn(
+          'Logout audit event failed:',
+          sanitizeLogMessage(error instanceof Error ? error.message : String(error))
+        );
       }
-
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      setHospital(null);
-      setRoles([]);
-      setPreferredRole(null);
-      setIsProfileReady(false);
-      setPendingRoleSelection(false);
-      try {
-        window.localStorage.removeItem(PREFERRED_ROLE_STORAGE_KEY);
-        window.localStorage.removeItem('testRole');
-      } catch {
-        // Ignore storage errors
-      }
-      clearSentryUser();
-    } catch (error) {
-      console.error('Error during logout:', error);
     }
-  }, [isE2EMockAuthEnabled, user]);
+
+    // A global sign-out needs the network. If it fails (offline, 5xx), auth-js
+    // keeps the session in storage, so fall back to a local-only sign-out so a
+    // reload shows the login page instead of restoring the session.
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.warn(
+        'Sign-out failed, clearing local session only:',
+        sanitizeLogMessage(error instanceof Error ? error.message : String(error))
+      );
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // purgeClientState() below removes the stored session regardless.
+      }
+    }
+
+    await purgeClientState();
+  }, [isE2EMockAuthEnabled, resetAuthState, user]);
 
   // Initialize session timeout
   useSessionTimeout({ logout, isAuthenticated: !!session });
@@ -449,6 +473,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (event === 'SIGNED_OUT') {
+        // SECF-05: covers sign-outs that bypass logout() (token refresh
+        // failure, LoginPage/2FA cancellation, explicit signOut calls).
+        void purgeClientState();
+      }
       if (!isMounted) return;
 
       setSession(currentSession);
@@ -725,7 +754,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const createHospitalAndProfile = useCallback(
-    async (hospitalData: Partial<Hospital>) => {
+    async (hospitalData: Partial<Hospital>, userId?: string) => {
       if (isE2EMockAuthEnabled) {
         const adminRole: UserRole = 'admin';
         setHospital({
@@ -751,10 +780,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: null };
       }
 
-      const effectiveUserId = user?.id ?? session?.user?.id;
+      // Prefer the id from signup(): React state captured by this callback can
+      // still be null right after sign-up (FUNC-03 stale closure).
+      const effectiveUserId = userId ?? user?.id ?? session?.user?.id;
       if (!effectiveUserId) return { error: new Error('Not authenticated') };
 
       try {
+        // The server identifies the caller from the JWT. Without a session (for
+        // example when email confirmation is still pending) the request would be
+        // rejected as anonymous, so say what the user needs to do.
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          throw new Error(
+            'Confirm your email address and sign in to finish creating your hospital.'
+          );
+        }
+
         const { data, error } = await supabase.functions.invoke('create-hospital-admin', {
           body: {
             name: hospitalData.name || 'My Hospital',
@@ -768,7 +809,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Surface the server's `error` text (for example the 409 "already belongs
+          // to a hospital" response) instead of supabase-js's generic message.
+          throw new Error(
+            await getEdgeFunctionErrorMessage(error, 'Could not create the hospital.')
+          );
+        }
         if (data?.error) {
           throw new Error(data.error);
         }
@@ -872,9 +919,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
+      // Sentry gets the user ID, role and hospital only. E-mail is never sent.
       setSentryUser({
         id: user.id,
-        email: user.email || profile?.email || undefined,
         role: primaryRole || undefined,
         hospitalId: profile?.hospital_id || hospital?.id || undefined,
       });

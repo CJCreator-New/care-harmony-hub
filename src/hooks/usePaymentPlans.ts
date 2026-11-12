@@ -34,7 +34,7 @@ export const usePaymentPlans = () => {
   const hospitalId = profile?.hospital_id;
   const queryClient = useQueryClient();
 
-  const { data: paymentPlans, isLoading } = useQuery({
+  const { data: paymentPlans, isLoading, isError: plansError, refetch: refetchPlans } = useQuery({
     queryKey: ['payment-plans', hospitalId],
     queryFn: async () => {
       if (!hospitalId) return [];
@@ -182,6 +182,8 @@ export const usePaymentPlans = () => {
     defaultedPlans,
     totalOutstanding,
     isLoading,
+    plansError,
+    refetchPlans,
     createPaymentPlan,
     recordPayment,
   };

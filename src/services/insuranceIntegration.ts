@@ -49,11 +49,13 @@ export const INDIAN_INSURANCE_SCHEMES: InsuranceSchemeDefinition[] = [
 export const normalizeInsuranceProvider = (providerName?: string | null) =>
   providerName?.trim().toLowerCase() ?? '';
 
-export const resolveIndianScheme = (providerName?: string | null): InsuranceSchemeDefinition | null => {
+export const resolveIndianScheme = (
+  providerName?: string | null
+): InsuranceSchemeDefinition | null => {
   const normalized = normalizeInsuranceProvider(providerName);
   return (
     INDIAN_INSURANCE_SCHEMES.find((scheme) =>
-      [scheme.id, scheme.name.toLowerCase()].some((token) => normalized.includes(token)),
+      [scheme.id, scheme.name.toLowerCase()].some((token) => normalized.includes(token))
     ) ?? null
   );
 };
@@ -103,7 +105,7 @@ export interface ClaimValidationResult {
 
 export const validateClaimForScheme = (
   scheme: InsuranceSchemeDefinition | null,
-  claimAmount: number,
+  claimAmount: number
 ): ClaimValidationResult => {
   if (!scheme) {
     return { adjustedAmount: claimAmount, warnings: [] };
@@ -114,7 +116,7 @@ export const validateClaimForScheme = (
 
   if (scheme.maxCoverageAmount && claimAmount > scheme.maxCoverageAmount) {
     warnings.push(
-      `${scheme.name} has a maximum coverage amount of ₹${scheme.maxCoverageAmount.toLocaleString()}. Claim amount adjusted.`,
+      `${scheme.name} has a maximum coverage amount of ₹${scheme.maxCoverageAmount.toLocaleString()}. Claim amount adjusted.`
     );
     adjustedAmount = scheme.maxCoverageAmount;
   }
@@ -124,47 +126,4 @@ export const validateClaimForScheme = (
   }
 
   return { adjustedAmount, warnings };
-};
-
-export const buildEligibilityResponse = (
-  providerName: string | null,
-  isActive: boolean,
-): EligibilityResponse => {
-  if (!providerName || !isActive) {
-    return {
-      eligible: false,
-      coverage: 0,
-      copay: 0,
-      deductible: 0,
-      deductibleMet: 0,
-      message: 'No active insurance coverage',
-      scheme: null,
-      requiresPreAuth: false,
-    };
-  }
-
-  const scheme = resolveIndianScheme(providerName);
-  if (scheme) {
-    return {
-      eligible: true,
-      coverage: scheme.coveragePercentage,
-      copay: scheme.copayAmount,
-      deductible: scheme.deductibleAmount,
-      deductibleMet: scheme.deductibleAmount === 0 ? 0 : Math.round(scheme.deductibleAmount * 0.4),
-      message: `${scheme.name} - Active coverage`,
-      scheme,
-      requiresPreAuth: scheme.requiresPreAuth,
-    };
-  }
-
-  return {
-    eligible: true,
-    coverage: 80,
-    copay: 25,
-    deductible: 1000,
-    deductibleMet: 450,
-    message: `${providerName} - Active coverage`,
-    scheme: null,
-    requiresPreAuth: false,
-  };
 };

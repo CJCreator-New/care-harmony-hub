@@ -4,6 +4,8 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Staging-only specs run via playwright.staging.config.ts.
+  testIgnore: ['**/staging/**'],
   fullyParallel: false,
   retries: isCI ? 1 : 0,
   workers: isCI ? 2 : 1,

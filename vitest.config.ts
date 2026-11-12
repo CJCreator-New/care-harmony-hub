@@ -12,19 +12,18 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/.git/**',
-      'services/**',
       // Playwright spec files must not be picked up by Vitest — they use the
       // Playwright test() API which conflicts with Vitest globals.
       'tests/e2e/**',
       '**/*.spec.ts',
+      // Supabase edge functions are Deno code (remote https imports, Deno.* APIs).
+      // They cannot run under vitest; they are not covered by this config.
+      'supabase/functions/**',
     ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'src/tests/',
-      ],
+      exclude: ['node_modules/', 'src/tests/'],
     },
   },
   resolve: {

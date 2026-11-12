@@ -3,11 +3,7 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
@@ -16,12 +12,8 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/integrations/supabase/client": [
-        "./src/integrations/supabase/query-helper.ts"
-      ]
+      "@/*": ["./src/*"],
+      "@/integrations/supabase/client": ["./src/integrations/supabase/query-helper.ts"]
     },
     "skipLibCheck": true,
     "strict": true,
@@ -30,48 +22,16 @@
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
     "target": "ES2020",
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
     "useDefineForClassFields": true,
     "noImplicitThis": true
   },
-  "include": [
-    "src"
-  ],
+  "include": ["src"],
   "exclude": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/**/__tests__/**",
     "src/test/**",
-    "src/__tests__/**",
-    "src/**/*.test.ts",
-    "src/**/*.test.tsx",
-    "src/components/audit/AuditAlertToast.test.tsx",
-    "src/components/audit/AuditTimeline.test.tsx",
-    "src/components/auth/RoleProtectedRoute.tsx",
-    "src/components/features/appointments/**",
-    "src/components/features/appointment-recurrence/**",
-    "src/components/features/telehealth/**",
-    "src/components/features/clinical-notes/**",
-    "src/components/features/billing/BillingDashboard.tsx",
-    "src/components/features/billing/BillingInvoiceGenerator.tsx",
-    "src/components/features/billing/InsuranceClaimUI.tsx",
-    "src/components/patients/PatientRegistrationModal.STANDARDIZED.tsx",
-    "src/components/doctor/EnhancedPrescriptionForm.tsx",
-    "src/components/laboratory/EnhancedLabOrderForm.tsx",
-    "src/hooks/useBreakGlassOverride.ts",
-    "src/integrations/supabase/client.ts",
-    "src/hooks/useConsolidatedSubscription.ts",
-    "src/lib/ai/orchestrator.ts",
-    "src/lib/clinical-notes.manager.ts",
-    "src/lib/encryption.utils.ts",
-    "src/lib/hooks/observability/useAuditLog.ts",
-    "src/lib/prescription-refill.manager.ts",
-    "src/lib/telehealth.provider.ts",
-    "src/lib/workflow-validator.ts",
-    "src/utils/clinicalNoteService.ts",
-    "src/utils/edgeCaseResilience.ts",
-    "src/utils/pharmacistOperationsService.ts",
-    "src/utils/wardManagementService.ts",
-    "src/workers/securityAnalysis.worker.ts"
+    "src/integrations/supabase/client.ts"
   ]
 }

@@ -65,7 +65,7 @@ export function useLowStockMedications() {
 
       if (error) throw error;
       // Filter for low stock
-      return (data as Medication[]).filter(m => m.current_stock < m.minimum_stock);
+      return (data as Medication[]).filter((m) => m.current_stock < m.minimum_stock);
     },
     enabled: !!hospital?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - reference data
@@ -94,9 +94,13 @@ export function useMedicationStats() {
 
       return {
         total: medications.length,
-        lowStock: medications.filter(m => m.current_stock <= m.minimum_stock && m.current_stock > 0).length,
-        outOfStock: medications.filter(m => m.current_stock === 0).length,
-        expiringSoon: medications.filter(m => m.expiry_date && new Date(m.expiry_date) <= thirtyDays).length,
+        lowStock: medications.filter(
+          (m) => m.current_stock <= m.minimum_stock && m.current_stock > 0
+        ).length,
+        outOfStock: medications.filter((m) => m.current_stock === 0).length,
+        expiringSoon: medications.filter(
+          (m) => m.expiry_date && new Date(m.expiry_date) <= thirtyDays
+        ).length,
       };
     },
     enabled: !!hospital?.id,
@@ -165,7 +169,9 @@ export function useCreateMedication() {
   const { hospital } = useAuth();
 
   return useMutation({
-    mutationFn: async (medication: Omit<Medication, 'id' | 'hospital_id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (
+      medication: Omit<Medication, 'id' | 'hospital_id' | 'created_at' | 'updated_at'>
+    ) => {
       if (!hospital?.id) throw new Error('No hospital context');
 
       const { data, error } = await supabase
@@ -187,45 +193,6 @@ export function useCreateMedication() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to add medication: ${error.message}`);
-    },
-  });
-}
-
-export function useUpdateMedicationStock() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, quantity, action }: { id: string; quantity: number; action: 'add' | 'subtract' }) => {
-      // First get current stock
-      const { data: current, error: fetchError } = await supabase
-        .from('medications')
-        .select('current_stock')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const newStock = action === 'add' 
-        ? (current.current_stock || 0) + quantity 
-        : Math.max(0, (current.current_stock || 0) - quantity);
-
-      const { data, error } = await supabase
-        .from('medications')
-        .update({ current_stock: newStock })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as Medication;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medications'] });
-      queryClient.invalidateQueries({ queryKey: ['medication-stats'] });
-      toast.success('Stock updated');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to update stock: ${error.message}`);
     },
   });
 }

@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
-import { hasAnyAllowedRole } from '@/lib/permissions';
+import { hasAnyRole, resolveActingRole } from '@/modules/rbac';
 import { getDevTestRole } from '@/utils/devRoleSwitch';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -59,12 +59,13 @@ export function ProtectedPage({
     return <Navigate to="/hospital/login" state={{ from: location }} replace />;
   }
 
-  // Calculate effective roles (include test role override)
+  // Acting role: test role override, else primary role (same as the route guard).
   const persistedTestRole = getDevTestRole(roles);
-  const effectiveRoles = persistedTestRole ? [persistedTestRole] : (primaryRole ? [primaryRole] : roles);
+  const actingRole = resolveActingRole({ primaryRole, testRole: persistedTestRole });
+  const effectiveRoles = actingRole ? [actingRole] : [];
 
   // Verify role access
-  const hasAccess = hasAnyAllowedRole(effectiveRoles, allowedRoles);
+  const hasAccess = hasAnyRole(actingRole, allowedRoles);
 
   if (!hasAccess) {
     // Log the unauthorized access attempt in development

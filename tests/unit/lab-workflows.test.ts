@@ -7,7 +7,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useLabNotifications } from '@/hooks/useLabNotifications';
 import { useCriticalLabAlerts } from '@/hooks/useCriticalLabAlerts';
 
 // Mock Supabase
@@ -24,98 +23,6 @@ const mockAuth = {
   user: { id: 'doctor-123', hospital_id: 'hospital-1' },
   isLoading: false,
 };
-
-// ===================================================================
-// TIER 4.2: Lab Notifications Tests
-// ===================================================================
-
-describe('useLabNotifications (Tier 4.2)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('should fetch pending notifications on mount', async () => {
-    const mockNotifications = [
-      {
-        id: 'notif-1',
-        lab_result_id: 'lab-1',
-        patient_id: 'patient-1',
-        ordering_doctor_id: 'doctor-123',
-        status: 'pending',
-        is_critical: true,
-        test_name: 'Glucose',
-        result_value: 450,
-        unit: 'mg/dL',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
-
-    mockSupabase.from.mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: mockNotifications, error: null }),
-    });
-
-    // This would be tested in integration tests with actual provider setup
-    expect(true).toBe(true);
-  });
-
-  it('should acknowledge notification and update status', async () => {
-    const notificationId = 'notif-1';
-    const mockUpdate = vi.fn().mockResolvedValue({ error: null });
-
-    mockSupabase.from.mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      }),
-    });
-
-    expect(true).toBe(true);
-  });
-
-  it('should handle critical value notifications with immediate notification', async () => {
-    const criticalNotification = {
-      id: 'notif-2',
-      is_critical: true,
-      test_name: 'Potassium',
-      result_value: 2.1, // Below critical threshold of 2.5
-      requires_immediate_action: true,
-    };
-
-    expect(criticalNotification.is_critical).toBe(true);
-    expect(criticalNotification.requires_immediate_action).toBe(true);
-  });
-
-  it('should track consent logging when action recorded', async () => {
-    const actionNotes = 'Started IV fluids, patient stable';
-    
-    // Verify action notes are captured
-    expect(actionNotes.length > 0).toBe(true);
-  });
-
-  it('should handle notification delivery via multiple channels', async () => {
-    const deliveryChannels = ['in_app', 'sms', 'email'];
-    
-    for (const channel of deliveryChannels) {
-      expect(['in_app', 'sms', 'email'].includes(channel)).toBe(true);
-    }
-  });
-
-  it('should track and log HIPAA compliance for result viewing', async () => {
-    const logData = {
-      action_type: 'lab_notification_action_taken',
-      resource_type: 'lab_results',
-      user_id: 'doctor-123',
-      timestamp: new Date().toISOString(),
-    };
-
-    expect(logData.action_type).toBe('lab_notification_action_taken');
-    expect(logData.user_id).toBe('doctor-123');
-  });
-});
 
 // ===================================================================
 // TIER 4.4: Critical Lab Alerts Tests

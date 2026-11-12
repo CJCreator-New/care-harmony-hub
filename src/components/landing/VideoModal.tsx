@@ -1,13 +1,8 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -21,7 +16,7 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
         <DialogHeader className="p-4 pb-0">
           <DialogTitle className="text-lg font-semibold">Product Demo</DialogTitle>
         </DialogHeader>
-        
+
         <div className="p-4">
           {/* Video Placeholder - Replace with actual video embed */}
           <div className="relative aspect-video rounded-lg bg-muted overflow-hidden">
@@ -36,11 +31,11 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
               </motion.div>
               <p className="text-lg font-semibold mb-2">Demo Video Coming Soon</p>
               <p className="text-sm text-muted-foreground text-center max-w-md">
-                See how AROCORD-HIMS streamlines hospital operations from patient registration
-                to discharge. Book a demo for a personalized walkthrough.
+                See how AROCORD-HIMS streamlines hospital operations from patient registration to
+                discharge. Book a demo for a personalized walkthrough.
               </p>
             </div>
-            
+
             {/* Uncomment and replace VIDEO_ID for actual YouTube embed:
             <iframe
               className="absolute inset-0 w-full h-full"
@@ -51,13 +46,11 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
             />
             */}
           </div>
-          
+
           {/* CTA below video */}
           <div className="mt-4 flex items-center justify-center gap-4">
             <Button variant="hero" asChild>
-              <a href="/hospital/signup">
-                Book a Demo
-              </a>
+              <a href="/hospital/signup">Book a Demo</a>
             </Button>
             <Button variant="outline" onClick={onClose}>
               Close
@@ -67,14 +60,4 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
       </DialogContent>
     </Dialog>
   );
-}
-
-// Hook for easy video modal management
-export function useVideoModal() {
-  const [isOpen, setIsOpen] = useState(false);
-  
-  const openModal = () => setIsOpen(true);
-  const closeModal = () => setIsOpen(false);
-  
-  return { isOpen, openModal, closeModal };
 }

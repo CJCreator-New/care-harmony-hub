@@ -1,3 +1,4 @@
+import { E2E_TEST_PASSWORD } from '../e2e/support/test-credentials';
 import { test as base, expect, Page } from '@playwright/test';
 
 /**
@@ -37,7 +38,7 @@ export const test = base.extend<TestFixtures>({
       patient: {
         id: 'patient-001',
         email: 'patient@testgeneral.com',
-        password: 'TestPass123!',
+        password: E2E_TEST_PASSWORD,
         role: 'patient',
         hospital_id: 'hp1',
         full_name: 'Test Patient',
@@ -45,7 +46,7 @@ export const test = base.extend<TestFixtures>({
       doctor: {
         id: 'doctor-001',
         email: 'doctor@testgeneral.com',
-        password: 'TestPass123!',
+        password: E2E_TEST_PASSWORD,
         role: 'doctor',
         hospital_id: 'hp1',
         full_name: 'Dr. Test Doctor',
@@ -53,7 +54,7 @@ export const test = base.extend<TestFixtures>({
       pharmacy: {
         id: 'pharmacist-001',
         email: 'pharmacy@testgeneral.com',
-        password: 'TestPass123!',
+        password: E2E_TEST_PASSWORD,
         role: 'pharmacy',
         hospital_id: 'hp1',
         full_name: 'Test Pharmacist',
@@ -61,7 +62,7 @@ export const test = base.extend<TestFixtures>({
       laboratory: {
         id: 'lab-tech-001',
         email: 'lab@testgeneral.com',
-        password: 'TestPass123!',
+        password: E2E_TEST_PASSWORD,
         role: 'laboratory',
         hospital_id: 'hp1',
         full_name: 'Test Lab Technician',
@@ -69,7 +70,7 @@ export const test = base.extend<TestFixtures>({
       receptionist: {
         id: 'receptionist-001',
         email: 'reception@testgeneral.com',
-        password: 'TestPass123!',
+        password: E2E_TEST_PASSWORD,
         role: 'receptionist',
         hospital_id: 'hp1',
         full_name: 'Test Receptionist',
@@ -77,7 +78,7 @@ export const test = base.extend<TestFixtures>({
       admin: {
         id: 'admin-001',
         email: 'admin@testgeneral.com',
-        password: 'TestPass123!',
+        password: E2E_TEST_PASSWORD,
         role: 'admin',
         hospital_id: 'hp1',
         full_name: 'Test Admin',

@@ -73,7 +73,7 @@ export const useInventoryAutomation = () => {
   });
 
   // Fetch stock alerts
-  const { data: stockAlerts, isLoading: alertsLoading } = useQuery({
+  const { data: stockAlerts, isLoading: alertsLoading, isError: alertsError, refetch: refetchAlerts } = useQuery({
     queryKey: ['stock-alerts', hospitalId],
     queryFn: async () => {
       if (!hospitalId) return [];
@@ -206,6 +206,8 @@ export const useInventoryAutomation = () => {
     outOfStockAlerts,
     expiringAlerts,
     isLoading: rulesLoading || alertsLoading,
+    alertsError,
+    refetchAlerts,
     createReorderRule,
     updateReorderRule,
     acknowledgeAlert,

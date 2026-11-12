@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTwoFactorAuth } from '@/lib/hooks';
+import { useMfaAssurance } from '@/lib/hooks/auth/useMfaAssurance';
+import { removeTotpFactor } from '@/lib/auth/mfa';
 import { TwoFactorSetupModal } from '@/components/auth/TwoFactorSetupModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,16 +15,24 @@ import { getRoleLabel } from '@/types/rbac';
 
 export function UserProfilePage() {
   const { profile, hospital, primaryRole } = useAuth();
-  const { disable } = useTwoFactorAuth();
+  const { assurance, mandatory, refresh } = useMfaAssurance();
   const [showTwoFactorSetup, setShowTwoFactorSetup] = useState(false);
   const [isDisabling, setIsDisabling] = useState(false);
+  // Status comes from Supabase Auth MFA, not the legacy profiles.two_factor_enabled flag.
+  const totpFactorId = assurance.status === 'ready' ? assurance.verifiedTotpFactorId : null;
+  const twoFactorEnabled = totpFactorId !== null;
 
   const handleDisable2FA = async () => {
+    if (!totpFactorId || mandatory) return;
     setIsDisabling(true);
-    const success = await disable();
-    setIsDisabling(false);
-    if (success) {
+    try {
+      await removeTotpFactor(totpFactorId);
       toast.success('Two-factor authentication disabled');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to disable 2FA');
+    } finally {
+      setIsDisabling(false);
+      refresh();
     }
   };
 
@@ -147,7 +156,7 @@ export function UserProfilePage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                {profile.two_factor_enabled ? (
+                {twoFactorEnabled ? (
                   <ShieldCheck className="w-5 h-5 text-success" />
                 ) : (
                   <ShieldX className="w-5 h-5 text-muted-foreground" />
@@ -155,23 +164,28 @@ export function UserProfilePage() {
                 <h4 className="font-medium">Two-Factor Authentication</h4>
               </div>
               <p className="text-sm text-muted-foreground">
-                {profile.two_factor_enabled
-                  ? 'Two-factor authentication is enabled for your account'
+                {twoFactorEnabled
+                  ? mandatory
+                    ? 'Two-factor authentication is enabled and required for your role'
+                    : 'Two-factor authentication is enabled for your account'
                   : 'Add an extra layer of security to your account with 2FA'
                 }
               </p>
             </div>
             <div className="flex gap-2">
-              {profile.two_factor_enabled ? (
+              {twoFactorEnabled ? (
                 <Button
                   variant="outline"
                   onClick={handleDisable2FA}
-                  disabled={isDisabling}
+                  disabled={isDisabling || mandatory}
                 >
                   {isDisabling ? 'Disabling...' : 'Disable 2FA'}
                 </Button>
               ) : (
-                <Button onClick={() => setShowTwoFactorSetup(true)}>
+                <Button
+                  onClick={() => setShowTwoFactorSetup(true)}
+                  disabled={assurance.status !== 'ready'}
+                >
                   Enable 2FA
                 </Button>
               )}
@@ -199,10 +213,7 @@ export function UserProfilePage() {
       <TwoFactorSetupModal
         open={showTwoFactorSetup}
         onOpenChange={setShowTwoFactorSetup}
-        onSuccess={() => {
-          // Refresh profile data to show updated 2FA status
-          window.location.reload();
-        }}
+        onSuccess={refresh}
       />
     </div>
     </DashboardLayout>

@@ -1,15 +1,31 @@
 import { useState, useRef, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  CALL_TRANSITIONS,
+  CONSENT_TRANSITIONS,
+  UPLOAD_TRANSITIONS,
+  move,
+  type CallPhase,
+  type ConsentPhase,
+  type UploadPhase,
+} from './videoCallFlow';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  Phone, 
+import {
+  Video,
+  VideoOff,
+  Mic,
+  MicOff,
+  Phone,
   PhoneOff,
   Maximize2,
   Minimize2,
@@ -40,15 +56,18 @@ interface VideoCallModalProps {
   appointmentId?: string;
 }
 
-export function VideoCallModal({ 
-  open, 
-  onOpenChange, 
+export function VideoCallModal({
+  open,
+  onOpenChange,
   patient,
-  appointmentId 
+  appointmentId,
 }: VideoCallModalProps) {
   const { profile, hospital } = useAuth();
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  // Call, consent, and upload are explicit state machines (see videoCallFlow.ts).
+  const [callPhase, setCallPhase] = useState<CallPhase>('idle');
+  const isConnecting = callPhase === 'connecting';
+  const isConnected = callPhase === 'connected';
+  const goCall = (next: CallPhase) => setCallPhase((c) => move(CALL_TRANSITIONS, c, next));
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -57,18 +76,23 @@ export function VideoCallModal({
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
-  const [hasTelemedicineConsent, setHasTelemedicineConsent] = useState(false);
+  const [consentPhase, setConsentPhase] = useState<ConsentPhase>('not_granted');
+  const hasTelemedicineConsent = consentPhase === 'granted';
+  const isSavingConsent = consentPhase === 'saving';
+  const goConsent = (next: ConsentPhase) =>
+    setConsentPhase((c) => move(CONSENT_TRANSITIONS, c, next));
   const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
-  const [isSavingConsent, setIsSavingConsent] = useState(false);
-  const [recordingUploadState, setRecordingUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
+  const recordingUploadState = uploadPhase;
+  const goUpload = (next: UploadPhase) => setUploadPhase((c) => move(UPLOAD_TRANSITIONS, c, next));
   const [recordingPath, setRecordingPath] = useState<string | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [showPlayback, setShowPlayback] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [remoteConnected, setRemoteConnected] = useState(false);
-  
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -150,7 +174,7 @@ export function VideoCallModal({
   const saveConsent = async () => {
     if (!patient?.id || !hospital?.id || !profile?.id) return false;
 
-    setIsSavingConsent(true);
+    goConsent('saving');
     try {
       const { error } = await supabase.from('patient_consents').insert({
         patient_id: patient.id,
@@ -163,7 +187,7 @@ export function VideoCallModal({
 
       if (error) throw error;
 
-      setHasTelemedicineConsent(true);
+      goConsent('granted');
       await logRecordingEvent('telemedicine_consent_obtained', {
         patient_id: patient.id,
         appointment_id: appointmentId,
@@ -172,10 +196,9 @@ export function VideoCallModal({
       return true;
     } catch (error) {
       console.error('Failed to save consent:', error);
+      goConsent('not_granted');
       toast.error('Failed to save consent');
       return false;
-    } finally {
-      setIsSavingConsent(false);
     }
   };
 
@@ -186,13 +209,13 @@ export function VideoCallModal({
         video: true,
         audio: true,
       });
-      
+
       localStreamRef.current = stream;
-      
+
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-      
+
       return stream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
@@ -210,7 +233,7 @@ export function VideoCallModal({
       return;
     }
 
-    setRecordingUploadState('uploading');
+    goUpload('uploading');
 
     try {
       const session = await getTelemedicineSession();
@@ -234,7 +257,7 @@ export function VideoCallModal({
       const signedUrl = await createPlaybackUrl(storagePath);
       setPlaybackUrl(signedUrl);
       setRecordingPath(storagePath);
-      setRecordingUploadState('success');
+      goUpload('success');
 
       await logRecordingEvent('telemedicine_recording_saved', {
         patient_id: patient.id,
@@ -245,7 +268,7 @@ export function VideoCallModal({
       toast.success('Recording uploaded');
     } catch (error) {
       console.error('Error uploading recording:', error);
-      setRecordingUploadState('error');
+      goUpload('error');
       toast.error('Failed to upload recording');
     }
   };
@@ -258,22 +281,22 @@ export function VideoCallModal({
       setConsentDialogOpen(true);
       return;
     }
-    
+
     try {
       const recorder = new MediaRecorder(localStreamRef.current, {
         mimeType: 'video/webm;codecs=vp9',
       });
-      
+
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks(prev => [...prev, event.data]);
+          setRecordedChunks((prev) => [...prev, event.data]);
         }
       };
-      
+
       recorder.onstop = () => {
         void handleRecordingStop();
       };
-      
+
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
@@ -312,7 +335,9 @@ export function VideoCallModal({
       if (isScreenSharing) {
         // Stop screen sharing — swap back to camera
         if (localStreamRef.current) {
-          const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen'));
+          const screenTrack = localStreamRef.current
+            .getVideoTracks()
+            .find((track) => track.label.toLowerCase().includes('screen'));
           if (screenTrack) {
             screenTrack.stop();
             const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -326,7 +351,9 @@ export function VideoCallModal({
             }
 
             // Notify the remote peer via the peer connection sender
-            const videoSender = peerConnectionRef.current?.getSenders().find(s => s.track?.kind === 'video');
+            const videoSender = peerConnectionRef.current
+              ?.getSenders()
+              .find((s) => s.track?.kind === 'video');
             if (videoSender) await videoSender.replaceTrack(cameraTrack);
           }
         }
@@ -355,7 +382,9 @@ export function VideoCallModal({
           }
 
           // Notify the remote peer via the peer connection sender
-          const videoSender = peerConnectionRef.current?.getSenders().find(s => s.track?.kind === 'video');
+          const videoSender = peerConnectionRef.current
+            ?.getSenders()
+            .find((s) => s.track?.kind === 'video');
           if (videoSender) await videoSender.replaceTrack(screenTrack);
 
           // Handle when user stops sharing via browser UI
@@ -383,7 +412,7 @@ export function VideoCallModal({
       ],
     });
 
-    localStreamRef.current!.getTracks().forEach(track => {
+    localStreamRef.current!.getTracks().forEach((track) => {
       pc.addTrack(track, localStreamRef.current!);
     });
 
@@ -416,7 +445,7 @@ export function VideoCallModal({
 
   // Handle call start — real WebRTC offer/answer via Supabase Realtime broadcast
   const handleStartCall = async () => {
-    setIsConnecting(true);
+    goCall('connecting');
 
     try {
       await startLocalStream();
@@ -432,7 +461,9 @@ export function VideoCallModal({
       channel
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
           if (payload.sdp && pc.signalingState === 'have-local-offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
+            await pc.setRemoteDescription(
+              new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit)
+            );
             for (const c of pendingCandidatesRef.current) {
               await pc.addIceCandidate(new RTCIceCandidate(c));
             }
@@ -460,16 +491,15 @@ export function VideoCallModal({
               payload: { sdp: offer },
             });
 
-            setIsConnected(true);
-            setIsConnecting(false);
+            goCall('connected');
 
             callTimerRef.current = setInterval(() => {
-              setCallDuration(prev => prev + 1);
+              setCallDuration((prev) => prev + 1);
             }, 1000);
           }
         });
     } catch (error) {
-      setIsConnecting(false);
+      goCall('idle');
       toast.error('Failed to start call');
     }
   };
@@ -501,7 +531,7 @@ export function VideoCallModal({
 
     // Stop all local tracks
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
 
@@ -513,7 +543,7 @@ export function VideoCallModal({
 
     setRemoteConnected(false);
     pendingCandidatesRef.current = [];
-    setIsConnected(false);
+    goCall('idle');
     setCallDuration(0);
     onOpenChange(false);
 
@@ -546,7 +576,7 @@ export function VideoCallModal({
   useEffect(() => {
     return () => {
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current);
@@ -561,9 +591,9 @@ export function VideoCallModal({
   // Cleanup when modal closes
   useEffect(() => {
     if (!open && localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
-      setIsConnected(false);
+      goCall('idle');
       setCallDuration(0);
       setRemoteConnected(false);
       pendingCandidatesRef.current = [];
@@ -585,7 +615,7 @@ export function VideoCallModal({
 
     const hydrateRecordingState = async () => {
       const consent = await fetchTelemedicineConsent();
-      setHasTelemedicineConsent(consent);
+      goConsent(consent ? 'granted' : 'not_granted');
 
       const session = await getTelemedicineSession();
       if (session?.recording_url) {
@@ -601,288 +631,304 @@ export function VideoCallModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isFullscreen ? 'max-w-full h-full' : 'max-w-4xl'} p-0`}>
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b bg-background">
-            <div className="flex items-center gap-3">
-              <Video className="h-5 w-5 text-primary" />
-              <div>
-                <h3 className="font-medium">Telemedicine Consultation</h3>
-                {patient && (
-                  <p className="text-sm text-muted-foreground">
-                    {patient.first_name} {patient.last_name} ({patient.mrn})
-                  </p>
+        <DialogContent className={`${isFullscreen ? 'max-w-full h-full' : 'max-w-4xl'} p-0`}>
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b bg-background">
+              <div className="flex items-center gap-3">
+                <Video className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-medium">Telemedicine Consultation</h3>
+                  {patient && (
+                    <p className="text-sm text-muted-foreground">
+                      {patient.first_name} {patient.last_name} ({patient.mrn})
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isConnected && (
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    <span className="w-2 h-2 bg-green-600 rounded-full mr-2 animate-pulse" />
+                    {formatDuration(callDuration)}
+                  </Badge>
+                )}
+                {recordingUploadState === 'uploading' && (
+                  <Badge variant="outline" className="text-blue-600 border-blue-600">
+                    Uploading recording...
+                  </Badge>
+                )}
+                <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(!isFullscreen)}>
+                  {isFullscreen ? (
+                    <Minimize2 className="h-4 w-4" />
+                  ) : (
+                    <Maximize2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Video Area */}
+            <div className="flex-1 bg-muted p-4 flex gap-4">
+              <div className="flex-1">
+                {!isConnected ? (
+                  <div className="flex items-center justify-center h-full min-h-[400px]">
+                    <Card className="p-8 text-center">
+                      <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-medium mb-2">Ready to Start Consultation</h3>
+                      <p className="text-muted-foreground mb-6">
+                        {patient
+                          ? `Click below to start a video call with ${patient.first_name} ${patient.last_name}`
+                          : 'Select a patient from the appointments list, then click below to start a video call.'}
+                      </p>
+                      <Button
+                        size="lg"
+                        onClick={handleStartCall}
+                        disabled={isConnecting}
+                        className="gap-2"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <Phone className="h-5 w-5" />
+                            Start Video Call
+                          </>
+                        )}
+                      </Button>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="relative h-full min-h-[400px]">
+                    {/* Remote Video (Patient) */}
+                    <div className="w-full h-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                      <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className={`w-full h-full object-cover ${!remoteConnected ? 'hidden' : ''}`}
+                      />
+                      {/* Placeholder until remote stream arrives */}
+                      {!remoteConnected && (
+                        <div className="text-center text-white">
+                          <div className="w-24 h-24 rounded-full bg-muted-foreground/20 flex items-center justify-center mx-auto mb-4">
+                            <span className="text-3xl font-bold">
+                              {patient?.first_name?.[0]}
+                              {patient?.last_name?.[0]}
+                            </span>
+                          </div>
+                          <p className="text-lg">Waiting for patient to connect...</p>
+                          <p className="text-sm text-muted-foreground">
+                            Offer sent — patient needs to join the same session
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Local Video (Doctor) - Picture in Picture */}
+                    <div className="absolute bottom-4 right-4 w-48 h-36 rounded-lg overflow-hidden shadow-lg border-2 border-background">
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
+                      />
+                      {!isVideoEnabled && (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <VideoOff className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isConnected && (
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                  <span className="w-2 h-2 bg-green-600 rounded-full mr-2 animate-pulse" />
-                  {formatDuration(callDuration)}
-                </Badge>
-              )}
-              {recordingUploadState === 'uploading' && (
-                <Badge variant="outline" className="text-blue-600 border-blue-600">
-                  Uploading recording...
-                </Badge>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-              >
-                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
 
-          {/* Video Area */}
-          <div className="flex-1 bg-muted p-4 flex gap-4">
-            <div className="flex-1">
-            {!isConnected ? (
-              <div className="flex items-center justify-center h-full min-h-[400px]">
-                <Card className="p-8 text-center">
-                  <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">Ready to Start Consultation</h3>
-                  <p className="text-muted-foreground mb-6">
-                    {patient
-                      ? `Click below to start a video call with ${patient.first_name} ${patient.last_name}`
-                      : 'Select a patient from the appointments list, then click below to start a video call.'}
-                  </p>
-                  <Button 
-                    size="lg" 
-                    onClick={handleStartCall}
-                    disabled={isConnecting}
-                    className="gap-2"
-                  >
-                    {isConnecting ? (
-                      <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        Connecting...
-                      </>
-                    ) : (
-                      <>
-                        <Phone className="h-5 w-5" />
-                        Start Video Call
-                      </>
-                    )}
-                  </Button>
-                </Card>
-              </div>
-            ) : (
-              <div className="relative h-full min-h-[400px]">
-                {/* Remote Video (Patient) */}
-                <div className="w-full h-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
-                  <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    playsInline
-                    className={`w-full h-full object-cover ${!remoteConnected ? 'hidden' : ''}`}
-                  />
-                  {/* Placeholder until remote stream arrives */}
-                  {!remoteConnected && (
-                    <div className="text-center text-white">
-                      <div className="w-24 h-24 rounded-full bg-muted-foreground/20 flex items-center justify-center mx-auto mb-4">
-                        <span className="text-3xl font-bold">
-                          {patient?.first_name?.[0]}{patient?.last_name?.[0]}
-                        </span>
-                      </div>
-                      <p className="text-lg">Waiting for patient to connect...</p>
-                      <p className="text-sm text-muted-foreground">
-                        Offer sent — patient needs to join the same session
-                      </p>
-                    </div>
+              {/* Side Panel - Chat or Notes */}
+              {isConnected && (showChat || showNotes) && (
+                <div className="w-96 bg-background rounded-lg border">
+                  {showChat && (
+                    <TelemedicineChat
+                      patientName={`${patient?.first_name || ''} ${patient?.last_name || ''}`}
+                    />
+                  )}
+                  {showNotes && (
+                    <SessionNotes appointmentId={appointmentId} patientId={patient?.id || ''} />
                   )}
                 </div>
-
-                {/* Local Video (Doctor) - Picture in Picture */}
-                <div className="absolute bottom-4 right-4 w-48 h-36 rounded-lg overflow-hidden shadow-lg border-2 border-background">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
-                  />
-                  {!isVideoEnabled && (
-                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                      <VideoOff className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
             </div>
-            
-            {/* Side Panel - Chat or Notes */}
-            {isConnected && (showChat || showNotes) && (
-              <div className="w-96 bg-background rounded-lg border">
-                {showChat && <TelemedicineChat patientName={`${patient?.first_name || ''} ${patient?.last_name || ''}`} />}
-                {showNotes && <SessionNotes appointmentId={appointmentId} patientId={patient?.id || ''} />}
-              </div>
-            )}
-          </div>
 
-          {/* Controls */}
-          {isConnected && (
-            <div className="flex items-center justify-center gap-4 p-4 border-t bg-background">
-              <Button
-                variant={isAudioEnabled ? "outline" : "destructive"}
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={toggleAudio}
-              >
-                {isAudioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-              </Button>
-              
-              <Button
-                variant={isVideoEnabled ? "outline" : "destructive"}
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={toggleVideo}
-              >
-                {isVideoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-              </Button>
-
-              <Button
-                variant={isScreenSharing ? "default" : "outline"}
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={toggleScreenShare}
-                title={isScreenSharing ? "Stop screen sharing" : "Share screen"}
-              >
-                {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
-              </Button>
-              
-              <Button
-                variant={isRecording ? "destructive" : "outline"}
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={toggleRecording}
-                title={isRecording ? "Stop recording" : "Start recording"}
-              >
-                {isRecording ? <Square className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-              </Button>
-
-              {recordingPath && (
+            {/* Controls */}
+            {isConnected && (
+              <div className="flex items-center justify-center gap-4 p-4 border-t bg-background">
                 <Button
-                  variant="outline"
+                  variant={isAudioEnabled ? 'outline' : 'destructive'}
                   size="icon"
                   className="h-12 w-12 rounded-full"
-                  onClick={() => setShowPlayback(true)}
-                  title="Play recording"
-                  aria-label="Play recording"
+                  onClick={toggleAudio}
                 >
-                  <Play className="h-5 w-5" />
+                  {isAudioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                 </Button>
-              )}
-              
-              <Button
-                variant="destructive"
-                size="icon"
-                className="h-14 w-14 rounded-full"
-                onClick={handleEndCall}
-                aria-label="End call"
-              >
-                <PhoneOff className="h-6 w-6" />
-              </Button>
-              
-              <Button
-                variant={showChat ? "default" : "outline"}
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={() => {
-                  setShowChat(!showChat);
-                  if (showNotes) setShowNotes(false);
-                }}
-                title="Toggle chat"
-              >
-                <MessageSquare className="h-5 w-5" />
-              </Button>
-              
-              <Button
-                variant={showNotes ? "default" : "outline"}
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={() => {
-                  setShowNotes(!showNotes);
-                  if (showChat) setShowChat(false);
-                }}
-                title="Session notes"
-              >
-                <FileText className="h-5 w-5" />
-              </Button>
+
+                <Button
+                  variant={isVideoEnabled ? 'outline' : 'destructive'}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={toggleVideo}
+                >
+                  {isVideoEnabled ? (
+                    <Video className="h-5 w-5" />
+                  ) : (
+                    <VideoOff className="h-5 w-5" />
+                  )}
+                </Button>
+
+                <Button
+                  variant={isScreenSharing ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={toggleScreenShare}
+                  title={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
+                >
+                  {isScreenSharing ? (
+                    <MonitorOff className="h-5 w-5" />
+                  ) : (
+                    <Monitor className="h-5 w-5" />
+                  )}
+                </Button>
+
+                <Button
+                  variant={isRecording ? 'destructive' : 'outline'}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={toggleRecording}
+                  title={isRecording ? 'Stop recording' : 'Start recording'}
+                >
+                  {isRecording ? <Square className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                </Button>
+
+                {recordingPath && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-full"
+                    onClick={() => setShowPlayback(true)}
+                    title="Play recording"
+                    aria-label="Play recording"
+                  >
+                    <Play className="h-5 w-5" />
+                  </Button>
+                )}
+
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-14 w-14 rounded-full"
+                  onClick={handleEndCall}
+                  aria-label="End call"
+                >
+                  <PhoneOff className="h-6 w-6" />
+                </Button>
+
+                <Button
+                  variant={showChat ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={() => {
+                    setShowChat(!showChat);
+                    if (showNotes) setShowNotes(false);
+                  }}
+                  title="Toggle chat"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                </Button>
+
+                <Button
+                  variant={showNotes ? 'default' : 'outline'}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={() => {
+                    setShowNotes(!showNotes);
+                    if (showChat) setShowChat(false);
+                  }}
+                  title="Session notes"
+                >
+                  <FileText className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={consentDialogOpen} onOpenChange={setConsentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recording Consent Required</DialogTitle>
+            <DialogDescription>
+              Confirm that telemedicine recording consent has been obtained from the patient before
+              starting recording.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="telemedicine-consent"
+                checked={consentConfirmed}
+                onCheckedChange={(checked) => setConsentConfirmed(Boolean(checked))}
+              />
+              <label htmlFor="telemedicine-consent" className="text-sm text-muted-foreground">
+                I confirm the patient has provided consent for telemedicine recording.
+              </label>
             </div>
+            <div className="rounded-lg border p-3 text-xs text-muted-foreground">
+              Consent records are stored in patient consents and logged for audit purposes.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConsentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!consentConfirmed) {
+                  toast.error('Please confirm consent before proceeding.');
+                  return;
+                }
+                const saved = await saveConsent();
+                if (saved) {
+                  setConsentDialogOpen(false);
+                  setConsentConfirmed(false);
+                  startRecording();
+                }
+              }}
+              disabled={!consentConfirmed || isSavingConsent}
+              data-primary-action="true"
+            >
+              {isSavingConsent ? 'Saving...' : 'Confirm & Record'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showPlayback} onOpenChange={setShowPlayback}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Recording Playback</DialogTitle>
+            <DialogDescription>Secure playback of the recorded session.</DialogDescription>
+          </DialogHeader>
+          {playbackUrl ? (
+            <video controls className="w-full rounded-lg border">
+              <source src={playbackUrl} type="video/webm" />
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <div className="text-sm text-muted-foreground">Recording not available yet.</div>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
-    <Dialog open={consentDialogOpen} onOpenChange={setConsentDialogOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Recording Consent Required</DialogTitle>
-          <DialogDescription>
-            Confirm that telemedicine recording consent has been obtained from the patient before starting recording.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="telemedicine-consent"
-              checked={consentConfirmed}
-              onCheckedChange={(checked) => setConsentConfirmed(Boolean(checked))}
-            />
-            <label htmlFor="telemedicine-consent" className="text-sm text-muted-foreground">
-              I confirm the patient has provided consent for telemedicine recording.
-            </label>
-          </div>
-          <div className="rounded-lg border p-3 text-xs text-muted-foreground">
-            Consent records are stored in patient consents and logged for audit purposes.
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setConsentDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={async () => {
-              if (!consentConfirmed) {
-                toast.error('Please confirm consent before proceeding.');
-                return;
-              }
-              const saved = await saveConsent();
-              if (saved) {
-                setConsentDialogOpen(false);
-                setConsentConfirmed(false);
-                startRecording();
-              }
-            }}
-            disabled={!consentConfirmed || isSavingConsent}
-            data-primary-action="true"
-          >
-            {isSavingConsent ? 'Saving...' : 'Confirm & Record'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    <Dialog open={showPlayback} onOpenChange={setShowPlayback}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Recording Playback</DialogTitle>
-          <DialogDescription>Secure playback of the recorded session.</DialogDescription>
-        </DialogHeader>
-        {playbackUrl ? (
-          <video controls className="w-full rounded-lg border">
-            <source src={playbackUrl} type="video/webm" />
-            Your browser does not support the video tag.
-          </video>
-        ) : (
-          <div className="text-sm text-muted-foreground">Recording not available yet.</div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

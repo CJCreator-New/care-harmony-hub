@@ -7,7 +7,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useRealtimeConnectionStatus, useIsRealtimeConnected } from '@/hooks/useRealtimeConnectionStatus';
+import {
+  useRealtimeConnectionStatus,
+  useIsRealtimeConnected,
+} from '@/hooks/useRealtimeConnectionStatus';
 import { ConnectionStatusBanner } from '@/components/admin/ConnectionStatusBanner';
 import * as sonner from 'sonner';
 
@@ -66,18 +69,15 @@ describe('useRealtimeConnectionStatus Hook', () => {
   });
 
   it('should implement exponential backoff with 1.5x multiplier', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false) // Disable DB logging for test
+    const { result } = renderHook(
+      () => useRealtimeConnectionStatus(false) // Disable DB logging for test
     );
 
     const delays: number[] = [];
 
     // Simulate exponential backoff calculation
     for (let i = 0; i < 5; i++) {
-      const delay = Math.min(
-        1000 * Math.pow(1.5, i),
-        30000
-      );
+      const delay = Math.min(1000 * Math.pow(1.5, i), 30000);
       delays.push(delay);
     }
 
@@ -90,23 +90,16 @@ describe('useRealtimeConnectionStatus Hook', () => {
   });
 
   it('should cap maximum retry delay at 30 seconds', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    const { result } = renderHook(() => useRealtimeConnectionStatus(false));
 
     // Calculate delay for attempt 30
-    const maxDelay = Math.min(
-      1000 * Math.pow(1.5, 30),
-      30000
-    );
+    const maxDelay = Math.min(1000 * Math.pow(1.5, 30), 30000);
 
     expect(maxDelay).toBeLessThanOrEqual(30000);
   });
 
   it('should show error toast on disconnect', async () => {
-    renderHook(() =>
-      useRealtimeConnectionStatus(false, undefined, undefined)
-    );
+    renderHook(() => useRealtimeConnectionStatus(false, undefined, undefined));
 
     // This would be triggered by Supabase realtime disconnect event
     // In a real test, we'd need to mock the event and trigger it
@@ -116,9 +109,7 @@ describe('useRealtimeConnectionStatus Hook', () => {
   });
 
   it('should track disconnect count incrementally', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    const { result } = renderHook(() => useRealtimeConnectionStatus(false));
 
     expect(result.current.disconnectCount).toBe(0);
   });
@@ -131,8 +122,8 @@ describe('useRealtimeConnectionStatus Hook', () => {
   });
 
   it('should allow disabling database logging', async () => {
-    renderHook(() =>
-      useRealtimeConnectionStatus(false) // Disabled
+    renderHook(
+      () => useRealtimeConnectionStatus(false) // Disabled
     );
 
     // Should not attempt to log to database
@@ -142,9 +133,7 @@ describe('useRealtimeConnectionStatus Hook', () => {
   it('should call onDisconnect callback when connection lost', () => {
     const onDisconnect = vi.fn();
 
-    renderHook(() =>
-      useRealtimeConnectionStatus(false, onDisconnect, undefined)
-    );
+    renderHook(() => useRealtimeConnectionStatus(false, onDisconnect, undefined));
 
     // Callback would be called on actual disconnect event
     expect(onDisconnect).toBeDefined();
@@ -153,9 +142,7 @@ describe('useRealtimeConnectionStatus Hook', () => {
   it('should call onReconnect callback when connection restored', () => {
     const onReconnect = vi.fn();
 
-    renderHook(() =>
-      useRealtimeConnectionStatus(false, undefined, onReconnect)
-    );
+    renderHook(() => useRealtimeConnectionStatus(false, undefined, onReconnect));
 
     expect(onReconnect).toBeDefined();
   });
@@ -297,8 +284,8 @@ describe('Realtime Disconnect Event Logging', () => {
   it('should log disconnect events to system_logs table', async () => {
     const { supabase } = await import('@/integrations/supabase/client');
 
-    renderHook(() =>
-      useRealtimeConnectionStatus(true) // Enable logging
+    renderHook(
+      () => useRealtimeConnectionStatus(true) // Enable logging
     );
 
     // Verify supabase.from('system_logs').insert was called
@@ -347,10 +334,7 @@ describe('Integration: Exponential Backoff Retry Flow', () => {
 
     // Verify delays follow exponential backoff pattern
     expectedSequence.forEach((expectedDelay, index) => {
-      const calculatedDelay = Math.min(
-        1000 * Math.pow(1.5, index),
-        30000
-      );
+      const calculatedDelay = Math.min(1000 * Math.pow(1.5, index), 30000);
       expect(calculatedDelay).toBeLessThanOrEqual(expectedDelay + 100); // Allow for jitter
     });
   });
@@ -371,43 +355,33 @@ describe('Integration: Exponential Backoff Retry Flow', () => {
 
 describe('Realtime Connection Status Data Integrity', () => {
   it('should maintain connection history', () => {
-    renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    renderHook(() => useRealtimeConnectionStatus(false));
 
     // Hook should maintain history for monitoring
   });
 
   it('should clear error state on successful reconnect', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    const { result } = renderHook(() => useRealtimeConnectionStatus(false));
 
     // After reconnect, error should be null
     expect(result.current.error).toBeNull();
   });
 
   it('should preserve lastDisconnectedAt across reconnects', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    const { result } = renderHook(() => useRealtimeConnectionStatus(false));
 
     // lastDisconnectedAt should be preserved even after reconnect
   });
 
   it('should increment disconnectCount on each new disconnect', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    const { result } = renderHook(() => useRealtimeConnectionStatus(false));
 
     // Each disconnect should increment counter
     expect(result.current.disconnectCount).toBeGreaterThanOrEqual(0);
   });
 
   it('should reset retryAttempt to 0 on successful reconnect', () => {
-    const { result } = renderHook(() =>
-      useRealtimeConnectionStatus(false)
-    );
+    const { result } = renderHook(() => useRealtimeConnectionStatus(false));
 
     // After reconnect, retry attempt should reset
     expect(result.current.retryAttempt).toBe(0);
@@ -416,9 +390,10 @@ describe('Realtime Connection Status Data Integrity', () => {
 
 // Helper function for rendering hooks
 function renderHook(hook: () => any) {
-  let result: any;
+  // Live holder: `result.current` always reflects the latest render's return value.
+  const result: { current: any } = { current: undefined };
   const TestComponent = () => {
-    result = hook();
+    result.current = hook();
     return null;
   };
 

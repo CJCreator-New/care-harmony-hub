@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
+import { setHospitalSignupInFlight } from '@/lib/onboarding/hospitalSignupInFlight';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { toast } from 'sonner';
+import { describeAuthError } from '@/lib/auth/authErrors';
 
 const passwordRequirements = [
   { regex: /.{8,}/, label: 'At least 8 characters' },
@@ -29,6 +31,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Hospital details
   const [hospitalName, setHospitalName] = useState('');
@@ -183,36 +186,44 @@ export default function SignupPage() {
     if (!validateStep2()) return;
 
     setIsLoading(true);
+    setSubmitError(null);
+    // Signing up signs the account in; keep PublicRoute from redirecting away
+    // before the hospital exists (FUNC-03).
+    setHospitalSignupInFlight(true);
 
     try {
       // First, create the user account
-      const { error: signupError } = await signup(adminEmail, password, firstName, lastName);
+      const { error: signupError, userId } = await signup(adminEmail, password, firstName, lastName);
 
       if (signupError) {
-        toast.error('Registration Failed', {
-          description: signupError.message || 'Could not create account. Please try again.',
-        });
-        setIsLoading(false);
+        // Inline and persistent, next to the submit button, so it is not lost after a toast fades.
+        setSubmitError(describeAuthError(signupError, 'signup'));
         return;
       }
 
-      // Then create the hospital and assign role
-      const { error: hospitalError } = await createHospitalAndProfile({
-        name: hospitalName,
-        address,
-        city,
-        state,
-        zip,
-        phone,
-        email: hospitalEmail,
-        license_number: licenseNumber,
-      });
+      // Then create the hospital for the new account. Pass the id from signup():
+      // this component's closure cannot see the session that signup() just created.
+      const { error: hospitalError } = await createHospitalAndProfile(
+        {
+          name: hospitalName,
+          address,
+          city,
+          state,
+          zip,
+          phone,
+          email: hospitalEmail,
+          license_number: licenseNumber,
+        },
+        userId
+      );
 
       if (hospitalError) {
-        toast.error('Setup Failed', {
-          description: 'Account created but hospital setup failed. Please contact support.',
+        // Show the server's reason. The account exists now, so send the user to
+        // account setup to finish, rather than leaving them on a dead-end form.
+        toast.error('Hospital setup failed', {
+          description: `${hospitalError.message || 'Could not create the hospital.'} Your account was created; finish hospital setup below.`,
         });
-        setIsLoading(false);
+        navigate('/hospital/account-setup');
         return;
       }
 
@@ -222,14 +233,16 @@ export default function SignupPage() {
       clearDevTestRole();
       navigate('/hospital/role-setup');
     } catch (error) {
-      toast.error('Registration Failed', { description: 'Something went wrong. Please try again.' });
+      console.error('Signup error:', error);
+      setSubmitError(describeAuthError(error, 'signup'));
     } finally {
+      setHospitalSignupInFlight(false);
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
         <title>Hospital Signup | AROCORD-HIMS</title>
         <meta name="description" content="Create a new hospital account on AROCORD-HIMS to onboard staff, manage patients, and run a modern healthcare facility." />
@@ -593,6 +606,11 @@ export default function SignupPage() {
                   >
                     Back
                   </Button>
+                  {submitError && (
+                    <p role="alert" className="w-full text-sm text-destructive">
+                      {submitError}
+                    </p>
+                  )}
                   <Button type="submit" size="lg" className="flex-1" disabled={isLoading}>
                     {isLoading ? (
                       <>

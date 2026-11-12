@@ -28,8 +28,20 @@ interface AdminRepairToolProps {
   onSuccess?: () => void;
 }
 
+/**
+ * Repairs an account that has no hospital yet (roadmap S0-03).
+ *
+ * Tenant membership and roles are server-managed: the profiles guard trigger
+ * rejects a client-side `hospital_id` change and user_roles no longer accepts
+ * self-assigned roles. The only self-service repair is the hospital sign-up
+ * path (`create-hospital-admin` edge function via `createHospitalAndProfile`),
+ * which creates the profile if missing, a new hospital, the tenant key and the
+ * admin role in one server transaction, and only for an account that has no
+ * hospital and no role. An account that already has a hospital but lacks the
+ * admin role must be granted it by an existing admin of that hospital.
+ */
 export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
-  const { user, profile, hospital, roles, isLoading: authLoading } = useAuth();
+  const { user, profile, hospital, roles, isLoading: authLoading, createHospitalAndProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isRepairing, setIsRepairing] = useState(false);
@@ -39,6 +51,7 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
   const hasHospital = !!hospital || !!profile?.hospital_id;
   const hasAdminRole = roles.includes('admin');
   const needsRepair = !hasHospital || !hasAdminRole;
+  const canSelfRepair = !hasHospital;
 
   const handleRepair = async () => {
     if (!user) {
@@ -53,93 +66,14 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
     setIsRepairing(true);
 
     try {
-      let hospitalId = profile?.hospital_id;
-
-      // Older accounts may not have a profile row yet
-      if (!profile) {
-        const meta = (user.user_metadata || {}) as Record<string, unknown>;
-        const firstName = typeof meta.first_name === 'string' && meta.first_name.trim()
-          ? meta.first_name.trim()
-          : 'User';
-        const lastName = typeof meta.last_name === 'string' && meta.last_name.trim()
-          ? meta.last_name.trim()
-          : 'Account';
-        const email = user.email;
-
-        if (!email) {
-          throw new Error('Account email is missing; cannot create profile.');
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: profileCreateError } = await (supabase.from('profiles') as any).insert({
-          user_id: user.id,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-        });
-
-        if (profileCreateError && profileCreateError.code !== '23505') {
-          console.error('Profile creation error:', profileCreateError);
-          throw new Error(`Failed to create profile: ${profileCreateError.message}`);
-        }
-      }
-
-      if (!hospitalId) {
-        const newHospitalId = crypto.randomUUID();
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: hospitalError } = await (supabase.from('hospitals') as any).insert({
-          id: newHospitalId,
-          name: hospitalName.trim() || 'My Hospital',
-        });
-
-        if (hospitalError) {
-          console.error('Hospital creation error:', hospitalError);
-          throw new Error(`Failed to create hospital: ${hospitalError.message}`);
-        }
-
-        hospitalId = newHospitalId;
-
-        // Update profile with hospital_id
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: profileError } = await (supabase.from('profiles') as any)
-          .update({ hospital_id: hospitalId })
-          .eq('user_id', user.id);
-
-        if (profileError) {
-          console.error('Profile update error:', profileError);
-          throw new Error(`Failed to update profile: ${profileError.message}`);
-        }
-      }
-
-      // Step 2: Create admin role if missing
-      if (!hasAdminRole && hospitalId) {
-        // Check if role already exists
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: existingRole } = await (supabase.from('user_roles') as any)
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-
-        if (!existingRole) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { error: roleError } = await (supabase.from('user_roles') as any).insert({
-            user_id: user.id,
-            role: 'admin',
-            hospital_id: hospitalId,
-          });
-
-          if (roleError) {
-            console.error('Role creation error:', roleError);
-            throw new Error(`Failed to create admin role: ${roleError.message}`);
-          }
-        }
-      }
+      const { error } = await createHospitalAndProfile({
+        name: hospitalName.trim() || 'My Hospital',
+      });
+      if (error) throw error;
 
       toast({
         title: 'Account repaired!',
-        description: 'Your admin access has been configured. Refreshing...',
+        description: 'Your hospital and admin access have been configured. Refreshing...',
       });
 
       setDialogOpen(false);
@@ -198,25 +132,30 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="default" className="w-full">
-              <Wrench className="h-4 w-4 mr-2" />
-              Repair Account
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-primary" />
-                Repair Admin Account
-              </DialogTitle>
-              <DialogDescription>
-                This will create a hospital (if needed) and assign you the admin role.
-              </DialogDescription>
-            </DialogHeader>
+        {!canSelfRepair ? (
+          <p className="text-sm text-muted-foreground">
+            Roles are granted by an administrator of your hospital. Ask an existing admin to assign you the
+            admin role from Staff Management.
+          </p>
+        ) : (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="default" className="w-full">
+                <Wrench className="h-4 w-4 mr-2" />
+                Repair Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Repair Admin Account
+                </DialogTitle>
+                <DialogDescription>
+                  This will create a new hospital and make you its admin.
+                </DialogDescription>
+              </DialogHeader>
 
-            {!hasHospital && (
               <div className="space-y-2 py-4">
                 <Label htmlFor="hospitalName">Hospital Name</Label>
                 <Input
@@ -226,37 +165,37 @@ export function AdminRepairTool({ onSuccess }: AdminRepairToolProps) {
                   placeholder="Enter hospital name"
                 />
               </div>
-            )}
 
-            <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
-              <p className="font-medium">This action will:</p>
-              <ul className="list-disc list-inside text-muted-foreground">
-                {!hasHospital && <li>Create a new hospital</li>}
-                {!hasHospital && <li>Assign your account to this hospital</li>}
-                {!hasAdminRole && <li>Grant you the admin role</li>}
-              </ul>
-            </div>
+              <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+                <p className="font-medium">This action will:</p>
+                <ul className="list-disc list-inside text-muted-foreground">
+                  <li>Create a new hospital</li>
+                  <li>Assign your account to this hospital</li>
+                  <li>Grant you the admin role for it</li>
+                </ul>
+              </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRepair} disabled={isRepairing}>
-                {isRepairing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Repairing...
-                  </>
-                ) : (
-                  <>
-                    <Wrench className="h-4 w-4 mr-2" />
-                    Repair Now
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleRepair} disabled={isRepairing}>
+                  {isRepairing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Repairing...
+                    </>
+                  ) : (
+                    <>
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Repair Now
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </CardContent>
     </Card>
   );

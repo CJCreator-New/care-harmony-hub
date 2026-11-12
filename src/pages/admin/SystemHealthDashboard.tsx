@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * System Health Dashboard
  * Admin-only component for monitoring system status, service health, and metrics
@@ -6,14 +5,15 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { AIMetricsChart } from '@/components/admin/AIMetricsChart';
 
 interface HealthCheckResponse {
@@ -63,25 +63,33 @@ const getStatusIcon = (status: string) => {
 
 export function SystemHealthDashboard() {
   const { profile } = useAuth();
-  const { hasPermission } = usePermissions();
+  // FUNC-17: usePermissions() has no `hasPermission`; calling it crashed the page.
+  const { can } = usePermissions();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  const isAdmin = hasPermission(['admin']);
+  const isAdmin = can('system-health');
 
   const fetchHealth = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/functions/v1/health-check', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data: HealthCheckResponse = await response.json();
-      setHealth(data);
+      // A relative fetch('/functions/v1/...') hits the SPA host, not Supabase (FUNC-17).
+      const { data, error } = await supabase.functions.invoke<HealthCheckResponse>(
+        'health-check',
+        { method: 'GET' }
+      );
+      let body = data;
+      if (error) {
+        // health-check answers 503 with a full report when a service is down;
+        // invoke() surfaces that as an error carrying the Response in `context`.
+        const context = (error as { context?: unknown }).context;
+        if (context instanceof Response) {
+          body = (await context.json().catch(() => null)) as HealthCheckResponse | null;
+        }
+        if (!body) throw error;
+      }
+      setHealth(body);
       setLastRefresh(new Date());
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch health status';
@@ -326,4 +334,11 @@ export function SystemHealthDashboard() {
   );
 }
 
-export default SystemHealthDashboard;
+/** Route page: renders inside the app shell so navigation stays available (FUNC-17). */
+export default function SystemHealthDashboardPage() {
+  return (
+    <DashboardLayout>
+      <SystemHealthDashboard />
+    </DashboardLayout>
+  );
+}

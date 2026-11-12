@@ -42,6 +42,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 import { useMedications } from '@/lib/hooks/pharmacy';
 
 const CONTROLLED_KEYWORDS = [
@@ -96,6 +97,8 @@ export interface PrescriptionDispensingModalProps {
     batchNumber: string;
     patientVerified: boolean;
     safetyChecksComplete: boolean;
+    /** Audit reason captured by the confirmation dialog before dispensing. */
+    reason: string;
     notes: string;
     items: Array<{
       itemId?: string;
@@ -126,6 +129,8 @@ export function PrescriptionDispensingModal({
 
   // Controlled substance dual-witness states (A4)
   const [witnessName, setWitnessName] = useState('');
+  const [dispenseConfirmOpen, setDispenseConfirmOpen] = useState(false);
+  const [pendingDispense, setPendingDispense] = useState<{ batchNumber: string; notes?: string } | null>(null);
   const [witnessRole, setWitnessRole] = useState('Pharmacist');
   const [witnessVerified, setWitnessVerified] = useState(false);
   const [photoIdVerified, setPhotoIdVerified] = useState(false);
@@ -236,19 +241,27 @@ export function PrescriptionDispensingModal({
       return;
     }
 
+    // Validated: ask for the audit reason before anything is dispensed.
+    setPendingDispense({ batchNumber: data.batchNumber, notes: data.notes });
+    setDispenseConfirmOpen(true);
+  });
+
+  const confirmDispense = (reason: string) => {
+    if (!pendingDispense) return;
     const formattedItems = itemStockStatus.map((s) => ({
       itemId: s.item.id,
       medicationName: s.item.medication_name,
       prescribedQuantity: s.item.quantity,
       dispensedQuantity: s.dispensedQty,
-      batchNumber: data.batchNumber,
+      batchNumber: pendingDispense.batchNumber,
     }));
 
     onDispense({
-      batchNumber: data.batchNumber,
+      batchNumber: pendingDispense.batchNumber,
       patientVerified,
       safetyChecksComplete,
-      notes: (data.notes ?? '').trim(),
+      reason,
+      notes: (pendingDispense.notes ?? '').trim(),
       items: formattedItems,
       witness: isControlledPrescription
         ? {
@@ -259,13 +272,15 @@ export function PrescriptionDispensingModal({
         : undefined,
     });
 
+    setPendingDispense(null);
     form.reset();
     setPatientVerified(false);
     setSafetyChecksComplete(false);
     setWitnessVerified(false);
     setPhotoIdVerified(false);
     setWitnessName('');
-  });
+    setDispenseConfirmOpen(false);
+  };
 
   if (!prescription) return null;
 
@@ -602,6 +617,22 @@ export function PrescriptionDispensingModal({
           </form>
         </Form>
       </DialogContent>
+      <ConfirmDestructiveAction
+        open={dispenseConfirmOpen}
+        onOpenChange={setDispenseConfirmOpen}
+        title="Dispense this prescription?"
+        description={
+          <p>
+            Stock will be deducted and the prescription marked as {hasPartialDispense ? 'partially ' : ''}dispensed.
+            This cannot be reversed from this screen. The reason is saved in the audit history.
+          </p>
+        }
+        confirmLabel={hasPartialDispense ? 'Partially dispense' : 'Dispense and deduct stock'}
+        reasonLabel="Dispensing reason (recorded in the audit log)"
+        reasonPlaceholder="e.g. Verified against the signed prescription and patient wristband."
+        isPending={isLoading}
+        onConfirm={confirmDispense}
+      />
     </Dialog>
   );
 }

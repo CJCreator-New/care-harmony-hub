@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Users, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { useAppointments } from '@/lib/hooks/appointments';
-import { devLog } from '@/utils/sanitize';
+import { useAppointments, useUpdateAppointment } from '@/lib/hooks/appointments';
+import { ConfirmDestructiveAction } from '@/components/common/ConfirmDestructiveAction';
 
 interface Appointment {
   id: string;
@@ -40,31 +40,20 @@ export function AppointmentCalendarView({ onNewAppointment, onAppointmentClick }
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
 
-  const handleReschedule = () => {
-    if (!selectedAppointment) {
-      devLog('No appointment selected for reschedule');
-      return;
-    }
-    // TODO: Implement reschedule functionality
-    devLog('Reschedule appointment:', selectedAppointment.id);
-  };
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const updateAppointment = useUpdateAppointment();
 
-  const handleCancelAppointment = () => {
-    if (!selectedAppointment) {
-      devLog('No appointment selected for cancellation');
-      return;
-    }
-    // TODO: Implement cancel functionality
-    devLog('Cancel appointment:', selectedAppointment.id);
-  };
-
-  const handleEditAppointment = () => {
-    if (!selectedAppointment) {
-      devLog('No appointment selected for editing');
-      return;
-    }
-    // TODO: Implement edit functionality
-    devLog('Edit appointment:', selectedAppointment.id);
+  // Reschedule and Edit have no implementation yet, so they are not rendered (UX-03).
+  // Cancel goes through the same mutation as the appointments list, with a reason.
+  const confirmCancel = async (reason: string) => {
+    if (!selectedAppointment) return;
+    await updateAppointment.mutateAsync({
+      id: selectedAppointment.id,
+      status: 'cancelled',
+      cancellationReason: reason,
+    });
+    setCancelOpen(false);
+    setSelectedAppointment(null);
   };
 
   const { data: appointments = [] } = useAppointments();
@@ -318,10 +307,23 @@ export function AppointmentCalendarView({ onNewAppointment, onAppointmentClick }
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleReschedule}>Reschedule</Button>
-                <Button variant="outline" onClick={handleCancelAppointment}>Cancel</Button>
-                <Button onClick={handleEditAppointment}>Edit</Button>
+                <Button variant="outline" onClick={() => setCancelOpen(true)}>Cancel appointment</Button>
               </div>
+              <ConfirmDestructiveAction
+                open={cancelOpen}
+                onOpenChange={setCancelOpen}
+                title="Cancel this appointment?"
+                description={
+                  <p>
+                    {selectedAppointment.patient?.first_name} {selectedAppointment.patient?.last_name}'s
+                    appointment on {format(new Date(selectedAppointment.scheduled_date), 'PPP')} at{' '}
+                    {selectedAppointment.scheduled_time} will be cancelled. The reason is saved in the audit history.
+                  </p>
+                }
+                confirmLabel="Cancel appointment"
+                isPending={updateAppointment.isPending}
+                onConfirm={confirmCancel}
+              />
             </div>
           )}
         </DialogContent>

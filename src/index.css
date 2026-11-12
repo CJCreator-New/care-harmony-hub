@@ -25,9 +25,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary - Teal Healthcare */
-    --primary: 173 65% 42%;
-    --primary-vivid: 173 75% 48%;
+    /* Primary - Teal Healthcare (contrast-tuned: white text on --primary is 5.5:1, --primary as text on white is 5.5:1) */
+    --primary: 173 65% 28%;
+    --primary-vivid: 173 70% 27%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Slate Blue */
@@ -40,12 +40,12 @@
     --accent: 215 25% 93%;
     --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 47%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 215 20% 88%;
     --input: 215 20% 88%;
-    --ring: 173 65% 42%;
+    --ring: 173 65% 28%;
 
     /* Vivid accent - warm amber for CTAs, highlights, notifications */
     --accent-vivid: 38 95% 52%;
@@ -63,7 +63,7 @@
     --doctor-light: 217 100% 95%;
     --nurse: 142 76% 36%;
     --nurse-light: 142 76% 95%;
-    --pharmacy: 271 81% 56%;
+    --pharmacy: 271 70% 36%;
     --pharmacy-light: 271 81% 95%;
     --receptionist: 25 95% 53%;
     --receptionist-light: 25 95% 95%;
@@ -72,14 +72,15 @@
     --patient: 173 58% 39%;
     --patient-light: 173 58% 95%;
 
-    /* Status Colors */
-    --success: 142 76% 36%;
+    /* Status Colors (light theme: every status colour is >= 5:1 against white,
+       so it passes as text on white/tinted surfaces and as solid fill with white text) */
+    --success: 142 76% 28%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 38 92% 31%;
     --warning-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
+    --info: 199 89% 35%;
     --info-foreground: 0 0% 100%;
-    --critical: 0 84% 60%;
+    --critical: 0 84% 47%;
     --critical-foreground: 0 0% 100%;
 
     /* Priority Colors */
@@ -89,7 +90,7 @@
     --priority-low: 215 16% 47%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(173, 65%, 42%) 0%, hsl(199, 89%, 48%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(173, 65%, 28%) 0%, hsl(199, 89%, 35%) 100%);
     --gradient-hero:
       radial-gradient(ellipse 120% 80% at 20% 50%, hsl(173 65% 42% / 0.9) 0%, transparent 60%),
       radial-gradient(ellipse 80% 60% at 80% 20%, hsl(199 89% 48% / 0.6) 0%, transparent 50%),
@@ -105,10 +106,13 @@
     --shadow-glow: 0 0 20px hsl(173 65% 42% / 0.35);
     --shadow-glow-vivid: 0 8px 24px hsl(173 65% 42% / 0.4);
 
+    /* Hero panels: solid base so light text never depends on the gradient image */
+    --hero-background: 220 35% 8%;
+
     /* Sidebar */
     --sidebar-background: 220 35% 8%;
     --sidebar-foreground: 215 20% 85%;
-    --sidebar-primary: 173 65% 42%;
+    --sidebar-primary: 173 65% 28%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 35% 14%;
     --sidebar-accent-foreground: 215 20% 92%;
@@ -132,8 +136,11 @@
     --popover: 222 47% 9%;
     --popover-foreground: 215 20% 95%;
 
+    /* Dark theme: primary is a light-enough teal to be text on the dark surface (7.7:1),
+       so solid fills use dark text (--primary-foreground) instead of white (white on it would be 2.5:1). */
     --primary: 173 58% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary-vivid: 173 65% 52%;
+    --primary-foreground: 222 47% 6%;
 
     --secondary: 222 47% 14%;
     --secondary-foreground: 215 20% 95%;
@@ -144,8 +151,20 @@
     --accent: 222 47% 14%;
     --accent-foreground: 215 20% 95%;
 
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 66%;
+    --destructive-foreground: 222 47% 6%;
+
+    /* Status colours, dark theme: light tints of each hue so they pass as text on the dark card (>= 5.8:1)
+       and, with dark text, as solid fills (>= 6:1). */
+    --success: 142 70% 48%;
+    --success-foreground: 222 47% 6%;
+    --warning: 38 92% 56%;
+    --warning-foreground: 222 47% 6%;
+    --info: 199 89% 56%;
+    --info-foreground: 222 47% 6%;
+    --pharmacy: 271 85% 72%;
+    --critical: 0 84% 66%;
+    --critical-foreground: 222 47% 6%;
 
     --border: 222 47% 18%;
     --input: 222 47% 18%;
@@ -188,7 +207,8 @@
   }
 
   .gradient-hero {
-    background: var(--gradient-hero);
+    background-color: hsl(var(--hero-background));
+    background-image: var(--gradient-hero);
   }
 
   .shadow-glow {
@@ -276,7 +296,8 @@
   textarea:focus-visible,
   select:focus-visible {
     border-color: hsl(var(--primary)) !important;
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15), 0 1px 4px hsl(var(--primary) / 0.1) !important;
+    /* Solid 2px ring (no alpha) so the focus indicator meets WCAG 1.4.11 3:1 */
+    box-shadow: 0 0 0 2px hsl(var(--ring)) !important;
     outline: none !important;
     transition: box-shadow 150ms ease, border-color 150ms ease;
   }

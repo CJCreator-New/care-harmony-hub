@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ClinicalActor,
+  ClinicalRole,
   ClinicalOverride,
   IOrderSafetyEngine,
   OrderItemIntent,
@@ -22,14 +23,24 @@ import {
 } from './types';
 import { createOrderSafetyEngine } from './OrderSafetyEngine';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
+import { useClinicalActor } from '@/hooks/useClinicalActor';
 
 export interface UseOrderSafetyOptions {
-  readonly patient: PatientClinicalContext;
+  /**
+   * Patient context. `null` while it is loading or when it could not be loaded:
+   * with any order items present, that BLOCKS (fail-closed).
+   */
+  readonly patient: PatientClinicalContext | null;
   readonly items: readonly OrderItemIntent[];
   readonly debounceMs?: number; // default: 300ms
   readonly enabled?: boolean;
   readonly engine?: IOrderSafetyEngine;
+  /** Role this screen acts in ('doctor' when prescribing, 'pharmacist' when verifying). Used only if the user holds it. */
+  readonly actingRole?: ClinicalRole;
+  /** The patient context is still loading. */
+  readonly isContextLoading?: boolean;
+  /** The patient context could not be loaded (shown to the user; blocks). */
+  readonly contextError?: string | null;
 }
 
 export interface UseOrderSafetyReturn {
@@ -40,6 +51,8 @@ export interface UseOrderSafetyReturn {
   readonly hasHardStop: boolean;
   readonly verdict: SafetyVerdict;
   readonly summary: string;
+  /** Why the check failed or could not run (blocks when items exist). */
+  readonly errorMessage: string | null;
 
   // Categorized findings
   readonly findings: readonly SafetyFinding[];
@@ -67,37 +80,93 @@ export interface UseOrderSafetyReturn {
   readonly refresh: () => Promise<void>;
 }
 
+const CLINICAL_ROLES: readonly ClinicalRole[] = [
+  'doctor',
+  'pharmacist',
+  'nurse',
+  'admin',
+  'receptionist',
+  'lab_technician',
+  'patient',
+];
+
+/**
+ * Builds the acting clinician from AuthContext. The tenant comes from the
+ * user's profile, never from the patient (the old fallback made the tenant
+ * isolation check compare the patient's hospital with itself), and the role
+ * is one the user actually holds (Supabase's `user.role` is always
+ * 'authenticated', which made every doctor override fail).
+ */
+function useOrderSafetyActor(actingRole?: ClinicalRole): ClinicalActor {
+  const { userId, hospitalId, role } = useClinicalActor<ClinicalRole>({
+    actingRole,
+    allowedRoles: CLINICAL_ROLES,
+  });
+  return useMemo(
+    () => ({ userId: userId || '', hospitalId: hospitalId || '', role: role || 'patient' }),
+    [userId, hospitalId, role]
+  );
+}
+
+/** Stable fingerprint of everything that affects the assessment. */
+function fingerprint(patient: PatientClinicalContext | null, items: readonly OrderItemIntent[]): string {
+  return JSON.stringify([
+    items.map((i) => [i.clientItemId, i.drugName, i.doseMg, i.route, i.frequency, i.dosesPerDay]),
+    patient && [
+      patient.patientId,
+      patient.hospitalId,
+      patient.ageYears,
+      patient.ageMonths,
+      patient.weightKg,
+      patient.gender,
+      patient.isPregnant,
+      patient.isBreastfeeding,
+      patient.allergies,
+      patient.activeMedications?.map((m) => m.drugName),
+      patient.dataGaps,
+      patient.allergyStatusUnknown,
+    ],
+  ]);
+}
+
 export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyReturn {
-  const { patient, items, debounceMs = 300, enabled = true, engine: customEngine } = options;
-  const { user } = useAuth();
+  const {
+    patient,
+    items,
+    debounceMs = 300,
+    enabled = true,
+    engine: customEngine,
+    actingRole,
+    isContextLoading = false,
+    contextError = null,
+  } = options;
 
   const engine = useMemo(() => customEngine || createOrderSafetyEngine(), [customEngine]);
+  const actor = useOrderSafetyActor(actingRole);
 
   const [assessment, setAssessment] = useState<SafetyAssessment | null>(null);
+  const [assessedFingerprint, setAssessedFingerprint] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
   const [errorState, setErrorState] = useState<string | null>(null);
   const [activeOverrides, setActiveOverrides] = useState<ClinicalOverride[]>([]);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const lastEvaluatedItemsHash = useRef<string>('');
-
-  // Assemble ClinicalActor from AuthContext
-  const actor: ClinicalActor = useMemo(
-    () => ({
-      userId: user?.id || 'anonymous-user',
-      hospitalId: user?.hospital_id || patient.hospitalId,
-      role: (user?.role as any) || 'doctor',
-    }),
-    [user, patient.hospitalId]
+  const actorKey = `${actor.userId}|${actor.hospitalId}|${actor.role}`;
+  const currentFingerprint = useMemo(
+    () => `${actorKey}|${fingerprint(patient, items)}`,
+    [actorKey, patient, items]
   );
+  const latestRequest = useRef(0);
 
   /**
    * Core evaluation trigger with abort cancellation
    */
   const runEvaluation = useCallback(
     async (signal?: AbortSignal) => {
-      if (!enabled || !actor.hospitalId || items.length === 0) {
+      const requestId = ++latestRequest.current;
+      if (!enabled || items.length === 0 || !patient) {
         setAssessment(null);
+        setAssessedFingerprint('');
+        setErrorState(null);
         setIsChecking(false);
         return;
       }
@@ -106,60 +175,46 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
       setErrorState(null);
 
       try {
-        const res = await (engine as any).evaluate(
-          {
-            actor,
-            patient,
-            items,
-          },
-          signal
-        );
-
-        if (!signal?.aborted) {
+        const res = await (engine as any).evaluate({ actor, patient, items }, signal);
+        if (!signal?.aborted && requestId === latestRequest.current) {
           setAssessment(res);
+          setAssessedFingerprint(currentFingerprint);
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
+        if (err?.name !== 'AbortError' && requestId === latestRequest.current) {
           console.error('OrderSafetyEngine evaluation failed:', err);
-          setErrorState(err.message || 'Safety evaluation error');
+          // Fail-closed: drop any earlier result so it cannot be acted on.
+          setAssessment(null);
+          setAssessedFingerprint('');
+          setErrorState(err?.message || 'Safety evaluation error');
         }
       } finally {
-        if (!signal?.aborted) {
+        if (!signal?.aborted && requestId === latestRequest.current) {
           setIsChecking(false);
         }
       }
     },
-    [actor, patient, items, enabled, engine]
+    [actor, patient, items, enabled, engine, currentFingerprint]
   );
 
   /**
-   * Debounced evaluation effect
+   * Debounced evaluation whenever the items OR the patient data change.
    */
   useEffect(() => {
-    const itemsHash = JSON.stringify(
-      items.map((i) => [i.drugName, i.doseMg, i.route, i.frequency])
-    );
-    if (itemsHash === lastEvaluatedItemsHash.current && assessment !== null) {
-      return;
-    }
-    lastEvaluatedItemsHash.current = itemsHash;
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
     const controller = new AbortController();
-    abortControllerRef.current = controller;
-
+    if (items.length > 0 && enabled && patient) setIsChecking(true);
     const timer = setTimeout(() => {
-      runEvaluation(controller.signal);
+      void runEvaluation(controller.signal);
     }, debounceMs);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [items, debounceMs, runEvaluation, assessment]);
+    // currentFingerprint captures actor values + items + patient, so object
+    // identity changes (new arrays from context) do not cause re-evaluation loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFingerprint, enabled, engine, debounceMs]);
 
   // Derived Safety Properties
   const findings = useMemo(() => assessment?.findings || [], [assessment]);
@@ -179,21 +234,38 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
 
   const hasHardStop = hardStops.length > 0;
   const verdict: SafetyVerdict = assessment?.verdict || 'CLEARED';
+  const hasItems = items.length > 0;
+  const isFresh = assessment !== null && assessedFingerprint === currentFingerprint;
+  const contextMissing = hasItems && enabled && !patient;
+  const errorMessage = !hasItems
+    ? null
+    : errorState ||
+      (contextMissing && !isContextLoading
+        ? contextError || 'Patient safety data is unavailable, so this order cannot be screened.'
+        : null);
+  const checking = hasItems && (isChecking || isContextLoading || (!!patient && enabled && !isFresh && !errorState));
+
+  // Fail-closed: proceed only with a fresh, error-free assessment of exactly
+  // these items and this patient, with every override-requiring finding documented.
   const canProceed =
-    enabled &&
-    !isChecking &&
-    !hasHardStop &&
-    unhandledOverrides.length === 0 &&
-    (assessment !== null || items.length === 0);
+    !hasItems ||
+    (enabled &&
+      !checking &&
+      !errorMessage &&
+      isFresh &&
+      !hasHardStop &&
+      unhandledOverrides.length === 0);
 
   const status = useMemo(() => {
-    if (errorState) return 'error';
-    if (isChecking) return 'checking';
+    if (!hasItems) return 'cleared';
+    if (errorMessage) return 'error';
+    if (checking) return 'checking';
     if (hasHardStop) return 'blocked';
     if (unhandledOverrides.length > 0) return 'warning';
-    if (assessment?.verdict === 'CLEARED' || items.length === 0) return 'cleared';
+    if (isFresh && assessment?.verdict === 'CLEARED') return 'cleared';
+    if (isFresh) return 'cleared';
     return 'idle';
-  }, [errorState, isChecking, hasHardStop, unhandledOverrides.length, assessment, items.length]);
+  }, [hasItems, errorMessage, checking, hasHardStop, unhandledOverrides.length, isFresh, assessment]);
 
   /**
    * Get findings associated with a specific order item row
@@ -246,6 +318,9 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
    */
   const clearAndSign = useCallback(
     async (action: OrderSafetyAction = 'DOCTOR_PRESCRIBE'): Promise<SafetyClearanceReceipt> => {
+      if (!patient) {
+        throw new Error(contextError || 'Patient safety data is unavailable; the order cannot be cleared.');
+      }
       return await engine.clear({
         actor,
         patient,
@@ -254,7 +329,7 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
         action,
       });
     },
-    [engine, actor, patient, items, activeOverrides]
+    [engine, actor, patient, items, activeOverrides, contextError]
   );
 
   /**
@@ -266,6 +341,10 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
       action: OrderSafetyAction = 'DOCTOR_PRESCRIBE'
     ) => {
       return async (): Promise<T | null> => {
+        if (!canProceed && errorMessage) {
+          toast.error(`Order blocked: ${errorMessage}`);
+          return null;
+        }
         if (hasHardStop) {
           toast.error(`Order blocked: ${hardStops[0]?.title || 'Critical contraindication'}`);
           return null;
@@ -287,16 +366,17 @@ export function useOrderSafety(options: UseOrderSafetyOptions): UseOrderSafetyRe
         }
       };
     },
-    [hasHardStop, hardStops, unhandledOverrides, clearAndSign]
+    [canProceed, errorMessage, hasHardStop, hardStops, unhandledOverrides, clearAndSign]
   );
 
   return {
     status,
-    isChecking,
+    isChecking: checking,
     canProceed,
     hasHardStop,
     verdict,
-    summary: assessment?.summary || 'Safety checks ready.',
+    summary: errorMessage || assessment?.summary || 'Safety checks ready.',
+    errorMessage,
     findings,
     hardStops,
     unhandledOverrides,

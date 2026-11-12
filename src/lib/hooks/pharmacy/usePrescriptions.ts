@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { useAudit } from '@/hooks/useAudit';
-import { fieldEncryption } from '@/utils/dataProtection';
+import { decryptRecordFields, fieldEncryption } from '@/utils/dataProtection';
 import { hasPermission } from '@/lib/permissions';
 import { createPrescriptionDispensingEngine } from '@/modules/prescription-dispensing';
 
@@ -68,24 +68,11 @@ const isMissingPrescriptionQueueSchemaError = (error: { message?: string } | nul
 // F2.4 — HIPAA §164.312(e)(2)(ii): decrypt PHI fields on prescription items
 async function decryptPrescriptionItems(prescription: any): Promise<any> {
   if (!prescription.items?.length) return prescription;
+  // CLIN-05: each item row is the resource its ciphertext belongs to, so phi-crypto authorises against it.
   const decryptedItems = await Promise.all(
-    prescription.items.map(async (item: any) => {
-      if (!item.encryption_metadata || Object.keys(item.encryption_metadata).length === 0)
-        return item;
-      const decrypted = { ...item };
-      for (const [field, encData] of Object.entries(
-        item.encryption_metadata as Record<string, any>
-      )) {
-        if (typeof decrypted[field] === 'string' && decrypted[field].startsWith('__ENCRYPTED__')) {
-          try {
-            decrypted[field] = await fieldEncryption.decryptField(encData);
-          } catch {
-            decrypted[field] = '[Encrypted]';
-          }
-        }
-      }
-      return decrypted;
-    })
+    prescription.items.map((item: any) =>
+      decryptRecordFields(item, { resourceType: 'prescription_items', resourceId: item.id })
+    )
   );
   return { ...prescription, items: decryptedItems };
 }
@@ -156,10 +143,14 @@ export function usePrescriptionStats() {
           .gte('created_at', `${today}T00:00:00`),
       ]);
 
+      // A failed count must surface as a query error, never as a valid zero.
+      const failed = [pendingRes, dispensedRes, todayRes].find((r) => r.error);
+      if (failed?.error) throw failed.error;
+
       return {
-        pending: pendingRes.count || 0,
-        dispensed: dispensedRes.count || 0,
-        today: todayRes.count || 0,
+        pending: pendingRes.count ?? 0,
+        dispensed: dispensedRes.count ?? 0,
+        today: todayRes.count ?? 0,
       };
     },
     enabled: !!hospital?.id,
@@ -180,6 +171,7 @@ export function useCreatePrescription() {
       consultationId,
       items,
       notes,
+      safety,
     }: {
       patientId: string;
       consultationId?: string;
@@ -192,6 +184,12 @@ export function useCreatePrescription() {
         instructions?: string;
       }>;
       notes?: string;
+      /** Order-safety findings and overrides (order-safety module, buildPrescriptionSafetyColumns). */
+      safety?: {
+        allergy_alerts: unknown[];
+        drug_interactions: unknown[];
+        verification_required: boolean;
+      };
     }) => {
       return recordOperation(
         {
@@ -215,6 +213,13 @@ export function useCreatePrescription() {
               prescribed_by: profile.id,
               notes,
               status: 'pending',
+              ...(safety
+                ? {
+                    allergy_alerts: safety.allergy_alerts as any,
+                    drug_interactions: safety.drug_interactions as any,
+                    verification_required: safety.verification_required,
+                  }
+                : {}),
             })
             .select()
             .single();
@@ -388,7 +393,16 @@ export function useApprovePrescription() {
   const { logActivity } = useAudit();
 
   return useMutation({
-    mutationFn: async ({ prescriptionId, notes }: { prescriptionId: string; notes?: string }) => {
+    mutationFn: async ({
+      prescriptionId,
+      notes,
+      safety,
+    }: {
+      prescriptionId: string;
+      notes?: string;
+      /** Pharmacist safety verification (order-safety module); appended, never replacing the prescriber's record. */
+      safety?: { allergy_alerts: unknown[]; drug_interactions: unknown[]; verification_required: boolean };
+    }) => {
       if (!hasPermission(primaryRole, 'prescriptions:write')) {
         throw new Error('You do not have permission to approve prescriptions');
       }
@@ -408,12 +422,34 @@ export function useApprovePrescription() {
         console.warn('[useApprovePrescription] Workflow advance failed:', err);
       }
 
+      // Append the pharmacist's verification to the existing safety record and
+      // notes (audit CLIN-02: these were previously never persisted).
+      const { data: current, error: readError } = await supabase
+        .from('prescriptions')
+        .select('notes, allergy_alerts, drug_interactions')
+        .eq('id', prescriptionId)
+        .single();
+      if (readError) throw readError;
+      const asArray = (v: unknown) => (Array.isArray(v) ? v : []);
+      const verifiedAt = new Date().toISOString();
+
       // Update prescription status to 'verified'
       const { error } = await supabase
         .from('prescriptions')
         .update({
           status: 'verified',
-          updated_at: new Date().toISOString(),
+          verified_by: profile.id,
+          verified_at: verifiedAt,
+          updated_at: verifiedAt,
+          ...(notes
+            ? { notes: [current?.notes, notes].filter(Boolean).join('\n') }
+            : {}),
+          ...(safety
+            ? {
+                allergy_alerts: [...asArray(current?.allergy_alerts), ...safety.allergy_alerts] as any,
+                drug_interactions: [...asArray(current?.drug_interactions), ...safety.drug_interactions] as any,
+              }
+            : {}),
         })
         .eq('id', prescriptionId);
 
@@ -458,6 +494,8 @@ export interface DispensePrescriptionOptions {
   readonly prescriptionId: string;
   readonly batchNumber?: string;
   readonly notes?: string;
+  /** Audit reason entered in the dispense confirmation. */
+  readonly reason?: string;
   readonly patientVerified?: boolean;
   readonly safetyChecksComplete?: boolean;
   readonly items?: readonly DispensedItemAllocation[];
@@ -609,7 +647,7 @@ export function useDispensePrescription() {
         console.warn('[useDispensePrescription] Workflow advance bypassed:', err);
       }
 
-      return { id: prescriptionId, isPartial, finalStatus };
+      return { id: prescriptionId, isPartial, finalStatus, reason: opts?.reason?.trim() || null };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
@@ -625,7 +663,11 @@ export function useDispensePrescription() {
         actionType: data.isPartial ? 'PRESCRIPTION_PARTIALLY_DISPENSED' : 'PRESCRIPTION_DISPENSED',
         entityType: 'prescriptions',
         entityId: data.id,
-        details: { dispensed_by: profile?.id, status: data.finalStatus },
+        details: {
+          dispensed_by: profile?.id,
+          status: data.finalStatus,
+          reason: data.reason,
+        },
         severity: 'info',
       });
     },

@@ -6,16 +6,28 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { exitIfProductionTarget } from './lib/supabase-target-guard.mjs';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'http://localhost:54321';
-const supabaseAnonKey =
-  process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+// S0-11: no key literal. The local stack prints its anon key on `supabase start`.
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+
+exitIfProductionTarget(supabaseUrl, 'SUPABASE_URL', 'scripts/seed-e2e-data.mjs');
+if (!supabaseAnonKey) {
+  console.error('SUPABASE_ANON_KEY is required (use the anon key of the local or test project).');
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const TEST_ROLES = ['patient', 'doctor', 'pharmacy', 'laboratory', 'receptionist', 'admin'];
 const TEST_HOSPITAL_ID = process.env.TEST_HOSPITAL_ID || 'hp1';
-const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'TestPass123!';
+// S0-11 / SECF-21: no shared password literal. Supply a per-run value.
+const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || process.env.E2E_TEST_PASSWORD || '';
+if (TEST_PASSWORD.length < 12) {
+  console.error('Set TEST_USER_PASSWORD (or E2E_TEST_PASSWORD) to a per-run password of at least 12 characters.');
+  process.exit(1);
+}
 
 async function seedTestUsers() {
   console.log('🌱 Seeding E2E test data...\n');
@@ -74,7 +86,7 @@ async function seedTestUsers() {
 
       console.log(`   ✅ Created: ${testUser.email}`);
       console.log(`   🏥 Hospital: ${TEST_HOSPITAL_ID}`);
-      console.log(`   🔐 Password: ${TEST_PASSWORD}\n`);
+      console.log("   🔐 Password: (value of TEST_USER_PASSWORD / E2E_TEST_PASSWORD, not printed)\n");
     } catch (error) {
       console.error(`   ❌ Error: ${error}\n`);
     }
