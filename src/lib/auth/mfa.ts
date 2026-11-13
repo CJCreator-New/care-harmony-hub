@@ -98,8 +98,7 @@ function errorMessage(error: unknown, fallback: string): string {
  */
 export async function fetchMfaAssurance(): Promise<MfaAssurance> {
   try {
-    const { data: aal, error: aalError } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (aalError || !aal) {
       return { status: 'error', message: errorMessage(aalError, 'Could not read assurance level') };
     }
@@ -152,7 +151,7 @@ export async function startTotpEnrollment(): Promise<PendingTotpEnrollment> {
   await removeUnverifiedTotpFactors();
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: 'totp',
-    issuer: 'AROCORD-HIMS',
+    issuer: 'CareHarmony HIMS',
     // Unique name: Supabase rejects a second factor with the same friendly name.
     friendlyName: `Authenticator ${new Date().toISOString()}`,
   });

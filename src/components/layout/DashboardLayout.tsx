@@ -78,10 +78,11 @@ const inertProps = (inert: boolean): Record<string, string> => (inert ? { inert:
 const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
 
 function useIsNarrowViewport(): boolean {
-  const [isNarrow, setIsNarrow] = useState(() =>
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia(NARROW_VIEWPORT_QUERY).matches
+  const [isNarrow, setIsNarrow] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(NARROW_VIEWPORT_QUERY).matches
   );
 
   useEffect(() => {
@@ -272,7 +273,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               {!sidebarCollapsed && (
                 <div className="min-w-0">
-                  <h1 className="text-lg font-bold text-sidebar-primary-foreground">AROCORD</h1>
+                  <h1 className="text-lg font-bold text-sidebar-primary-foreground">CareHarmony</h1>
                   <p className="text-xs text-sidebar-foreground/60">HIMS</p>
                 </div>
               )}

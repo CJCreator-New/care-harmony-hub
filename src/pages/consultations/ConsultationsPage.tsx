@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { useEffect, useRef, useState } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -18,21 +18,25 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Plus, Search, Stethoscope, Clock, User } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useConsultations, CONSULTATION_STEPS, useGetOrCreateConsultation } from "@/hooks/useConsultations";
-import { differenceInHours, format, isToday } from "date-fns";
-import { StartConsultationModal } from "@/components/consultations/StartConsultationModal";
-import { usePermissions } from '@/lib/hooks';
+} from '@/components/ui/table';
+import { Plus, Search, Stethoscope, Clock, User } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  useConsultations,
+  CONSULTATION_STEPS,
+  useGetOrCreateConsultation,
+} from '@/hooks/useConsultations';
+import { differenceInHours, format, isToday } from 'date-fns';
+import { StartConsultationModal } from '@/components/consultations/StartConsultationModal';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function ConsultationsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: consultations, isLoading } = useConsultations();
   const getOrCreateConsultation = useGetOrCreateConsultation();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
   const permissions = usePermissions();
   const quickStartHandledRef = useRef<string | null>(null);
@@ -58,27 +62,25 @@ export default function ConsultationsPage() {
         quickStartHandledRef.current = null;
       }
     })();
-  }, [
-    canStartConsultation,
-    getOrCreateConsultation,
-    navigate,
-    searchParams,
-    setSearchParams,
-  ]);
+  }, [canStartConsultation, getOrCreateConsultation, navigate, searchParams, setSearchParams]);
 
   const filteredConsultations = consultations?.filter((consultation) => {
     const matchesSearch =
       consultation.patient?.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       consultation.patient?.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       consultation.patient?.mrn.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || consultation.status === statusFilter;
-    
+
+    const matchesStatus = statusFilter === 'all' || consultation.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
-  const isStaleConsultation = (consultation: { status: string; started_at: string | null; created_at: string }) => {
-    if (consultation.status === "completed") return false;
+  const isStaleConsultation = (consultation: {
+    status: string;
+    started_at: string | null;
+    created_at: string;
+  }) => {
+    if (consultation.status === 'completed') return false;
     const referenceTime = consultation.started_at || consultation.created_at;
     return differenceInHours(new Date(), new Date(referenceTime)) > 24;
   };
@@ -88,13 +90,18 @@ export default function ConsultationsPage() {
     : null;
   const todaysTotal = consultations?.filter((c) => isToday(new Date(c.created_at))).length || 0;
   const fallbackDayTotal = latestConsultationDate
-    ? consultations?.filter((c) => format(new Date(c.created_at), "yyyy-MM-dd") === format(latestConsultationDate, "yyyy-MM-dd")).length || 0
+    ? consultations?.filter(
+        (c) =>
+          format(new Date(c.created_at), 'yyyy-MM-dd') ===
+          format(latestConsultationDate, 'yyyy-MM-dd')
+      ).length || 0
     : 0;
-  const totalLabel = todaysTotal > 0
-    ? "Today's Total"
-    : latestConsultationDate
-      ? `Latest Activity (${format(latestConsultationDate, "MMM d")})`
-      : "Today's Total";
+  const totalLabel =
+    todaysTotal > 0
+      ? "Today's Total"
+      : latestConsultationDate
+        ? `Latest Activity (${format(latestConsultationDate, 'MMM d')})`
+        : "Today's Total";
 
   const getStatusLabel = (status: string) => {
     const step = CONSULTATION_STEPS.find((s) => s.status === status);
@@ -103,19 +110,15 @@ export default function ConsultationsPage() {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      pending: "bg-muted text-muted-foreground",
-      patient_overview: "bg-blue-100 text-blue-800",
-      clinical_assessment: "bg-yellow-100 text-yellow-800",
-      treatment_planning: "bg-purple-100 text-purple-800",
-      final_review: "bg-orange-100 text-orange-800",
-      handoff: "bg-green-100 text-green-800",
-      completed: "bg-green-500 text-white",
+      pending: 'bg-muted text-muted-foreground',
+      patient_overview: 'bg-blue-100 text-blue-800',
+      clinical_assessment: 'bg-yellow-100 text-yellow-800',
+      treatment_planning: 'bg-purple-100 text-purple-800',
+      final_review: 'bg-orange-100 text-orange-800',
+      handoff: 'bg-green-100 text-green-800',
+      completed: 'bg-green-500 text-white',
     };
-    return (
-      <Badge className={colors[status] || "bg-muted"}>
-        {getStatusLabel(status)}
-      </Badge>
-    );
+    return <Badge className={colors[status] || 'bg-muted'}>{getStatusLabel(status)}</Badge>;
   };
 
   return (
@@ -146,10 +149,13 @@ export default function ConsultationsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {consultations?.filter((c) => c.status !== "completed" && !isStaleConsultation(c)).length || 0}
+                {consultations?.filter((c) => c.status !== 'completed' && !isStaleConsultation(c))
+                  .length || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                {consultations?.filter((c) => c.status !== "completed" && isStaleConsultation(c)).length || 0} overdue
+                {consultations?.filter((c) => c.status !== 'completed' && isStaleConsultation(c))
+                  .length || 0}{' '}
+                overdue
               </p>
             </CardContent>
           </Card>
@@ -160,7 +166,7 @@ export default function ConsultationsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {consultations?.filter((c) => c.status === "clinical_assessment").length || 0}
+                {consultations?.filter((c) => c.status === 'clinical_assessment').length || 0}
               </div>
             </CardContent>
           </Card>
@@ -171,7 +177,7 @@ export default function ConsultationsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {consultations?.filter((c) => c.status === "handoff").length || 0}
+                {consultations?.filter((c) => c.status === 'handoff').length || 0}
               </div>
             </CardContent>
           </Card>
@@ -271,8 +277,8 @@ export default function ConsultationsPage() {
                       <TableCell>Step {consultation.current_step} of 5</TableCell>
                       <TableCell>
                         {consultation.started_at
-                          ? format(new Date(consultation.started_at), "MMM d, h:mm a")
-                          : "-"}
+                          ? format(new Date(consultation.started_at), 'MMM d, h:mm a')
+                          : '-'}
                       </TableCell>
                       <TableCell>
                         Dr. {consultation.doctor?.first_name} {consultation.doctor?.last_name}
@@ -296,10 +302,7 @@ export default function ConsultationsPage() {
       </div>
 
       {canStartConsultation && (
-        <StartConsultationModal
-          open={isStartModalOpen}
-          onOpenChange={setIsStartModalOpen}
-        />
+        <StartConsultationModal open={isStartModalOpen} onOpenChange={setIsStartModalOpen} />
       )}
     </DashboardLayout>
   );

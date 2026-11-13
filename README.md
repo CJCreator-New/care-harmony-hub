@@ -1,21 +1,24 @@
-# CareSync - Hospital Management System
+# CareHarmony HIMS - Hospital Management System
 
 <div align="center">
-  <img src="public/pwa-512x512.png" alt="CareSync Logo" width="120" />
-  
-  **Modern Hospital Management Built for Safer Patient Care**
-  
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-  [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
-  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8.svg)](https://tailwindcss.com/)
-  [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ecf8e.svg)](https://supabase.com/)
+  <img src="public/pwa-512x512.png" alt="CareHarmony HIMS Logo" width="120" />
+
+**Modern Hospital Management Built for Safer Patient Care**
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8.svg)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Backend-3ecf8e.svg)](https://supabase.com/)
 </div>
 
 ---
 
 ## 📋 Overview
 
-CareSync is a comprehensive, enterprise-grade Hospital Management System (HMS) designed to streamline healthcare operations from patient registration to discharge. Built with modern technologies and HIPAA-ready compliance, it serves clinics, hospitals, and multi-facility healthcare systems.
+CareHarmony HIMS is a comprehensive, enterprise-grade Hospital Management System (HMS) designed to streamline healthcare operations from patient registration to discharge. Built with modern technologies and HIPAA-ready compliance, it serves clinics, hospitals, and multi-facility healthcare systems.
+
+> **Naming**: **CareHarmony HIMS** is the official product name (ADR-0011) — it is what the app, PWA
+> manifest and page titles display. Legacy references ("CareSync", "AROCORD-HIMS") are deprecated.
 
 ### Key Highlights
 
@@ -26,7 +29,9 @@ CareSync is a comprehensive, enterprise-grade Hospital Management System (HMS) d
 - 📱 **Patient Portal** - Self-service appointments, prescriptions, lab results
 
 ## ⚡ Performance & Optimization
+
 The system has been finalized with advanced production optimizations:
+
 - **Lazy Load Architecture**: Dashboards are role-scoped and dynamically imported, reducing initial bundle size by 96%.
 - **Optimized Build Pipeline**: Uses SWC and Terser for high-performance minification and clean production bundles.
 - **Visual Bundle Analysis**: Built-in Rollup Visualizer for continuous performance monitoring.
@@ -43,6 +48,7 @@ The system has been finalized with advanced production optimizations:
 ```
 
 **Documentation Hub**: start at the documentation index.
+
 - 📚 [Documentation index](./docs/INDEX.md) — All current business, technical, security and operational docs
 - 🏛️ [Architecture decisions](./docs/adr/) — ADR-0001 sets the Supabase-native runtime
 - 📖 [Development standards](./docs/product/DEVELOPMENT_STANDARDS.md) — Code patterns and development standards
@@ -63,7 +69,7 @@ The system has been finalized with advanced production optimizations:
 ```bash
 # Clone the repository
 git clone <YOUR_GIT_URL>
-cd caresync
+cd care-harmony-hub
 
 # Install dependencies
 npm install
@@ -96,6 +102,7 @@ cat scripts/validate-rls.ts
 ```
 
 **What it checks:**
+
 - ✅ All PHI tables have hospital-scoped access
 - ✅ No unintended `USING(true)` policies on clinical data
 - ✅ Role-based access control enforced
@@ -105,6 +112,7 @@ cat scripts/validate-rls.ts
 ### Recent Updates (January 2026)
 
 ✅ **All 8 Phases Complete**: Production-Ready Healthcare Management System
+
 - **Phase 1**: Foundation & Authentication System
 - **Phase 2**: Core Operations & Patient Management
 - **Phase 3**: Clinical Workflows & Consultations
@@ -122,7 +130,7 @@ cat scripts/validate-rls.ts
 ## 📁 Project Structure
 
 ```
-caresync/
+care-harmony-hub/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── admin/          # Admin dashboard components
@@ -152,21 +160,22 @@ caresync/
 
 ## 🔑 User Roles
 
-| Role | Description | Key Capabilities |
-|------|-------------|------------------|
-| **Admin** | Hospital administrators | Full system access, settings, analytics |
-| **Doctor** | Physicians | Consultations, prescriptions, lab orders |
-| **Nurse** | Nursing staff | Vitals, medication admin, patient prep |
-| **Receptionist** | Front desk | Registration, scheduling, check-in/out |
-| **Pharmacist** | Pharmacy staff | Dispensing, inventory, refill requests |
-| **Lab Tech** | Laboratory staff | Sample collection, result entry |
-| **Patient** | End users | Portal access, appointments, records |
+| Role             | Description             | Key Capabilities                         |
+| ---------------- | ----------------------- | ---------------------------------------- |
+| **Admin**        | Hospital administrators | Full system access, settings, analytics  |
+| **Doctor**       | Physicians              | Consultations, prescriptions, lab orders |
+| **Nurse**        | Nursing staff           | Vitals, medication admin, patient prep   |
+| **Receptionist** | Front desk              | Registration, scheduling, check-in/out   |
+| **Pharmacist**   | Pharmacy staff          | Dispensing, inventory, refill requests   |
+| **Lab Tech**     | Laboratory staff        | Sample collection, result entry          |
+| **Patient**      | End users               | Portal access, appointments, records     |
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **React 18** - UI framework
 - **TypeScript** - Type safety
 - **Tailwind CSS** - Styling
@@ -177,6 +186,7 @@ caresync/
 - **React Hook Form + Zod** - Form handling
 
 ### Backend (Lovable Cloud)
+
 - **Supabase** - Database & Auth
 - **PostgreSQL** - Relational database
 - **Edge Functions** - Serverless logic
@@ -186,15 +196,15 @@ caresync/
 
 ## 📖 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Architecture](docs/product/SYSTEM_ARCHITECTURE.md) | System architecture & design |
-| [Database Schema](docs/DATABASE.md) | Database structure & relations |
-| [API Reference](docs/product/API_REFERENCE.md) | Edge functions & endpoints |
-| [RBAC & permissions](docs/RBAC_PERMISSIONS.md) | Roles, permissions & access control |
-| [Security checklist](docs/product/SECURITY_CHECKLIST.md) | Security review checklist |
-| [Staging deployment](docs/operations/STAGING_DEPLOYMENT_VALIDATION.md) | Staging deployment validation |
-| [Development standards](docs/product/DEVELOPMENT_STANDARDS.md) | Coding and contribution standards |
+| Document                                                               | Description                         |
+| ---------------------------------------------------------------------- | ----------------------------------- |
+| [Architecture](docs/product/SYSTEM_ARCHITECTURE.md)                    | System architecture & design        |
+| [Database Schema](docs/DATABASE.md)                                    | Database structure & relations      |
+| [API Reference](docs/product/API_REFERENCE.md)                         | Edge functions & endpoints          |
+| [RBAC & permissions](docs/RBAC_PERMISSIONS.md)                         | Roles, permissions & access control |
+| [Security checklist](docs/product/SECURITY_CHECKLIST.md)               | Security review checklist           |
+| [Staging deployment](docs/operations/STAGING_DEPLOYMENT_VALIDATION.md) | Staging deployment validation       |
+| [Development standards](docs/product/DEVELOPMENT_STANDARDS.md)         | Coding and contribution standards   |
 
 ---
 
@@ -212,8 +222,8 @@ caresync/
 
 ## 📞 Support
 
-- **Documentation**: [docs.caresync.health](https://docs.lovable.dev)
-- **Email**: support@caresync.health
+- **Documentation**: [docs.careharmony.health](https://docs.lovable.dev)
+- **Email**: support@careharmony.health
 - **Schedule Demo**: [Book a 30-min demo](/hospital/signup)
 
 ---

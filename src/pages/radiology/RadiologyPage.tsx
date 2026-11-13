@@ -46,7 +46,7 @@ import { CreateImagingOrderModal } from '@/components/radiology/CreateImagingOrd
 import { PreScanSafetyModal } from '@/components/radiology/PreScanSafetyModal';
 import { DicomViewerModal } from '@/components/radiology/DicomViewerModal';
 import { RadiologyReportingModal } from '@/components/radiology/RadiologyReportingModal';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function RadiologyPage() {
   const permissions = usePermissions();

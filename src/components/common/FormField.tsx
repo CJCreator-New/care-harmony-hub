@@ -1,5 +1,5 @@
-import * as React from "react";
-import type { Control, ControllerRenderProps, FieldPath, FieldValues } from "react-hook-form";
+import * as React from 'react';
+import type { Control, ControllerRenderProps, FieldPath, FieldValues } from 'react-hook-form';
 
 import {
   FormDescription,
@@ -8,14 +8,14 @@ import {
   FormLabel,
   FormMessage,
   useFormField,
-} from "@/components/ui/form";
+} from '@/components/ui/form';
 
 /** Props to spread on the input (or Select trigger) so it is linked to its label and error. */
 export interface FormControlProps {
   id: string;
-  "aria-describedby": string;
-  "aria-invalid": boolean;
-  "aria-required": true | undefined;
+  'aria-describedby': string;
+  'aria-invalid': boolean;
+  'aria-required': true | undefined;
 }
 
 export interface FormFieldProps<
@@ -31,7 +31,7 @@ export interface FormFieldProps<
   /** Optional helper text, linked to the control through aria-describedby. */
   description?: React.ReactNode;
   /** Optional explicit control; defaults to the nearest react-hook-form context. */
-  control?: Control<TFieldValues>;
+  control?: Control<TFieldValues, any, any>;
   className?: string;
   /**
    * Renders the control. Spread `field` (value, onChange, onBlur, ref, name) and
@@ -40,15 +40,12 @@ export interface FormFieldProps<
    */
   children: (
     field: ControllerRenderProps<TFieldValues, TName>,
-    controlProps: FormControlProps,
+    controlProps: FormControlProps
   ) => React.ReactElement;
 }
 
 /** Reads the item context created by FormItem and computes the control's ARIA wiring. */
-function FieldControl<
-  TFieldValues extends FieldValues,
-  TName extends FieldPath<TFieldValues>,
->({
+function FieldControl<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>>({
   field,
   required,
   hasDescription,
@@ -57,17 +54,17 @@ function FieldControl<
   field: ControllerRenderProps<TFieldValues, TName>;
   required: boolean;
   hasDescription: boolean;
-  render: FormFieldProps<TFieldValues, TName>["children"];
+  render: FormFieldProps<TFieldValues, TName>['children'];
 }) {
   const { formItemId, formDescriptionId, formMessageId, error } = useFormField();
   const describedBy = [hasDescription ? formDescriptionId : null, error ? formMessageId : null]
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
   return render(field, {
     id: formItemId,
-    "aria-describedby": describedBy,
-    "aria-invalid": !!error,
-    "aria-required": required ? true : undefined,
+    'aria-describedby': describedBy,
+    'aria-invalid': !!error,
+    'aria-required': required ? true : undefined,
   });
 }
 
@@ -87,7 +84,15 @@ function FieldControl<
 export function FormField<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->({ name, label, required = false, description, control, className, children }: FormFieldProps<TFieldValues, TName>) {
+>({
+  name,
+  label,
+  required = false,
+  description,
+  control,
+  className,
+  children,
+}: FormFieldProps<TFieldValues, TName>) {
   const hasDescription = description !== undefined && description !== null && description !== false;
   return (
     <RHFFormField
@@ -107,7 +112,12 @@ export function FormField<
             )}
           </FormLabel>
           {hasDescription && <FormDescription>{description}</FormDescription>}
-          <FieldControl field={field} required={required} hasDescription={hasDescription} render={children} />
+          <FieldControl
+            field={field}
+            required={required}
+            hasDescription={hasDescription}
+            render={children}
+          />
           <FormMessage />
         </FormItem>
       )}

@@ -31,8 +31,8 @@ export function VideoModal({ isOpen, onClose }: VideoModalProps) {
               </motion.div>
               <p className="text-lg font-semibold mb-2">Demo Video Coming Soon</p>
               <p className="text-sm text-muted-foreground text-center max-w-md">
-                See how AROCORD-HIMS streamlines hospital operations from patient registration to
-                discharge. Book a demo for a personalized walkthrough.
+                See how CareHarmony HIMS streamlines hospital operations from patient registration
+                to discharge. Book a demo for a personalized walkthrough.
               </p>
             </div>
 

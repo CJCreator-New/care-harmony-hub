@@ -31,11 +31,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, UserPlus, User, Phone, Heart, Shield } from 'lucide-react';
 
 const patientSchema = z.object({
-  first_name: z.string().trim().min(1, 'First name is required').min(2, 'First name must be at least 2 characters'),
-  last_name: z.string().trim().min(1, 'Last name is required').min(2, 'Last name must be at least 2 characters'),
+  first_name: z
+    .string()
+    .trim()
+    .min(1, 'First name is required')
+    .min(2, 'First name must be at least 2 characters'),
+  last_name: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required')
+    .min(2, 'Last name must be at least 2 characters'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say'], {
-    required_error: "Gender is required",
+    error: 'Gender is required',
   }),
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
@@ -113,8 +121,8 @@ export function PatientRegistrationModal({
 
   // Guard forward tab navigation: validate Personal required fields before advancing.
   const handleTabChange = async (newTab: string) => {
-    const currentIndex = TAB_ORDER.indexOf(activeTab as typeof TAB_ORDER[number]);
-    const newIndex = TAB_ORDER.indexOf(newTab as typeof TAB_ORDER[number]);
+    const currentIndex = TAB_ORDER.indexOf(activeTab as (typeof TAB_ORDER)[number]);
+    const newIndex = TAB_ORDER.indexOf(newTab as (typeof TAB_ORDER)[number]);
 
     if (newIndex > currentIndex && activeTab === 'personal') {
       const isValid = await form.trigger(PERSONAL_REQUIRED_FIELDS);
@@ -134,10 +142,20 @@ export function PatientRegistrationModal({
   const { errors } = form.formState;
   const tabHasError = {
     personal: !!(errors.first_name || errors.last_name || errors.date_of_birth || errors.gender),
-    contact: !!(errors.address || errors.city || errors.state || errors.zip ||
-                errors.emergency_contact_name || errors.emergency_contact_phone),
+    contact: !!(
+      errors.address ||
+      errors.city ||
+      errors.state ||
+      errors.zip ||
+      errors.emergency_contact_name ||
+      errors.emergency_contact_phone
+    ),
     medical: !!(errors.blood_type || errors.allergies || errors.chronic_conditions),
-    insurance: !!(errors.insurance_provider || errors.insurance_policy_number || errors.insurance_group_number),
+    insurance: !!(
+      errors.insurance_provider ||
+      errors.insurance_policy_number ||
+      errors.insurance_group_number
+    ),
   };
 
   // Reset form when modal closes
@@ -186,12 +204,22 @@ export function PatientRegistrationModal({
         blood_type: data.blood_type ? sanitizeInput(data.blood_type) : null,
         allergies: data.allergies ? sanitizeArray(data.allergies) : [],
         chronic_conditions: data.chronic_conditions ? sanitizeArray(data.chronic_conditions) : [],
-        emergency_contact_name: data.emergency_contact_name ? sanitizeInput(data.emergency_contact_name) : null,
-        emergency_contact_phone: data.emergency_contact_phone ? sanitizeInput(data.emergency_contact_phone) : null,
-        emergency_contact_relationship: data.emergency_contact_relationship ? sanitizeInput(data.emergency_contact_relationship) : null,
+        emergency_contact_name: data.emergency_contact_name
+          ? sanitizeInput(data.emergency_contact_name)
+          : null,
+        emergency_contact_phone: data.emergency_contact_phone
+          ? sanitizeInput(data.emergency_contact_phone)
+          : null,
+        emergency_contact_relationship: data.emergency_contact_relationship
+          ? sanitizeInput(data.emergency_contact_relationship)
+          : null,
         insurance_provider: data.insurance_provider ? sanitizeInput(data.insurance_provider) : null,
-        insurance_policy_number: data.insurance_policy_number ? sanitizeInput(data.insurance_policy_number) : null,
-        insurance_group_number: data.insurance_group_number ? sanitizeInput(data.insurance_group_number) : null,
+        insurance_policy_number: data.insurance_policy_number
+          ? sanitizeInput(data.insurance_policy_number)
+          : null,
+        insurance_group_number: data.insurance_group_number
+          ? sanitizeInput(data.insurance_group_number)
+          : null,
         notes: data.notes ? sanitizeInput(data.notes) : null,
       };
 
@@ -209,10 +237,14 @@ export function PatientRegistrationModal({
       }
 
       // Create patient record with encryption metadata if available
-      const { data: patientRecord, error: insertError } = await supabase.from('patients').insert({
-        ...finalPatientData,
-        ...(encryptionMetadata && { encryption_metadata: encryptionMetadata }),
-      }).select().single();
+      const { data: patientRecord, error: insertError } = await supabase
+        .from('patients')
+        .insert({
+          ...finalPatientData,
+          ...(encryptionMetadata && { encryption_metadata: encryptionMetadata }),
+        })
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
@@ -226,8 +258,8 @@ export function PatientRegistrationModal({
           mrn: mrnData,
           registered_by: profile.id,
           gender: data.gender,
-          blood_type: data.blood_type
-        }
+          blood_type: data.blood_type,
+        },
       });
 
       toast({
@@ -253,7 +285,10 @@ export function PatientRegistrationModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onEscapeKeyDown={() => handleOpenChange(false)}>
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onEscapeKeyDown={() => handleOpenChange(false)}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
@@ -261,7 +296,9 @@ export function PatientRegistrationModal({
           </DialogTitle>
           <DialogDescription>
             Enter patient information to create a new medical record.
-            <span className="ml-1 text-xs text-muted-foreground">Fields marked <span className="text-destructive font-semibold">*</span> are required.</span>
+            <span className="ml-1 text-xs text-muted-foreground">
+              Fields marked <span className="text-destructive font-semibold">*</span> are required.
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -269,9 +306,19 @@ export function PatientRegistrationModal({
           <form
             onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
               // Auto-navigate to the first tab containing an error
-              if (fieldErrors.first_name || fieldErrors.last_name || fieldErrors.date_of_birth || fieldErrors.gender) {
+              if (
+                fieldErrors.first_name ||
+                fieldErrors.last_name ||
+                fieldErrors.date_of_birth ||
+                fieldErrors.gender
+              ) {
                 setActiveTab('personal');
-              } else if (fieldErrors.address || fieldErrors.city || fieldErrors.state || fieldErrors.zip) {
+              } else if (
+                fieldErrors.address ||
+                fieldErrors.city ||
+                fieldErrors.state ||
+                fieldErrors.zip
+              ) {
                 setActiveTab('contact');
               } else if (fieldErrors.blood_type || fieldErrors.allergies) {
                 setActiveTab('medical');
@@ -287,28 +334,40 @@ export function PatientRegistrationModal({
                   <User className="h-4 w-4" />
                   <span>Personal</span>
                   {tabHasError.personal && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full"
+                      aria-hidden="true"
+                    />
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="contact" className="relative flex items-center gap-1">
                   <Phone className="h-4 w-4" />
                   <span>Contact</span>
                   {tabHasError.contact && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full"
+                      aria-hidden="true"
+                    />
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="medical" className="relative flex items-center gap-1">
                   <Heart className="h-4 w-4" />
                   <span>Medical</span>
                   {tabHasError.medical && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full"
+                      aria-hidden="true"
+                    />
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="insurance" className="relative flex items-center gap-1">
                   <Shield className="h-4 w-4" />
                   <span>Insurance</span>
                   {tabHasError.insurance && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" aria-hidden="true" />
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full"
+                      aria-hidden="true"
+                    />
                   )}
                 </TabsTrigger>
               </TabsList>
@@ -328,17 +387,20 @@ export function PatientRegistrationModal({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="date_of_birth" label="Date of Birth" required>
-                    {(field, controlProps) => (
-                      <Input type="date" {...field} {...controlProps} />
-                    )}
+                  <FormField
+                    control={form.control}
+                    name="date_of_birth"
+                    label="Date of Birth"
+                    required
+                  >
+                    {(field, controlProps) => <Input type="date" {...field} {...controlProps} />}
                   </FormField>
                   <FormField control={form.control} name="gender" label="Gender" required>
                     {(field, controlProps) => (
                       <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger {...controlProps}>
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
+                        <SelectTrigger {...controlProps}>
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="male">Male</SelectItem>
                           <SelectItem value="female">Female</SelectItem>
@@ -353,12 +415,22 @@ export function PatientRegistrationModal({
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="phone" label="Phone Number">
                     {(field, controlProps) => (
-                      <Input type="tel" placeholder="+91 98765 43210" {...field} {...controlProps} />
+                      <Input
+                        type="tel"
+                        placeholder="+91 98765 43210"
+                        {...field}
+                        {...controlProps}
+                      />
                     )}
                   </FormField>
                   <FormField control={form.control} name="email" label="Email">
                     {(field, controlProps) => (
-                      <Input type="email" placeholder="patient@email.com" {...field} {...controlProps} />
+                      <Input
+                        type="email"
+                        placeholder="patient@email.com"
+                        {...field}
+                        {...controlProps}
+                      />
                     )}
                   </FormField>
                 </div>
@@ -380,9 +452,9 @@ export function PatientRegistrationModal({
                   <FormField control={form.control} name="state" label="State">
                     {(field, controlProps) => (
                       <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger {...controlProps}>
-                            <SelectValue placeholder="Select state" />
-                          </SelectTrigger>
+                        <SelectTrigger {...controlProps}>
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
                           <SelectItem value="Arunachal Pradesh">Arunachal Pradesh</SelectItem>
@@ -412,9 +484,13 @@ export function PatientRegistrationModal({
                           <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
                           <SelectItem value="Uttarakhand">Uttarakhand</SelectItem>
                           <SelectItem value="West Bengal">West Bengal</SelectItem>
-                          <SelectItem value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</SelectItem>
+                          <SelectItem value="Andaman and Nicobar Islands">
+                            Andaman and Nicobar Islands
+                          </SelectItem>
                           <SelectItem value="Chandigarh">Chandigarh</SelectItem>
-                          <SelectItem value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</SelectItem>
+                          <SelectItem value="Dadra and Nagar Haveli and Daman and Diu">
+                            Dadra and Nagar Haveli and Daman and Diu
+                          </SelectItem>
                           <SelectItem value="Delhi">Delhi</SelectItem>
                           <SelectItem value="Jammu and Kashmir">Jammu and Kashmir</SelectItem>
                           <SelectItem value="Ladakh">Ladakh</SelectItem>
@@ -434,17 +510,34 @@ export function PatientRegistrationModal({
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-4">Emergency Contact</h4>
                   <div className="grid grid-cols-3 gap-4">
-                    <FormField control={form.control} name="emergency_contact_name" label="Contact Name">
+                    <FormField
+                      control={form.control}
+                      name="emergency_contact_name"
+                      label="Contact Name"
+                    >
                       {(field, controlProps) => (
                         <Input placeholder="Jane Doe" {...field} {...controlProps} />
                       )}
                     </FormField>
-                    <FormField control={form.control} name="emergency_contact_phone" label="Contact Phone">
+                    <FormField
+                      control={form.control}
+                      name="emergency_contact_phone"
+                      label="Contact Phone"
+                    >
                       {(field, controlProps) => (
-                        <Input type="tel" placeholder="+91 98765 43210" {...field} {...controlProps} />
+                        <Input
+                          type="tel"
+                          placeholder="+91 98765 43210"
+                          {...field}
+                          {...controlProps}
+                        />
                       )}
                     </FormField>
-                    <FormField control={form.control} name="emergency_contact_relationship" label="Relationship">
+                    <FormField
+                      control={form.control}
+                      name="emergency_contact_relationship"
+                      label="Relationship"
+                    >
                       {(field, controlProps) => (
                         <Input placeholder="Spouse, Parent, etc." {...field} {...controlProps} />
                       )}
@@ -457,9 +550,9 @@ export function PatientRegistrationModal({
                 <FormField control={form.control} name="blood_type" label="Blood Type">
                   {(field, controlProps) => (
                     <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger {...controlProps}>
-                          <SelectValue placeholder="Select blood type" />
-                        </SelectTrigger>
+                      <SelectTrigger {...controlProps}>
+                        <SelectValue placeholder="Select blood type" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="A+">A+</SelectItem>
                         <SelectItem value="A-">A-</SelectItem>
@@ -484,7 +577,11 @@ export function PatientRegistrationModal({
                   )}
                 </FormField>
 
-                <FormField control={form.control} name="chronic_conditions" label="Chronic Conditions">
+                <FormField
+                  control={form.control}
+                  name="chronic_conditions"
+                  label="Chronic Conditions"
+                >
                   {(field, controlProps) => (
                     <Textarea
                       placeholder="Enter conditions separated by commas (e.g., Diabetes, Hypertension)"
@@ -506,19 +603,31 @@ export function PatientRegistrationModal({
               </TabsContent>
 
               <TabsContent value="insurance" className="space-y-4 mt-4">
-                <FormField control={form.control} name="insurance_provider" label="Insurance Provider">
+                <FormField
+                  control={form.control}
+                  name="insurance_provider"
+                  label="Insurance Provider"
+                >
                   {(field, controlProps) => (
                     <Input placeholder="Insurance Company Name" {...field} {...controlProps} />
                   )}
                 </FormField>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="insurance_policy_number" label="Policy Number">
+                  <FormField
+                    control={form.control}
+                    name="insurance_policy_number"
+                    label="Policy Number"
+                  >
                     {(field, controlProps) => (
                       <Input placeholder="Policy #" {...field} {...controlProps} />
                     )}
                   </FormField>
-                  <FormField control={form.control} name="insurance_group_number" label="Group Number">
+                  <FormField
+                    control={form.control}
+                    name="insurance_group_number"
+                    label="Group Number"
+                  >
                     {(field, controlProps) => (
                       <Input placeholder="Group #" {...field} {...controlProps} />
                     )}
@@ -528,11 +637,7 @@ export function PatientRegistrationModal({
             </Tabs>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>

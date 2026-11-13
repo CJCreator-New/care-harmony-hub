@@ -67,7 +67,7 @@ export function useAmendmentAlerts(
 ): UseAmendmentAlertsReturn {
   const { profile } = useAuth();
   const [alerts, setAlerts] = useState<AmendmentAlert[]>([]);
-  const alertTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const alertTimerRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   /**
    * Mark alert as read

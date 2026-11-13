@@ -9,7 +9,7 @@ import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkfl
 import { useAuth } from '@/contexts/AuthContext';
 import { useClinicalMetrics } from '@/hooks/useClinicalMetrics';
 import { usePrescriptionApprovalWorkflow } from '@/hooks/usePrescriptionApprovalWorkflow';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 import { PrescriptionDispensingModal } from '@/components/pharmacy/PrescriptionDispensingModal';
 import { PrescriptionApprovalModal } from '@/components/pharmacy/PrescriptionApprovalModal';
 import { PrescriptionClarificationModal } from '@/components/pharmacy/PrescriptionClarificationModal';

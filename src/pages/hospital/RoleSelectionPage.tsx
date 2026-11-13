@@ -2,7 +2,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
-import { Activity, ShieldCheck, Stethoscope, HeartPulse, ClipboardList, Pill, TestTube2, User, ChevronRight } from 'lucide-react';
+import {
+  Activity,
+  ShieldCheck,
+  Stethoscope,
+  HeartPulse,
+  ClipboardList,
+  Pill,
+  TestTube2,
+  User,
+  ChevronRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -77,7 +87,11 @@ export default function RoleSelectionPage() {
     // If the user explicitly opted out of remembering, clear the stored preference
     // so the selector shows again on the next login.
     if (!remember) {
-      try { localStorage.removeItem('preferredRole'); } catch { /* ignore */ }
+      try {
+        localStorage.removeItem('preferredRole');
+      } catch {
+        /* ignore */
+      }
     }
     toast.success(`Signed in as ${ROLE_META[role]?.label ?? role}`, {
       description: 'Welcome! Your workspace is ready.',
@@ -102,25 +116,25 @@ export default function RoleSelectionPage() {
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
             <Activity className="w-6 h-6" />
           </div>
-          <span className="text-2xl font-bold">AROCORD-HIMS</span>
+          <span className="text-2xl font-bold">CareHarmony HIMS</span>
         </div>
 
         <div className="space-y-4">
           <h1 className="text-3xl font-bold leading-snug">
-            Choose your<br />workspace
+            Choose your
+            <br />
+            workspace
           </h1>
           <p className="text-white/75 text-base max-w-xs">
-            You have access to multiple roles in this hospital. Select the one you'd
-            like to work in for this session.
+            You have access to multiple roles in this hospital. Select the one you'd like to work in
+            for this session.
           </p>
           <p className="text-white/50 text-sm">
             You can switch roles anytime from the top navigation.
           </p>
         </div>
 
-        <p className="text-sm text-white/50">
-          © {new Date().getFullYear()} AROCORD Healthcare Solutions
-        </p>
+        <p className="text-sm text-white/50">© {new Date().getFullYear()} CareHarmony</p>
       </div>
 
       {/* ── Right: role picker ─────────────────────────────────────────── */}
@@ -131,7 +145,7 @@ export default function RoleSelectionPage() {
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
               <Activity className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold">AROCORD-HIMS</span>
+            <span className="text-xl font-bold">CareHarmony HIMS</span>
           </div>
 
           <div>
@@ -157,10 +171,15 @@ export default function RoleSelectionPage() {
                   className={cn(
                     'group w-full flex items-center gap-4 rounded-xl border p-4 text-left',
                     'bg-card hover:bg-accent/50 transition-colors duration-150',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                   )}
                 >
-                  <div className={cn('flex items-center justify-center w-11 h-11 rounded-lg shrink-0', meta.accent)}>
+                  <div
+                    className={cn(
+                      'flex items-center justify-center w-11 h-11 rounded-lg shrink-0',
+                      meta.accent
+                    )}
+                  >
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -180,14 +199,22 @@ export default function RoleSelectionPage() {
               checked={remember}
               onCheckedChange={(v) => setRemember(v === true)}
             />
-            <Label htmlFor="remember-role" className="text-sm text-muted-foreground cursor-pointer font-normal">
+            <Label
+              htmlFor="remember-role"
+              className="text-sm text-muted-foreground cursor-pointer font-normal"
+            >
               Remember my choice for future logins
             </Label>
           </div>
 
           {/* Sign out link */}
           <div className="pt-2 text-center">
-            <Button variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={handleSignOut}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground text-xs"
+              onClick={handleSignOut}
+            >
               Sign out and use a different account
             </Button>
           </div>

@@ -68,13 +68,14 @@ export function EnhancedFooter() {
                 <Activity className="w-5 h-5 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold text-sidebar-primary-foreground">
-                AROCORD-HIMS
+                CareHarmony HIMS
               </span>
             </Link>
             <p className="text-sm text-sidebar-foreground/70 mb-6 max-w-xs">
-              Modern hospital management platform built for safer patient care and operational excellence.
+              Modern hospital management platform built for safer patient care and operational
+              excellence.
             </p>
-            
+
             {/* Social Links */}
             <div className="flex items-center gap-3">
               {socialLinks.map((social) => (
@@ -93,9 +94,7 @@ export function EnhancedFooter() {
           {/* Link Columns */}
           {Object.values(footerLinks).map((column) => (
             <div key={column.title}>
-              <h4 className="font-semibold text-sidebar-primary-foreground mb-4">
-                {column.title}
-              </h4>
+              <h4 className="font-semibold text-sidebar-primary-foreground mb-4">{column.title}</h4>
               <ul className="space-y-2">
                 {column.links.map((link) => (
                   <li key={link.label}>
@@ -117,24 +116,24 @@ export function EnhancedFooter() {
         <div className="pt-8 border-t border-sidebar-border">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-sidebar-foreground/60">
-              © {new Date().getFullYear()} AROCORD Healthcare Solutions. All rights reserved.
+              © {new Date().getFullYear()} CareHarmony. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <SafeLink
-                href="#" 
+                href="#"
                 className="text-xs text-sidebar-foreground/60 hover:text-sidebar-primary-foreground transition-colors flex items-center gap-1"
               >
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 System Status
               </SafeLink>
               <SafeLink
-                href="#contact" 
+                href="#contact"
                 className="text-xs text-sidebar-foreground/60 hover:text-sidebar-primary-foreground transition-colors"
               >
                 Contact
               </SafeLink>
               <SafeLink
-                href="#" 
+                href="#"
                 className="text-xs text-sidebar-foreground/60 hover:text-sidebar-primary-foreground transition-colors"
               >
                 Changelog

@@ -122,7 +122,7 @@ export const initSentry = () => {
     });
 
     Sentry.setContext('application', {
-      name: 'AROCORD-HIMS',
+      name: 'CareHarmony HIMS',
       version: import.meta.env.VITE_APP_VERSION || '1.0.0',
       environment: import.meta.env.MODE,
     });

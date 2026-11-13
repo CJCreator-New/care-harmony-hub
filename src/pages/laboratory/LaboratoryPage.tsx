@@ -71,7 +71,7 @@ import { CriticalAlertAcknowledgmentModal } from '@/components/lab/CriticalAlert
 import { AuditTimeline } from '@/components/audit/AuditTimeline';
 import { ForensicTimeline } from '@/components/audit/ForensicTimeline';
 import { useAmendmentAlerts } from '@/hooks/useAmendmentAlerts';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   useCriticalLabEscalation,
   matchLabPanel,
@@ -709,7 +709,10 @@ export default function LaboratoryPage() {
                   <FileText className="h-6 w-6 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold" aria-label={statsError ? 'Pending collection unavailable' : undefined}>
+                  <p
+                    className="text-2xl font-bold"
+                    aria-label={statsError ? 'Pending collection unavailable' : undefined}
+                  >
                     {statsError ? DATA_UNAVAILABLE : (stats?.pending ?? 0)}
                   </p>
                   <p className="text-sm text-muted-foreground">Pending Collection</p>
@@ -724,7 +727,10 @@ export default function LaboratoryPage() {
                   <TestTube2 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold" aria-label={statsError ? 'In progress unavailable' : undefined}>
+                  <p
+                    className="text-2xl font-bold"
+                    aria-label={statsError ? 'In progress unavailable' : undefined}
+                  >
                     {statsError ? DATA_UNAVAILABLE : (stats?.inProgress ?? 0)}
                   </p>
                   <p className="text-sm text-muted-foreground">Accessioned / In Progress</p>
@@ -739,7 +745,10 @@ export default function LaboratoryPage() {
                   <CheckCircle2 className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold" aria-label={statsError ? 'Completed today unavailable' : undefined}>
+                  <p
+                    className="text-2xl font-bold"
+                    aria-label={statsError ? 'Completed today unavailable' : undefined}
+                  >
                     {statsError ? DATA_UNAVAILABLE : (stats?.completedToday ?? 0)}
                   </p>
                   <p className="text-sm text-muted-foreground">Completed Today</p>

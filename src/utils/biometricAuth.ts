@@ -31,9 +31,11 @@ class BiometricAuthManager {
 
   // Check if biometric authentication is available
   isBiometricAvailable(): boolean {
-    return typeof window !== 'undefined' &&
-           !!window.PublicKeyCredential &&
-           typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function';
+    return (
+      typeof window !== 'undefined' &&
+      !!window.PublicKeyCredential &&
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
+    );
   }
 
   // Check if platform authenticator is available
@@ -59,7 +61,11 @@ class BiometricAuthManager {
   }
 
   // Register a new biometric credential
-  async registerBiometricCredential(userId: string, userName: string, userDisplayName: string): Promise<boolean> {
+  async registerBiometricCredential(
+    userId: string,
+    userName: string,
+    userDisplayName: string
+  ): Promise<boolean> {
     try {
       if (!this.isBiometricAvailable()) {
         throw new Error('Biometric authentication is not available');
@@ -70,9 +76,9 @@ class BiometricAuthManager {
       const userIdBytes = new TextEncoder().encode(userId);
 
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
-        challenge: Uint8Array.from(atob(challenge), c => c.charCodeAt(0)),
+        challenge: Uint8Array.from(atob(challenge), (c) => c.charCodeAt(0)),
         rp: {
-          name: 'AROCORD-HIMS',
+          name: 'CareHarmony HIMS',
           id: window.location.hostname,
         },
         user: {
@@ -94,9 +100,9 @@ class BiometricAuthManager {
       };
 
       // Create the credential
-      const credential = await navigator.credentials.create({
+      const credential = (await navigator.credentials.create({
         publicKey: publicKeyCredentialCreationOptions,
-      }) as PublicKeyCredential;
+      })) as PublicKeyCredential;
 
       if (!credential) {
         throw new Error('Failed to create biometric credential');
@@ -108,15 +114,13 @@ class BiometricAuthManager {
       const transports = response.getTransports?.() || [];
 
       // Store the credential in the database
-      const { error } = await supabase
-        .from('biometric_credentials')
-        .insert({
-          user_id: userId,
-          credential_id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
-          public_key: publicKey,
-          counter: 0,
-          transports: transports,
-        });
+      const { error } = await supabase.from('biometric_credentials').insert({
+        user_id: userId,
+        credential_id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+        public_key: publicKey,
+        counter: 0,
+        transports: transports,
+      });
 
       if (error) {
         console.error('Error storing biometric credential:', error);
@@ -149,23 +153,23 @@ class BiometricAuthManager {
 
       // Create credential request options
       const challenge = this.generateChallenge();
-      const allowCredentials = credentials.map(cred => ({
+      const allowCredentials = credentials.map((cred) => ({
         type: 'public-key' as const,
-        id: Uint8Array.from(atob(cred.credential_id), c => c.charCodeAt(0)),
+        id: Uint8Array.from(atob(cred.credential_id), (c) => c.charCodeAt(0)),
         transports: cred.transports || [],
       }));
 
       const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-        challenge: Uint8Array.from(atob(challenge), c => c.charCodeAt(0)),
+        challenge: Uint8Array.from(atob(challenge), (c) => c.charCodeAt(0)),
         allowCredentials,
         timeout: 60000,
         userVerification: 'required',
       };
 
       // Get the credential
-      const credential = await navigator.credentials.get({
+      const credential = (await navigator.credentials.get({
         publicKey: publicKeyCredentialRequestOptions,
-      }) as PublicKeyCredential;
+      })) as PublicKeyCredential;
 
       if (!credential) {
         throw new Error('Biometric authentication failed');

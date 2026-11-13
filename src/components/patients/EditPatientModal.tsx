@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useUpdatePatient, type Patient } from '@/lib/hooks/patients';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const editPatientSchema = z.object({
   first_name: z.string().min(2, 'First name must be at least 2 characters'),

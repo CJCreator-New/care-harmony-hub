@@ -4,7 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useSpeechRecognition, UseSpeechRecognitionConfig } from '@/hooks/useSpeechRecognition';
@@ -44,8 +50,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   onLatencyUpdate,
   onICD10CodesSelected,
   onCPTCodesSelected,
-  placeholder = "Click the microphone to start voice input...",
-  className = "",
+  placeholder = 'Click the microphone to start voice input...',
+  className = '',
   config = {},
   disabled = false,
   autoSave = false,
@@ -55,11 +61,15 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   showCPTSuggestions = true,
 }) => {
   const { toast } = useToast();
-  const [selectedProvider, setSelectedProvider] = useState<'azure' | 'google' | 'aws' | 'web'>('web');
+  const [selectedProvider, setSelectedProvider] = useState<'azure' | 'google' | 'aws' | 'web'>(
+    'web'
+  );
   const [selectedLanguage, setSelectedLanguage] = useState('en-US');
   const [isContinuousMode, setIsContinuousMode] = useState(continuousMode);
   const [latency, setLatency] = useState<number>(0);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<
+    'connected' | 'connecting' | 'disconnected'
+  >('disconnected');
   const [uptime, setUptime] = useState<number>(100);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [selectedICD10Codes, setSelectedICD10Codes] = useState<ICD10Suggestion[]>([]);
@@ -70,7 +80,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   const latencyRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const uptimeRef = useRef<number>(100);
-  const connectionCheckInterval = useRef<NodeJS.Timeout>();
+  const connectionCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
     isListening,
@@ -121,11 +131,11 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
   React.useEffect(() => {
     if (error) {
       setConnectionStatus('disconnected');
-      setUptime(prev => Math.max(0, prev - 1)); // Decrease uptime on error
+      setUptime((prev) => Math.max(0, prev - 1)); // Decrease uptime on error
       toast({
-        title: "Speech Recognition Error",
+        title: 'Speech Recognition Error',
         description: error,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   }, [error, toast]);
@@ -149,10 +159,10 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         // Update connection status based on latency
         if (currentLatency < 2000) {
           setConnectionStatus('connected');
-          setUptime(prev => Math.min(100, prev + 0.1)); // Gradually increase uptime
+          setUptime((prev) => Math.min(100, prev + 0.1)); // Gradually increase uptime
         } else if (currentLatency > 5000) {
           setConnectionStatus('disconnected');
-          setUptime(prev => Math.max(0, prev - 0.5)); // Decrease uptime for high latency
+          setUptime((prev) => Math.max(0, prev - 0.5)); // Decrease uptime for high latency
         }
       }, 100); // Check every 100ms for real-time monitoring
     } else {
@@ -175,8 +185,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
       // Simulate auto-save (in real implementation, this would save to database)
       console.log('Auto-saving transcript:', transcript);
       toast({
-        title: "Auto-saved",
-        description: "Clinical note has been automatically saved",
+        title: 'Auto-saved',
+        description: 'Clinical note has been automatically saved',
       });
     }
   }, [transcript, isListening, autoSave, toast]);
@@ -193,14 +203,14 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
       setIsPaused(false);
 
       toast({
-        title: "Voice Input Started",
+        title: 'Voice Input Started',
         description: `Listening with ${selectedProvider} provider`,
       });
     } catch (error) {
       toast({
-        title: "Failed to Start Voice Input",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
+        title: 'Failed to Start Voice Input',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
       });
     }
   }, [startListening, selectedProvider, selectedLanguage, toast]);
@@ -212,14 +222,14 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
       setIsPaused(false);
 
       toast({
-        title: "Voice Input Stopped",
-        description: "Transcription complete",
+        title: 'Voice Input Stopped',
+        description: 'Transcription complete',
       });
     } catch (error) {
       toast({
-        title: "Failed to Stop Voice Input",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
+        title: 'Failed to Stop Voice Input',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
       });
     }
   }, [stopListening, toast]);
@@ -231,22 +241,22 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         await pauseListening();
         setIsPaused(true);
         toast({
-          title: "Voice Input Paused",
-          description: "Click resume to continue",
+          title: 'Voice Input Paused',
+          description: 'Click resume to continue',
         });
       } else {
         await resumeListening();
         setIsPaused(false);
         toast({
-          title: "Voice Input Resumed",
-          description: "Listening again",
+          title: 'Voice Input Resumed',
+          description: 'Listening again',
         });
       }
     } catch (error) {
       toast({
-        title: "Failed to Pause/Resume",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
+        title: 'Failed to Pause/Resume',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
       });
     }
   }, [isListening, pauseListening, resumeListening, toast]);
@@ -257,56 +267,68 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
     setSelectedICD10Codes([]); // Clear selected codes when transcript is cleared
     setSelectedCPTCodes([]); // Clear selected CPT codes when transcript is cleared
     toast({
-      title: "Transcript Cleared",
-      description: "Voice input history cleared",
+      title: 'Transcript Cleared',
+      description: 'Voice input history cleared',
     });
   }, [clearTranscript, toast]);
 
   // ICD-10 code handlers
-  const handleICD10CodeSelected = useCallback((code: ICD10Suggestion) => {
-    setSelectedICD10Codes(prev => {
-      const isSelected = prev.some(selected => selected.code === code.code);
-      const newCodes = isSelected
-        ? prev.filter(selected => selected.code !== code.code)
-        : [...prev, code];
+  const handleICD10CodeSelected = useCallback(
+    (code: ICD10Suggestion) => {
+      setSelectedICD10Codes((prev) => {
+        const isSelected = prev.some((selected) => selected.code === code.code);
+        const newCodes = isSelected
+          ? prev.filter((selected) => selected.code !== code.code)
+          : [...prev, code];
 
-      onICD10CodesSelected?.(newCodes);
-      return newCodes;
-    });
-  }, [onICD10CodesSelected]);
+        onICD10CodesSelected?.(newCodes);
+        return newCodes;
+      });
+    },
+    [onICD10CodesSelected]
+  );
 
-  const handleICD10CodesConfirmed = useCallback((codes: ICD10Suggestion[]) => {
-    setSelectedICD10Codes(codes);
-    onICD10CodesSelected?.(codes);
+  const handleICD10CodesConfirmed = useCallback(
+    (codes: ICD10Suggestion[]) => {
+      setSelectedICD10Codes(codes);
+      onICD10CodesSelected?.(codes);
 
-    toast({
-      title: "ICD-10 Codes Confirmed",
-      description: `${codes.length} code(s) selected for clinical documentation`,
-    });
-  }, [onICD10CodesSelected, toast]);
+      toast({
+        title: 'ICD-10 Codes Confirmed',
+        description: `${codes.length} code(s) selected for clinical documentation`,
+      });
+    },
+    [onICD10CodesSelected, toast]
+  );
 
   // CPT code handlers
-  const handleCPTCodeSelected = useCallback((code: CPTSuggestion) => {
-    setSelectedCPTCodes(prev => {
-      const isSelected = prev.some(selected => selected.code === code.code);
-      const newCodes = isSelected
-        ? prev.filter(selected => selected.code !== code.code)
-        : [...prev, code];
+  const handleCPTCodeSelected = useCallback(
+    (code: CPTSuggestion) => {
+      setSelectedCPTCodes((prev) => {
+        const isSelected = prev.some((selected) => selected.code === code.code);
+        const newCodes = isSelected
+          ? prev.filter((selected) => selected.code !== code.code)
+          : [...prev, code];
 
-      onCPTCodesSelected?.(newCodes);
-      return newCodes;
-    });
-  }, [onCPTCodesSelected]);
+        onCPTCodesSelected?.(newCodes);
+        return newCodes;
+      });
+    },
+    [onCPTCodesSelected]
+  );
 
-  const handleCPTCodesConfirmed = useCallback((codes: CPTSuggestion[]) => {
-    setSelectedCPTCodes(codes);
-    onCPTCodesSelected?.(codes);
+  const handleCPTCodesConfirmed = useCallback(
+    (codes: CPTSuggestion[]) => {
+      setSelectedCPTCodes(codes);
+      onCPTCodesSelected?.(codes);
 
-    toast({
-      title: "CPT Codes Confirmed",
-      description: `${codes.length} procedure code(s) selected for billing`,
-    });
-  }, [onCPTCodesSelected, toast]);
+      toast({
+        title: 'CPT Codes Confirmed',
+        description: `${codes.length} procedure code(s) selected for billing`,
+      });
+    },
+    [onCPTCodesSelected, toast]
+  );
 
   if (!isSupported) {
     return (
@@ -346,12 +368,13 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
               ) : (
                 <WifiOff className="h-4 w-4 text-destructive" />
               )}
-              <span className="text-xs text-muted-foreground">
-                {connectionStatus}
-              </span>
+              <span className="text-xs text-muted-foreground">{connectionStatus}</span>
             </div>
 
-            <Select value={selectedProvider} onValueChange={(value: any) => setSelectedProvider(value)}>
+            <Select
+              value={selectedProvider}
+              onValueChange={(value: any) => setSelectedProvider(value)}
+            >
               <SelectTrigger className="w-24">
                 <SelectValue />
               </SelectTrigger>
@@ -368,7 +391,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {supportedLanguages.map(lang => (
+                {supportedLanguages.map((lang) => (
                   <SelectItem key={lang} value={lang}>
                     {lang}
                   </SelectItem>
@@ -443,15 +466,11 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         {showLatency && isListening && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg">
             <div className="text-center">
-              <div className="text-lg font-semibold text-info">
-                {latency}ms
-              </div>
+              <div className="text-lg font-semibold text-info">{latency}ms</div>
               <div className="text-xs text-muted-foreground">Latency</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-success">
-                {uptime.toFixed(1)}%
-              </div>
+              <div className="text-lg font-semibold text-success">{uptime.toFixed(1)}%</div>
               <div className="text-xs text-muted-foreground">Uptime</div>
             </div>
             <div className="text-center">
@@ -473,13 +492,15 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
         {showLatency && !isListening && (
           <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 text-sm text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-muted-foreground/40 inline-block" />
-            Idle and ready. Press <strong>Start Recording</strong> to begin transcription and connect the microphone.
+            Idle and ready. Press <strong>Start Recording</strong> to begin transcription and
+            connect the microphone.
           </div>
         )}
 
         {connectionStatus === 'disconnected' && !isListening && (
           <div className="text-xs text-muted-foreground rounded-md border border-border p-2">
-            Voice input shows as disconnected while no recording session is active. This is expected until you start a session.
+            Voice input shows as disconnected while no recording session is active. This is expected
+            until you start a session.
           </div>
         )}
 
@@ -488,10 +509,15 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span>Recognition Confidence:</span>
-              <span className={`font-medium ${
-                confidence > 0.8 ? 'text-success' :
-                confidence > 0.6 ? 'text-warning' : 'text-destructive'
-              }`}>
+              <span
+                className={`font-medium ${
+                  confidence > 0.8
+                    ? 'text-success'
+                    : confidence > 0.6
+                      ? 'text-warning'
+                      : 'text-destructive'
+                }`}
+              >
                 {Math.round(confidence * 100)}%
               </span>
             </div>
@@ -594,4 +620,3 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({
 };
 
 export default VoiceInput;
-

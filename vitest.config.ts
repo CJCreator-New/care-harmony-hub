@@ -12,6 +12,9 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/.git/**',
+      // External agent worktrees and sibling services must not be collected here.
+      '**/.kilo/**',
+      '**/services/**',
       // Playwright spec files must not be picked up by Vitest — they use the
       // Playwright test() API which conflicts with Vitest globals.
       'tests/e2e/**',

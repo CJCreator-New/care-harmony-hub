@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const BASE_TITLE = 'AROCORD-HIMS';
+const BASE_TITLE = 'CareHarmony HIMS';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',

@@ -36,7 +36,13 @@ import {
   PenTool,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { evaluateVitalSigns, fromVitalsRecord, hasNews2Parameters, verifiedWeightKg, type VitalSignsEvaluationResult } from '@/modules/vital-signs';
+import {
+  evaluateVitalSigns,
+  fromVitalsRecord,
+  hasNews2Parameters,
+  verifiedWeightKg,
+  type VitalSignsEvaluationResult,
+} from '@/modules/vital-signs';
 import {
   buildPrescriptionSafetyColumns,
   overrideSummary,
@@ -70,7 +76,7 @@ import {
   ConsultationTemplate,
 } from '@/components/consultations/ConsultationTemplateSelector';
 import { EnhancedTaskManagement } from '@/components/workflow/EnhancedTaskManagement';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 const STEP_ICONS = [User, Stethoscope, Pill, FileText, Send];
@@ -221,7 +227,11 @@ export default function ConsultationWorkflowPage() {
   // re-hydrating on every refetch reset the step, diagnoses and in-progress text.
   const hydratedConsultationIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!consultation || !shouldHydrateConsultationForm(hydratedConsultationIdRef.current, consultation.id)) return;
+    if (
+      !consultation ||
+      !shouldHydrateConsultationForm(hydratedConsultationIdRef.current, consultation.id)
+    )
+      return;
     hydratedConsultationIdRef.current = consultation.id;
     setActiveStep(consultation.current_step);
     setFormData({
@@ -1030,14 +1040,16 @@ ${formData.soap_plan || 'Not documented'}`;
                       variant={
                         vitalEval.news2.riskLevel === 'high'
                           ? 'destructive'
-                          : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
+                          : vitalEval.news2.riskLevel === 'medium' ||
+                              vitalEval.news2.riskLevel === 'low_medium'
                             ? 'secondary'
                             : 'outline'
                       }
                       className={
                         vitalEval.news2.riskLevel === 'high'
                           ? 'bg-red-600 text-white font-bold animate-pulse'
-                          : (vitalEval.news2.riskLevel === 'medium' || vitalEval.news2.riskLevel === 'low_medium')
+                          : vitalEval.news2.riskLevel === 'medium' ||
+                              vitalEval.news2.riskLevel === 'low_medium'
                             ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200'
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
                       }
@@ -1091,7 +1103,10 @@ ${formData.soap_plan || 'Not documented'}`;
               className="rounded-lg border border-red-300 bg-red-50/90 p-4 dark:border-red-900/60 dark:bg-red-950/40"
             >
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-pulse motion-reduce:animate-none" aria-hidden="true" />
+                <AlertTriangle
+                  className="h-5 w-5 text-red-600 shrink-0 mt-0.5 animate-pulse motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-red-900 dark:text-red-200">

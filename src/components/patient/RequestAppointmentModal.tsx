@@ -24,11 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -50,13 +46,28 @@ const APPOINTMENT_TYPES = [
 ];
 
 const TIME_SLOTS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+  '08:00',
+  '08:30',
+  '09:00',
+  '09:30',
+  '10:00',
+  '10:30',
+  '11:00',
+  '11:30',
+  '12:00',
+  '12:30',
+  '13:00',
+  '13:30',
+  '14:00',
+  '14:30',
+  '15:00',
+  '15:30',
+  '16:00',
+  '16:30',
 ];
 
 const formSchema = z.object({
-  preferred_date: z.date({ required_error: 'Please select a preferred date' }),
+  preferred_date: z.date({ error: 'Please select a preferred date' }),
   preferred_time: z.string().optional(),
   alternate_date: z.date().optional(),
   alternate_time: z.string().optional(),
@@ -71,10 +82,7 @@ interface RequestAppointmentModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function RequestAppointmentModal({
-  open,
-  onOpenChange,
-}: RequestAppointmentModalProps) {
+export function RequestAppointmentModal({ open, onOpenChange }: RequestAppointmentModalProps) {
   const createRequest = useCreateAppointmentRequest();
 
   const form = useForm<FormData>({
@@ -89,9 +97,7 @@ export function RequestAppointmentModal({
     await (createRequest as any).mutateAsync({
       preferred_date: format(data.preferred_date, 'yyyy-MM-dd'),
       preferred_time: data.preferred_time,
-      alternate_date: data.alternate_date 
-        ? format(data.alternate_date, 'yyyy-MM-dd') 
-        : undefined,
+      alternate_date: data.alternate_date ? format(data.alternate_date, 'yyyy-MM-dd') : undefined,
       alternate_time: data.alternate_time,
       appointment_type: data.appointment_type,
       reason_for_visit: data.reason_for_visit,
@@ -107,8 +113,7 @@ export function RequestAppointmentModal({
         <DialogHeader>
           <DialogTitle>Request an Appointment</DialogTitle>
           <DialogDescription>
-            Submit a request for an appointment. Our staff will review and confirm
-            your appointment.
+            Submit a request for an appointment. Our staff will review and confirm your appointment.
           </DialogDescription>
         </DialogHeader>
 
@@ -156,11 +161,7 @@ export function RequestAppointmentModal({
                               !field.value && 'text-muted-foreground'
                             )}
                           >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -225,11 +226,7 @@ export function RequestAppointmentModal({
                               !field.value && 'text-muted-foreground'
                             )}
                           >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -296,17 +293,11 @@ export function RequestAppointmentModal({
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createRequest.isPending}>
-                {createRequest.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {createRequest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit Request
               </Button>
             </DialogFooter>

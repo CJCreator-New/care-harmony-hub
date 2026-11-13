@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PatientRegistrationModal } from '@/components/patients/PatientRegistrationModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { usePaginatedQuery } from '@/hooks/usePaginatedQuery';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -76,109 +76,138 @@ const genderLabels: Record<string, string> = {
 };
 
 // Memoized Patient Row Component for performance optimization
-const PatientRow = memo(({
-  patient,
-  onViewProfile,
-  onBookAppointment,
-  calculateAge,
-  canBookAppointment,
-  canGenerateInvoice,
-  canRecordHistory,
-}: {
-  patient: any;
-  onViewProfile: (patient: any) => void;
-  onBookAppointment: (patient: any) => void;
-  calculateAge: (dob: string) => string;
-  canBookAppointment: boolean;
-  canGenerateInvoice: boolean;
-  canRecordHistory: boolean;
-}) => (
-  <TableRow
-    key={patient.id}
-    className="cursor-pointer hover:bg-muted/50 transition-colors"
-    onClick={() => onViewProfile(patient)}
-  >
-    <TableCell className="text-left">
-      <Badge variant="outline" className="font-mono">
-        {patient.mrn}
-      </Badge>
-    </TableCell>
-    <TableCell className="font-medium text-left">
-      {patient.first_name} {patient.last_name}
-    </TableCell>
-    <TableCell className="text-left">
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{calculateAge(patient.date_of_birth)}</span>
-        <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-          {genderLabels[patient.gender] || patient.gender}
+const PatientRow = memo(
+  ({
+    patient,
+    onViewProfile,
+    onBookAppointment,
+    calculateAge,
+    canBookAppointment,
+    canGenerateInvoice,
+    canRecordHistory,
+  }: {
+    patient: any;
+    onViewProfile: (patient: any) => void;
+    onBookAppointment: (patient: any) => void;
+    calculateAge: (dob: string) => string;
+    canBookAppointment: boolean;
+    canGenerateInvoice: boolean;
+    canRecordHistory: boolean;
+  }) => (
+    <TableRow
+      key={patient.id}
+      className="cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={() => onViewProfile(patient)}
+    >
+      <TableCell className="text-left">
+        <Badge variant="outline" className="font-mono">
+          {patient.mrn}
         </Badge>
-      </div>
-    </TableCell>
-    <TableCell className="text-left">
-      <div className="space-y-1">
-        {patient.phone ? (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Phone className="h-3.5 w-3.5" />
-            <span>{patient.phone}</span>
-          </div>
+      </TableCell>
+      <TableCell className="font-medium text-left">
+        {patient.first_name} {patient.last_name}
+      </TableCell>
+      <TableCell className="text-left">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{calculateAge(patient.date_of_birth)}</span>
+          <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+            {genderLabels[patient.gender] || patient.gender}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell className="text-left">
+        <div className="space-y-1">
+          {patient.phone ? (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" />
+              <span>{patient.phone}</span>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground italic">No phone</span>
+          )}
+          {patient.email && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Mail className="h-3.5 w-3.5" />
+              <span className="truncate max-w-[150px]">{patient.email}</span>
+            </div>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-left">
+        {patient.blood_type ? (
+          <Badge
+            variant="outline"
+            className="bg-destructive/5 text-destructive border-destructive/20 font-bold"
+          >
+            {patient.blood_type}
+          </Badge>
         ) : (
-          <span className="text-sm text-muted-foreground italic">No phone</span>
+          <span className="text-muted-foreground">—</span>
         )}
-        {patient.email && (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Mail className="h-3.5 w-3.5" />
-            <span className="truncate max-w-[150px]">{patient.email}</span>
-          </div>
-        )}
-      </div>
-    </TableCell>
-    <TableCell className="text-left">
-      {patient.blood_type ? (
-        <Badge variant="outline" className="bg-destructive/5 text-destructive border-destructive/20 font-bold">
-          {patient.blood_type}
-        </Badge>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      )}
-    </TableCell>
-    <TableCell className="text-left text-muted-foreground">
-      {format(new Date(patient.created_at), 'MMM d, yyyy')}
-    </TableCell>
-    <TableCell className="text-right">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Patient options" onClick={(e) => e.stopPropagation()} className="h-8 w-8 hover:bg-primary/10">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[180px]">
-          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewProfile(patient); }}>
-            <Eye className="h-4 w-4 mr-2" />
-            View Profile
-          </DropdownMenuItem>
-          {canBookAppointment && (
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onBookAppointment(patient); }}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Book Appointment
+      </TableCell>
+      <TableCell className="text-left text-muted-foreground">
+        {format(new Date(patient.created_at), 'MMM d, yyyy')}
+      </TableCell>
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Patient options"
+              onClick={(e) => e.stopPropagation()}
+              className="h-8 w-8 hover:bg-primary/10"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[180px]">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewProfile(patient);
+              }}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View Profile
             </DropdownMenuItem>
-          )}
-          {canGenerateInvoice && (
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for billing */ }}>
-              <FileText className="h-4 w-4 mr-2" />
-              Generate Invoice
-            </DropdownMenuItem>
-          )}
-          {canRecordHistory && (
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Logic for history */ }}>
-              <FileText className="h-4 w-4 mr-2" />
-              Record History
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </TableCell>
-  </TableRow>
-));
+            {canBookAppointment && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBookAppointment(patient);
+                }}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Book Appointment
+              </DropdownMenuItem>
+            )}
+            {canGenerateInvoice && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation(); /* Logic for billing */
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Invoice
+              </DropdownMenuItem>
+            )}
+            {canRecordHistory && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation(); /* Logic for history */
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Record History
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  )
+);
 
 PatientRow.displayName = 'PatientRow';
 
@@ -238,7 +267,8 @@ export default function PatientsPage() {
     resetPage,
   } = usePaginatedQuery({
     table: 'patients',
-    select: 'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, blood_type, is_active, created_at',
+    select:
+      'id, mrn, first_name, last_name, date_of_birth, gender, phone, email, blood_type, is_active, created_at',
     filters,
     searchQuery: debouncedSearch,
     searchColumn: 'first_name,last_name,mrn,phone,email',
@@ -292,10 +322,12 @@ export default function PatientsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const showRegisterPatient = canCreatePatients && primaryRole !== 'doctor' && primaryRole !== 'nurse';
+  const showRegisterPatient =
+    canCreatePatients && primaryRole !== 'doctor' && primaryRole !== 'nurse';
   const canBookAppointment = primaryRole === 'admin' || primaryRole === 'receptionist';
   const canGenerateInvoice = can(primaryRole, 'billing:write');
-  const canRecordHistory = primaryRole === 'admin' || primaryRole === 'doctor' || primaryRole === 'nurse';
+  const canRecordHistory =
+    primaryRole === 'admin' || primaryRole === 'doctor' || primaryRole === 'nurse';
 
   return (
     <DashboardLayout>
@@ -304,9 +336,7 @@ export default function PatientsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Patients</h1>
-            <p className="text-muted-foreground">
-              Manage patient records and registrations
-            </p>
+            <p className="text-muted-foreground">Manage patient records and registrations</p>
           </div>
           {showRegisterPatient && (
             <Button onClick={() => setRegistrationModalOpen(true)}>
@@ -365,9 +395,11 @@ export default function PatientsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
-            />            {isSearching && (
+            />{' '}
+            {isSearching && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-            )}          </div>
+            )}{' '}
+          </div>
           <Select value={genderFilter} onValueChange={setGenderFilter}>
             <SelectTrigger className="w-[180px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -419,10 +451,17 @@ export default function PatientsPage() {
                       },
                       { label: 'Contact', value: patient.phone || patient.email || 'No contact' },
                       { label: 'Blood Type', value: patient.blood_type || '—' },
-                      { label: 'Registered', value: format(new Date(patient.created_at), 'MMM d, yyyy') },
+                      {
+                        label: 'Registered',
+                        value: format(new Date(patient.created_at), 'MMM d, yyyy'),
+                      },
                     ]}
                     actions={
-                      <Button size="sm" variant="outline" onClick={() => handleViewPatient(patient)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewPatient(patient)}
+                      >
                         View profile
                       </Button>
                     }
@@ -431,56 +470,70 @@ export default function PatientsPage() {
               </TableCardList>
 
               <div className="hidden md:block">
-              <Table scrollLabel="Patients">
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col" className="text-left font-bold text-foreground">MRN</TableHead>
-                  <TableHead scope="col" className="text-left font-bold text-foreground">Patient Name</TableHead>
-                  <TableHead scope="col" className="text-left font-bold text-foreground">Age / Gender</TableHead>
-                  <TableHead scope="col" className="text-left font-bold text-foreground">Contact</TableHead>
-                  <TableHead scope="col" className="text-left font-bold text-foreground">Blood Type</TableHead>
-                  <TableHead scope="col" className="text-left font-bold text-foreground">Registered</TableHead>
-                  <TableHead scope="col" className="text-right font-bold text-foreground">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(patients as any[]).map((patient: any) => (
-                  <PatientRow
-                    key={patient.id}
-                    patient={patient}
-                    calculateAge={calculateAge}
-                    canBookAppointment={canBookAppointment}
-                    canGenerateInvoice={canGenerateInvoice}
-                    canRecordHistory={canRecordHistory}
-                    onViewProfile={handleViewPatient}
-                    onBookAppointment={(patient) => {
-                      navigate('/appointments', {
-                        state: {
-                          patientId: patient.id,
-                          patientName: `${patient.first_name} ${patient.last_name}`,
-                        },
-                      });
-                    }}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+                <Table scrollLabel="Patients">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col" className="text-left font-bold text-foreground">
+                        MRN
+                      </TableHead>
+                      <TableHead scope="col" className="text-left font-bold text-foreground">
+                        Patient Name
+                      </TableHead>
+                      <TableHead scope="col" className="text-left font-bold text-foreground">
+                        Age / Gender
+                      </TableHead>
+                      <TableHead scope="col" className="text-left font-bold text-foreground">
+                        Contact
+                      </TableHead>
+                      <TableHead scope="col" className="text-left font-bold text-foreground">
+                        Blood Type
+                      </TableHead>
+                      <TableHead scope="col" className="text-left font-bold text-foreground">
+                        Registered
+                      </TableHead>
+                      <TableHead scope="col" className="text-right font-bold text-foreground">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(patients as any[]).map((patient: any) => (
+                      <PatientRow
+                        key={patient.id}
+                        patient={patient}
+                        calculateAge={calculateAge}
+                        canBookAppointment={canBookAppointment}
+                        canGenerateInvoice={canGenerateInvoice}
+                        canRecordHistory={canRecordHistory}
+                        onViewProfile={handleViewPatient}
+                        onBookAppointment={(patient) => {
+                          navigate('/appointments', {
+                            state: {
+                              patientId: patient.id,
+                              patientName: `${patient.first_name} ${patient.last_name}`,
+                            },
+                          });
+                        }}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="p-4 border-t">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={goToPage}
-                  onPrevious={prevPage}
-                  onNext={nextPage}
-                  pageSize={pageSize}
-                  totalCount={count}
-                />
-              </div>
-            )}
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="p-4 border-t">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={goToPage}
+                    onPrevious={prevPage}
+                    onNext={nextPage}
+                    pageSize={pageSize}
+                    totalCount={count}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>

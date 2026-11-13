@@ -6,7 +6,7 @@ export { logAudit } from './auditLogQueue';
  * Prevents console output in production
  */
 export function devLog(message: string, ...args: any[]): void {
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log(message, ...args);
   }
 }
@@ -16,7 +16,7 @@ export function devLog(message: string, ...args: any[]): void {
  * Always logs errors but sanitizes in production
  */
 export function devError(message: string, error?: any): void {
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.error(message, error);
   } else {
     // In production, log sanitized error without stack traces
@@ -35,8 +35,10 @@ export function sanitizeInput(input: string): string {
   // Remove HTML tags and sanitize for XSS prevention
   return DOMPurify.sanitize(input, {
     ALLOWED_TAGS: [],
-    ALLOWED_ATTR: []
-  }).trim().substring(0, 1000);
+    ALLOWED_ATTR: [],
+  })
+    .trim()
+    .substring(0, 1000);
 }
 
 /**
@@ -68,7 +70,9 @@ export function toIlikePattern(query: string | null | undefined): string {
  * Sanitize values interpolated into PostgREST filter strings (e.g. `.or()`).
  */
 export function sanitizePostgrestFilterValue(value: string | null | undefined): string {
-  return sanitizeSearchQuery(value).replace(/[(),.]/g, '').trim();
+  return sanitizeSearchQuery(value)
+    .replace(/[(),.]/g, '')
+    .trim();
 }
 
 /**
@@ -79,8 +83,8 @@ export function sanitizeArray(input: string): string[] {
 
   return input
     .split(',')
-    .map(item => sanitizeInput(item))
-    .filter(item => item.length > 0)
+    .map((item) => sanitizeInput(item))
+    .filter((item) => item.length > 0)
     .slice(0, 20);
 }
 

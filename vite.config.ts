@@ -35,8 +35,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'AROCORD-HIMS',
-        short_name: 'AROCORD',
+        name: 'CareHarmony HIMS',
+        short_name: 'CareHarmony',
         description: 'Complete Hospital Management System with offline capabilities',
         theme_color: '#0ea5e9',
         background_color: '#ffffff',
@@ -66,7 +66,8 @@ export default defineConfig(({ mode }) => ({
         // SECF-04: never cache Supabase (PHI) responses. Static assets are
         // still precached via globPatterns above.
         runtimeCaching: supabaseNetworkOnlyPatterns(
-          process.env.VITE_SUPABASE_URL ?? loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL
+          (process.env as Record<string, string | undefined>).VITE_SUPABASE_URL ??
+            loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL
         ).map((urlPattern) => ({
           urlPattern,
           handler: 'NetworkOnly' as const,
@@ -108,8 +109,22 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-tooltip',
           ],
 
-          // Charts (lazy load these heavy libraries)
+          // Charts (lazy loaded). Split the d3 geometry/scale layer out of the
+          // recharts chunk so neither vendor chunk grows into a single monolith.
           charts: ['recharts'],
+          'charts-d3': [
+            'd3-array',
+            'd3-color',
+            'd3-ease',
+            'd3-format',
+            'd3-interpolate',
+            'd3-path',
+            'd3-scale',
+            'd3-shape',
+            'd3-time',
+            'd3-time-format',
+            'd3-timer',
+          ],
 
           // Supabase
           supabase: ['@supabase/supabase-js'],
@@ -137,14 +152,7 @@ export default defineConfig(({ mode }) => ({
     // Performance optimizations
     chunkSizeWarningLimit: 1000,
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
-      },
-    },
+    minify: 'esbuild',
     cssCodeSplit: true,
   },
   server: {

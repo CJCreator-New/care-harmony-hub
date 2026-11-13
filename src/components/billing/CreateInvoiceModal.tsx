@@ -85,7 +85,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
   const patientsList = patientsData?.patients || [];
   const createInvoice = useCreateInvoice();
 
-  const form = useForm<InvoiceFormData>({
+  const form = useForm<z.input<typeof invoiceSchema>, unknown, InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       patientId: '',
@@ -379,6 +379,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                                 placeholder="Qty"
                                 aria-label={`Quantity for item ${index + 1}`}
                                 {...f}
+                                value={f.value == null ? '' : String(f.value)}
                               />
                             </FormControl>
                             <FormMessage />
@@ -405,7 +406,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                                   className="pl-7"
                                   aria-label={`Unit price for item ${index + 1}`}
                                   {...f}
-                                  value={f.value || ''}
+                                  value={f.value == null ? '' : String(f.value)}
                                 />
                               </div>
                             </FormControl>
@@ -440,7 +441,11 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
             </div>
 
             {/* Discount field */}
-            <FormField control={form.control} name="discountPercent" label="Discount (% Concession)">
+            <FormField
+              control={form.control}
+              name="discountPercent"
+              label="Discount (% Concession)"
+            >
               {(field, controlProps) => (
                 <div className="relative w-36">
                   <Input
@@ -451,7 +456,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
                     placeholder="0"
                     {...field}
                     {...controlProps}
-                    value={field.value || ''}
+                    value={field.value == null ? '' : String(field.value)}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                     %
@@ -490,7 +495,11 @@ export function CreateInvoiceModal({ open, onOpenChange }: CreateInvoiceModalPro
 
               <FormField control={form.control} name="notes" label="Notes (Optional)">
                 {(field, controlProps) => (
-                  <Input placeholder="Additional notes or encounter reference..." {...field} {...controlProps} />
+                  <Input
+                    placeholder="Additional notes or encounter reference..."
+                    {...field}
+                    {...controlProps}
+                  />
                 )}
               </FormField>
             </div>

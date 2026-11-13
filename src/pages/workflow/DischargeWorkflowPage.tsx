@@ -10,7 +10,7 @@ import { DischargeWorkflowTimeline } from '@/components/discharge/DischargeWorkf
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDischargeWorkflow } from '@/hooks/useDischargeWorkflow';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const getDefaultTab = (role: string | null) => {
   if (role === 'doctor') return 'doctor';
@@ -36,16 +36,25 @@ export default function DischargeWorkflowPage() {
         <div>
           <h1 className="text-3xl font-bold">Discharge Workflow</h1>
           <p className="text-muted-foreground">
-            Doctor to pharmacist to billing to nurse discharge approval chain with rejection returns.
+            Doctor to pharmacist to billing to nurse discharge approval chain with rejection
+            returns.
           </p>
         </div>
 
         <Tabs defaultValue={getDefaultTab(primaryRole)} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="doctor" disabled={!showDoctor}>Doctor</TabsTrigger>
-            <TabsTrigger value="pharmacist" disabled={!showPharmacist}>Pharmacist</TabsTrigger>
-            <TabsTrigger value="billing" disabled={!showBilling}>Billing</TabsTrigger>
-            <TabsTrigger value="nurse" disabled={!showNurse}>Nurse</TabsTrigger>
+            <TabsTrigger value="doctor" disabled={!showDoctor}>
+              Doctor
+            </TabsTrigger>
+            <TabsTrigger value="pharmacist" disabled={!showPharmacist}>
+              Pharmacist
+            </TabsTrigger>
+            <TabsTrigger value="billing" disabled={!showBilling}>
+              Billing
+            </TabsTrigger>
+            <TabsTrigger value="nurse" disabled={!showNurse}>
+              Nurse
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="doctor">

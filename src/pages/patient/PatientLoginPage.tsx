@@ -7,11 +7,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Activity, 
-  ArrowLeft, 
-  Eye, 
-  EyeOff, 
+import {
+  Activity,
+  ArrowLeft,
+  Eye,
+  EyeOff,
   Loader2,
   Shield,
   Calendar,
@@ -61,7 +61,8 @@ export default function PatientLoginPage() {
           await supabase.auth.signOut();
           toast({
             title: 'Access Denied',
-            description: 'This login is for patients only. Staff members should use the staff login.',
+            description:
+              'This login is for patients only. Staff members should use the staff login.',
             variant: 'destructive',
           });
           setIsLoading(false);
@@ -88,10 +89,26 @@ export default function PatientLoginPage() {
   };
 
   const features = [
-    { icon: Calendar, title: 'Book Appointments', description: 'Schedule visits with your healthcare providers' },
-    { icon: FileText, title: 'View Records', description: 'Access your medical history and lab results' },
-    { icon: MessageSquare, title: 'Secure Messaging', description: 'Communicate directly with your care team' },
-    { icon: HeartPulse, title: 'Track Health', description: 'Monitor your vitals and health metrics' },
+    {
+      icon: Calendar,
+      title: 'Book Appointments',
+      description: 'Schedule visits with your healthcare providers',
+    },
+    {
+      icon: FileText,
+      title: 'View Records',
+      description: 'Access your medical history and lab results',
+    },
+    {
+      icon: MessageSquare,
+      title: 'Secure Messaging',
+      description: 'Communicate directly with your care team',
+    },
+    {
+      icon: HeartPulse,
+      title: 'Track Health',
+      description: 'Monitor your vitals and health metrics',
+    },
   ];
 
   return (
@@ -102,14 +119,14 @@ export default function PatientLoginPage() {
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary-foreground/20">
             <Activity className="w-6 h-6" />
           </div>
-          <span className="text-2xl font-bold">AROCORD-HIMS</span>
+          <span className="text-2xl font-bold">CareHarmony HIMS</span>
         </Link>
 
         <div className="flex-1 flex flex-col justify-center">
           <h1 className="text-4xl font-bold mb-4">Patient Portal</h1>
           <p className="text-lg text-primary-foreground/80 mb-12">
-            Access your health information, book appointments, and communicate 
-            with your healthcare team - all in one secure place.
+            Access your health information, book appointments, and communicate with your healthcare
+            team - all in one secure place.
           </p>
 
           <div className="grid grid-cols-2 gap-6">
@@ -137,7 +154,7 @@ export default function PatientLoginPage() {
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
               <Activity className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-bold">AROCORD-HIMS</span>
+            <span className="font-bold">CareHarmony HIMS</span>
           </Link>
           <Button variant="ghost" asChild className="ml-auto">
             <Link to="/hospital">
@@ -175,8 +192,8 @@ export default function PatientLoginPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Password</Label>
-                      <Link 
-                        to="/patient/forgot-password" 
+                      <Link
+                        to="/patient/forgot-password"
                         className="text-xs text-primary hover:underline"
                       >
                         Forgot password?
@@ -248,9 +265,7 @@ export default function PatientLoginPage() {
                 </div>
 
                 <Button variant="outline" className="w-full" asChild>
-                  <Link to="/hospital/login">
-                    Staff / Hospital Login
-                  </Link>
+                  <Link to="/hospital/login">Staff / Hospital Login</Link>
                 </Button>
               </CardContent>
             </Card>

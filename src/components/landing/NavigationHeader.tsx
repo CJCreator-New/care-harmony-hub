@@ -28,7 +28,7 @@ import {
   ClipboardCheck,
   FlaskConical,
   HeartPulse,
-  History
+  History,
 } from 'lucide-react';
 import { SafeLink } from '@/components/ui/safe-link';
 import { sanitizeUrl } from '@/utils/sanitize';
@@ -77,9 +77,9 @@ export function NavigationHeader() {
   const logoRotation = useTransform(scrollY, [0, 500], [0, 5]);
 
   return (
-    <motion.header 
+    <motion.header
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 border-b border-border"
-      style={{ 
+      style={{
         height: headerHeight,
         backdropFilter: `blur(${headerBlur}px)`,
       }}
@@ -87,13 +87,13 @@ export function NavigationHeader() {
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <motion.div 
+          <motion.div
             className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary"
             style={{ rotate: logoRotation }}
           >
             <Activity className="w-5 h-5 text-primary-foreground" />
           </motion.div>
-          <span className="text-xl font-bold">AROCORD-HIMS</span>
+          <span className="text-xl font-bold">CareHarmony HIMS</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -109,7 +109,7 @@ export function NavigationHeader() {
               <NavigationMenuContent>
                 <ul className="grid w-[500px] gap-3 p-4 md:grid-cols-2">
                   {featureItems.map((item, index) => (
-                    <motion.li 
+                    <motion.li
                       key={item.title}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -120,7 +120,7 @@ export function NavigationHeader() {
                           href={item.href}
                           className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors group"
                         >
-                          <motion.div 
+                          <motion.div
                             className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0"
                             whileHover={{ rotate: 360 }}
                             transition={{ duration: 0.5 }}
@@ -183,7 +183,7 @@ export function NavigationHeader() {
         </div>
 
         {/* Mobile Menu */}
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild className="lg:hidden">
             <Button variant="ghost" size="icon" aria-label="Open navigation menu">
               <Menu className="w-5 h-5" />
@@ -195,7 +195,7 @@ export function NavigationHeader() {
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
                   <Activity className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="font-bold">AROCORD-HIMS</span>
+                <span className="font-bold">CareHarmony HIMS</span>
               </div>
 
               {/* Mobile Quick Actions for Logged-in Users */}
@@ -203,7 +203,9 @@ export function NavigationHeader() {
                 <div className="flex flex-col gap-2">
                   <div className="text-sm font-medium text-muted-foreground mb-2 px-2 flex items-center justify-between">
                     <span>Clinical Quick Actions</span>
-                    <Badge variant="outline" className="text-[10px] py-0">Hospital Admin</Badge>
+                    <Badge variant="outline" className="text-[10px] py-0">
+                      Hospital Admin
+                    </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Link
@@ -212,7 +214,9 @@ export function NavigationHeader() {
                       className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-colors group"
                     >
                       <ClipboardCheck className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider">Check-in</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">
+                        Check-in
+                      </span>
                     </Link>
                     <Link
                       to="/doctor"
@@ -220,7 +224,9 @@ export function NavigationHeader() {
                       className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/10 transition-colors group"
                     >
                       <PlusCircle className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider">New Order</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">
+                        New Order
+                      </span>
                     </Link>
                     <Link
                       to="/lab"
@@ -228,7 +234,9 @@ export function NavigationHeader() {
                       className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/10 transition-colors group"
                     >
                       <FlaskConical className="w-5 h-5 text-purple-500 group-hover:scale-110 transition-transform" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider">Order Lab</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">
+                        Order Lab
+                      </span>
                     </Link>
                     <Link
                       to="/records"
@@ -236,7 +244,9 @@ export function NavigationHeader() {
                       className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-green-500/5 hover:bg-green-500/10 border border-green-500/10 transition-colors group"
                     >
                       <History className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider">History</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">
+                        History
+                      </span>
                     </Link>
                   </div>
                 </div>

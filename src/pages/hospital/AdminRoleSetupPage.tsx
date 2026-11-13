@@ -6,13 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -57,14 +51,45 @@ interface PendingStaff {
   role: UserRole;
 }
 
-const roleOptions: { role: UserRole; label: string; description: string; icon: React.ReactNode }[] = [
-  { role: 'admin', label: getRoleLabel('admin'), description: 'Full system access and management', icon: <UserCog className="h-5 w-5" /> },
-  { role: 'doctor', label: getRoleLabel('doctor'), description: 'Patient consultations and medical records', icon: <Stethoscope className="h-5 w-5" /> },
-  { role: 'nurse', label: getRoleLabel('nurse'), description: 'Patient care and vitals management', icon: <UserCog className="h-5 w-5" /> },
-  { role: 'receptionist', label: getRoleLabel('receptionist'), description: 'Appointments and patient check-in', icon: <ClipboardList className="h-5 w-5" /> },
-  { role: 'pharmacist', label: getRoleLabel('pharmacist'), description: 'Medication dispensing and management', icon: <Pill className="h-5 w-5" /> },
-  { role: 'lab_technician', label: getRoleLabel('lab_technician'), description: 'Laboratory tests and results', icon: <TestTube2 className="h-5 w-5" /> },
-];
+const roleOptions: { role: UserRole; label: string; description: string; icon: React.ReactNode }[] =
+  [
+    {
+      role: 'admin',
+      label: getRoleLabel('admin'),
+      description: 'Full system access and management',
+      icon: <UserCog className="h-5 w-5" />,
+    },
+    {
+      role: 'doctor',
+      label: getRoleLabel('doctor'),
+      description: 'Patient consultations and medical records',
+      icon: <Stethoscope className="h-5 w-5" />,
+    },
+    {
+      role: 'nurse',
+      label: getRoleLabel('nurse'),
+      description: 'Patient care and vitals management',
+      icon: <UserCog className="h-5 w-5" />,
+    },
+    {
+      role: 'receptionist',
+      label: getRoleLabel('receptionist'),
+      description: 'Appointments and patient check-in',
+      icon: <ClipboardList className="h-5 w-5" />,
+    },
+    {
+      role: 'pharmacist',
+      label: getRoleLabel('pharmacist'),
+      description: 'Medication dispensing and management',
+      icon: <Pill className="h-5 w-5" />,
+    },
+    {
+      role: 'lab_technician',
+      label: getRoleLabel('lab_technician'),
+      description: 'Laboratory tests and results',
+      icon: <TestTube2 className="h-5 w-5" />,
+    },
+  ];
 
 export default function AdminRoleSetupPage() {
   const navigate = useNavigate();
@@ -110,7 +135,7 @@ export default function AdminRoleSetupPage() {
     }
 
     // Check for duplicate email
-    if (pendingStaff.some(s => s.email.toLowerCase() === newStaffEmail.toLowerCase())) {
+    if (pendingStaff.some((s) => s.email.toLowerCase() === newStaffEmail.toLowerCase())) {
       toast({
         title: 'Duplicate Email',
         description: 'This email has already been added.',
@@ -141,7 +166,7 @@ export default function AdminRoleSetupPage() {
   };
 
   const handleRemoveStaff = (id: string) => {
-    setPendingStaff(pendingStaff.filter(s => s.id !== id));
+    setPendingStaff(pendingStaff.filter((s) => s.id !== id));
   };
 
   const handleSendInvitations = async () => {
@@ -190,7 +215,7 @@ export default function AdminRoleSetupPage() {
   };
 
   const getRoleIcon = (role: UserRole) => {
-    const option = roleOptions.find(r => r.role === role);
+    const option = roleOptions.find((r) => r.role === role);
     return option?.icon || <Users className="h-5 w-5" />;
   };
 
@@ -211,7 +236,7 @@ export default function AdminRoleSetupPage() {
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
               <Activity className="w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold">AROCORD-HIMS</span>
+            <span className="text-2xl font-bold">CareHarmony HIMS</span>
           </Link>
         </div>
 
@@ -222,8 +247,8 @@ export default function AdminRoleSetupPage() {
             Healthcare Team
           </h1>
           <p className="text-lg text-white/80 max-w-md">
-            Assign roles to your staff members. Each role has specific permissions 
-            and access to different parts of the system.
+            Assign roles to your staff members. Each role has specific permissions and access to
+            different parts of the system.
           </p>
 
           <div className="space-y-3">
@@ -240,18 +265,14 @@ export default function AdminRoleSetupPage() {
           <div className="grid grid-cols-3 gap-3 pt-4">
             {roleOptions.map((option) => (
               <div key={option.role} className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
-                <div className="p-1.5 rounded bg-white/10">
-                  {option.icon}
-                </div>
+                <div className="p-1.5 rounded bg-white/10">{option.icon}</div>
                 <span className="text-sm">{option.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="text-sm text-white/60">
-          © {new Date().getFullYear()} AROCORD Healthcare Solutions
-        </div>
+        <div className="text-sm text-white/60">© {new Date().getFullYear()} CareHarmony</div>
       </div>
 
       {/* Right Panel - Role Assignment */}
@@ -262,15 +283,18 @@ export default function AdminRoleSetupPage() {
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
                 <Activity className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-bold">AROCORD-HIMS</span>
+              <span className="text-2xl font-bold">CareHarmony HIMS</span>
             </Link>
           </div>
 
           <div>
-            <Badge variant="outline" className="mb-4">Step 3 of 4</Badge>
+            <Badge variant="outline" className="mb-4">
+              Step 3 of 4
+            </Badge>
             <h2 className="text-3xl font-bold">Assign Staff Roles</h2>
             <p className="text-muted-foreground mt-2">
-              Add your team members and assign their roles. They'll receive an invitation to join {hospital?.name || 'your hospital'}.
+              Add your team members and assign their roles. They'll receive an invitation to join{' '}
+              {hospital?.name || 'your hospital'}.
             </p>
           </div>
 
@@ -297,10 +321,9 @@ export default function AdminRoleSetupPage() {
                 <div>
                   <CardTitle className="text-lg">Staff Members</CardTitle>
                   <CardDescription>
-                    {pendingStaff.length === 0 
-                      ? 'No staff members added yet' 
-                      : `${pendingStaff.length} staff member(s) to invite`
-                    }
+                    {pendingStaff.length === 0
+                      ? 'No staff members added yet'
+                      : `${pendingStaff.length} staff member(s) to invite`}
                   </CardDescription>
                 </div>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
@@ -313,9 +336,7 @@ export default function AdminRoleSetupPage() {
               {pendingStaff.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed rounded-lg">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">
-                    Click "Add Staff" to invite team members
-                  </p>
+                  <p className="text-muted-foreground">Click "Add Staff" to invite team members</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     You can also skip this step and add staff later
                   </p>
@@ -323,20 +344,16 @@ export default function AdminRoleSetupPage() {
               ) : (
                 <div className="space-y-3">
                   {pendingStaff.map((staff) => (
-                    <div 
-                      key={staff.id} 
+                    <div
+                      key={staff.id}
                       className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                     >
-                      <div className="p-2 rounded-lg bg-muted">
-                        {getRoleIcon(staff.role)}
-                      </div>
+                      <div className="p-2 rounded-lg bg-muted">{getRoleIcon(staff.role)}</div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
                           {staff.firstName} {staff.lastName}
                         </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {staff.email}
-                        </p>
+                        <p className="text-sm text-muted-foreground truncate">{staff.email}</p>
                       </div>
                       <Badge variant="secondary">{getRoleLabel(staff.role)}</Badge>
                       <Button
@@ -359,11 +376,7 @@ export default function AdminRoleSetupPage() {
             <Button variant="outline" className="flex-1" onClick={handleSkip}>
               Skip for Now
             </Button>
-            <Button 
-              className="flex-1" 
-              onClick={handleSendInvitations}
-              disabled={isSendingInvites}
-            >
+            <Button className="flex-1" onClick={handleSendInvitations} disabled={isSendingInvites}>
               {isSendingInvites ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -379,7 +392,8 @@ export default function AdminRoleSetupPage() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground">
-            No email is sent yet. Share each invitation's join link from Staff Management so staff can create their account.
+            No email is sent yet. Share each invitation's join link from Staff Management so staff
+            can create their account.
           </p>
         </div>
       </div>
@@ -429,7 +443,10 @@ export default function AdminRoleSetupPage() {
 
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={newStaffRole} onValueChange={(value) => setNewStaffRole(value as UserRole)}>
+              <Select
+                value={newStaffRole}
+                onValueChange={(value) => setNewStaffRole(value as UserRole)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -445,7 +462,7 @@ export default function AdminRoleSetupPage() {
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                {roleOptions.find(r => r.role === newStaffRole)?.description}
+                {roleOptions.find((r) => r.role === newStaffRole)?.description}
               </p>
             </div>
           </div>

@@ -16,7 +16,7 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,7 +67,11 @@ export default function MonitoringDashboard() {
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('1h');
 
   // System metrics query
-  const { data: systemMetrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery({
+  const {
+    data: systemMetrics,
+    isLoading: metricsLoading,
+    refetch: refetchMetrics,
+  } = useQuery({
     queryKey: ['system-metrics', hospital?.id, timeRange],
     queryFn: async (): Promise<SystemMetrics> => {
       if (!hospital?.id) return {} as SystemMetrics;
@@ -88,15 +92,22 @@ export default function MonitoringDashboard() {
   });
 
   // Error summary query
-  const { data: errorSummary, isLoading: errorsLoading, refetch: refetchErrors } = useQuery({
+  const {
+    data: errorSummary,
+    isLoading: errorsLoading,
+    refetch: refetchErrors,
+  } = useQuery({
     queryKey: ['error-summary', hospital?.id, timeRange],
     queryFn: async (): Promise<ErrorSummary> => {
       if (!hospital?.id) return {} as ErrorSummary;
 
       // Get recent errors from activity logs
-      const timeFilter = timeRange === '1h' ? subHours(new Date(), 1) :
-                        timeRange === '24h' ? subDays(new Date(), 1) :
-                        subDays(new Date(), 7);
+      const timeFilter =
+        timeRange === '1h'
+          ? subHours(new Date(), 1)
+          : timeRange === '24h'
+            ? subDays(new Date(), 1)
+            : subDays(new Date(), 7);
 
       const { data: errors } = await supabase
         .from('activity_logs')
@@ -109,28 +120,32 @@ export default function MonitoringDashboard() {
 
       return {
         total: errors?.length || 0,
-        critical: errors?.filter(e => {
-          const details = e.details as any;
-          return details?.severity === 'critical';
-        }).length || 0,
-        warning: errors?.filter(e => {
-          const details = e.details as any;
-          return details?.severity === 'warning';
-        }).length || 0,
-        info: errors?.filter(e => {
-          const details = e.details as any;
-          return details?.severity === 'info';
-        }).length || 0,
-        recentErrors: errors?.map(e => {
-          const details = e.details as any;
-          return {
-            id: e.id,
-            message: details?.message || 'Unknown error',
-            level: details?.severity || 'info',
-            timestamp: e.created_at,
-            userId: e.user_id,
-          };
-        }) || [],
+        critical:
+          errors?.filter((e) => {
+            const details = e.details as any;
+            return details?.severity === 'critical';
+          }).length || 0,
+        warning:
+          errors?.filter((e) => {
+            const details = e.details as any;
+            return details?.severity === 'warning';
+          }).length || 0,
+        info:
+          errors?.filter((e) => {
+            const details = e.details as any;
+            return details?.severity === 'info';
+          }).length || 0,
+        recentErrors:
+          errors?.map((e) => {
+            const details = e.details as any;
+            return {
+              id: e.id,
+              message: details?.message || 'Unknown error',
+              level: details?.severity || 'info',
+              timestamp: e.created_at,
+              userId: e.user_id,
+            };
+          }) || [],
       };
     },
     enabled: !!hospital?.id,
@@ -175,9 +190,12 @@ export default function MonitoringDashboard() {
 
   const getErrorBadgeVariant = (level: string) => {
     switch (level) {
-      case 'critical': return 'destructive';
-      case 'warning': return 'secondary';
-      default: return 'outline';
+      case 'critical':
+        return 'destructive';
+      case 'warning':
+        return 'secondary';
+      default:
+        return 'outline';
     }
   };
 
@@ -188,7 +206,7 @@ export default function MonitoringDashboard() {
         <div>
           <h1 className="text-3xl font-bold">System Monitoring</h1>
           <p className="text-muted-foreground">
-            Real-time performance and error monitoring for AROCORD-HIMS
+            Real-time performance and error monitoring for CareHarmony HIMS
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -216,12 +234,8 @@ export default function MonitoringDashboard() {
             <Server className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {systemMetrics?.uptime || 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              99.9% target uptime
-            </p>
+            <div className="text-2xl font-bold text-green-600">{systemMetrics?.uptime || 0}%</div>
+            <p className="text-xs text-muted-foreground">99.9% target uptime</p>
           </CardContent>
         </Card>
 
@@ -231,12 +245,12 @@ export default function MonitoringDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getStatusColor(systemMetrics?.responseTime || 0, { good: 500, warning: 1000 })}`}>
+            <div
+              className={`text-2xl font-bold ${getStatusColor(systemMetrics?.responseTime || 0, { good: 500, warning: 1000 })}`}
+            >
               {systemMetrics?.responseTime || 0}ms
             </div>
-            <p className="text-xs text-muted-foreground">
-              Target: &lt; 500ms
-            </p>
+            <p className="text-xs text-muted-foreground">Target: &lt; 500ms</p>
           </CardContent>
         </Card>
 
@@ -246,12 +260,12 @@ export default function MonitoringDashboard() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getStatusColor((systemMetrics?.errorRate || 0) * 100, { good: 0.1, warning: 1 })}`}>
+            <div
+              className={`text-2xl font-bold ${getStatusColor((systemMetrics?.errorRate || 0) * 100, { good: 0.1, warning: 1 })}`}
+            >
               {(systemMetrics?.errorRate || 0).toFixed(2)}%
             </div>
-            <p className="text-xs text-muted-foreground">
-              Target: &lt; 0.1%
-            </p>
+            <p className="text-xs text-muted-foreground">Target: &lt; 0.1%</p>
           </CardContent>
         </Card>
 
@@ -261,12 +275,8 @@ export default function MonitoringDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {systemMetrics?.activeUsers || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Currently online
-            </p>
+            <div className="text-2xl font-bold">{systemMetrics?.activeUsers || 0}</div>
+            <p className="text-xs text-muted-foreground">Currently online</p>
           </CardContent>
         </Card>
       </div>
@@ -291,9 +301,7 @@ export default function MonitoringDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {errorSummary?.critical || 0}
-                </div>
+                <div className="text-2xl font-bold text-red-600">{errorSummary?.critical || 0}</div>
               </CardContent>
             </Card>
 
@@ -319,9 +327,7 @@ export default function MonitoringDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {errorSummary?.info || 0}
-                </div>
+                <div className="text-2xl font-bold text-blue-600">{errorSummary?.info || 0}</div>
               </CardContent>
             </Card>
 
@@ -333,9 +339,7 @@ export default function MonitoringDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {errorSummary?.total || 0}
-                </div>
+                <div className="text-2xl font-bold">{errorSummary?.total || 0}</div>
               </CardContent>
             </Card>
           </div>
@@ -351,7 +355,10 @@ export default function MonitoringDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {errorSummary?.recentErrors?.map((error) => (
-                  <div key={`error-${error.id}`} className="flex items-start justify-between p-4 border rounded-lg">
+                  <div
+                    key={`error-${error.id}`}
+                    className="flex items-start justify-between p-4 border rounded-lg"
+                  >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant={getErrorBadgeVariant(error.level)}>
@@ -363,9 +370,7 @@ export default function MonitoringDashboard() {
                       </div>
                       <p className="text-sm">{error.message}</p>
                       {error.userId && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          User: {error.userId}
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">User: {error.userId}</p>
                       )}
                     </div>
                   </div>
@@ -395,18 +400,24 @@ export default function MonitoringDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {performanceMetrics?.slowestEndpoints?.map((endpoint, idx) => (
-                    <div key={`endpoint-${endpoint.endpoint}`} className="flex items-center justify-between">
+                    <div
+                      key={`endpoint-${endpoint.endpoint}`}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex-1">
                         <p className="text-sm font-medium">{endpoint.endpoint}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {endpoint.callCount} calls
-                        </p>
+                        <p className="text-xs text-muted-foreground">{endpoint.callCount} calls</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${
-                          endpoint.averageTime > 1000 ? 'text-red-600' :
-                          endpoint.averageTime > 500 ? 'text-yellow-600' : 'text-green-600'
-                        }`}>
+                        <p
+                          className={`text-sm font-medium ${
+                            endpoint.averageTime > 1000
+                              ? 'text-red-600'
+                              : endpoint.averageTime > 500
+                                ? 'text-yellow-600'
+                                : 'text-green-600'
+                          }`}
+                        >
                           {endpoint.averageTime}ms
                         </p>
                       </div>
@@ -431,17 +442,24 @@ export default function MonitoringDashboard() {
                     <div key={`query-${query.query}`} className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-medium truncate" title={query.query}>
-                          {query.query.length > 40 ? `${query.query.substring(0, 40)}...` : query.query}
+                          {query.query.length > 40
+                            ? `${query.query.substring(0, 40)}...`
+                            : query.query}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {query.callCount} executions
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${
-                          query.averageTime > 100 ? 'text-red-600' :
-                          query.averageTime > 50 ? 'text-yellow-600' : 'text-green-600'
-                        }`}>
+                        <p
+                          className={`text-sm font-medium ${
+                            query.averageTime > 100
+                              ? 'text-red-600'
+                              : query.averageTime > 50
+                                ? 'text-yellow-600'
+                                : 'text-green-600'
+                          }`}
+                        >
                           {query.averageTime}ms
                         </p>
                       </div>
@@ -461,9 +479,7 @@ export default function MonitoringDashboard() {
                 <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {systemMetrics?.memoryUsage || 0}%
-                </div>
+                <div className="text-2xl font-bold">{systemMetrics?.memoryUsage || 0}%</div>
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full"
@@ -478,9 +494,7 @@ export default function MonitoringDashboard() {
                 <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {systemMetrics?.cpuUsage || 0}%
-                </div>
+                <div className="text-2xl font-bold">{systemMetrics?.cpuUsage || 0}%</div>
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div
                     className="bg-green-600 h-2 rounded-full"
@@ -495,12 +509,8 @@ export default function MonitoringDashboard() {
                 <CardTitle className="text-sm font-medium">Database Connections</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {systemMetrics?.databaseConnections || 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Active connections
-                </p>
+                <div className="text-2xl font-bold">{systemMetrics?.databaseConnections || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Active connections</p>
               </CardContent>
             </Card>
           </div>
@@ -512,9 +522,9 @@ export default function MonitoringDashboard() {
             <Database className="h-4 w-4" />
             <AlertTitle>Database Health</AlertTitle>
             <AlertDescription>
-              Database monitoring and health metrics will be displayed here.
-              Integration with database monitoring tools (like pg_stat_statements)
-              will provide detailed query performance and connection metrics.
+              Database monitoring and health metrics will be displayed here. Integration with
+              database monitoring tools (like pg_stat_statements) will provide detailed query
+              performance and connection metrics.
             </AlertDescription>
           </Alert>
 

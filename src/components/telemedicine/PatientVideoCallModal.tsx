@@ -2,10 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Video, VideoOff, Mic, MicOff, PhoneOff, Phone,
-  Maximize2, Minimize2,
-} from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Phone, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,10 +14,7 @@ interface PatientVideoCallModalProps {
 }
 
 const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ],
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }],
 };
 
 export function PatientVideoCallModal({
@@ -44,7 +38,7 @@ export function PatientVideoCallModal({
   const signalingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
-  const callTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const callTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -60,7 +54,7 @@ export function PatientVideoCallModal({
       supabase.removeChannel(signalingChannelRef.current);
       signalingChannelRef.current = null;
     }
-    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
     if (callTimerRef.current) {
       clearInterval(callTimerRef.current);
@@ -110,7 +104,7 @@ export function PatientVideoCallModal({
     return () => {
       supabase.removeChannel(channel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listening, appointmentId]);
 
   const handleAnswerCall = async () => {
@@ -125,7 +119,7 @@ export function PatientVideoCallModal({
       const pc = new RTCPeerConnection(RTC_CONFIG);
       peerConnectionRef.current = pc;
 
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
       pc.ontrack = (event) => {
         if (remoteVideoRef.current && event.streams[0]) {
@@ -171,7 +165,7 @@ export function PatientVideoCallModal({
       setIsConnected(true);
 
       callTimerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
+        setCallDuration((prev) => prev + 1);
       }, 1000);
 
       toast.success('Call connected');
@@ -207,14 +201,19 @@ export function PatientVideoCallModal({
   useEffect(() => {
     return () => {
       peerConnectionRef.current?.close();
-      localStreamRef.current?.getTracks().forEach(t => t.stop());
+      localStreamRef.current?.getTracks().forEach((t) => t.stop());
       if (signalingChannelRef.current) supabase.removeChannel(signalingChannelRef.current);
       if (callTimerRef.current) clearInterval(callTimerRef.current);
     };
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) cleanup(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) cleanup();
+      }}
+    >
       <DialogContent className={`${isFullscreen ? 'max-w-full h-full' : 'max-w-3xl'} p-0`}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -223,9 +222,7 @@ export function PatientVideoCallModal({
               <Video className="h-5 w-5 text-primary" />
               <div>
                 <h3 className="font-medium">Telemedicine Consultation</h3>
-                {doctorName && (
-                  <p className="text-sm text-muted-foreground">Dr. {doctorName}</p>
-                )}
+                {doctorName && <p className="text-sm text-muted-foreground">Dr. {doctorName}</p>}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -236,7 +233,11 @@ export function PatientVideoCallModal({
                 </Badge>
               )}
               <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(!isFullscreen)}>
-                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                {isFullscreen ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
@@ -257,11 +258,20 @@ export function PatientVideoCallModal({
                     </p>
                   </div>
                   <div className="flex gap-4 justify-center">
-                    <Button size="lg" onClick={handleAnswerCall} className="gap-2 bg-green-600 hover:bg-green-700">
+                    <Button
+                      size="lg"
+                      onClick={handleAnswerCall}
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
                       <Phone className="h-5 w-5" />
                       Answer
                     </Button>
-                    <Button size="lg" variant="destructive" onClick={handleDeclineCall} className="gap-2">
+                    <Button
+                      size="lg"
+                      variant="destructive"
+                      onClick={handleDeclineCall}
+                      className="gap-2"
+                    >
                       <PhoneOff className="h-5 w-5" />
                       Decline
                     </Button>

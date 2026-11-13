@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Activity, 
-  ArrowLeft, 
+import {
+  Activity,
+  ArrowLeft,
   Shield,
   Stethoscope,
   UserCog,
@@ -75,7 +75,7 @@ export default function QuickAccessPage() {
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
               <Activity className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold">AROCORD-HIMS</span>
+            <span className="text-xl font-bold">CareHarmony HIMS</span>
           </Link>
           <Button variant="ghost" asChild>
             <Link to="/hospital">
@@ -95,24 +95,24 @@ export default function QuickAccessPage() {
               <Shield className="w-3 h-3 mr-1" />
               Staff Access Portal
             </Badge>
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              Quick Role Access
-            </h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">Quick Role Access</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Select your role to access the staff login. Each role has specific 
-              permissions and access to relevant modules.
+              Select your role to access the staff login. Each role has specific permissions and
+              access to relevant modules.
             </p>
           </div>
 
           {/* Role Cards Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {roles.map((role) => (
-              <Card 
-                key={role.id} 
+              <Card
+                key={role.id}
                 className="group hover:shadow-lg transition-all duration-300 hover:border-primary/30"
               >
                 <CardHeader>
-                  <div className={`w-12 h-12 rounded-xl ${role.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                  <div
+                    className={`w-12 h-12 rounded-xl ${role.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}
+                  >
                     <role.icon className="w-6 h-6" />
                   </div>
                   <CardTitle className="text-lg">{role.title}</CardTitle>
@@ -127,9 +127,7 @@ export default function QuickAccessPage() {
                     ))}
                   </div>
                   <Button className="w-full" asChild>
-                    <Link to={`/hospital/login?role=${role.id}`}>
-                      Login as {role.title}
-                    </Link>
+                    <Link to={`/hospital/login?role=${role.id}`}>Login as {role.title}</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -140,9 +138,7 @@ export default function QuickAccessPage() {
           <div className="mt-12 text-center">
             <div className="inline-flex items-center gap-4 p-4 rounded-lg bg-muted/50 border border-border">
               <div className="text-left">
-                <p className="text-sm text-muted-foreground">
-                  Not a staff member?
-                </p>
+                <p className="text-sm text-muted-foreground">Not a staff member?</p>
                 <p className="text-sm font-medium">
                   Patients can access their health portal separately.
                 </p>
@@ -155,9 +151,7 @@ export default function QuickAccessPage() {
 
           {/* Hospital Registration CTA */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-muted-foreground mb-2">
-              Need to register your hospital?
-            </p>
+            <p className="text-sm text-muted-foreground mb-2">Need to register your hospital?</p>
             <Button variant="link" asChild>
               <Link to="/hospital/signup">Register a New Hospital →</Link>
             </Button>
@@ -168,7 +162,7 @@ export default function QuickAccessPage() {
       {/* Footer */}
       <footer className="py-6 border-t border-border">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} AROCORD Healthcare Solutions. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} CareHarmony. All rights reserved.</p>
         </div>
       </footer>
     </div>

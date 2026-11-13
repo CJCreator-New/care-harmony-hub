@@ -1,16 +1,16 @@
-import { useState } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { useState } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -18,24 +18,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Plus,
-  Search,
-  Package,
-  AlertTriangle,
-  TrendingDown,
-  Pill,
-} from "lucide-react";
-import { format } from "date-fns";
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Plus, Search, Package, AlertTriangle, TrendingDown, Pill } from 'lucide-react';
+import { format } from 'date-fns';
 import {
   useMedications,
   useMedicationStats,
@@ -43,18 +36,18 @@ import {
   useUpdateMedication,
   useMedicationsRealtime,
   Medication,
-} from "@/lib/hooks/pharmacy";
-import { ReorderSystemCard } from "@/components/inventory/ReorderSystemCard";
-import { usePermissions } from '@/lib/hooks';
-import { toast } from "sonner";
+} from '@/lib/hooks/pharmacy';
+import { ReorderSystemCard } from '@/components/inventory/ReorderSystemCard';
+import { usePermissions } from '@/hooks/usePermissions';
+import { toast } from 'sonner';
 
 export default function InventoryPage() {
   useMedicationsRealtime();
   const permissions = usePermissions();
   const canAddMedication = permissions.can('inventory:write');
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [stockFilter, setStockFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [stockFilter, setStockFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [adjustModal, setAdjustModal] = useState<{ open: boolean; medication: Medication | null }>({
     open: false,
@@ -70,11 +63,11 @@ export default function InventoryPage() {
       med.generic_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       med.category?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (stockFilter === "low") {
+    if (stockFilter === 'low') {
       return matchesSearch && med.current_stock <= med.minimum_stock;
-    } else if (stockFilter === "out") {
+    } else if (stockFilter === 'out') {
       return matchesSearch && med.current_stock === 0;
-    } else if (stockFilter === "expiring") {
+    } else if (stockFilter === 'expiring') {
       if (!med.expiry_date) return false;
       const expiryDate = new Date(med.expiry_date);
       const thirtyDays = new Date();
@@ -87,11 +80,11 @@ export default function InventoryPage() {
 
   const getStockStatus = (med: Medication) => {
     if (med.current_stock === 0) {
-      return { label: "Out of Stock", variant: "destructive" as const };
+      return { label: 'Out of Stock', variant: 'destructive' as const };
     } else if (med.current_stock <= med.minimum_stock) {
-      return { label: "Low Stock", variant: "secondary" as const };
+      return { label: 'Low Stock', variant: 'secondary' as const };
     }
-    return { label: "In Stock", variant: "default" as const };
+    return { label: 'In Stock', variant: 'default' as const };
   };
 
   return (
@@ -219,8 +212,10 @@ export default function InventoryPage() {
                 ) : (
                   filteredMedications?.map((medication) => {
                     const stockStatus = getStockStatus(medication);
-                    const isExpiringSoon = medication.expiry_date && 
-                      new Date(medication.expiry_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    const isExpiringSoon =
+                      medication.expiry_date &&
+                      new Date(medication.expiry_date) <=
+                        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
                     return (
                       <TableRow key={medication.id}>
@@ -234,7 +229,7 @@ export default function InventoryPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{medication.category || "-"}</TableCell>
+                        <TableCell>{medication.category || '-'}</TableCell>
                         <TableCell>
                           {medication.form} {medication.strength}
                         </TableCell>
@@ -244,11 +239,11 @@ export default function InventoryPage() {
                         <TableCell>{medication.minimum_stock}</TableCell>
                         <TableCell>
                           {medication.expiry_date ? (
-                            <span className={isExpiringSoon ? "text-destructive font-medium" : ""}>
-                              {format(new Date(medication.expiry_date), "MMM d, yyyy")}
+                            <span className={isExpiringSoon ? 'text-destructive font-medium' : ''}>
+                              {format(new Date(medication.expiry_date), 'MMM d, yyyy')}
                             </span>
                           ) : (
-                            "-"
+                            '-'
                           )}
                         </TableCell>
                         <TableCell>
@@ -293,17 +288,17 @@ function AddMedicationModal({
 }) {
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [formData, setFormData] = useState({
-    name: "",
-    generic_name: "",
-    category: "",
-    form: "",
-    strength: "",
-    unit: "units",
+    name: '',
+    generic_name: '',
+    category: '',
+    form: '',
+    strength: '',
+    unit: 'units',
     current_stock: 0,
     minimum_stock: 10,
-    expiry_date: "",
-    batch_number: "",
-    manufacturer: "",
+    expiry_date: '',
+    batch_number: '',
+    manufacturer: '',
     unit_price: 0,
   });
 
@@ -311,8 +306,8 @@ function AddMedicationModal({
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
-      setErrors({ name: "Medication name is required" });
-      toast.error("Medication name is required");
+      setErrors({ name: 'Medication name is required' });
+      toast.error('Medication name is required');
       return;
     }
 
@@ -337,17 +332,17 @@ function AddMedicationModal({
       {
         onSuccess: () => {
           setFormData({
-            name: "",
-            generic_name: "",
-            category: "",
-            form: "",
-            strength: "",
-            unit: "units",
+            name: '',
+            generic_name: '',
+            category: '',
+            form: '',
+            strength: '',
+            unit: 'units',
             current_stock: 0,
             minimum_stock: 10,
-            expiry_date: "",
-            batch_number: "",
-            manufacturer: "",
+            expiry_date: '',
+            batch_number: '',
+            manufacturer: '',
             unit_price: 0,
           });
           onOpenChange(false);
@@ -373,7 +368,7 @@ function AddMedicationModal({
                   setFormData({ ...formData, name: e.target.value });
                   if (errors.name) setErrors({});
                 }}
-                className={errors.name ? "border-destructive" : ""}
+                className={errors.name ? 'border-destructive' : ''}
               />
               {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
             </div>
@@ -516,7 +511,7 @@ function AddMedicationModal({
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.unit_price || ""}
+                value={formData.unit_price || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
                 }
@@ -530,7 +525,7 @@ function AddMedicationModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={createMedication.isPending}>
-            {createMedication.isPending ? "Adding..." : "Add Medication"}
+            {createMedication.isPending ? 'Adding...' : 'Add Medication'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -547,8 +542,8 @@ function AdjustStockModal({
   onOpenChange: (open: boolean) => void;
   medication: Medication | null;
 }) {
-  const [adjustmentType, setAdjustmentType] = useState<"add" | "remove" | "set">("add");
-  const [quantity, setQuantity] = useState("");
+  const [adjustmentType, setAdjustmentType] = useState<'add' | 'remove' | 'set'>('add');
+  const [quantity, setQuantity] = useState('');
 
   const updateMedication = useUpdateMedication();
 
@@ -559,9 +554,9 @@ function AdjustStockModal({
     if (isNaN(qty)) return;
 
     let newStock = medication.current_stock;
-    if (adjustmentType === "add") {
+    if (adjustmentType === 'add') {
       newStock += qty;
-    } else if (adjustmentType === "remove") {
+    } else if (adjustmentType === 'remove') {
       newStock = Math.max(0, newStock - qty);
     } else {
       newStock = qty;
@@ -571,8 +566,8 @@ function AdjustStockModal({
       { id: medication.id, current_stock: newStock },
       {
         onSuccess: () => {
-          setQuantity("");
-          setAdjustmentType("add");
+          setQuantity('');
+          setAdjustmentType('add');
           onOpenChange(false);
         },
       }
@@ -599,7 +594,7 @@ function AdjustStockModal({
               <Label>Adjustment Type</Label>
               <Select
                 value={adjustmentType}
-                onValueChange={(value) => setAdjustmentType(value as "add" | "remove" | "set")}
+                onValueChange={(value) => setAdjustmentType(value as 'add' | 'remove' | 'set')}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -619,7 +614,7 @@ function AdjustStockModal({
                 min="0"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                placeholder={adjustmentType === "set" ? "New stock level" : "Quantity to adjust"}
+                placeholder={adjustmentType === 'set' ? 'New stock level' : 'Quantity to adjust'}
               />
             </div>
 
@@ -627,11 +622,11 @@ function AdjustStockModal({
               <div className="p-3 bg-primary/10 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground">New Stock Level</p>
                 <p className="text-2xl font-bold">
-                  {adjustmentType === "add"
+                  {adjustmentType === 'add'
                     ? medication.current_stock + parseInt(quantity)
-                    : adjustmentType === "remove"
-                    ? Math.max(0, medication.current_stock - parseInt(quantity))
-                    : parseInt(quantity)}{" "}
+                    : adjustmentType === 'remove'
+                      ? Math.max(0, medication.current_stock - parseInt(quantity))
+                      : parseInt(quantity)}{' '}
                   {medication.unit}
                 </p>
               </div>
@@ -644,7 +639,7 @@ function AdjustStockModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={updateMedication.isPending || !quantity}>
-            {updateMedication.isPending ? "Updating..." : "Update Stock"}
+            {updateMedication.isPending ? 'Updating...' : 'Update Stock'}
           </Button>
         </DialogFooter>
       </DialogContent>

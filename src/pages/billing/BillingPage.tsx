@@ -54,7 +54,7 @@ import { RecordInstallmentModal } from '@/components/billing/RecordInstallmentMo
 import { evaluatePaymentPlanDelinquency } from '@/lib/clinical/billingCycleRules';
 import { formatCurrency } from '@/lib/currency';
 import { DataError, displayStat } from '@/components/common/DataStatus';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const STATUS_CONFIG: Record<
   string,
@@ -113,11 +113,7 @@ export default function BillingPage() {
     isError: invoicesError,
     refetch: refetchInvoices,
   } = useInvoices();
-  const {
-    data: stats,
-    isLoading: statsLoading,
-    isError: statsError,
-  } = useInvoiceStats();
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useInvoiceStats();
   const {
     claims,
     isLoading: claimsLoading,
@@ -186,7 +182,13 @@ export default function BillingPage() {
               <AlertCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pending })}</div>
+              <div className="text-2xl font-bold">
+                {displayStat({
+                  isLoading: statsLoading,
+                  isError: statsError,
+                  value: stats?.pending,
+                })}
+              </div>
               <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
@@ -202,7 +204,13 @@ export default function BillingPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.partial })}</div>
+              <div className="text-2xl font-bold">
+                {displayStat({
+                  isLoading: statsLoading,
+                  isError: statsError,
+                  value: stats?.partial,
+                })}
+              </div>
               <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>
@@ -218,7 +226,9 @@ export default function BillingPage() {
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.paid })}</div>
+              <div className="text-2xl font-bold">
+                {displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.paid })}
+              </div>
               <p className="text-xs text-muted-foreground">Click to filter</p>
             </CardContent>
           </Card>

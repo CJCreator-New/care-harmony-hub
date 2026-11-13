@@ -83,38 +83,67 @@ export default function PatientRegisterPage() {
   });
 
   const updateFormData = (field: keyof FormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
-        if (!formData.hospitalCode.trim() || !formData.mrn.trim() || !formData.lastName.trim() || !formData.dateOfBirth) {
-          toast({ title: 'Missing Fields', description: 'Please fill in all required fields.', variant: 'destructive' });
+        if (
+          !formData.hospitalCode.trim() ||
+          !formData.mrn.trim() ||
+          !formData.lastName.trim() ||
+          !formData.dateOfBirth
+        ) {
+          toast({
+            title: 'Missing Fields',
+            description: 'Please fill in all required fields.',
+            variant: 'destructive',
+          });
           return false;
         }
         return true;
       case 2:
         if (!EMAIL_RE.test(formData.email.trim())) {
-          toast({ title: 'Invalid Email', description: 'Please enter a valid email address.', variant: 'destructive' });
+          toast({
+            title: 'Invalid Email',
+            description: 'Please enter a valid email address.',
+            variant: 'destructive',
+          });
           return false;
         }
         if (!formData.password || !formData.confirmPassword) {
-          toast({ title: 'Missing Fields', description: 'Please fill in password fields.', variant: 'destructive' });
+          toast({
+            title: 'Missing Fields',
+            description: 'Please fill in password fields.',
+            variant: 'destructive',
+          });
           return false;
         }
         if (formData.password.length < 8) {
-          toast({ title: 'Weak Password', description: 'Password must be at least 8 characters.', variant: 'destructive' });
+          toast({
+            title: 'Weak Password',
+            description: 'Password must be at least 8 characters.',
+            variant: 'destructive',
+          });
           return false;
         }
         if (formData.password !== formData.confirmPassword) {
-          toast({ title: 'Password Mismatch', description: 'Passwords do not match.', variant: 'destructive' });
+          toast({
+            title: 'Password Mismatch',
+            description: 'Passwords do not match.',
+            variant: 'destructive',
+          });
           return false;
         }
         return true;
       case 3:
         if (!formData.agreeToTerms || !formData.agreeToHipaa) {
-          toast({ title: 'Agreement Required', description: 'Please agree to the terms and HIPAA notice.', variant: 'destructive' });
+          toast({
+            title: 'Agreement Required',
+            description: 'Please agree to the terms and HIPAA notice.',
+            variant: 'destructive',
+          });
           return false;
         }
         return true;
@@ -125,12 +154,12 @@ export default function PatientRegisterPage() {
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
   };
 
   const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async () => {
@@ -150,24 +179,30 @@ export default function PatientRegisterPage() {
       });
 
       if (error) {
-        throw new Error((await functionErrorMessage(error)) ?? 'An error occurred during registration.');
+        throw new Error(
+          (await functionErrorMessage(error)) ?? 'An error occurred during registration.'
+        );
       }
       if (!data?.success) {
-        throw new Error(typeof data?.error === 'string' ? data.error : 'An error occurred during registration.');
+        throw new Error(
+          typeof data?.error === 'string' ? data.error : 'An error occurred during registration.'
+        );
       }
 
       toast({
         title: 'Registration Successful!',
-        description: data.confirmation_email_sent === false
-          ? 'Your account has been created. Please sign in.'
-          : 'Your account has been created. Please check your email to verify your account, then sign in.',
+        description:
+          data.confirmation_email_sent === false
+            ? 'Your account has been created. Please sign in.'
+            : 'Your account has been created. Please check your email to verify your account, then sign in.',
       });
 
       navigate('/patient-login');
     } catch (error) {
       toast({
         title: 'Registration Failed',
-        description: error instanceof Error ? error.message : 'An error occurred during registration.',
+        description:
+          error instanceof Error ? error.message : 'An error occurred during registration.',
         variant: 'destructive',
       });
     } finally {
@@ -184,7 +219,7 @@ export default function PatientRegisterPage() {
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
               <Activity className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold">AROCORD-HIMS</span>
+            <span className="text-xl font-bold">CareHarmony HIMS</span>
           </Link>
           <Button variant="ghost" asChild>
             <Link to="/hospital">
@@ -241,7 +276,8 @@ export default function PatientRegisterPage() {
                 {currentStep === 3 && 'Review & Confirm'}
               </CardTitle>
               <CardDescription>
-                {currentStep === 1 && 'Use the details from your hospital registration card or visit summary'}
+                {currentStep === 1 &&
+                  'Use the details from your hospital registration card or visit summary'}
                 {currentStep === 2 && 'Use the email address your hospital has on file for you'}
                 {currentStep === 3 && 'Review your information and agree to our terms'}
               </CardDescription>
@@ -294,8 +330,8 @@ export default function PatientRegisterPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Don&apos;t have an MRN yet, or is your email missing from your record? Ask the hospital&apos;s
-                    reception desk to register you or update your record first.
+                    Don&apos;t have an MRN yet, or is your email missing from your record? Ask the
+                    hospital&apos;s reception desk to register you or update your record first.
                   </p>
                 </div>
               )}
@@ -366,22 +402,37 @@ export default function PatientRegisterPage() {
                       <Checkbox
                         id="agreeToTerms"
                         checked={formData.agreeToTerms}
-                        onCheckedChange={(checked) => updateFormData('agreeToTerms', checked as boolean)}
+                        onCheckedChange={(checked) =>
+                          updateFormData('agreeToTerms', checked as boolean)
+                        }
                       />
                       <Label htmlFor="agreeToTerms" className="text-sm leading-relaxed">
-                        I agree to the <Link to="#" className="text-primary hover:underline">Terms of Service</Link> and{' '}
-                        <Link to="#" className="text-primary hover:underline">Privacy Policy</Link> *
+                        I agree to the{' '}
+                        <Link to="#" className="text-primary hover:underline">
+                          Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link to="#" className="text-primary hover:underline">
+                          Privacy Policy
+                        </Link>{' '}
+                        *
                       </Label>
                     </div>
                     <div className="flex items-start space-x-3">
                       <Checkbox
                         id="agreeToHipaa"
                         checked={formData.agreeToHipaa}
-                        onCheckedChange={(checked) => updateFormData('agreeToHipaa', checked as boolean)}
+                        onCheckedChange={(checked) =>
+                          updateFormData('agreeToHipaa', checked as boolean)
+                        }
                       />
                       <Label htmlFor="agreeToHipaa" className="text-sm leading-relaxed">
-                        I acknowledge the <Link to="#" className="text-primary hover:underline">HIPAA Privacy Notice</Link> and
-                        consent to the electronic storage and sharing of my health information as described *
+                        I acknowledge the{' '}
+                        <Link to="#" className="text-primary hover:underline">
+                          HIPAA Privacy Notice
+                        </Link>{' '}
+                        and consent to the electronic storage and sharing of my health information
+                        as described *
                       </Label>
                     </div>
                   </div>
@@ -390,11 +441,7 @@ export default function PatientRegisterPage() {
 
               {/* Navigation Buttons */}
               <div className="flex justify-between mt-8">
-                <Button
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={currentStep === 1}
-                >
+                <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Previous
                 </Button>

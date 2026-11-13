@@ -2,16 +2,16 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Sparkles, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Search, 
+import {
+  Sparkles,
+  AlertTriangle,
+  CheckCircle2,
+  Search,
   BrainCircuit,
   Lightbulb,
   Stethoscope,
   Pill,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -40,13 +40,13 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
 
   const analyzeConsultation = () => {
     setIsAnalyzing(true);
-    
+
     // Simulate API call to Edge Function for AI analysis
     setTimeout(() => {
       const mockRecs = [];
-      
+
       const text = (formData.chief_complaint || '').toLowerCase();
-      
+
       if (text.includes('fever') || text.includes('headache')) {
         mockRecs.push({
           id: '1',
@@ -55,7 +55,7 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
           value: 'Common Cold (J00)',
           confidence: 0.85,
           description: 'Based on reported symptoms of fever and headache.',
-          action: 'Add to Diagnosis'
+          action: 'Add to Diagnosis',
         });
       }
 
@@ -67,12 +67,16 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
           value: 'Chest X-Ray',
           confidence: 0.92,
           description: 'To rule out pneumonia or bronchitis given the respiratory symptoms.',
-          action: 'Order Lab'
+          action: 'Order Lab',
         });
       }
 
       // Drug interaction mock
-      if (formData.prescriptions?.some((p: any) => p.medication_name.toLowerCase().includes('aspirin'))) {
+      if (
+        formData.prescriptions?.some((p: any) =>
+          p.medication_name.toLowerCase().includes('aspirin')
+        )
+      ) {
         mockRecs.push({
           id: '3',
           type: 'alert',
@@ -80,7 +84,7 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
           value: 'Aspirin + Anticoagulants',
           confidence: 1.0,
           description: 'Increased risk of bleeding. Verify if patient is on Warfarin/Heparin.',
-          severity: 'high'
+          severity: 'high',
         });
       }
 
@@ -95,7 +99,7 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            <CardTitle className="text-base">AROCORD AI Assistant</CardTitle>
+            <CardTitle className="text-base">CareHarmony AI Assistant</CardTitle>
           </div>
           {isAnalyzing && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
         </div>
@@ -120,17 +124,21 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 className={`p-3 rounded-lg border text-xs ${
-                  rec.type === 'alert' 
-                    ? 'bg-red-50 border-red-200 text-red-800' 
+                  rec.type === 'alert'
+                    ? 'bg-red-50 border-red-200 text-red-800'
                     : 'bg-white border-primary/20 shadow-sm'
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {rec.type === 'diagnosis' && <Stethoscope className="h-3.5 w-3.5 text-blue-600" />}
+                    {rec.type === 'diagnosis' && (
+                      <Stethoscope className="h-3.5 w-3.5 text-blue-600" />
+                    )}
                     {rec.type === 'lab' && <Search className="h-3.5 w-3.5 text-purple-600" />}
                     {rec.type === 'alert' && <AlertTriangle className="h-3.5 w-3.5 text-red-600" />}
-                    <span className="font-bold uppercase tracking-wider text-[10px]">{rec.title}</span>
+                    <span className="font-bold uppercase tracking-wider text-[10px]">
+                      {rec.title}
+                    </span>
                   </div>
                   {rec.confidence && (
                     <Badge variant="outline" className="text-[9px] h-4 px-1">
@@ -138,14 +146,14 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
                     </Badge>
                   )}
                 </div>
-                
+
                 <p className="font-semibold text-sm mb-1">{rec.value}</p>
                 <p className="text-muted-foreground mb-3 leading-relaxed">{rec.description}</p>
-                
+
                 {rec.action && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="w-full h-7 text-[10px] bg-primary/5 border-primary/20 hover:bg-primary/10"
                     onClick={() => onApplyRecommendation(rec.type, rec.value)}
                   >
@@ -162,7 +170,10 @@ export function AIConsultationAssistant({ formData, onApplyRecommendation }: Pro
           <div className="pt-2 border-t border-primary/10">
             <div className="flex items-center gap-2 text-[10px] text-primary font-medium">
               <Lightbulb className="h-3 w-3" />
-              <span>Pro Tip: AI suggestions are for guidance only. Verifying clinical judgment is required.</span>
+              <span>
+                Pro Tip: AI suggestions are for guidance only. Verifying clinical judgment is
+                required.
+              </span>
             </div>
           </div>
         )}

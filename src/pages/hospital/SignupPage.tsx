@@ -9,7 +9,18 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { clearDevTestRole } from '@/utils/devRoleSwitch';
 import { setHospitalSignupInFlight } from '@/lib/onboarding/hospitalSignupInFlight';
-import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Check, X, Building2, User, Users } from 'lucide-react';
+import {
+  Activity,
+  Eye,
+  EyeOff,
+  Loader2,
+  ArrowLeft,
+  Check,
+  X,
+  Building2,
+  User,
+  Users,
+} from 'lucide-react';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { toast } from 'sonner';
 import { describeAuthError } from '@/lib/auth/authErrors';
@@ -161,7 +172,9 @@ export default function SignupPage() {
       newErrors.adminEmail = 'This email is already associated with an account';
     }
 
-    const allPasswordRequirementsMet = passwordRequirements.every(req => req.regex.test(password));
+    const allPasswordRequirementsMet = passwordRequirements.every((req) =>
+      req.regex.test(password)
+    );
     if (!allPasswordRequirementsMet) {
       newErrors.password = 'Password does not meet requirements';
     }
@@ -182,7 +195,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateStep2()) return;
 
     setIsLoading(true);
@@ -193,7 +206,12 @@ export default function SignupPage() {
 
     try {
       // First, create the user account
-      const { error: signupError, userId } = await signup(adminEmail, password, firstName, lastName);
+      const { error: signupError, userId } = await signup(
+        adminEmail,
+        password,
+        firstName,
+        lastName
+      );
 
       if (signupError) {
         // Inline and persistent, next to the submit button, so it is not lost after a toast fades.
@@ -228,7 +246,7 @@ export default function SignupPage() {
       }
 
       toast.success('Registration Successful!', {
-        description: "Welcome to AROCORD-HIMS. Now let's set up your team...",
+        description: "Welcome to CareHarmony HIMS. Now let's set up your team...",
       });
       clearDevTestRole();
       navigate('/hospital/role-setup');
@@ -244,11 +262,17 @@ export default function SignupPage() {
   return (
     <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
-        <title>Hospital Signup | AROCORD-HIMS</title>
-        <meta name="description" content="Create a new hospital account on AROCORD-HIMS to onboard staff, manage patients, and run a modern healthcare facility." />
+        <title>Hospital Signup | CareHarmony HIMS</title>
+        <meta
+          name="description"
+          content="Create a new hospital account on CareHarmony HIMS to onboard staff, manage patients, and run a modern healthcare facility."
+        />
         <link rel="canonical" href="/hospital/signup" />
-        <meta property="og:title" content="Hospital Signup | AROCORD-HIMS" />
-        <meta property="og:description" content="Create a new hospital account on AROCORD-HIMS." />
+        <meta property="og:title" content="Hospital Signup | CareHarmony HIMS" />
+        <meta
+          property="og:description"
+          content="Create a new hospital account on CareHarmony HIMS."
+        />
         <meta property="og:url" content="/hospital/signup" />
       </Helmet>
       {/* Left Panel - Branding */}
@@ -258,7 +282,7 @@ export default function SignupPage() {
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
               <Activity className="w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold">AROCORD-HIMS</span>
+            <span className="text-2xl font-bold">CareHarmony HIMS</span>
           </Link>
         </div>
 
@@ -269,20 +293,24 @@ export default function SignupPage() {
             Healthcare Facility
           </h1>
           <p className="text-lg text-white/80 max-w-md">
-            Join hundreds of hospitals using AROCORD-HIMS to streamline 
-            their healthcare operations.
+            Join hundreds of hospitals using CareHarmony HIMS to streamline their healthcare
+            operations.
           </p>
 
           {/* Steps indicator */}
           <div className="space-y-4">
-            <div className={cn(
-              "flex items-center gap-3 p-4 rounded-xl transition-all",
-              step >= 1 ? "bg-white/20 backdrop-blur" : "bg-white/5"
-            )}>
-              <div className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-full",
-                step >= 1 ? "bg-white text-primary" : "bg-white/10 text-white/50"
-              )}>
+            <div
+              className={cn(
+                'flex items-center gap-3 p-4 rounded-xl transition-all',
+                step >= 1 ? 'bg-white/20 backdrop-blur' : 'bg-white/5'
+              )}
+            >
+              <div
+                className={cn(
+                  'flex items-center justify-center w-10 h-10 rounded-full',
+                  step >= 1 ? 'bg-white text-primary' : 'bg-white/10 text-white/50'
+                )}
+              >
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
@@ -292,14 +320,18 @@ export default function SignupPage() {
               {step > 1 && <Check className="w-5 h-5 ml-auto" />}
             </div>
 
-            <div className={cn(
-              "flex items-center gap-3 p-4 rounded-xl transition-all",
-              step >= 2 ? "bg-white/20 backdrop-blur" : "bg-white/5"
-            )}>
-              <div className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-full",
-                step >= 2 ? "bg-white text-primary" : "bg-white/10 text-white/50"
-              )}>
+            <div
+              className={cn(
+                'flex items-center gap-3 p-4 rounded-xl transition-all',
+                step >= 2 ? 'bg-white/20 backdrop-blur' : 'bg-white/5'
+              )}
+            >
+              <div
+                className={cn(
+                  'flex items-center justify-center w-10 h-10 rounded-full',
+                  step >= 2 ? 'bg-white text-primary' : 'bg-white/10 text-white/50'
+                )}
+              >
                 <User className="w-5 h-5" />
               </div>
               <div>
@@ -321,7 +353,7 @@ export default function SignupPage() {
         </div>
 
         <div className="text-sm text-white/60 relative z-10">
-          © {new Date().getFullYear()} AROCORD Healthcare Solutions
+          © {new Date().getFullYear()} CareHarmony
         </div>
       </div>
 
@@ -333,7 +365,7 @@ export default function SignupPage() {
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
                 <Activity className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-bold">AROCORD-HIMS</span>
+              <span className="text-2xl font-bold">CareHarmony HIMS</span>
             </Link>
           </div>
 
@@ -341,25 +373,48 @@ export default function SignupPage() {
           <div className="lg:hidden" aria-label={`Step ${step} of 2`}>
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center gap-2 flex-1">
-                <div className={cn(
-                  'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors',
-                  step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                )}>
+                <div
+                  className={cn(
+                    'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors',
+                    step >= 1
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
                   {step > 1 ? <Check className="w-4 h-4" /> : '1'}
                 </div>
-                <span className={cn('text-sm font-medium', step >= 1 ? 'text-foreground' : 'text-muted-foreground')}>
+                <span
+                  className={cn(
+                    'text-sm font-medium',
+                    step >= 1 ? 'text-foreground' : 'text-muted-foreground'
+                  )}
+                >
                   Hospital Info
                 </span>
               </div>
-              <div className={cn('h-0.5 flex-1 rounded transition-colors', step > 1 ? 'bg-primary' : 'bg-border')} />
+              <div
+                className={cn(
+                  'h-0.5 flex-1 rounded transition-colors',
+                  step > 1 ? 'bg-primary' : 'bg-border'
+                )}
+              />
               <div className="flex items-center gap-2 flex-1 justify-end">
-                <span className={cn('text-sm font-medium', step >= 2 ? 'text-foreground' : 'text-muted-foreground')}>
+                <span
+                  className={cn(
+                    'text-sm font-medium',
+                    step >= 2 ? 'text-foreground' : 'text-muted-foreground'
+                  )}
+                >
                   Admin Account
                 </span>
-                <div className={cn(
-                  'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors',
-                  step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                )}>
+                <div
+                  className={cn(
+                    'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors',
+                    step >= 2
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
                   2
                 </div>
               </div>
@@ -378,14 +433,22 @@ export default function SignupPage() {
               {step === 1 ? 'Hospital Information' : 'Administrator Account'}
             </h2>
             <p className="text-muted-foreground mt-2">
-              {step === 1 
+              {step === 1
                 ? 'Enter your healthcare facility details'
-                : 'Create your administrator login credentials'
-              }
+                : 'Create your administrator login credentials'}
             </p>
           </div>
 
-          <form onSubmit={step === 1 ? (e) => { e.preventDefault(); handleNext(); } : handleSubmit}>
+          <form
+            onSubmit={
+              step === 1
+                ? (e) => {
+                    e.preventDefault();
+                    handleNext();
+                  }
+                : handleSubmit
+            }
+          >
             {step === 1 ? (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -411,9 +474,7 @@ export default function SignupPage() {
                     onChange={(e) => setAddress(e.target.value)}
                     className={cn(errors.address && 'border-destructive')}
                   />
-                  {errors.address && (
-                    <p className="text-sm text-destructive">{errors.address}</p>
-                  )}
+                  {errors.address && <p className="text-sm text-destructive">{errors.address}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -478,9 +539,15 @@ export default function SignupPage() {
                       )}
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                      {checkingEmail && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                      {!checkingEmail && isHospitalEmailAvailable === true && <Check className="w-4 h-4 text-green-500" />}
-                      {!checkingEmail && isHospitalEmailAvailable === false && <X className="w-4 h-4 text-destructive" />}
+                      {checkingEmail && (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                      {!checkingEmail && isHospitalEmailAvailable === true && (
+                        <Check className="w-4 h-4 text-green-500" />
+                      )}
+                      {!checkingEmail && isHospitalEmailAvailable === false && (
+                        <X className="w-4 h-4 text-destructive" />
+                      )}
                     </div>
                   </div>
                   {errors.hospitalEmail && (
@@ -547,9 +614,15 @@ export default function SignupPage() {
                       )}
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                      {checkingAdminEmail && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                      {!checkingAdminEmail && isAdminEmailAvailable === true && <Check className="w-4 h-4 text-green-500" />}
-                      {!checkingAdminEmail && isAdminEmailAvailable === false && <X className="w-4 h-4 text-destructive" />}
+                      {checkingAdminEmail && (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                      {!checkingAdminEmail && isAdminEmailAvailable === true && (
+                        <Check className="w-4 h-4 text-green-500" />
+                      )}
+                      {!checkingAdminEmail && isAdminEmailAvailable === false && (
+                        <X className="w-4 h-4 text-destructive" />
+                      )}
                     </div>
                   </div>
                   {errors.adminEmail && (

@@ -9,7 +9,14 @@ import { useActivityLog } from '@/hooks/useActivityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Activity, Eye, EyeOff, Loader2, ArrowLeft, Shield, AlertCircle } from 'lucide-react';
@@ -44,7 +51,7 @@ export default function LoginPage() {
   const { logActivity } = useActivityLog();
   const navigate = useNavigate();
 
-  const form = useForm<LoginFormData>({
+  const form = useForm<z.input<typeof loginSchema>, unknown, LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '', rememberMe: false },
   });
@@ -86,7 +93,9 @@ export default function LoginPage() {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const user = session?.user ?? null;
 
       if (!user) {
@@ -115,11 +124,17 @@ export default function LoginPage() {
   return (
     <div id="main-content" tabIndex={-1} className="min-h-screen flex">
       <Helmet>
-        <title>Hospital Login | AROCORD-HIMS</title>
-        <meta name="description" content="Sign in to your AROCORD-HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows." />
+        <title>Hospital Login | CareHarmony HIMS</title>
+        <meta
+          name="description"
+          content="Sign in to your CareHarmony HIMS hospital account to manage patients, appointments, prescriptions, and clinical workflows."
+        />
         <link rel="canonical" href="/hospital/login" />
-        <meta property="og:title" content="Hospital Login | AROCORD-HIMS" />
-        <meta property="og:description" content="Sign in to your AROCORD-HIMS hospital account." />
+        <meta property="og:title" content="Hospital Login | CareHarmony HIMS" />
+        <meta
+          property="og:description"
+          content="Sign in to your CareHarmony HIMS hospital account."
+        />
         <meta property="og:url" content="/hospital/login" />
       </Helmet>
       {/* Left Panel - Branding */}
@@ -130,7 +145,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 backdrop-blur">
               <Activity className="w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">AROCORD-HIMS</span>
+            <span className="text-2xl font-bold tracking-tight">CareHarmony HIMS</span>
           </Link>
         </div>
 
@@ -141,20 +156,22 @@ export default function LoginPage() {
             <em className="not-italic font-normal">Information</em> Management
           </h1>
           <p className="text-lg text-white/75 max-w-md font-light leading-relaxed">
-            Access your hospital's complete healthcare management system.
-            Manage patients, appointments, prescriptions, and more.
+            Access your hospital's complete healthcare management system. Manage patients,
+            appointments, prescriptions, and more.
           </p>
           <div className="flex items-center gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 max-w-md">
             <Shield className="w-8 h-8 text-white/80 shrink-0" />
             <div>
               <p className="font-semibold">HIPAA Compliant</p>
-              <p className="text-sm text-white/70">Your data is protected with enterprise-grade security</p>
+              <p className="text-sm text-white/70">
+                Your data is protected with enterprise-grade security
+              </p>
             </div>
           </div>
         </div>
 
         <div className="text-sm text-white/50 relative z-10">
-          © {new Date().getFullYear()} AROCORD Healthcare Solutions
+          © {new Date().getFullYear()} CareHarmony
         </div>
       </div>
 
@@ -166,7 +183,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
                 <Activity className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-bold">AROCORD-HIMS</span>
+              <span className="text-2xl font-bold">CareHarmony HIMS</span>
             </Link>
           </div>
 
@@ -179,17 +196,15 @@ export default function LoginPage() {
               Back to Home
             </Link>
             <h2 className="font-display font-normal italic text-4xl leading-tight">Welcome Back</h2>
-            <p className="text-muted-foreground mt-2">
-              Sign in to access your hospital dashboard
-            </p>
+            <p className="text-muted-foreground mt-2">Sign in to access your hospital dashboard</p>
           </div>
 
           {mustReenrollMfa && (
             <Alert role="status">
               <Shield className="h-4 w-4" />
               <AlertDescription>
-                Your backup code was accepted and your old authenticator was removed. Sign in
-                again to set up a new one.
+                Your backup code was accepted and your old authenticator was removed. Sign in again
+                to set up a new one.
               </AlertDescription>
             </Alert>
           )}
@@ -260,7 +275,11 @@ export default function LoginPage() {
                           onClick={() => setShowPassword((v) => !v)}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                         >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          {showPassword ? (
+                            <EyeOff className="w-5 h-5" />
+                          ) : (
+                            <Eye className="w-5 h-5" />
+                          )}
                         </button>
                       </div>
                     </FormControl>
@@ -292,9 +311,7 @@ export default function LoginPage() {
               {form.formState.errors.root && (
                 <Alert variant="destructive" role="alert" aria-live="assertive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {form.formState.errors.root.message}
-                  </AlertDescription>
+                  <AlertDescription>{form.formState.errors.root.message}</AlertDescription>
                 </Alert>
               )}
 
@@ -323,8 +340,14 @@ export default function LoginPage() {
           {/* Dev / mock-auth credential hint — only visible when VITE_E2E_MOCK_AUTH=true */}
           {import.meta.env.VITE_E2E_MOCK_AUTH === 'true' && (
             <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 space-y-3">
-              <p className="text-xs font-semibold text-warning uppercase tracking-wide">Mock Auth Mode — Test Credentials</p>
-              <p className="text-xs text-muted-foreground">All mock accounts use the <code className="font-mono font-bold">VITE_E2E_MOCK_PASSWORD</code> value from <code className="font-mono">.env.test</code>.</p>
+              <p className="text-xs font-semibold text-warning uppercase tracking-wide">
+                Mock Auth Mode — Test Credentials
+              </p>
+              <p className="text-xs text-muted-foreground">
+                All mock accounts use the{' '}
+                <code className="font-mono font-bold">VITE_E2E_MOCK_PASSWORD</code> value from{' '}
+                <code className="font-mono">.env.test</code>.
+              </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                 {[
                   { role: 'Admin', email: 'admin@testgeneral.com' },
@@ -341,7 +364,10 @@ export default function LoginPage() {
                     className="text-left hover:text-primary transition-colors py-0.5"
                     onClick={() => {
                       form.setValue('email', email);
-                      form.setValue('password', import.meta.env.DEV ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '') : '');
+                      form.setValue(
+                        'password',
+                        import.meta.env.DEV ? (import.meta.env.VITE_E2E_MOCK_PASSWORD ?? '') : ''
+                      );
                     }}
                   >
                     <span className="font-medium">{role}:</span>{' '}

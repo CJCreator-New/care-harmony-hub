@@ -1,7 +1,7 @@
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { useState } from "react"
-import { motion, useReducedMotion, AnimatePresence } from "framer-motion"
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { useState } from 'react';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   User,
@@ -15,72 +15,72 @@ import {
   Printer,
   Home,
   Hospital,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   AnimatedInput,
   InteractiveButton,
   PageTransition,
   Toast,
-} from "@/components/ui/micro-interactions"
-import { useAuth } from "@/contexts/AuthContext"
+} from '@/components/ui/micro-interactions';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Patient {
-  id: string
-  firstName: string
-  lastName: string
-  dateOfBirth: Date
-  phone: string
-  photoUrl?: string
-  mrn: string
+  id: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: Date;
+  phone: string;
+  photoUrl?: string;
+  mrn: string;
 }
 
 interface CheckInKioskProps {
-  onCheckIn: (patientId: string) => void
-  onNewRegistration: () => void
+  onCheckIn: (patientId: string) => void;
+  onNewRegistration: () => void;
 }
 
-type Step = "search" | "verify" | "confirm" | "complete"
+type Step = 'search' | 'verify' | 'confirm' | 'complete';
 
 export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps) {
-  const { hospital } = useAuth()
-  const [currentStep, setCurrentStep] = useState<Step>("search")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
-  const [showToast, setShowToast] = useState(false)
-  const shouldReduceMotion = useReducedMotion()
+  const { hospital } = useAuth();
+  const [currentStep, setCurrentStep] = useState<Step>('search');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
-  const hospitalName = hospital?.name || "AROCORD Healthcare"
+  const hospitalName = hospital?.name || 'CareHarmony Healthcare';
 
   // Mock patient data
   const mockPatients: Patient[] = [
     {
-      id: "1",
-      firstName: "John",
-      lastName: "Smith",
-      dateOfBirth: new Date("1985-03-15"),
-      phone: "+91 98765 43210",
-      mrn: "MRN001234",
+      id: '1',
+      firstName: 'John',
+      lastName: 'Smith',
+      dateOfBirth: new Date('1985-03-15'),
+      phone: '+91 98765 43210',
+      mrn: 'MRN001234',
     },
     {
-      id: "2",
-      firstName: "Sarah",
-      lastName: "Johnson",
-      dateOfBirth: new Date("1990-07-22"),
-      phone: "+91 91234 56789",
-      mrn: "MRN005678",
+      id: '2',
+      firstName: 'Sarah',
+      lastName: 'Johnson',
+      dateOfBirth: new Date('1990-07-22'),
+      phone: '+91 91234 56789',
+      mrn: 'MRN005678',
     },
     {
-      id: "3",
-      firstName: "Michael",
-      lastName: "Brown",
-      dateOfBirth: new Date("1978-11-08"),
-      phone: "+91 99887 76655",
-      mrn: "MRN009012",
+      id: '3',
+      firstName: 'Michael',
+      lastName: 'Brown',
+      dateOfBirth: new Date('1978-11-08'),
+      phone: '+91 99887 76655',
+      mrn: 'MRN009012',
     },
-  ]
+  ];
 
   const filteredPatients = mockPatients.filter(
     (p) =>
@@ -88,45 +88,43 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
       p.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.phone.includes(searchQuery) ||
       p.mrn.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
   const handleSelectPatient = (patient: Patient) => {
-    setSelectedPatient(patient)
-    setCurrentStep("verify")
-  }
+    setSelectedPatient(patient);
+    setCurrentStep('verify');
+  };
 
   const handleConfirm = () => {
-    setCurrentStep("complete")
+    setCurrentStep('complete');
     if (selectedPatient) {
-      onCheckIn(selectedPatient.id)
+      onCheckIn(selectedPatient.id);
     }
-    setShowToast(true)
-  }
+    setShowToast(true);
+  };
 
   const handleBack = () => {
-    const stepOrder: Step[] = ["search", "verify", "confirm", "complete"]
-    const currentIndex = stepOrder.indexOf(currentStep)
+    const stepOrder: Step[] = ['search', 'verify', 'confirm', 'complete'];
+    const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
-      setCurrentStep(stepOrder[currentIndex - 1])
+      setCurrentStep(stepOrder[currentIndex - 1]);
     }
-  }
+  };
 
   const renderStep = () => {
     switch (currentStep) {
-      case "search":
+      case 'search':
         return (
-          <div className="space-y-6" style={{ gap: "var(--space-6)" }}>
+          <div className="space-y-6" style={{ gap: 'var(--space-6)' }}>
             <div className="text-center">
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-receptionist/10 flex items-center justify-center">
                 <Hospital className="w-10 h-10 text-receptionist" />
               </div>
               <h2 className="text-3xl font-bold mb-2">Welcome to {hospitalName}</h2>
-              <p className="text-lg text-muted-foreground">
-                Please search for your appointment
-              </p>
+              <p className="text-lg text-muted-foreground">Please search for your appointment</p>
             </div>
 
-            <div className="max-w-md mx-auto space-y-4" style={{ gap: "var(--space-4)" }}>
+            <div className="max-w-md mx-auto space-y-4" style={{ gap: 'var(--space-4)' }}>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground" />
                 <Input
@@ -149,7 +147,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
                         key={patient.id}
                         onClick={() => handleSelectPatient(patient)}
                         className="w-full p-4 text-left bg-muted rounded-lg hover:bg-accent transition-colors flex items-center gap-4"
-                        style={{ padding: "var(--space-4)" }}
+                        style={{ padding: 'var(--space-4)' }}
                       >
                         <div className="w-12 h-12 rounded-full bg-receptionist/10 flex items-center justify-center text-receptionist font-semibold">
                           {patient.firstName.charAt(0)}
@@ -160,8 +158,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
                             {patient.firstName} {patient.lastName}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            DOB: {format(patient.dateOfBirth, "PPP")} •{" "}
-                            {patient.mrn}
+                            DOB: {format(patient.dateOfBirth, 'PPP')} • {patient.mrn}
                           </p>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -176,9 +173,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               )}
 
               <div className="pt-4 border-t">
-                <p className="text-center text-muted-foreground mb-4">
-                  Don't have an appointment?
-                </p>
+                <p className="text-center text-muted-foreground mb-4">Don't have an appointment?</p>
                 <Button
                   variant="outline"
                   className="w-full h-12 text-lg"
@@ -189,21 +184,22 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               </div>
             </div>
           </div>
-        )
+        );
 
-      case "verify":
+      case 'verify':
         return (
-          <div className="space-y-6" style={{ gap: "var(--space-6)" }}>
+          <div className="space-y-6" style={{ gap: 'var(--space-6)' }}>
             <div className="text-center">
               <h2 className="text-3xl font-bold mb-2">Verify Your Identity</h2>
-              <p className="text-lg text-muted-foreground">
-                Please confirm your information
-              </p>
+              <p className="text-lg text-muted-foreground">Please confirm your information</p>
             </div>
 
             {selectedPatient && (
               <div className="max-w-md mx-auto">
-                <div className="bg-muted rounded-lg p-6 text-center" style={{ padding: "var(--space-6)" }}>
+                <div
+                  className="bg-muted rounded-lg p-6 text-center"
+                  style={{ padding: 'var(--space-6)' }}
+                >
                   <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-receptionist/10 flex items-center justify-center text-receptionist text-3xl font-bold">
                     {selectedPatient.firstName.charAt(0)}
                     {selectedPatient.lastName.charAt(0)}
@@ -211,9 +207,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
                   <h3 className="text-2xl font-bold mb-1">
                     {selectedPatient.firstName} {selectedPatient.lastName}
                   </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {selectedPatient.mrn}
-                  </p>
+                  <p className="text-muted-foreground mb-4">{selectedPatient.mrn}</p>
 
                   <div className="space-y-2 text-left">
                     <div className="flex items-center gap-3 p-3 bg-background rounded">
@@ -236,38 +230,30 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
                 </div>
 
                 <div className="flex gap-3 mt-6">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-14 text-lg"
-                    onClick={handleBack}
-                  >
+                  <Button variant="outline" className="flex-1 h-14 text-lg" onClick={handleBack}>
                     <ChevronLeft className="w-5 h-5 mr-2" />
                     Back
                   </Button>
                   <InteractiveButton
                     className="flex-1 h-14 text-lg"
-                    onClick={() => setCurrentStep("confirm")}
+                    onClick={() => setCurrentStep('confirm')}
                   >
                     This is Me
                     <ChevronRight className="w-5 h-5 ml-2" />
                   </InteractiveButton>
                 </div>
 
-                <Button
-                  variant="ghost"
-                  className="w-full mt-4"
-                  onClick={onNewRegistration}
-                >
+                <Button variant="ghost" className="w-full mt-4" onClick={onNewRegistration}>
                   Not you? Register as new patient
                 </Button>
               </div>
             )}
           </div>
-        )
+        );
 
-      case "confirm":
+      case 'confirm':
         return (
-          <div className="space-y-6" style={{ gap: "var(--space-6)" }}>
+          <div className="space-y-6" style={{ gap: 'var(--space-6)' }}>
             <div className="text-center">
               <h2 className="text-3xl font-bold mb-2">Confirm Check-in</h2>
               <p className="text-lg text-muted-foreground">
@@ -275,7 +261,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               </p>
             </div>
 
-            <div className="max-w-md mx-auto space-y-4" style={{ gap: "var(--space-4)" }}>
+            <div className="max-w-md mx-auto space-y-4" style={{ gap: 'var(--space-4)' }}>
               <div className="bg-receptionist/5 border border-receptionist/20 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-full bg-receptionist/10 flex items-center justify-center">
@@ -285,9 +271,7 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
                     <p className="font-semibold">
                       {selectedPatient?.firstName} {selectedPatient?.lastName}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedPatient?.mrn}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{selectedPatient?.mrn}</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
@@ -307,33 +291,26 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               </div>
 
               <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-14 text-lg"
-                  onClick={handleBack}
-                >
+                <Button variant="outline" className="flex-1 h-14 text-lg" onClick={handleBack}>
                   <ChevronLeft className="w-5 h-5 mr-2" />
                   Back
                 </Button>
-                <InteractiveButton
-                  className="flex-1 h-14 text-lg"
-                  onClick={handleConfirm}
-                >
+                <InteractiveButton className="flex-1 h-14 text-lg" onClick={handleConfirm}>
                   <CheckCircle2 className="w-5 h-5 mr-2" />
                   Confirm
                 </InteractiveButton>
               </div>
             </div>
           </div>
-        )
+        );
 
-      case "complete":
+      case 'complete':
         return (
-          <div className="space-y-6 text-center" style={{ gap: "var(--space-6)" }}>
+          <div className="space-y-6 text-center" style={{ gap: 'var(--space-6)' }}>
             <motion.div
               initial={shouldReduceMotion ? {} : { scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
               className="w-32 h-32 mx-auto rounded-full bg-success/10 flex items-center justify-center"
             >
               <CheckCircle2 className="w-16 h-16 text-success" />
@@ -346,12 +323,13 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               </p>
             </div>
 
-            <div className="max-w-sm mx-auto bg-muted rounded-lg p-6" style={{ padding: "var(--space-6)" }}>
+            <div
+              className="max-w-sm mx-auto bg-muted rounded-lg p-6"
+              style={{ padding: 'var(--space-6)' }}
+            >
               <p className="text-sm text-muted-foreground mb-2">Your Queue Number</p>
               <p className="text-5xl font-bold text-receptionist">A-42</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Estimated wait time: 15 minutes
-              </p>
+              <p className="text-sm text-muted-foreground mt-2">Estimated wait time: 15 minutes</p>
             </div>
 
             <div className="flex gap-3 max-w-sm mx-auto">
@@ -366,9 +344,9 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               <InteractiveButton
                 className="flex-1 h-14 text-lg gap-2"
                 onClick={() => {
-                  setCurrentStep("search")
-                  setSelectedPatient(null)
-                  setSearchQuery("")
+                  setCurrentStep('search');
+                  setSelectedPatient(null);
+                  setSearchQuery('');
                 }}
               >
                 <Home className="w-5 h-5" />
@@ -376,9 +354,9 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
               </InteractiveButton>
             </div>
           </div>
-        )
+        );
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -433,5 +411,5 @@ export function CheckInKiosk({ onCheckIn, onNewRegistration }: CheckInKioskProps
         </div>
       )}
     </div>
-  )
+  );
 }

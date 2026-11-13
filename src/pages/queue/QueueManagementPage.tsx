@@ -26,9 +26,16 @@ import {
   ClipboardList,
   Stethoscope,
 } from 'lucide-react';
-import { useActiveQueue, useCallNextPatient, useStartService, useCompleteService, useQueueRealtime, QueueEntry } from '@/hooks/useQueue';
+import {
+  useActiveQueue,
+  useCallNextPatient,
+  useStartService,
+  useCompleteService,
+  useQueueRealtime,
+  QueueEntry,
+} from '@/hooks/useQueue';
 import { usePatientChecklists } from '@/hooks/useNurseWorkflow';
-import { usePermissions } from '@/lib/hooks';
+import { usePermissions } from '@/hooks/usePermissions';
 import { formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { PatientPrepChecklistCard } from '@/components/nurse/PatientPrepChecklistCard';
@@ -47,7 +54,7 @@ export default function QueueManagementPage() {
   const callNext = useCallNextPatient();
   const startService = useStartService();
   const completeService = useCompleteService();
-  
+
   // Enable realtime updates
   useQueueRealtime();
 
@@ -55,7 +62,9 @@ export default function QueueManagementPage() {
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
   const [selectedPatientForVitals, setSelectedPatientForVitals] = useState<any>(null);
-  const [selectedQueueEntryForPrep, setSelectedQueueEntryForPrep] = useState<QueueEntry | null>(null);
+  const [selectedQueueEntryForPrep, setSelectedQueueEntryForPrep] = useState<QueueEntry | null>(
+    null
+  );
   const [confirmCompleteId, setConfirmCompleteId] = useState<string | null>(null);
 
   const canRecordVitals = permissions.can('vitals:write');
@@ -64,23 +73,27 @@ export default function QueueManagementPage() {
   // Force re-render every minute for wait times
   const [, setTick] = useState(0);
   useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    const interval = setInterval(() => setTick((t) => t + 1), 60000);
     return () => clearInterval(interval);
   }, []);
 
   // Get prep status for each patient
   const getPatientPrepStatus = (patientId: string) => {
-    const checklist = checklists.find(c => c.patient_id === patientId);
+    const checklist = checklists.find((c) => c.patient_id === patientId);
     if (!checklist) return 'not_started';
     if (checklist.ready_for_doctor) return 'ready';
     if (checklist.vitals_completed) return 'in_progress';
     return 'started';
   };
 
-  const readyPatients = queue.filter(q => q.status === 'waiting' && getPatientPrepStatus(q.patient_id) === 'ready');
-  const waitingPatients = queue.filter(q => q.status === 'waiting' && getPatientPrepStatus(q.patient_id) !== 'ready');
-  const calledPatients = queue.filter(q => q.status === 'called');
-  const inServicePatients = queue.filter(q => q.status === 'in_service');
+  const readyPatients = queue.filter(
+    (q) => q.status === 'waiting' && getPatientPrepStatus(q.patient_id) === 'ready'
+  );
+  const waitingPatients = queue.filter(
+    (q) => q.status === 'waiting' && getPatientPrepStatus(q.patient_id) !== 'ready'
+  );
+  const calledPatients = queue.filter((q) => q.status === 'called');
+  const inServicePatients = queue.filter((q) => q.status === 'in_service');
 
   const getWaitTime = (checkInTime: string) => {
     const minutes = differenceInMinutes(new Date(), new Date(checkInTime));
@@ -90,11 +103,16 @@ export default function QueueManagementPage() {
     return `${hours}h ${remainingMinutes}m`;
   };
 
-  const avgWaitTime = waitingPatients.length > 0
-    ? Math.round(
-        waitingPatients.reduce((acc, p) => acc + Math.max(0, differenceInMinutes(new Date(), new Date(p.check_in_time))), 0) / waitingPatients.length
-      )
-    : 0;
+  const avgWaitTime =
+    waitingPatients.length > 0
+      ? Math.round(
+          waitingPatients.reduce(
+            (acc, p) =>
+              acc + Math.max(0, differenceInMinutes(new Date(), new Date(p.check_in_time))),
+            0
+          ) / waitingPatients.length
+        )
+      : 0;
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
@@ -126,11 +144,26 @@ export default function QueueManagementPage() {
     const status = getPatientPrepStatus(patientId);
     switch (status) {
       case 'ready':
-        return <Badge variant="success" className="ml-2"><CheckCircle2 className="h-3 w-3 mr-1" />Ready</Badge>;
+        return (
+          <Badge variant="success" className="ml-2">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Ready
+          </Badge>
+        );
       case 'in_progress':
-        return <Badge variant="warning" className="ml-2"><ClipboardList className="h-3 w-3 mr-1" />Prep In Progress</Badge>;
+        return (
+          <Badge variant="warning" className="ml-2">
+            <ClipboardList className="h-3 w-3 mr-1" />
+            Prep In Progress
+          </Badge>
+        );
       case 'started':
-        return <Badge variant="secondary" className="ml-2"><ClipboardList className="h-3 w-3 mr-1" />Prep Started</Badge>;
+        return (
+          <Badge variant="secondary" className="ml-2">
+            <ClipboardList className="h-3 w-3 mr-1" />
+            Prep Started
+          </Badge>
+        );
       default:
         return null;
     }
@@ -293,9 +326,9 @@ export default function QueueManagementPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className={`flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${
-                              'bg-primary/10 text-primary'
-                            }`}>
+                            <div
+                              className={`flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${'bg-primary/10 text-primary'}`}
+                            >
                               #{entry.queue_number}
                             </div>
                             <div>
@@ -319,21 +352,21 @@ export default function QueueManagementPage() {
                             <p className="text-xs text-muted-foreground">waiting</p>
                           </div>
                         </div>
-                        
+
                         {/* Action Buttons */}
                         <div className="flex items-center gap-2 flex-wrap">
                           {canRecordVitals && (
                             <>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="outline"
                                 onClick={() => handleRecordVitals(entry)}
                               >
                                 <Heart className="h-4 w-4 mr-1" />
                                 Vitals
                               </Button>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="outline"
                                 onClick={() => handleStartPrep(entry)}
                               >
@@ -343,8 +376,8 @@ export default function QueueManagementPage() {
                             </>
                           )}
                           {canManageQueue && (
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => handleCallNext(entry.id)}
                             >
@@ -377,10 +410,15 @@ export default function QueueManagementPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {readyPatients.map((entry: QueueEntry) => (
-                        <div key={entry.id} className="p-3 rounded-lg border bg-success/5 border-success/20">
+                        <div
+                          key={entry.id}
+                          className="p-3 rounded-lg border bg-success/5 border-success/20"
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-bold text-lg">#{entry.queue_number}</span>
-                            <Badge variant="success" className="text-xs">Ready</Badge>
+                            <Badge variant="success" className="text-xs">
+                              Ready
+                            </Badge>
                           </div>
                           <p className="font-medium text-sm">
                             {entry.patient?.first_name} {entry.patient?.last_name}
@@ -423,7 +461,10 @@ export default function QueueManagementPage() {
                 ) : (
                   <div className="space-y-3">
                     {calledPatients.map((entry: QueueEntry) => (
-                      <div key={entry.id} className="p-3 rounded-lg border bg-info/5 border-info/20">
+                      <div
+                        key={entry.id}
+                        className="p-3 rounded-lg border bg-info/5 border-info/20"
+                      >
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-bold text-lg">#{entry.queue_number}</span>
                           {getStatusBadge(entry.status)}
@@ -432,7 +473,8 @@ export default function QueueManagementPage() {
                           {entry.patient?.first_name} {entry.patient?.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground mb-3">
-                          Called {formatDistanceToNow(new Date(entry.called_time!), { addSuffix: true })}
+                          Called{' '}
+                          {formatDistanceToNow(new Date(entry.called_time!), { addSuffix: true })}
                         </p>
                         <Button
                           size="sm"
@@ -468,7 +510,10 @@ export default function QueueManagementPage() {
                 ) : (
                   <div className="space-y-3">
                     {inServicePatients.map((entry: QueueEntry) => (
-                      <div key={entry.id} className="p-3 rounded-lg border bg-success/5 border-success/20">
+                      <div
+                        key={entry.id}
+                        className="p-3 rounded-lg border bg-success/5 border-success/20"
+                      >
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-bold text-lg">#{entry.queue_number}</span>
                           {getStatusBadge(entry.status)}
@@ -477,7 +522,10 @@ export default function QueueManagementPage() {
                           {entry.patient?.first_name} {entry.patient?.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground mb-3">
-                          Started {formatDistanceToNow(new Date(entry.service_start_time!), { addSuffix: true })}
+                          Started{' '}
+                          {formatDistanceToNow(new Date(entry.service_start_time!), {
+                            addSuffix: true,
+                          })}
                         </p>
                         <Button
                           size="sm"
@@ -499,10 +547,7 @@ export default function QueueManagementPage() {
         </div>
       </div>
 
-      <WalkInRegistrationModal
-        open={isWalkInModalOpen}
-        onOpenChange={setIsWalkInModalOpen}
-      />
+      <WalkInRegistrationModal open={isWalkInModalOpen} onOpenChange={setIsWalkInModalOpen} />
 
       {/* Vitals Modal */}
       <RecordVitalsModal
@@ -516,19 +561,21 @@ export default function QueueManagementPage() {
       />
 
       {/* Complete Service Confirmation */}
-      <AlertDialog open={canManageQueue && !!confirmCompleteId} onOpenChange={(open) => !open && setConfirmCompleteId(null)}>
+      <AlertDialog
+        open={canManageQueue && !!confirmCompleteId}
+        onOpenChange={(open) => !open && setConfirmCompleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Complete Service?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark the patient's service as completed and remove them from the active queue. This action cannot be undone.
+              This will mark the patient's service as completed and remove them from the active
+              queue. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmComplete}>
-              Complete Service
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmComplete}>Complete Service</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
