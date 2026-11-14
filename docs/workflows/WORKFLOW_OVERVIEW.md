@@ -1,4 +1,11 @@
-# CareSync HIMS - Role-Based Workflows & User Journeys
+# CareHarmony HIMS - Role-Based Workflows & User Journeys
+
+> [!NOTE]
+> **Pre-ADR-0012 workflows.** These journeys predate ADR-0012 (hybrid queue),
+> ADR-0013 (offline-first nursing queue), ADR-0014 (concurrent discharge staging)
+> and ADR-0015 (moderated portal booking). Where they differ, the ADRs and
+> [PRODUCT_GUIDE.md §3](../PRODUCT_GUIDE.md#3-the-end-to-end-patient-journey) are
+> authoritative.
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026
@@ -9,15 +16,15 @@
 
 ### Index to Workflow Documents
 
-| Role | Workflows | Pages | Document |
-|------|-----------|-------|----------|
-| **Patient** | Self-serve portal, book appointments, view records | 3-5 | [Patient Workflows](./patient.md) |
-| **Receptionist** | Appointments, check-in, insurance verification | 4-6 | [Receptionist Workflows](./receptionist.md) |
-| **Doctor** | Consultations, orders, approvals | 5-8 | [Doctor Workflows](./doctor.md) |
-| **Nurse** | Vital signs, medication admin, care plans | 4-7 | [Nurse Workflows](./nurse.md) |
-| **Pharmacist** | Dispensing, inventory, drug interactions | 3-5 | [Pharmacist Workflows](./pharmacist.md) |
-| **Lab Technician** | Specimen collection, results entry, QC | 3-5 | [Lab Tech Workflows](./lab_technician.md) |
-| **Admin** | User management, settings, compliance | 6-10 | [Admin Workflows](./admin.md) |
+| Role               | Workflows                                          | Pages | Document                                    |
+| ------------------ | -------------------------------------------------- | ----- | ------------------------------------------- |
+| **Patient**        | Self-serve portal, book appointments, view records | 3-5   | [Patient Workflows](./patient.md)           |
+| **Receptionist**   | Appointments, check-in, insurance verification     | 4-6   | [Receptionist Workflows](./receptionist.md) |
+| **Doctor**         | Consultations, orders, approvals                   | 5-8   | [Doctor Workflows](./doctor.md)             |
+| **Nurse**          | Vital signs, medication admin, care plans          | 4-7   | [Nurse Workflows](./nurse.md)               |
+| **Pharmacist**     | Dispensing, inventory, drug interactions           | 3-5   | [Pharmacist Workflows](./pharmacist.md)     |
+| **Lab Technician** | Specimen collection, results entry, QC             | 3-5   | [Lab Tech Workflows](./lab_technician.md)   |
+| **Admin**          | User management, settings, compliance              | 6-10  | [Admin Workflows](./admin.md)               |
 
 ---
 
@@ -113,7 +120,7 @@ DOCTOR: Reviews prescription
 DOCTOR: E-signs (timestamp + cryptographic signature)
 STATUS: Signed
     ↓
-SYSTEM: 
+SYSTEM:
   - Notifications: Pharmacist + Patient ("Rx ready at pharmacy")
   - Audit log: Doctor signature + timestamp
     ↓
@@ -320,13 +327,13 @@ If override justified:
 
 ### Common Issues & Resolutions
 
-| Issue | Root Cause | Resolution |
-|-------|-----------|-----------|
-| Doctor can't see patient allergies | Allergies not entered during registration | Receptionist updates allergies BEFORE consultation |
-| Prescription won't go through | Drug not in hospital formulary | Doctor selects alternative or requests exception |
-| Lab results not appearing | Lab tech hasn't entered results | Check lab analyzer status; if down, manual entry needed |
-| Critical value alert not sent | Doctor's phone # not in system | Admin updates contact info immediately |
-| Patient says appointment was cancelled but system shows scheduled | Patient no-show not marked | Manual review + communication with patient |
+| Issue                                                             | Root Cause                                | Resolution                                              |
+| ----------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------- |
+| Doctor can't see patient allergies                                | Allergies not entered during registration | Receptionist updates allergies BEFORE consultation      |
+| Prescription won't go through                                     | Drug not in hospital formulary            | Doctor selects alternative or requests exception        |
+| Lab results not appearing                                         | Lab tech hasn't entered results           | Check lab analyzer status; if down, manual entry needed |
+| Critical value alert not sent                                     | Doctor's phone # not in system            | Admin updates contact info immediately                  |
+| Patient says appointment was cancelled but system shows scheduled | Patient no-show not marked                | Manual review + communication with patient              |
 
 ---
 
@@ -334,24 +341,24 @@ If override justified:
 
 ### Service Level Agreements (SLAs)
 
-| Workflow Event | Target Time | Hard Limit |
-|---|---|---|
-| Check-in to vitals done | 10 min | 15 min |
-| Patient checked in to doctor starting visit | 30 min | 45 min |
-| Consultation completion to discharge | 20 min | 30 min |
-| Lab critical value → Doctor alert | 1 min | 5 min |
-| Lab critical value → Doctor acknowledgment | 15 min | 30 min |
-| Prescription signed to pharmacist notification | 30 sec | 1 min |
-| Pharmacist dispense to patient notification | 5 min | 10 min |
-| Patient self-book verification email | 10 sec | 30 sec |
+| Workflow Event                                 | Target Time | Hard Limit |
+| ---------------------------------------------- | ----------- | ---------- |
+| Check-in to vitals done                        | 10 min      | 15 min     |
+| Patient checked in to doctor starting visit    | 30 min      | 45 min     |
+| Consultation completion to discharge           | 20 min      | 30 min     |
+| Lab critical value → Doctor alert              | 1 min       | 5 min      |
+| Lab critical value → Doctor acknowledgment     | 15 min      | 30 min     |
+| Prescription signed to pharmacist notification | 30 sec      | 1 min      |
+| Pharmacist dispense to patient notification    | 5 min       | 10 min     |
+| Patient self-book verification email           | 10 sec      | 30 sec     |
 
 ### Capacity Constraints
 
-| Resource | Capacity | Utilization Target |
-|---|---|---|
-| Doctor appointment slots | 40/day (15-min slots) | 85% (34 appointments) |
-| Lab specimens/day | 500 | 90% (450) |
-| Pharmacy transactions/day | 1000 | 80% (800) |
+| Resource                  | Capacity              | Utilization Target    |
+| ------------------------- | --------------------- | --------------------- |
+| Doctor appointment slots  | 40/day (15-min slots) | 85% (34 appointments) |
+| Lab specimens/day         | 500                   | 90% (450)             |
+| Pharmacy transactions/day | 1000                  | 80% (800)             |
 
 ---
 

@@ -90,50 +90,45 @@ export function useReceptionistStats() {
       const endOfToday = endOfDay(today).toISOString();
 
       // Fetch all data in parallel
-      const [
-        appointmentsResult,
-        queueResult,
-        requestsResult,
-        invoicesResult,
-        paymentsResult,
-      ] = await Promise.all([
-        // Today's appointments
-        supabase
-          .from('appointments')
-          .select('id, status')
-          .eq('hospital_id', hospital.id)
-          .eq('scheduled_date', today.toISOString().split('T')[0]),
-        
-        // Queue entries for today
-        supabase
-          .from('patient_queue')
-          .select('id, status, check_in_time, service_start_time, service_end_time')
-          .eq('hospital_id', hospital.id)
-          .gte('created_at', startOfToday)
-          .lte('created_at', endOfToday),
-        
-        // Pending appointment requests
-        supabase
-          .from('appointment_requests')
-          .select('id')
-          .eq('hospital_id', hospital.id)
-          .eq('status', 'pending'),
-        
-        // Pending invoices
-        supabase
-          .from('invoices')
-          .select('id, total, paid_amount')
-          .eq('hospital_id', hospital.id)
-          .in('status', ['pending', 'partial']),
-        
-        // Today's payments
-        supabase
-          .from('payments')
-          .select('amount')
-          .eq('hospital_id', hospital.id)
-          .gte('payment_date', startOfToday)
-          .lte('payment_date', endOfToday),
-      ]);
+      const [appointmentsResult, queueResult, requestsResult, invoicesResult, paymentsResult] =
+        await Promise.all([
+          // Today's appointments
+          supabase
+            .from('appointments')
+            .select('id, status')
+            .eq('hospital_id', hospital.id)
+            .eq('scheduled_date', today.toISOString().split('T')[0]),
+
+          // Queue entries for today
+          supabase
+            .from('patient_queue')
+            .select('id, status, check_in_time, service_start_time, service_end_time')
+            .eq('hospital_id', hospital.id)
+            .gte('created_at', startOfToday)
+            .lte('created_at', endOfToday),
+
+          // Pending appointment requests
+          supabase
+            .from('appointment_requests')
+            .select('id')
+            .eq('hospital_id', hospital.id)
+            .eq('status', 'pending'),
+
+          // Pending invoices
+          supabase
+            .from('invoices')
+            .select('id, total, paid_amount')
+            .eq('hospital_id', hospital.id)
+            .in('status', ['pending', 'partial']),
+
+          // Today's payments
+          supabase
+            .from('payments')
+            .select('amount')
+            .eq('hospital_id', hospital.id)
+            .gte('payment_date', startOfToday)
+            .lte('payment_date', endOfToday),
+        ]);
 
       const appointments = appointmentsResult.data || [];
       const queue = queueResult.data || [];
@@ -142,12 +137,8 @@ export function useReceptionistStats() {
       const payments = paymentsResult.data || [];
 
       // Calculate stats
-      const todayAppointments = appointments.filter(
-        (a) => a.status === 'scheduled'
-      ).length;
-      const checkedIn = appointments.filter(
-        (a) => a.status === 'checked_in'
-      ).length;
+      const todayAppointments = appointments.filter((a) => a.status === 'scheduled').length;
+      const checkedIn = appointments.filter((a) => a.status === 'checked_in').length;
       const waitingInQueue = queue.filter((q) => q.status === 'waiting').length;
       const pendingRequests = requests.length;
       const completedToday = queue.filter((q) => q.status === 'completed').length;
@@ -197,13 +188,15 @@ export function usePendingAppointmentRequests() {
 
       const { data, error } = await supabase
         .from('appointment_requests')
-        .select(`
+        .select(
+          `
           *,
           patient:patients(id, first_name, last_name, mrn, phone),
           doctor:profiles!appointment_requests_doctor_id_fkey(id, first_name, last_name)
-        `)
+        `
+        )
         .eq('hospital_id', hospital.id)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'pending_confirmation'])
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -227,11 +220,13 @@ export function useScheduledAppointments() {
 
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
+        .select(
+          `
           *,
           patient:patients(id, first_name, last_name, mrn, phone),
           doctor:profiles!appointments_doctor_id_fkey(id, first_name, last_name)
-        `)
+        `
+        )
         .eq('hospital_id', hospital.id)
         .eq('scheduled_date', today)
         .eq('status', 'scheduled')

@@ -1,4 +1,4 @@
-# Pharmacist Workflow Guide — CareSync HIMS
+# Pharmacist Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -22,6 +22,7 @@
 ## Role Overview
 
 **Primary Responsibilities**:
+
 - Review prescriptions for safety & appropriateness
 - Check for drug interactions, allergies, contraindications
 - Approve or reject prescriptions
@@ -30,6 +31,7 @@
 - Track controlled substances
 
 **Permissions Held**:
+
 - `prescriptions:view_all` - See all prescriptions for hospital
 - `prescriptions:approve` - Approve or reject prescriptions
 - `prescriptions:modify_dose` - Suggest/make minor dose adjustments
@@ -39,6 +41,7 @@
 - `controlled_substances:track` - Manage Schedule II-V drugs
 
 **Cannot Do**:
+
 - Create prescriptions (only doctors/nurses)
 - View other hospitals' data
 - Change appointments or patient records (except medication info)
@@ -166,7 +169,7 @@ PHARMACY ASSESSMENT
 
 Pharmacist thinking:
 "49-year-old with T2DM,  newly diagnosed or dose adjustment?
-Normal renal/hepatic function. On ACE inhibitor & statin - 
+Normal renal/hepatic function. On ACE inhibitor & statin -
 good cardiovascular protection. Metformin appropriate first-line.
 Dose reasonable. No interactions. No contraindications."
 
@@ -192,8 +195,8 @@ License #: RPH-45732
 Approval Time: April 8, 2026, 2:13 PM
 
 Clinical Notes (optional):
-"Patient new to Metformin. Ensure counseling on 
-gastrointestinal side effects. Take with food. 
+"Patient new to Metformin. Ensure counseling on
+gastrointestinal side effects. Take with food.
 Monitor for lactic acidosis symptoms (rare)."
 
 [CONFIRM APPROVAL]
@@ -244,21 +247,21 @@ Issue: Significant drug interaction
 Prescriber's phone: [Auto-filled from system]
 
 Pharmacist calls:
-"Hi Dr. Lee, Susan from pharmacy calling about 
-Alice Johnson's prescription. I'm seeing both 
-Warfarin and Aspirin together. That combo increases 
-bleeding risk significantly. Did you want to keep both, 
+"Hi Dr. Lee, Susan from pharmacy calling about
+Alice Johnson's prescription. I'm seeing both
+Warfarin and Aspirin together. That combo increases
+bleeding risk significantly. Did you want to keep both,
 or did you mean to choose one?"
 
 Doctor responds:
 a) "Oh, that was a mistake - remove Aspirin"
    → Pharmacist updates: Reject Aspirin, approve Warfarin
-   
+
 b) "Yes, I want both - patient needs both"
    → Pharmacist documents: "Prescriber aware of interaction,
       approved despite major interaction. Patient on close monitoring."
    → Approve both with clinical note
-   
+
 c) "Let me check the chart and call you back"
    → Pharmacist waits for callback
 
@@ -310,7 +313,7 @@ Drug: Metformin
 + Current med: Alcohol (patient reports social use)
 = Increased lactic acidosis risk (rare but serious)
 
-RECOMMENDATION: 
+RECOMMENDATION:
 Advise patient to limit alcohol to <2 drinks/week
 Counsel on lactic acidosis symptoms
 
@@ -397,7 +400,7 @@ Pharmacy Tech Tom:
 ```
 Patient John Smith arrives at pharmacy pickup window:
 
-Pharmacy tech: "Hi, I have your prescription ready. 
+Pharmacy tech: "Hi, I have your prescription ready.
 Can I see your ID?"
 
 Patient shows ID.
@@ -412,13 +415,13 @@ Tech checks:
 ✓ Right medication, right quantity
 
 Tech explains:
-"This is Metformin 500mg. Take one tablet twice a day 
-with food. The information sheet inside has more details. 
+"This is Metformin 500mg. Take one tablet twice a day
+with food. The information sheet inside has more details.
 Any questions?"
 
 Patient: "What if I forget a dose?"
 
-Tech: "Take it as soon as you remember, unless it's 
+Tech: "Take it as soon as you remember, unless it's
 almost time for the next dose. Don't double dose."
 
 Record dispensing:
@@ -451,27 +454,27 @@ Pharmacist calls patient or patient visits window:
 
 METFORMIN COUNSELING
 
-Pharmacist: "Hi John, I'm Susan, the pharmacist. 
-I want to make sure you know how to use your 
+Pharmacist: "Hi John, I'm Susan, the pharmacist.
+I want to make sure you know how to use your
 Metformin safely and effectively."
 
 1. How to Take:
-   "This medication is taken TWICE daily - morning and evening. 
-    Take it WITH FOOD to reduce stomach upset. 
+   "This medication is taken TWICE daily - morning and evening.
+    Take it WITH FOOD to reduce stomach upset.
     Don't skip doses. The more consistent, the better it works."
-   
+
    Patient repeats: "Twice daily with food"
 
 2. Expected Effects:
-   "Metformin helps lower your blood sugar. 
-    It can take a few weeks to see full effect. 
+   "Metformin helps lower your blood sugar.
+    It can take a few weeks to see full effect.
     Keep taking it even if you feel fine."
 
 3. Side Effects (Common):
-   "Some people feel a bit of stomach upset, especially 
-    at first. That usually goes away. These are common 
+   "Some people feel a bit of stomach upset, especially
+    at first. That usually goes away. These are common
     and usually not serious. Take with food to help."
-   
+
    Common side effects:
    - Nausea/stomach upset (most common)
    - Diarrhea or constipation
@@ -485,11 +488,11 @@ Metformin safely and effectively."
     - Dizziness or lightheadedness
     - Severe abdominal pain
     → Call your doctor or go to ER
-    
+
     These could be signs of lactic acidosis (very rare)."
 
 5. Diet & Lifestyle:
-   "Metformin works best with healthy diet and exercise. 
+   "Metformin works best with healthy diet and exercise.
     Continue any dietary changes your doctor recommended."
 
 6. Interactions:
@@ -497,14 +500,14 @@ Metformin safely and effectively."
     Let us know if you start any new medications."
 
 7. Refills:
-   "You have 3 refills authorized. Call when you're low, 
+   "You have 3 refills authorized. Call when you're low,
     and we'll have it ready within 24 hours."
 
 8. Questions?
    "Do you have any questions about how to take this?"
-   
+
    Patient: "If I miss a dose, can I double up?"
-   Pharmacist: "No, just take the next dose as scheduled. 
+   Pharmacist: "No, just take the next dose as scheduled.
     Never double dose."
 
 Counseling documented:
@@ -546,11 +549,11 @@ Options:
 2. No refills remaining
    └─ Pharmacist calls doctor:
       "Dr. Chen, patient John Smith needs refill of Lisinopril 10mg.
-       Original prescription has no refills remaining. 
+       Original prescription has no refills remaining.
        Should I fill for another 90 days?"
-      
+
       Doctor: "Yes, 90 days, 3 refills"
-      
+
       Pharmacist enters new authorization
       Fills prescription
       Dispenses to patient
@@ -561,7 +564,7 @@ Options:
       ├─ Medication is essential (cardiac meds, diabetes, etc)
       ├─ Doctor unreachable (after hours, weekend)
       └─ Patient will pick up proper refill within 72 hours
-      
+
       Pharmacist documents:
       "Therapeutic refill: 72-hour emergency supply pending
        doctor authorization. Patient to return Monday for
@@ -584,18 +587,18 @@ Pharmacist concern:
 "This is 1000mg daily for an 8-year-old weighing 95 lbs.
 Standard peds dosing for amoxicillin is 25-45 mg/kg/day.
 For 43 kg: 43 × 25 = 1075 mg (upper range, OK)
-But this seems high for pediatric practice. 
+But this seems high for pediatric practice.
 Let me verify prescriber meant pediatric strength."
 
 Pharmacist calls doctor:
 "Dr. Lee, I have Amoxicillin 500mg for Charlie Brown, age 8.
-That's 1000mg daily total. Just want to confirm you meant 
+That's 1000mg daily total. Just want to confirm you meant
 this dosing for an 8-year-old?"
 
-Doctor: "Oh, let me check the chart... Yes, should be 
+Doctor: "Oh, let me check the chart... Yes, should be
 Amoxicillin ORAL SUSPENSION 250mg/5ml, one teaspoon twice daily."
 
-Pharmacist: "Got it, so 250mg twice daily, not 500mg tablets. 
+Pharmacist: "Got it, so 250mg twice daily, not 500mg tablets.
 I'll fill as oral suspension. That's about 5 ml twice daily."
 
 Pharmacist action:
@@ -663,6 +666,7 @@ Log entry:
 ---
 
 **Key Contact Numbers**:
+
 - Poison Control: 1-800-222-1222
 - DEA (suspicious scripts): 1-800-882-9539
 - State Board of Pharmacy: [varies by state]

@@ -25,6 +25,7 @@ import {
   Heart,
   ClipboardList,
   Stethoscope,
+  Send,
 } from 'lucide-react';
 import {
   useActiveQueue,
@@ -40,6 +41,7 @@ import { formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { RecordVitalsModal } from '@/components/nurse/RecordVitalsModal';
 import { PatientPrepChecklistCard } from '@/components/nurse/PatientPrepChecklistCard';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
+import { RoutePatientDialog } from '@/components/queue/RoutePatientDialog';
 import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
 
 export default function QueueManagementPage() {
@@ -65,6 +67,7 @@ export default function QueueManagementPage() {
   const [selectedQueueEntryForPrep, setSelectedQueueEntryForPrep] = useState<QueueEntry | null>(
     null
   );
+  const [routeEntry, setRouteEntry] = useState<QueueEntry | null>(null);
   const [confirmCompleteId, setConfirmCompleteId] = useState<string | null>(null);
 
   const canRecordVitals = permissions.can('vitals:write');
@@ -342,6 +345,13 @@ export default function QueueManagementPage() {
                               <p className="text-sm text-muted-foreground">
                                 {entry.patient?.mrn} • {entry.department || 'General'}
                               </p>
+                              {(entry.emergency_bypass || entry.triage_acuity === 'red') && (
+                                <Badge variant="destructive" className="mt-1">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  {entry.emergency_bypass ? 'Emergency bypass' : 'Red acuity'} —
+                                  pinned
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           <div className="text-right">
@@ -376,14 +386,24 @@ export default function QueueManagementPage() {
                             </>
                           )}
                           {canManageQueue && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCallNext(entry.id)}
-                            >
-                              <Bell className="h-4 w-4 mr-1" />
-                              Call
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCallNext(entry.id)}
+                              >
+                                <Bell className="h-4 w-4 mr-1" />
+                                Call
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setRouteEntry(entry)}
+                              >
+                                <Send className="h-4 w-4 mr-1" />
+                                Route
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -548,6 +568,12 @@ export default function QueueManagementPage() {
       </div>
 
       <WalkInRegistrationModal open={isWalkInModalOpen} onOpenChange={setIsWalkInModalOpen} />
+
+      <RoutePatientDialog
+        entry={routeEntry}
+        open={!!routeEntry}
+        onOpenChange={(open) => !open && setRouteEntry(null)}
+      />
 
       {/* Vitals Modal */}
       <RecordVitalsModal

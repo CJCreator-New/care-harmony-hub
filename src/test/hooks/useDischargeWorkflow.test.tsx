@@ -14,6 +14,8 @@ const createQueueBuilder = (rows: unknown[]) => {
   const builder = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    in: vi.fn(() => builder),
+    or: vi.fn(() => builder),
     order: vi.fn(async () => ({ data: rows, error: null })),
     single: vi.fn(async () => ({ data: rows[0] ?? null, error: null })),
   };

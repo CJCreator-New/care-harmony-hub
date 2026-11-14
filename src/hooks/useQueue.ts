@@ -23,6 +23,15 @@ export interface QueueEntry {
   service_end_time: string | null;
   notes: string | null;
   created_at: string;
+  // ADR-0012: hybrid orchestration (doctor pull / nurse push)
+  claimed_by_doctor_id: string | null;
+  claimed_at: string | null;
+  assigned_room: string | null;
+  triage_acuity: 'red' | 'amber' | 'green' | null;
+  emergency_bypass: boolean;
+  bypass_rationale: string | null;
+  routed_by: string | null;
+  routed_at: string | null;
   // Joined data
   patient?: {
     id: string;
@@ -55,6 +64,8 @@ export function useQueue(status?: QueueStatus[]) {
         `
         )
         .eq('hospital_id', hospital.id)
+        // ADR-0012 §3: emergency-pinned patients surface first, then acuity/priority.
+        .order('emergency_bypass', { ascending: false })
         .order('priority', { ascending: false })
         .order('queue_number', { ascending: true });
 
@@ -261,6 +272,121 @@ export function useCompleteService() {
     },
     onSuccess: () => {
       toast.success('Service completed');
+    },
+  });
+}
+
+function queueErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (message.includes('QUEUE_ENTRY_ALREADY_CLAIMED')) {
+    return 'Another clinician just claimed this patient.';
+  }
+  if (message.includes('QUEUE_ENTRY_NOT_CLAIMABLE')) {
+    return 'This patient is no longer claimable — refresh the queue.';
+  }
+  if (message.includes('QUEUE_ENTRY_NOT_ROUTABLE')) {
+    return 'This patient has already moved past the waiting queue.';
+  }
+  if (message.includes('BYPASS_RATIONALE_REQUIRED')) {
+    return 'An emergency triage bypass needs a clinical rationale (at least 5 characters).';
+  }
+  if (message.includes('FORBIDDEN_ROLE')) {
+    return 'Your role cannot perform this queue action.';
+  }
+  return message || 'Queue action failed';
+}
+
+/** On-duty doctors in the hospital, for the triage nurse routing selector. */
+export function useAvailableDoctors() {
+  const { hospital } = useAuth();
+
+  return useQuery({
+    queryKey: ['queue-doctors', hospital?.id],
+    queryFn: async () => {
+      if (!hospital?.id) return [];
+
+      const { data: doctorRoles, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('hospital_id', hospital.id)
+        .eq('role', 'doctor');
+
+      if (roleError) throw roleError;
+      const doctorUserIds = (doctorRoles ?? []).map((entry) => entry.user_id);
+      if (doctorUserIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, user_id, first_name, last_name, is_active')
+        .eq('hospital_id', hospital.id)
+        .eq('is_active', true)
+        .in('user_id', doctorUserIds)
+        .order('last_name', { ascending: true });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!hospital?.id,
+    staleTime: 60 * 1000,
+  });
+}
+
+/** ADR-0012: atomic doctor self-claim of the next waiting patient. */
+export function useClaimQueuePatient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (queueEntryId: string) => {
+      const { data, error } = await supabase.rpc('claim_queue_patient', {
+        p_entry_id: queueEntryId,
+      });
+
+      if (error) throw error;
+      return data as unknown as QueueEntry;
+    },
+    onSuccess: (entry) => {
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
+      toast.success(`Patient #${entry.queue_number} claimed — ready for consultation`);
+    },
+    onError: (error: Error) => {
+      toast.error(queueErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
+    },
+  });
+}
+
+/** ADR-0012: triage nurse push — assign doctor, room, acuity and audited bypass. */
+export function useRouteQueuePatient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      queueEntryId: string;
+      doctorId: string;
+      room?: string;
+      acuity?: 'red' | 'amber' | 'green';
+      emergencyBypass?: boolean;
+      bypassRationale?: string;
+    }) => {
+      const { data, error } = await supabase.rpc('route_queue_patient', {
+        p_entry_id: params.queueEntryId,
+        p_doctor_id: params.doctorId,
+        p_room: params.room ?? null,
+        p_acuity: params.acuity ?? null,
+        p_emergency_bypass: params.emergencyBypass ?? false,
+        p_bypass_rationale: params.bypassRationale ?? null,
+      });
+
+      if (error) throw error;
+      return data as unknown as QueueEntry;
+    },
+    onSuccess: (entry) => {
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
+      toast.success(`Patient #${entry.queue_number} routed to the doctor`);
+    },
+    onError: (error: Error) => {
+      toast.error(queueErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
     },
   });
 }

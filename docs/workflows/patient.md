@@ -1,4 +1,4 @@
-# Patient Portal Workflow Guide — CareSync HIMS
+# Patient Portal Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -25,6 +25,7 @@
 ### Creating Your Account
 
 **How to register**:
+
 1. Visit: `https://patient.caresync.local/register`
 2. Enter email address
 3. Verify email (click link in email)
@@ -62,12 +63,14 @@ First time? You'll see:
 ### Two-Factor Authentication (2FA)
 
 **Recommended for security**:
+
 1. Go to Settings → Security
 2. Click `[Enable 2FA]`
 3. Scan QR code with authenticator app (Google Authenticator, Authy, etc.)
 4. Enter 6-digit code to confirm
 
 **On login**:
+
 - After entering password, prompted for 6-digit code
 - Code changes every 30 seconds
 - If lost, use backup code (saved during setup)
@@ -113,17 +116,17 @@ First time? You'll see:
 
 ### Sidebar Menu
 
-| Section | What You Can Do |
-|---------|---|
-| **Dashboard** | Home, quick view of key info |
-| **Appointments** | View, book, reschedule, cancel |
-| **Medical Records** | View consultations, test results, prescriptions |
-| **Medications** | Track active drugs, refill requests, pharmacy contact |
-| **Lab Results** | View past and current test results |
-| **Billing** | View charges, invoices, make payments |
-| **Messages** | Read messages from doctors, nurses |
-| **Telemedicine** | Start video visit with doctor |
-| **Settings** | Account, notifications, insurance, emergency contact |
+| Section             | What You Can Do                                       |
+| ------------------- | ----------------------------------------------------- |
+| **Dashboard**       | Home, quick view of key info                          |
+| **Appointments**    | View, book, reschedule, cancel                        |
+| **Medical Records** | View consultations, test results, prescriptions       |
+| **Medications**     | Track active drugs, refill requests, pharmacy contact |
+| **Lab Results**     | View past and current test results                    |
+| **Billing**         | View charges, invoices, make payments                 |
+| **Messages**        | Read messages from doctors, nurses                    |
+| **Telemedicine**    | Start video visit with doctor                         |
+| **Settings**        | Account, notifications, insurance, emergency contact  |
 
 ---
 
@@ -196,6 +199,7 @@ After confirmation:
 ### Step 4: Pre-Visit Preparation
 
 **Before appointment**:
+
 1. Complete `[Pre-visit Form]` (opens 7 days before)
    - New symptoms since last visit?
    - Medication changes?
@@ -251,12 +255,12 @@ Pre-Visit Form for Dr. Sarah Chen (Cardiology)
    ├─ [ ] Dizziness
    ├─ [ ] Palpitations
    ├─ [ ] Other: ________
-   
+
    If yes, describe: [________________]
 
 3. New Medications?
    [ ] Yes [ ] No
-   
+
    If yes:
    ├─ Drug name: [__________]
    ├─ Dose: [__________]
@@ -264,7 +268,7 @@ Pre-Visit Form for Dr. Sarah Chen (Cardiology)
 
 4. Recent Hospitalizations?
    [ ] Yes [ ] No
-   
+
    If yes: [________________]
 
 5. Any Lab Work Done Recently?
@@ -279,12 +283,14 @@ Pre-Visit Form for Dr. Sarah Chen (Cardiology)
 ### What to Bring
 
 **In-Person Visits**:
+
 - Insurance card (front & back)
 - Photo ID (driver's license, passport)
 - List of current medications (or bring bottles)
 - Recent medical records from other doctors (if referring)
 
 **Telemedicine Visits**:
+
 - Stable internet connection
 - Well-lit room
 - Microphone & camera working
@@ -526,13 +532,13 @@ Visit runs like:
 
 ### Technical Issues
 
-| Issue | Fix |
-|-------|-----|
-| "No video" | Check camera is enabled in browser settings |
-| "No audio" | Check microphone enabled, not muted |
-| "Frozen video" | Refresh browser, rejoin meeting |
-| "Disconnected" | Reconnect to Wi-Fi, click [Rejoin] |
-| "Can't find appointment" | Check time zone, refresh page |
+| Issue                    | Fix                                         |
+| ------------------------ | ------------------------------------------- |
+| "No video"               | Check camera is enabled in browser settings |
+| "No audio"               | Check microphone enabled, not muted         |
+| "Frozen video"           | Refresh browser, rejoin meeting             |
+| "Disconnected"           | Reconnect to Wi-Fi, click [Rejoin]          |
+| "Can't find appointment" | Check time zone, refresh page               |
 
 ---
 
@@ -558,13 +564,13 @@ Language: [English ▼]
 
 ### Getting Help
 
-| Need | Contact | Response Time |
-|------|---------|---|
-| **Appointment issue** | Chat → Patient Support | <30 min |
-| **Billing question** | Billing department | 1-2 hours |
-| **Technical issue** | IT support link | 30 min |
-| **Medical question** | Message doctor | 24-48 hours |
-| **Emergency** | Call 911 or hospital hotline | Immediate |
+| Need                  | Contact                      | Response Time |
+| --------------------- | ---------------------------- | ------------- |
+| **Appointment issue** | Chat → Patient Support       | <30 min       |
+| **Billing question**  | Billing department           | 1-2 hours     |
+| **Technical issue**   | IT support link              | 30 min        |
+| **Medical question**  | Message doctor               | 24-48 hours   |
+| **Emergency**         | Call 911 or hospital hotline | Immediate     |
 
 ### Patient Support Chat
 
@@ -625,23 +631,27 @@ A: Contact billing department to discuss payment plan options.
 ## Privacy & Security
 
 ✅ **Your privacy is protected**:
+
 - All data encrypted in transit (HTTPS) and at rest
 - Hospital-specific isolation (can't see other hospital's patients)
 - Two-factor authentication available
 - Login attempts monitored
 
 ✅ **What you control**:
+
 - Who can see your records (family members can request access)
 - Communication preferences (email, SMS, app only)
 - Appointment notifications
 - Which doctors have access
 
 ❌ **Never share**:
+
 - Your login credentials
 - 2FA codes
 - Confirmation links from emails
 
 ✅ **Report security issues**:
+
 - Suspicious login? Click [Report Security Issue] or email: security@caresync.local
 - Unusual charge? Contact billing immediately
 

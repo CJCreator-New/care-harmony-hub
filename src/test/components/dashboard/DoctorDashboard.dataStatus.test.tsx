@@ -13,15 +13,25 @@ vi.mock('@/hooks/useAudit', () => ({ useAudit: () => ({ logActivity: vi.fn() }) 
 vi.mock('@/hooks/useSecureMessaging', () => ({ useUnreadMessagesCount: () => ({ data: 0 }) }));
 vi.mock('@/hooks/useDoctorStats', () => ({ useDoctorStats: vi.fn() }));
 vi.mock('@/lib/hooks/patients', () => ({ usePatientsReadyForDoctor: vi.fn() }));
-vi.mock('@/hooks/useQueue', () => ({ useActiveQueue: vi.fn(), useQueueRealtime: () => undefined }));
+vi.mock('@/hooks/useQueue', () => ({
+  useActiveQueue: vi.fn(),
+  useClaimQueuePatient: () => ({ mutate: vi.fn(), isPending: false }),
+  useQueueRealtime: () => undefined,
+}));
 vi.mock('@/hooks/useNurseWorkflow', () => ({ usePatientChecklists: () => ({ checklists: [] }) }));
 vi.mock('@/lib/hooks/appointments', () => ({
   useTodayAppointments: () => ({ data: [], isLoading: false, isError: false }),
   useLatestScheduledAppointments: () => ({ data: undefined }),
 }));
-vi.mock('@/components/consultations/StartConsultationModal', () => ({ StartConsultationModal: () => null }));
-vi.mock('@/components/workflow/EnhancedTaskManagement', () => ({ EnhancedTaskManagement: () => null }));
-vi.mock('@/components/analytics/StaffPerformanceMetrics', () => ({ StaffPerformanceMetrics: () => null }));
+vi.mock('@/components/consultations/StartConsultationModal', () => ({
+  StartConsultationModal: () => null,
+}));
+vi.mock('@/components/workflow/EnhancedTaskManagement', () => ({
+  EnhancedTaskManagement: () => null,
+}));
+vi.mock('@/components/analytics/StaffPerformanceMetrics', () => ({
+  StaffPerformanceMetrics: () => null,
+}));
 
 const mockedStats = vi.mocked(useDoctorStats);
 const mockedReady = vi.mocked(usePatientsReadyForDoctor);
@@ -32,7 +42,14 @@ const refetchReady = vi.fn();
 const refetchQueue = vi.fn();
 
 function setQueries({
-  stats = { todaysPatients: 4, completedConsultations: 2, pendingLabs: 1, pendingLabReviews: 0, pendingPrescriptions: 0, pendingFollowUps: 0 } as Record<string, number> | undefined,
+  stats = {
+    todaysPatients: 4,
+    completedConsultations: 2,
+    pendingLabs: 1,
+    pendingLabReviews: 0,
+    pendingPrescriptions: 0,
+    pendingFollowUps: 0,
+  } as Record<string, number> | undefined,
   statsError = false,
   ready = [] as unknown[] | undefined,
   readyError = false,
@@ -111,7 +128,16 @@ describe('DoctorDashboard data states', () => {
   });
 
   it('shows real counts and empty wording only when every query succeeded', () => {
-    setQueries({ stats: { todaysPatients: 0, completedConsultations: 0, pendingLabs: 0, pendingLabReviews: 0, pendingPrescriptions: 0, pendingFollowUps: 0 } });
+    setQueries({
+      stats: {
+        todaysPatients: 0,
+        completedConsultations: 0,
+        pendingLabs: 0,
+        pendingLabReviews: 0,
+        pendingPrescriptions: 0,
+        pendingFollowUps: 0,
+      },
+    });
     render(<DoctorDashboard />);
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

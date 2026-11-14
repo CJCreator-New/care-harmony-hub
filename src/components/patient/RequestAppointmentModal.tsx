@@ -94,7 +94,7 @@ export function RequestAppointmentModal({ open, onOpenChange }: RequestAppointme
   });
 
   const onSubmit = async (data: FormData) => {
-    await (createRequest as any).mutateAsync({
+    await createRequest.mutateAsync({
       preferred_date: format(data.preferred_date, 'yyyy-MM-dd'),
       preferred_time: data.preferred_time,
       alternate_date: data.alternate_date ? format(data.alternate_date, 'yyyy-MM-dd') : undefined,

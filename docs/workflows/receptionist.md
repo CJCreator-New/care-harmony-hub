@@ -1,4 +1,4 @@
-# Receptionist Workflow Guide — CareSync HIMS
+# Receptionist Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -24,6 +24,7 @@
 **Primary Responsibility**: Patient check-in, appointment coordination, insurance verification
 
 **Permissions Held**:
+
 - `appointments:view_all` - See all hospital appointments
 - `appointments:update_status` - Change appointment status (scheduled → checked_in)
 - `patients:view` - View patient information
@@ -33,6 +34,7 @@
 - `hospital:view_queue` - See patient queue in real-time
 
 **Cannot Do**:
+
 - View medical records/consultations
 - Create prescriptions
 - Order labs
@@ -47,7 +49,7 @@
 ### Login & Dashboard
 
 ```
-1. Login to CareSync at 7:45 AM (before clinic opens)
+1. Login to CareHarmony at 7:45 AM (before clinic opens)
    └─ Receptionist-specific dashboard loads
 
 2. Dashboard shows:
@@ -100,6 +102,7 @@ Typical hourly pattern:
 ### Pre-Arrival Preparation
 
 **One day before appointment**:
+
 ```
 System automatically:
 ├─ Sends patient SMS reminder (if opted in)
@@ -109,6 +112,7 @@ System automatically:
 ```
 
 **Receptionist reviews**:
+
 ```
 For each appointment tomorrow:
 ├─ Patient has confirmed phone number? (call if not)
@@ -145,7 +149,7 @@ System shows:
 
 ```
 Receptionist:
-"I see you have an appointment with Dr. Chen at 2 PM. 
+"I see you have an appointment with Dr. Chen at 2 PM.
 Can I see your insurance card and ID?"
 
 Patient provides:
@@ -224,7 +228,7 @@ Expected wait: 10 minutes
 Please have a seat"
 
 Receptionist tells patient:
-"Thank you! The nurse will call for you shortly. 
+"Thank you! The nurse will call for you shortly.
 Please have a seat in the waiting room."
 ```
 
@@ -326,7 +330,7 @@ If cancel within 24 hours:
   "Cancellation fee: $25 (waived if first time)"
 
 Receptionist tells patient:
-"Your appointment is canceled. 
+"Your appointment is canceled.
 Feel free to call back to reschedule."
 
 System:
@@ -544,10 +548,10 @@ Options:
 a) New insurance verified → Continue check-in
 b) Insurance invalid → Tell patient:
    "It looks like your insurance isn't coming through.
-    When you're done with your visit, can you call 
-    your insurance company? We'll process the bill 
+    When you're done with your visit, can you call
+    your insurance company? We'll process the bill
     after they confirm coverage."
-c) No insurance → Proceed with appointment, 
+c) No insurance → Proceed with appointment,
    patient pays out-of-pocket or sets up payment plan
 ```
 
@@ -559,20 +563,20 @@ Walk-in patient arrives: "Can I see a doctor today?"
 Receptionist:
 1. Checks today's schedule:
    └─ All doctors fully booked with only 5 min breaks
-   
+
 2. Checks tomorrow:
    └─ Dr. Lee has opening at 10 AM tomorrow
-   
+
 3. Offers patient:
    "I'm sorry, all doctors are booked today.
     I can fit you in tomorrow at 10 AM with Dr. Lee.
     Does that work?"
-   
+
    If Yes:
    ├─ Create appointment for tomorrow 10 AM
    ├─ Take patient's phone number for confirmation
    └─ Provide check-in confirmation
-   
+
    If No:
    ├─ Offer urgent care referral (if medically urgent)
    ├─ Take patient name, call when next opening
@@ -588,19 +592,19 @@ Patient not checked in
 
 Receptionist:
 1. At 2:10 PM, calls patient:
-   "Hi John, just confirming your appointment 
+   "Hi John, just confirming your appointment
     is at 2 PM today. Are you running late?"
-   
+
    If patient answers:
    a) "I forgot, can I reschedule?"
       └─ Reschedule to available slot
-   
+
    b) "I'm on my way, be there in 5 min"
       └─ Note in system, wait
-   
+
    c) No answer
       └─ Leave voicemail, try again at 2:20 PM
-   
+
    d) "I'm not coming" (cancels)
       └─ Mark as "Patient Cancellation", free up slot
 
@@ -621,16 +625,17 @@ Receptionist:
 
 Receptionists are tracked on:
 
-| Metric | Target | How Used |
-|--------|--------|----------|
-| Check-in accuracy | 100% | No data entry errors |
-| Insurance verification rate | 95%+ | Done before check-in |
-| Average check-in time | < 3 min | Patient satisfaction |
-| Patient arrival on time | > 90% | Appointment adherence |
-| Patient satisfaction (receptionist) | 4.5/5 stars | Quality of service |
-| No-show follow-up | 24 hours | Retention |
+| Metric                              | Target      | How Used              |
+| ----------------------------------- | ----------- | --------------------- |
+| Check-in accuracy                   | 100%        | No data entry errors  |
+| Insurance verification rate         | 95%+        | Done before check-in  |
+| Average check-in time               | < 3 min     | Patient satisfaction  |
+| Patient arrival on time             | > 90%       | Appointment adherence |
+| Patient satisfaction (receptionist) | 4.5/5 stars | Quality of service    |
+| No-show follow-up                   | 24 hours    | Retention             |
 
 Monthly reporting:
+
 ```
 Receptionist Performance Report – April 2026
 
@@ -646,16 +651,16 @@ No-shows handled: 12 follow-ups completed ✓
 
 ## Quick Reference
 
-| Need | Action |
-|------|--------|
-| Check-in patient | [Check-In] search by name, verify insurance, confirm details |
-| Reschedule appt | [Appointments] click patient, [Reschedule], select new time |
-| Cancel appt | [Appointments] click patient, [Cancel], select reason |
-| New patient | [New Patient] collect info, create record, send welcome packet |
-| Insurance issue | Call patient ASAP, explain situation, offer options |
-| Patient late | Call at 10 min, confirm they're coming, note ETA |
-| No-show | Call at check-in time, if no answer, mark no-show at 30 min mark |
-| Walk-in | Check availability, schedule if open, offer other times if full |
+| Need             | Action                                                           |
+| ---------------- | ---------------------------------------------------------------- |
+| Check-in patient | [Check-In] search by name, verify insurance, confirm details     |
+| Reschedule appt  | [Appointments] click patient, [Reschedule], select new time      |
+| Cancel appt      | [Appointments] click patient, [Cancel], select reason            |
+| New patient      | [New Patient] collect info, create record, send welcome packet   |
+| Insurance issue  | Call patient ASAP, explain situation, offer options              |
+| Patient late     | Call at 10 min, confirm they're coming, note ETA                 |
+| No-show          | Call at check-in time, if no answer, mark no-show at 30 min mark |
+| Walk-in          | Check availability, schedule if open, offer other times if full  |
 
 ---
 

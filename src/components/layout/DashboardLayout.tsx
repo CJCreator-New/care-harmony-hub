@@ -9,6 +9,7 @@ import { GroupedSidebar } from './GroupedSidebar';
 import { Breadcrumb } from '@/components/navigation/Breadcrumb';
 import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
 import { ConnectionStatusBanner } from '@/components/admin/ConnectionStatusBanner';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { CriticalLabAlertBanner } from '@/components/labs/CriticalLabAlertBanner';
 import { CriticalResultSafeguardBanner } from '@/components/safety/CriticalResultSafeguardBanner';
 import { useCriticalLabAlerts } from '@/hooks/useCriticalLabAlerts';
@@ -362,6 +363,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Realtime Connection Status Banner */}
       <ConnectionStatusBanner logToDatabase={true} showOnlyWhenDisconnected={true} position="top" />
+      <OfflineBanner />
 
       {/* Main content */}
       {/* BUG-37: Use transition-[padding-left] instead of transition-all to avoid creating a GPU

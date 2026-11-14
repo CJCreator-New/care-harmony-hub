@@ -42,6 +42,15 @@ export {
 export { OFFLINE_DB_NAME, createIndexedDbOfflineAdapter } from './adapters/indexedDb';
 export { createMemoryOfflineAdapter } from './adapters/memory';
 export { ALL_LEGACY_KEYS as LEGACY_OFFLINE_STORAGE_KEYS } from './lib/legacy';
+export {
+  OFFLINE_QUEUE_ALLOWED_TABLES,
+  OfflineActionBlockedError,
+  assertOnlineForCriticalAction,
+  isOfflineReplayAllowed,
+  normalizeOfflineTable,
+  type CriticalOfflineAction,
+  type OfflineQueueAllowedTable,
+} from './lib/actionPolicy';
 
 const browserStorage = (): Storage | null => {
   try {

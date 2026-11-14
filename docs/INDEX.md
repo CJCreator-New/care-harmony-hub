@@ -3,19 +3,22 @@
 Last reviewed: 2026-11-13. Audit reports, dated status reports, superseded plans and
 duplicate guides have been removed. Only the documents listed below are kept.
 
+## Start here
+
+- [PRODUCT_GUIDE.md](./PRODUCT_GUIDE.md) — **consolidated end-to-end guide**: product,
+  roles, patient journey, architecture, local setup, testing, operations, ADR register
+  and the known documentation gaps (read this first)
+
 ## Architecture decisions
 
 - [adr/](./adr) — accepted architecture decision records (ADR-0001 to ADR-0015)
 
 ## Product and engineering reference
 
-- [DATABASE.md](./DATABASE.md) — schema, tables and relationships
 - [RBAC_PERMISSIONS.md](./RBAC_PERMISSIONS.md) — roles, permissions and access control
-- [product/SYSTEM_ARCHITECTURE.md](./product/SYSTEM_ARCHITECTURE.md) — system design
-- [product/DATA_MODEL.md](./product/DATA_MODEL.md) — data model and database schema
-- [product/API_REFERENCE.md](./product/API_REFERENCE.md) — edge functions and endpoints
-- [product/BACKEND_DEVELOPMENT.md](./product/BACKEND_DEVELOPMENT.md) — backend guide
-- [product/FRONTEND_DEVELOPMENT.md](./product/FRONTEND_DEVELOPMENT.md) — frontend guide
+- [product/SYSTEM_ARCHITECTURE.md](./product/SYSTEM_ARCHITECTURE.md) — system design and Supabase-native deployment model
+- [product/DATA_MODEL.md](./product/DATA_MODEL.md) — consolidated data model, core schema and relationships
+- [product/FRONTEND_DEVELOPMENT.md](./product/FRONTEND_DEVELOPMENT.md) — frontend architecture and patterns
 - [product/DEVELOPMENT_STANDARDS.md](./product/DEVELOPMENT_STANDARDS.md) — coding standards
 - [product/FORMS_DEVELOPMENT_GUIDE.md](./product/FORMS_DEVELOPMENT_GUIDE.md) — standardized form patterns
 - [product/FORMS_QUICK_REFERENCE.md](./product/FORMS_QUICK_REFERENCE.md) — forms quick reference

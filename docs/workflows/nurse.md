@@ -1,4 +1,4 @@
-# Nurse Workflow Guide — CareSync HIMS
+# Nurse Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -21,7 +21,8 @@
 
 ## Role Overview
 
-**Primary Responsibilities**: 
+**Primary Responsibilities**:
+
 - Patient vital signs collection
 - Pre-consultation patient preparation
 - Medication administration & observation
@@ -29,6 +30,7 @@
 - Monitoring for clinical changes
 
 **Permissions Held**:
+
 - `vital_signs:create` - Record patient vital signs
 - `vital_signs:read` - View patient vitals
 - `patients:view` - View patient information & history
@@ -38,6 +40,7 @@
 - `alerts:acknowledge` - Acknowledge and respond to alerts
 
 **Cannot Do**:
+
 - View other hospitals' data
 - Create diagnoses or assessments
 - Order labs or prescriptions
@@ -108,7 +111,7 @@ Nurse: "John Smith?"
 Patient stands and responds
 
 Nurse:
-"Hi John, I'm Sarah, your nurse today. 
+"Hi John, I'm Sarah, your nurse today.
 Let's get you to your room and take some measurements."
 
 Actions:
@@ -118,7 +121,7 @@ Actions:
 4. Ask if bathroom access needed
 5. Offer water
 6. Explain what's happening:
-   "I'm going to take your temperature, blood pressure, 
+   "I'm going to take your temperature, blood pressure,
     and heart rate. This takes about 5 minutes."
 ```
 
@@ -139,14 +142,14 @@ Starting vital signs collection:
    [ ] Oral thermometer (most common)
    [ ] Temporal (forehead scan)
    [ ] Tympanic (ear)
-   
+
    Result: 98.6°F ✓ Normal
 
 2. Blood Pressure (left arm):
    Systolic: 138 mmHg
    Diastolic: 88 mmHg
    → ⚠️ ELEVATED (normal < 120/80)
-   
+
    Nurse note: "Patient reports usual BP is 120s/80s"
 
 3. Heart Rate (pulse):
@@ -283,8 +286,8 @@ Nurse visits doctor before patient consultation:
 
 "Dr. Chen, I wanted to let you know about John Smith in room 304.
 His blood pressure is elevated (158/95), which is unusual for him.
-He reports his usual is 120s/80s. Otherwise, vitals stable, 
-patient feels well, denies chest pain. 
+He reports his usual is 120s/80s. Otherwise, vitals stable,
+patient feels well, denies chest pain.
 But wanted you to be aware."
 
 Doctor's options:
@@ -335,14 +338,14 @@ Before giving medication, nurse:
 ```
 Patient in room, medication ready:
 
-Nurse: "John, the doctor prescribed Amoxicillin 
-500mg for your infection. You'll take this orally 
+Nurse: "John, the doctor prescribed Amoxicillin
+500mg for your infection. You'll take this orally
 (by mouth) twice daily with food for 7 days."
 
 Patient: "Okay, any side effects I should know about?"
 
-Nurse: "Most common is an upset stomach if taken without food. 
-Take with breakfast and dinner. If you develop a rash, 
+Nurse: "Most common is an upset stomach if taken without food.
+Take with breakfast and dinner. If you develop a rash,
 stop and call us immediately - you may be allergic."
 
 Patient takes medication with water.
@@ -385,7 +388,7 @@ Nurse observes for 5-10 minutes:
 
 Patient education:
 "Let me know if you feel anything unusual.
-We'll be monitoring you. Likely you'll be 
+We'll be monitoring you. Likely you'll be
 fine - most people tolerate Amoxicillin well."
 
 If adverse reaction occurs:
@@ -409,7 +412,7 @@ If adverse reaction occurs:
 
 ```
 Doctor to patient:
-"You're all set. The nurse will give you 
+"You're all set. The nurse will give you
 discharge instructions."
 
 Nurse visits patient with discharge packet containing:
@@ -429,17 +432,17 @@ Nurse visits patient with discharge packet containing:
 Nurse reviews with patient:
 
 1. Medications:
-   "You're taking Amoxicillin. Take it TWICE daily 
-    with food for 7 days total. 
+   "You're taking Amoxicillin. Take it TWICE daily
+    with food for 7 days total.
     Do NOT skip doses even if you feel better.
     Take all 7 days."
-   
+
    Patient repeats back: "Twice daily with food for 7 days."
-   
+
    Nurse: "Correct! Any questions?"
 
 2. Activity:
-   "Rest today. Avoid strenuous exercise for 3 days. 
+   "Rest today. Avoid strenuous exercise for 3 days.
     OK to do light activity like walking."
 
 3. Diet:
@@ -457,7 +460,7 @@ Nurse reviews with patient:
     - Any concerns"
 
 6. Follow-up:
-   "You have a follow-up with Dr. Chen in 1 week. 
+   "You have a follow-up with Dr. Chen in 1 week.
     You should receive a confirmation call tomorrow."
 
 Patient signs discharge form acknowledging:
@@ -535,14 +538,14 @@ Nurse sees alert: 🔴 Alice Johnson - TEMP 103.2°F
 Nurse action:
 1. Immediately assesses patient:
    "How are you feeling? Any chills?"
-   
+
 2. Takes repeat temperature:
    "Yes, confirmed 103.2°F"
 
 3. Notifies doctor stat:
    [Alerts] → [Critical] → [Alice Johnson - FEVER]
    → [Notify Doctor]
-   
+
    System sends:
    - Alert to doctor's pager
    - Alert to doctor's station
@@ -551,14 +554,14 @@ Nurse action:
 
 4. Documents assessment:
    "Patient reports feeling hot and has body aches.
-    Vitals: Temp 103.2°F (confirmed repeat), 
+    Vitals: Temp 103.2°F (confirmed repeat),
     HR 98, BP 125/82, RR 18, O2 98%.
     Patient alert and oriented, in mild distress.
     Doctor contacted."
 
 5. Escalation if needed:
-   If patient's condition worsens (becomes altered, 
-   difficult breathing, chest pain), don't wait for 
+   If patient's condition worsens (becomes altered,
+   difficult breathing, chest pain), don't wait for
    doctor - page doctor STAT and consider ER transfer
 ```
 
@@ -614,17 +617,17 @@ Nurse assessment:
 5. Any numbness/weakness? "No, just pain"
 
 Nurse documents:
-"Patient reports acute lower back pain 9/10 severity, 
-started yesterday after lifting, worsens with movement. 
-No numbness/weakness. Patient in moderate distress, 
+"Patient reports acute lower back pain 9/10 severity,
+started yesterday after lifting, worsens with movement.
+No numbness/weakness. Patient in moderate distress,
 grimacing. On pain scale 9/10.
 Alert: Possible muscle strain vs disc issue - needs assessment."
 
 Nurse notifies doctor:
-"Dr. Chen, patient reports severe lower back pain started 
-yesterday after lifting. He rates it 9/10. I don't see 
-numbness or weakness, but significant pain with movement. 
-Should we proceed with consultation or do we need 
+"Dr. Chen, patient reports severe lower back pain started
+yesterday after lifting. He rates it 9/10. I don't see
+numbness or weakness, but significant pain with movement.
+Should we proceed with consultation or do we need
 X-ray first?"
 
 Doctor response:
@@ -642,12 +645,12 @@ Patient trembling during blood pressure check:
 
 Patient: "I get nervous at the doctor's office."
 
-Nurse recognizes: Vital signs will be artificially elevated 
+Nurse recognizes: Vital signs will be artificially elevated
 (anxiety can raise BP/HR significantly)
 
 Nurse action:
 1. Reassure patient:
-   "This is normal, many people feel anxious here. 
+   "This is normal, many people feel anxious here.
     Deep breathing helps. Let's try it."
 
 2. Demonstrate deep breathing:
@@ -656,11 +659,11 @@ Nurse action:
     Let's do that a few times."
 
 3. Pause vitals for 3-5 min:
-   "Let me give you a minute to relax, then I'll 
+   "Let me give you a minute to relax, then I'll
     retake your Blood pressure."
 
 4. Retake BP/HR after patient calmed:
-   "See how your BP is better now? That's your 
+   "See how your BP is better now? That's your
     actual reading when you're relaxed."
 
 5. Document:
@@ -670,8 +673,8 @@ Nurse action:
     Note: Patient has white coat hypertension."
 
 6. Alert doctor:
-   "Dr. Chen, FYI patient reports office anxiety. 
-    Initial BP was up but normalized after relaxation. 
+   "Dr. Chen, FYI patient reports office anxiety.
+    Initial BP was up but normalized after relaxation.
     Final BP 128/80."
 ```
 
@@ -725,14 +728,14 @@ System records shift hand-off:
 
 Nurses tracked on:
 
-| Metric | Target |
-|--------|--------|
-| Vital signs accuracy | 100% |
-| Time to collect vitals | < 5 min |
-| Patient satisfaction | 4.6/5 stars |
-| Critical value detection | 100% |
-| Medication admin errors | 0 |
-| Patient education completion | 100% |
+| Metric                       | Target      |
+| ---------------------------- | ----------- |
+| Vital signs accuracy         | 100%        |
+| Time to collect vitals       | < 5 min     |
+| Patient satisfaction         | 4.6/5 stars |
+| Critical value detection     | 100%        |
+| Medication admin errors      | 0           |
+| Patient education completion | 100%        |
 
 ---
 

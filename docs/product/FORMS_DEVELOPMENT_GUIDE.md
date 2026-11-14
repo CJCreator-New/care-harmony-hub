@@ -1,11 +1,20 @@
+# CareHarmony HIMS: Standardized Forms Development Guide
 
-# CareSync HIMS: Standardized Forms Development Guide
+> [!WARNING]
+> **Partially outdated (reviewed 2026-11-13).** Examples importing from
+> `@/lib/schemas/formValidation` no longer resolve — that module does not exist.
+> The current pattern is: a Zod 4 schema declared next to the form,
+> `zodResolver` from `@hookform/resolvers` v7, `useForm` typed as
+> `useForm<z.input<S>, unknown, z.output<S>>`, and
+> `@/components/common/FormField` for label/error/aria wiring.
+> See [PRODUCT_GUIDE.md](../PRODUCT_GUIDE.md) §12 (gap G5).
 
 ## Overview
 
-This guide establishes standardized form patterns for CareSync HIMS. All forms must follow these patterns to ensure consistency, clinical safety, and maintainability.
+This guide establishes standardized form patterns for CareHarmony HIMS. All forms must follow these patterns to ensure consistency, clinical safety, and maintainability.
 
 **Key Goals:**
+
 - ✅ Centralized validation schemas (no duplicated Zod definitions)
 - ✅ Standardized error handling and user feedback
 - ✅ Clinical validations at form initialization
@@ -26,7 +35,13 @@ import { StandardizedFormField } from '@/components/forms/StandardizedFormField'
 import { Form, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function PatientDemographicsForm() {
   const form = useFormStandardized(patientDemographicsSchema, {
@@ -39,26 +54,15 @@ export function PatientDemographicsForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit} className="space-y-6">
-        
         {/* First Name */}
-        <StandardizedFormField
-          control={form.control}
-          name="first_name"
-          label="First Name"
-          required
-        >
+        <StandardizedFormField control={form.control} name="first_name" label="First Name" required>
           <FormControl>
             <Input placeholder="John" {...form.register('first_name')} />
           </FormControl>
         </StandardizedFormField>
 
         {/* Last Name */}
-        <StandardizedFormField
-          control={form.control}
-          name="last_name"
-          label="Last Name"
-          required
-        >
+        <StandardizedFormField control={form.control} name="last_name" label="Last Name" required>
           <FormControl>
             <Input placeholder="Doe" {...form.register('last_name')} />
           </FormControl>
@@ -79,12 +83,7 @@ export function PatientDemographicsForm() {
         </StandardizedFormField>
 
         {/* Gender */}
-        <StandardizedFormField
-          control={form.control}
-          name="gender"
-          label="Gender"
-          required
-        >
+        <StandardizedFormField control={form.control} name="gender" label="Gender" required>
           <FormControl>
             <Select>
               <SelectTrigger>
@@ -128,12 +127,13 @@ export function PatientDemographicsForm() {
 ### Define Once, Use Everywhere
 
 **Good** ✅ - Centralized schema:
+
 ```tsx
 // src/lib/schemas/formValidation.ts
 export const prescriptionFormSchema = z.object({
   patient_id: z.string().uuid(),
-  drug_name: drugNameSchema,  // Reusable sub-schema
-  dose: dosageSchema,         // Reusable sub-schema
+  drug_name: drugNameSchema, // Reusable sub-schema
+  dose: dosageSchema, // Reusable sub-schema
   frequency: medicationFrequencySchema,
   // ... etc
 });
@@ -148,6 +148,7 @@ const form = useFormStandardized(prescriptionFormSchema, {/*...*/});
 ```
 
 **Bad** ❌ - Duplicate schemas:
+
 ```tsx
 // Don't repeat!
 const form1 = useForm({
@@ -188,16 +189,17 @@ export const durationDaysSchema = z
   .max(365, 'Duration cannot exceed 1 year');
 
 // Cross-field validation (requires .refine())
-export const vitalSignsFormSchema = z.object({
-  // ... fields ...
-}).refine(
-  (data) => {
-    // At least ONE vital must be recorded
-    return data.systolic_bp !== undefined || 
-           data.heart_rate !== undefined;
-  },
-  { message: 'At least one vital sign must be recorded' }
-);
+export const vitalSignsFormSchema = z
+  .object({
+    // ... fields ...
+  })
+  .refine(
+    (data) => {
+      // At least ONE vital must be recorded
+      return data.systolic_bp !== undefined || data.heart_rate !== undefined;
+    },
+    { message: 'At least one vital sign must be recorded' }
+  );
 ```
 
 ---
@@ -222,6 +224,7 @@ const form = useFormStandardized(mySchema, {
 ```
 
 **No Manual Toast Calls Needed** - the hook handles:
+
 - ✅ Success toasts on submit
 - ✅ Error toasts on validation failure
 - ✅ Sanitized logging (no PHI leaks)
@@ -253,7 +256,7 @@ export function MyForm() {
   const form = useFormStandardized(myNewFormSchema, {
     onSuccess: handleSave,
   });
-  
+
   // Use with StandardizedFormField...
 }
 ```
@@ -273,7 +276,7 @@ export function MyForm() {
   required
 >
   <FormControl>
-    <Textarea 
+    <Textarea
       placeholder="Enter clinical findings..."
       maxLength={5000}
       rows={6}
@@ -284,6 +287,7 @@ export function MyForm() {
 ```
 
 Medical notes use **medicalNoteSchema** which:
+
 - Allows: letters, numbers, spaces, common punctuation
 - Prevents: HTML tags, script injections, special characters
 - Max length: 5000 characters
@@ -299,7 +303,7 @@ Medical notes use **medicalNoteSchema** which:
   required
 >
   <FormControl>
-    <ICD10CodeAutocomplete 
+    <ICD10CodeAutocomplete
       {...form.register('icd10_code')}
       onSelect={(code) => form.setValue('icd10_code', code)}
     />
@@ -312,15 +316,17 @@ Medical notes use **medicalNoteSchema** which:
 ```tsx
 const appointmentType = form.watch('appointment_type');
 
-{appointmentType === 'procedure' && (
-  <StandardizedFormField
-    control={form.control}
-    name="procedure_details"
-    label="Procedure Details"
-  >
-    {/* Only shown for procedure appointments */}
-  </StandardizedFormField>
-)}
+{
+  appointmentType === 'procedure' && (
+    <StandardizedFormField
+      control={form.control}
+      name="procedure_details"
+      label="Procedure Details"
+    >
+      {/* Only shown for procedure appointments */}
+    </StandardizedFormField>
+  );
+}
 ```
 
 ---
@@ -386,20 +392,20 @@ When updating existing forms to use standardized patterns:
 
 ## 9. Common Patterns Cheat Sheet
 
-| Use Case | Pattern | File |
-|----------|---------|------|
-| Patient demographics | `patientDemographicsSchema` | `formValidation.ts` |
-| Prescription entry | `prescriptionFormSchema` | `formValidation.ts` |
-| Vital signs recording | `vitalSignsFormSchema` | `formValidation.ts` |
-| Lab order creation | `labOrderFormSchema` | `formValidation.ts` |
-| Appointment scheduling | `appointmentFormSchema` | `formValidation.ts` |
-| Clinical notes | `clinicalNoteFormSchema` + `medicalNoteSchema` | `formValidation.ts` |
-| Email input | `clinicalEmailSchema` | `formValidation.ts` |
-| Phone input | `phoneNumberSchema` | `formValidation.ts` |
-| Strong password | `strongPasswordSchema` | `formValidation.ts` |
-| Medical Record Number | `mrnSchema` | `formValidation.ts` |
-| Form initialization | `useFormStandardized` | `useFormStandardized.ts` |
-| Field rendering | `StandardizedFormField` | `StandardizedFormField.tsx` |
+| Use Case               | Pattern                                        | File                        |
+| ---------------------- | ---------------------------------------------- | --------------------------- |
+| Patient demographics   | `patientDemographicsSchema`                    | `formValidation.ts`         |
+| Prescription entry     | `prescriptionFormSchema`                       | `formValidation.ts`         |
+| Vital signs recording  | `vitalSignsFormSchema`                         | `formValidation.ts`         |
+| Lab order creation     | `labOrderFormSchema`                           | `formValidation.ts`         |
+| Appointment scheduling | `appointmentFormSchema`                        | `formValidation.ts`         |
+| Clinical notes         | `clinicalNoteFormSchema` + `medicalNoteSchema` | `formValidation.ts`         |
+| Email input            | `clinicalEmailSchema`                          | `formValidation.ts`         |
+| Phone input            | `phoneNumberSchema`                            | `formValidation.ts`         |
+| Strong password        | `strongPasswordSchema`                         | `formValidation.ts`         |
+| Medical Record Number  | `mrnSchema`                                    | `formValidation.ts`         |
+| Form initialization    | `useFormStandardized`                          | `useFormStandardized.ts`    |
+| Field rendering        | `StandardizedFormField`                        | `StandardizedFormField.tsx` |
 
 ---
 
@@ -432,17 +438,17 @@ const schema = useMemo(() => patientDemographicsSchema, []);
 const form = useFormStandardized(schema);
 
 // ✅ Good: Avoid unnecessary re-renders
-const form = useFormStandardized(schema, { /* options */ });
+const form = useFormStandardized(schema, {/* options */});
 // Options are stable across renders
 
 // ❌ Bad: New schema on every render
-const form = useFormStandardized(
-  z.object({ /* inline definition */ })
-);
+const form = useFormStandardized(z.object({/* inline definition */}));
 
 // ❌ Bad: Creating new options object every render
 const form = useFormStandardized(schema, {
-  onSuccess: () => { /* new function */ }
+  onSuccess: () => {
+    /* new function */
+  },
 });
 ```
 
@@ -453,7 +459,7 @@ const form = useFormStandardized(schema, {
 - [x] All schemas validate input length (prevents DoS)
 - [x] Medical notes sanitized against XSS
 - [x] PHI never logged to console
-- [x] Passwords validated for strength  
+- [x] Passwords validated for strength
 - [x] Emails validated format
 - [x] Phone numbers validated format
 - [x] Clinical values within realistic ranges
@@ -468,4 +474,3 @@ const form = useFormStandardized(schema, {
 3. Add integration tests for all new schemas
 4. Update developer onboarding docs
 5. Schedule team review session
-

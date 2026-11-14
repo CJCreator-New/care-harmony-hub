@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useClinicalActor } from '@/hooks/useClinicalActor';
 import { supabase } from '@/integrations/supabase/client';
+import { assertOnlineForCriticalAction } from '@/modules/offline-store';
 import {
   PrescriptionActor,
   PrescriptionWorkflow,
@@ -160,6 +161,9 @@ export function usePrescriptionDispensing(
       setError(null);
 
       try {
+        // ADR-0013 / ADR-0004: dispensing needs live clinical-safety validation.
+        if (action === 'dispense') assertOnlineForCriticalAction('medication:dispense');
+
         let result;
         const transitionParams = {
           workflowId: targetWorkflowId,

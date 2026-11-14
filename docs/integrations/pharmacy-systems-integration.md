@@ -1,4 +1,4 @@
-# Pharmacy Systems Integration Guide — CareSync HIMS
+# Pharmacy Systems Integration Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -21,15 +21,15 @@
 
 ### Supported Pharmacy Systems
 
-CareSync integrates with pharmacy management systems through industry standards:
+CareHarmony integrates with pharmacy management systems through industry standards:
 
-| Pharmacy System | Type | Protocol | Features |
-|---|---|---|---|
-| Independent systems (hospital-based) | Internal | REST API / HL7 | Full control, direct integration |
-| Large chains (CVS, Walgreens) | External | NCPDP SCRIPT, REST | Routing, refills, patient notifications |
-| Retail/community pharmacies | External | Fax, email, manual | Traditional transmission methods |
-| Mail-order pharmacies | External | APIs (varies) | Shipping integration, refill management |
-| Specialty pharmacies | External | Secure APIs | Controlled substance tracking |
+| Pharmacy System                      | Type     | Protocol           | Features                                |
+| ------------------------------------ | -------- | ------------------ | --------------------------------------- |
+| Independent systems (hospital-based) | Internal | REST API / HL7     | Full control, direct integration        |
+| Large chains (CVS, Walgreens)        | External | NCPDP SCRIPT, REST | Routing, refills, patient notifications |
+| Retail/community pharmacies          | External | Fax, email, manual | Traditional transmission methods        |
+| Mail-order pharmacies                | External | APIs (varies)      | Shipping integration, refill management |
+| Specialty pharmacies                 | External | Secure APIs        | Controlled substance tracking           |
 
 **Primary integration method**: NCPDP SCRIPT + REST APIs for e-prescribing
 
@@ -42,7 +42,7 @@ CareSync integrates with pharmacy management systems through industry standards:
 ```
 PRESCRIPTION TRANSMISSION FLOW
 
-Step 1: Doctor creates & signs prescription in CareSync
+Step 1: Doctor creates & signs prescription in CareHarmony
 
 Doctor workflow:
 ├─ Patient: John Smith
@@ -55,7 +55,7 @@ Doctor workflow:
 
 System: Prescription record created & signed with digital signature
 
-Step 2: CareSync formats prescription per NCPDP SCRIPT standard
+Step 2: CareHarmony formats prescription per NCPDP SCRIPT standard
 
 NCPDP SCRIPT Format (XML):
 
@@ -69,7 +69,7 @@ NCPDP SCRIPT Format (XML):
       <Timestamp>2026-04-08T14:32:00Z</Timestamp>
       <TransactionID>TXN-2026-0424-001</TransactionID>
     </TransmissionHeader>
-    
+
     <!-- Prescriber (doctor) -->
     <Prescriber>
       <NPI>1912345678</NPI>
@@ -83,7 +83,7 @@ NCPDP SCRIPT Format (XML):
       <State>ST</State>
       <Zip>12345</Zip>
     </Prescriber>
-    
+
     <!-- Patient information -->
     <Patient>
       <ID>PATIENT-12345</ID>
@@ -98,7 +98,7 @@ NCPDP SCRIPT Format (XML):
       <State>ST</State>
       <Zip>12345</Zip>
     </Patient>
-    
+
     <!-- Drug information -->
     <Drug>
       <DrugName>Metformin Hydrochloride</DrugName>
@@ -107,7 +107,7 @@ NCPDP SCRIPT Format (XML):
       <DosageForm>TABLET</DosageForm>
       <NDC>00069010010</NDC>  <!-- National Drug Code -->
     </Drug>
-    
+
     <!-- Directions & quantity -->
     <Directions>
       <Dose>1</Dose>
@@ -116,16 +116,16 @@ NCPDP SCRIPT Format (XML):
       <Route>PO</Route>            <!-- By mouth -->
       <SpecialInstructions>Take with food</SpecialInstructions>
     </Directions>
-    
+
     <!-- Quantity & refills -->
     <Quantity>60</Quantity>
     <RefillsAuthorized>3</RefillsAuthorized>
     <RefillsRemaining>3</RefillsRemaining>
-    
+
     <!-- Clinical justification -->
     <Indication>Type 2 Diabetes Mellitus (E11.9)</Indication>
     <Diagnosis>T2DM</Diagnosis>
-    
+
     <!-- Signature -->
     <ElectronicSignature>
       <SignedBy>dr-sarah-chen-001</SignedBy>
@@ -142,10 +142,10 @@ Transmission method depends on pharmacy:
 
 a) Hospital pharmacy (internal):
    └─ Send via local REST API
-   
+
 b) Retail pharmacy (CVS, Walgreens):
    └─ Send via NCPDP routing network
-   
+
 c) Community pharmacy (no e-Rx):
    └─ Create paper prescription
    └─ Patient prints or picks up at hospital
@@ -159,10 +159,10 @@ export async function transmitPrescription(
 ) {
   // Format per NCPDP standard
   const ncpdpMessage = formatNCPDPMessage(prescription);
-  
+
   // Determine pharmacy type
   const pharmacy = await findPharmacy(prescription.pharmacy_id);
-  
+
   if (pharmacy.integration_type === 'REST') {
     // Direct REST API
     return transmitViaRESTAPI(ncpdpMessage, pharmacy);
@@ -188,13 +188,13 @@ async function transmitViaRESTAPI(
     },
     body: ncpdpMessage
   });
-  
+
   if (!response.ok) {
     throw new Error(`Pharmacy transmission failed: ${response.status}`);
   }
-  
+
   const result = await response.json();
-  
+
   // Log transmission
   await logPrescriptionTransmission({
     prescription_id: prescription.id,
@@ -204,12 +204,12 @@ async function transmitViaRESTAPI(
     pharmacy_confirmation_id: result.confirmation_id,
     status: 'success'
   });
-  
+
   // Notify patient
   await notifyPatient(prescription.patient_id,
     'Your prescription has been sent to the pharmacy'
   );
-  
+
   return result;
 }
 
@@ -222,7 +222,7 @@ Pharmacy system:
 ├─ Checks patient allergies
 ├─ Validates insurance coverage
 ├─ Processes payment
-└─ Sends ACK back to CareSync
+└─ Sends ACK back to CareHarmony
 
 Acknowledgement message:
 
@@ -234,7 +234,7 @@ Acknowledgement message:
   "refills_transferred": 3
 }
 
-Step 5: CareSync updates prescription status
+Step 5: CareHarmony updates prescription status
 
 System updates:
 ├─ Prescription status: "transmitted" → "received_by_pharmacy"
@@ -265,8 +265,8 @@ Patient requests refill:
 
 3. Via phone:
    └─ Patient calls pharmacy
-   └─ Pharmacist notifies CareSync
-   └─ CareSync transmits refill authorization
+   └─ Pharmacist notifies CareHarmony
+   └─ CareHarmony transmits refill authorization
 
 REFILL PROCESSING
 
@@ -288,14 +288,14 @@ Backend processing:
 
 async function processRefillRequest(req: Request) {
   const { prescription_id, pharmacy_id, patient_id } = req.body;
-  
+
   // Verify prescription exists & has refills
   const rx = await getPrescription(prescription_id);
-  
+
   if (!rx) {
     return res.status(404).json({ error: 'Prescription not found' });
   }
-  
+
   if (rx.refills_remaining <= 0) {
     // Need doctor authorization
     return res.status(400).json({
@@ -303,7 +303,7 @@ async function processRefillRequest(req: Request) {
       action: 'Contact prescriber for authorization'
     });
   }
-  
+
   // Verify pharmacy information
   const pharmacy = await getPharmacy(pharmacy_id);
   if (!pharmacy.e_rx_enabled) {
@@ -311,7 +311,7 @@ async function processRefillRequest(req: Request) {
       error: 'Pharmacy does not accept e-refills'
     });
   }
-  
+
   // Check drug interactions (in case other meds added)
   const interactions = await checkInteractions(patient_id, rx.drug_id);
   if (interactions.some(i => i.severity === 'CRITICAL')) {
@@ -319,7 +319,7 @@ async function processRefillRequest(req: Request) {
       error: 'Drug interaction detected, contact doctor'
     });
   }
-  
+
   // Create refill prescription
   const refillRx = {
     ...rx,
@@ -328,10 +328,10 @@ async function processRefillRequest(req: Request) {
     refills_remaining: rx.refills_remaining - 1,
     is_refill_of: rx.id
   };
-  
+
   // Transmit to pharmacy
   const transmitted = await transmitPrescription(refillRx, pharmacy);
-  
+
   return res.status(200).json({
     status: 'success',
     confirmation_id: transmitted.confirmation_id,
@@ -372,7 +372,7 @@ If doctor unavailable (evening/weekend):
 ```
 INVENTORY API
 
-Hospital pharmacy maintains inventory in CareSync.
+Hospital pharmacy maintains inventory in CareHarmony.
 External pharmacies report via EDI (Electronic Data Interchange).
 
 Inventory broadcast (every 4 hours):
@@ -471,7 +471,7 @@ Drug disposal record:
 
 ### Doctor Refill Approval Workflow
 
-```
+````
 DOCTOR REFILL DASHBOARD
 
 Doctor sees pending refill requests:
@@ -528,7 +528,7 @@ INSERT INTO prescription_refills (
   3,
   'pending_transmission'
 );
-```
+````
 
 Transmit refill:
 ├─ Format refill prescription
@@ -549,13 +549,13 @@ Doctor required to provide reason:
 Denial notification to patient:
 
 Email/SMS to patient:
-"Your request for Metformin refill was not approved at this time. 
+"Your request for Metformin refill was not approved at this time.
 Reason: Need to discuss with your doctor.
 Next steps: Call to schedule appointment with Dr. Chen
 or message through patient portal."
 
 Doctor notes:
-"Patient requested early refill (28 days vs 30 expected). 
+"Patient requested early refill (28 days vs 30 expected).
 Schedule appointment to discuss adherence."
 
 MODIFICATION
@@ -584,6 +584,7 @@ Modified refill:
 
 System transmits modified prescription to pharmacy
 Patient notified of changes
+
 ```
 
 ---
@@ -593,13 +594,14 @@ Patient notified of changes
 ### Community Pharmacy Integration
 
 ```
+
 EXTERNAL PHARMACY ROUTING
 
 Patient selects pharmacy not affiliated with hospital:
 
 Patient chooses: "CVS #12345 on Main Street"
 
-CareSync system:
+CareHarmony system:
 ├─ Looks up pharmacy in network directory
 ├─ Verifies e-Rx capability
 ├─ Retrieves pharmacy APIs/routing info
@@ -614,29 +616,30 @@ CREATE TABLE external_pharmacies (
   npi_number VARCHAR(10),
   address TEXT,
   phone VARCHAR(20),
-  
+
   -- E-Rx capabilities
   accepts_erx BOOLEAN,
   erx_network VARCHAR(100),  -- "NCPDP", "direct", "fax"
   erx_endpoint VARCHAR(255),
   erx_api_key VARCHAR(255) ENCRYPTED,
-  
+
   -- Refill capability
   accepts_refill_requests BOOLEAN,
-  
+
   -- Delivery
   accepts_delivery BOOLEAN,
   delivery_available BOOLEAN,
-  
+
   -- Specialty
   accepts_controlled_substances BOOLEAN,
-  
+
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
 ```
 
 Example:
+
 ```json
 {
   "id": "pharm-cvs-12345",
@@ -655,73 +658,74 @@ PRESCRIPTION ROUTING VIA NCPDP NETWORK
 
 For external pharmacies, use NCPDP routing:
 
-1. CareSync connects to NCPDP routing service
+1. CareHarmony connects to NCPDP routing service
    └─ Credentials: Hospital NCPDP ID, credentials
-   
+
 2. Format prescription in NCPDP SCRIPT format
    └─ XML message as described earlier
-   
+
 3. Send to NCPDP network
    └─ NCPDP routes to target pharmacy
-   
+
 4. Pharmacy receives & acknowledges
    └─ ACK sent back through NCPDP network
-   
-5. CareSync receives confirmation
+
+5. CareHarmony receives confirmation
    └─ Update prescription status
    └─ Notify patient
 
 TRANSMISSION CODE
 
 export async function routePrescriptionToExternalPharmacy(
-  prescription: Prescription,
-  pharmacy: ExternalPharmacy
+prescription: Prescription,
+pharmacy: ExternalPharmacy
 ) {
-  // Check if pharmacy on NCPDP network
-  if (pharmacy.erx_network === 'NCPDP_SCRIPT') {
-    // Use NCPDP routing
-    const ncpdpMessage = formatNCPDPMessage(prescription);
-    
+// Check if pharmacy on NCPDP network
+if (pharmacy.erx_network === 'NCPDP_SCRIPT') {
+// Use NCPDP routing
+const ncpdpMessage = formatNCPDPMessage(prescription);
+
     return routeViaNCPDP(ncpdpMessage, pharmacy);
-  } else if (pharmacy.erx_endpoint) {
-    // Direct API if available
-    return routeViaDirectAPI(prescription, pharmacy);
-  } else {
-    // Fallback: Generate faxable prescription
-    return generateFaxablePrescription(prescription, pharmacy);
-  }
+
+} else if (pharmacy.erx_endpoint) {
+// Direct API if available
+return routeViaDirectAPI(prescription, pharmacy);
+} else {
+// Fallback: Generate faxable prescription
+return generateFaxablePrescription(prescription, pharmacy);
+}
 }
 
 async function routeViaNCPDP(
-  ncpdpMessage: string,
-  pharmacy: ExternalPharmacy
+ncpdpMessage: string,
+pharmacy: ExternalPharmacy
 ) {
-  const ncpdpClient = new NCPDPClient({
-    hospital_id: process.env.NCPDP_HOSPITAL_ID,
-    credentials: process.env.NCPDP_CREDENTIALS
-  });
-  
-  const result = await ncpdpClient.send({
-    target_pharmacy_npi: pharmacy.npi_number,
-    message_content: ncpdpMessage,
-    priority: 'normal'
-  });
-  
-  if (!result.success) {
-    // Log failure, alert user
-    throw new Error(`NCPDP transmission failed: ${result.error}`);
-  }
-  
-  // Log successful transmission
-  await logTransmission({
-    prescription_id: prescription.id,
-    pharmacy_id: pharmacy.id,
-    method: 'NCPDP',
-    confirmation_id: result.transmission_id,
-    status: 'transmitted'
-  });
-  
-  return result;
+const ncpdpClient = new NCPDPClient({
+hospital_id: process.env.NCPDP_HOSPITAL_ID,
+credentials: process.env.NCPDP_CREDENTIALS
+});
+
+const result = await ncpdpClient.send({
+target_pharmacy_npi: pharmacy.npi_number,
+message_content: ncpdpMessage,
+priority: 'normal'
+});
+
+if (!result.success) {
+// Log failure, alert user
+throw new Error(`NCPDP transmission failed: ${result.error}`);
+}
+
+// Log successful transmission
+await logTransmission({
+prescription_id: prescription.id,
+pharmacy_id: pharmacy.id,
+method: 'NCPDP',
+confirmation_id: result.transmission_id,
+status: 'transmitted'
+});
+
+return result;
 }
 
 FAX FALLBACK (For non-e-Rx pharmacies)
@@ -731,15 +735,15 @@ For older pharmacies without e-Rx:
 1. Generate prescription PDF
    └─ Formatted for faxing
    └─ Includes doctor signature image
-   
+
 2. Send via eFax API
    └─ Service: eFax, HelloFax, or similar
    └─ Recipient: Pharmacy fax number
-   
+
 3. Confirm fax delivery
    └─ Delivery confirmation logged
    └─ Patient notification sent
-   
+
 4. Manual follow-up (if needed)
    └─ Pharmacy calls if unclear
    └─ Doctor callback if questions
@@ -747,38 +751,39 @@ For older pharmacies without e-Rx:
 Code:
 
 async function transmitViafax(
-  prescription: Prescription,
-  pharmacy: ExternalPharmacy
+prescription: Prescription,
+pharmacy: ExternalPharmacy
 ) {
-  // Generate PDF
-  const prescriptionPDF = await generatePrescriptionPDF(prescription);
-  
-  // Send via eFax
-  const faxResult = await efaxClient.send({
-    recipient_fax: pharmacy.fax_number,
-    document: prescriptionPDF,
-    coversheet: true,
-    subject: `Prescription for ${prescription.patient.name}`
-  });
-  
-  if (!faxResult.successful) {
-    throw new Error(`Fax transmission failed: ${faxResult.error}`);
-  }
-  
-  // Log in system
-  await logTransmission({
-    prescription_id: prescription.id,
-    pharmacy_id: pharmacy.id,
-    method: 'FAX',
-    fax_number: pharmacy.fax_number,
-    tracking_number: faxResult.tracking_id,
-    status: 'transmitted',
-    requires_manual_followup: true
-  });
-  
-  // Send manual reminder to pharmacy
-  await sendPharmacyReminder(pharmacy, prescription, '10m');
+// Generate PDF
+const prescriptionPDF = await generatePrescriptionPDF(prescription);
+
+// Send via eFax
+const faxResult = await efaxClient.send({
+recipient_fax: pharmacy.fax_number,
+document: prescriptionPDF,
+coversheet: true,
+subject: `Prescription for ${prescription.patient.name}`
+});
+
+if (!faxResult.successful) {
+throw new Error(`Fax transmission failed: ${faxResult.error}`);
 }
+
+// Log in system
+await logTransmission({
+prescription_id: prescription.id,
+pharmacy_id: pharmacy.id,
+method: 'FAX',
+fax_number: pharmacy.fax_number,
+tracking_number: faxResult.tracking_id,
+status: 'transmitted',
+requires_manual_followup: true
+});
+
+// Send manual reminder to pharmacy
+await sendPharmacyReminder(pharmacy, prescription, '10m');
+}
+
 ```
 
 ---
@@ -788,6 +793,7 @@ async function transmitViafax(
 ### HIPAA Compliance for E-Rx
 
 ```
+
 PRESCRIPTION PRIVACY & SECURITY
 
 HIPAA Requirements:
@@ -830,38 +836,38 @@ Patient must consent to e-prescribing:
 Before first e-Rx transmission:
 
 ┌───────────────────────────────┐
-│   E-PRESCRIBING CONSENT       │
-│                               │
-│ I consent to electronic       │
-│ prescriptions being sent to:  │
-│                               │
-│ CVS Pharmacy #12345           │
-│ 123 Main St, Metro City       │
-│                               │
-│ I understand:                 │
-│ ☑ Prescription transmitted    │
-│   over secure network         │
-│ ☑ Pharmacy receives copy      │
-│ ☑ I may revoke anytime        │
+│ E-PRESCRIBING CONSENT │
+│ │
+│ I consent to electronic │
+│ prescriptions being sent to: │
+│ │
+│ CVS Pharmacy #12345 │
+│ 123 Main St, Metro City │
+│ │
+│ I understand: │
+│ ☑ Prescription transmitted │
+│ over secure network │
+│ ☑ Pharmacy receives copy │
+│ ☑ I may revoke anytime │
 │ ☑ Paper option still available│
-│                               │
-│ [AGREE] [DECLINE]            │
+│ │
+│ [AGREE] [DECLINE] │
 ├───────────────────────────────┤
-│ Date: ___________            │
+│ Date: ___________ │
 │ Signature: __________________ │
 └───────────────────────────────┘
 
 Record in system:
 
 {
-  "patient_id": "pat-789",
-  "consent_type": "e_prescribing",
-  "pharmacy_id": "pharm-cvs-12345",
-  "consented": true,
-  "consent_date": "2026-04-08T14:45:00Z",
-  "ip_address": "192.168.1.100",
-  "user_agent": "Mozilla/5.0...",
-  "revocable": true
+"patient_id": "pat-789",
+"consent_type": "e_prescribing",
+"pharmacy_id": "pharm-cvs-12345",
+"consented": true,
+"consent_date": "2026-04-08T14:45:00Z",
+"ip_address": "192.168.1.100",
+"user_agent": "Mozilla/5.0...",
+"revocable": true
 }
 
 ERROR HANDLING & RECOVERY
@@ -897,20 +903,21 @@ Fallback protocol:
 
 1. Generate paper prescription
    └─ Printable by patient or doctor
-   
+
 2. Contact pharmacy manually
    └─ Phone call by staff
    └─ Verbal verification with doctor
-   
+
 3. Document fallback in refill record
    └─ Reason: Channel unavailable
    └─ Method: Phone/paper
    └─ Time: Date/time of transmission
-   
+
 4. Resume e-Rx once restored
    └─ Verify network connectivity
    └─ Retry transmission
    └─ Confirm receipt with pharmacy
+
 ```
 
 ---
@@ -928,3 +935,4 @@ Fallback protocol:
 - Pharmacy vendor support: [contact]
 - NCPDP network support: [1-888-622-7388]
 - E-Rx technical team: [internal contact]
+```

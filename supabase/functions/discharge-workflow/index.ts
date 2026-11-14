@@ -25,7 +25,10 @@ type DischargeWorkflowRow = {
   initiated_by: string;
   current_step:
     'doctor' | 'pharmacist' | 'billing' | 'nurse' | 'completed' | 'completed_ama' | 'cancelled';
-  status: 'draft' | 'in_progress' | 'completed' | 'completed_ama' | 'cancelled';
+  status: 'draft' | 'in_progress' | 'staging' | 'completed' | 'completed_ama' | 'cancelled';
+  doctor_signed: boolean;
+  pharmacy_cleared: boolean;
+  billing_cleared: boolean;
   metadata: Record<string, unknown> | null;
   rejection_reason: string | null;
 };
@@ -196,20 +199,32 @@ async function initiateWorkflow(
 
   // S0-06 / EDGE-13: patient and consultation must belong to the caller's hospital.
   if (!(await assertPatientInHospital(supabase as never, payload.patientId, actor.hospitalId))) {
-    return new Response(JSON.stringify({ error: 'Forbidden - patient not found in caller hospital' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
-  if (payload.consultationId) {
-    const consultation = await findInHospital(supabase as never, 'consultations', payload.consultationId, actor.hospitalId, {
-      select: 'id, patient_id, hospital_id',
-    });
-    if (!consultation || consultation.patient_id !== payload.patientId) {
-      return new Response(JSON.stringify({ error: 'Forbidden - consultation not found for this patient' }), {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden - patient not found in caller hospital' }),
+      {
         status: 403,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
+      }
+    );
+  }
+  if (payload.consultationId) {
+    const consultation = await findInHospital(
+      supabase as never,
+      'consultations',
+      payload.consultationId,
+      actor.hospitalId,
+      {
+        select: 'id, patient_id, hospital_id',
+      }
+    );
+    if (!consultation || consultation.patient_id !== payload.patientId) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - consultation not found for this patient' }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        }
+      );
     }
   }
 
@@ -223,7 +238,11 @@ async function initiateWorkflow(
       consultation_id: payload.consultationId ?? null,
       initiated_by: actor.userId,
       current_step: 'pharmacist',
-      status: 'in_progress',
+      status: 'staging',
+      doctor_signed: true,
+      pharmacy_cleared: false,
+      billing_cleared: false,
+      staging_started_at: now,
       last_action_by: actor.userId,
       last_action_at: now,
       metadata: {
@@ -251,10 +270,18 @@ async function initiateWorkflow(
     beforeState: null,
   });
 
-  await notifyRole(supabase, workflow as DischargeWorkflowRow, 'pharmacist', {
-    title: 'Discharge workflow awaiting medication reconciliation',
-    message: 'A doctor initiated patient discharge and pharmacy clearance is now required.',
-  });
+  // ADR-0014: pharmacy and billing stage in parallel once the doctor signs.
+  await Promise.all([
+    notifyRole(supabase, workflow as DischargeWorkflowRow, 'pharmacist', {
+      title: 'Discharge workflow awaiting medication reconciliation',
+      message: 'A doctor initiated patient discharge and pharmacy clearance is now required.',
+    }),
+    notifyRole(supabase, workflow as DischargeWorkflowRow, 'receptionist', {
+      title: 'Discharge workflow awaiting billing clearance',
+      message:
+        'A doctor initiated patient discharge. You can finalize billing while pharmacy prepares take-home medication.',
+    }),
+  ]);
 
   return new Response(JSON.stringify({ success: true, workflow }), {
     status: 200,
@@ -288,9 +315,27 @@ async function approveWorkflow(
     });
   }
 
-  const nextStep = NEXT_STEP[currentStep as keyof typeof NEXT_STEP];
   const now = new Date().toISOString();
-  const nextStatus = nextStep === 'completed' ? 'completed' : 'in_progress';
+
+  // ADR-0014 hard exit gate: nursing release requires every prior clearance.
+  if (
+    currentStep === 'nurse' &&
+    !(workflow.doctor_signed && workflow.pharmacy_cleared && workflow.billing_cleared)
+  ) {
+    return new Response(
+      JSON.stringify({
+        error:
+          'Discharge release locked: doctor signature, pharmacy clearance, and billing clearance are all required before nursing handover.',
+      }),
+      {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      }
+    );
+  }
+
+  const clearance =
+    currentStep === 'pharmacist' ? 'pharmacy' : currentStep === 'billing' ? 'billing' : 'nurse';
 
   const nextMetadata = {
     ...(workflow.metadata || {}),
@@ -298,30 +343,59 @@ async function approveWorkflow(
     [`${currentStep}_approved_by`]: actor.userId,
   };
 
-  // Attempt atomic row-locked transition via RPC first (ADR-0003)
-  const { data: rpcWorkflow, error: rpcError } = await supabase.rpc(
-    'transition_discharge_workflow',
-    {
-      p_workflow_id: workflow.id,
-      p_hospital_id: actor.hospitalId,
-      p_expected_step: currentStep,
-      p_next_step: nextStep,
-      p_next_status: nextStatus,
-      p_actor_id: actor.userId,
-      p_rejection_reason: null,
-      p_metadata: nextMetadata,
+  // Atomic, row-locked clearance recording shared by pharmacy and billing.
+  const { data: rpcWorkflow, error: rpcError } = await supabase.rpc('approve_discharge_step', {
+    p_workflow_id: workflow.id,
+    p_hospital_id: actor.hospitalId,
+    p_expected_step: currentStep,
+    p_actor_id: actor.userId,
+    p_clearance: clearance,
+    p_metadata: nextMetadata,
+  });
+
+  let updatedWorkflow = rpcWorkflow as DischargeWorkflowRow | null;
+
+  // Only fall back when the ADR-0014 RPC is not deployed yet. A real rejection
+  // (already cleared, step mismatch, terminal state) must never be bypassed.
+  const rpcMissing = !!rpcError && (rpcError.code === 'PGRST202' || rpcError.code === '42883');
+  if (rpcError && !rpcMissing) {
+    return new Response(
+      JSON.stringify({
+        error: rpcError.message || 'Discharge clearance was rejected — refresh and try again',
+      }),
+      {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      }
+    );
+  }
+
+  if (!updatedWorkflow) {
+    // Fallback to optimistic concurrency with strict hospital and step pinning.
+    const pharmacyCleared = currentStep === 'pharmacist' ? true : !!workflow.pharmacy_cleared;
+    const billingCleared = currentStep === 'billing' ? true : !!workflow.billing_cleared;
+
+    let fallbackStep: string;
+    let fallbackStatus: 'staging' | 'in_progress' | 'completed';
+    if (currentStep === 'pharmacist') {
+      fallbackStep = billingCleared ? 'nurse' : 'billing';
+      fallbackStatus = billingCleared ? 'in_progress' : 'staging';
+    } else if (currentStep === 'billing') {
+      fallbackStep = pharmacyCleared ? 'nurse' : 'pharmacist';
+      fallbackStatus = pharmacyCleared ? 'in_progress' : 'staging';
+    } else {
+      fallbackStep = 'completed';
+      fallbackStatus = 'completed';
     }
-  );
 
-  let updatedWorkflow = rpcWorkflow;
-
-  if (rpcError || !updatedWorkflow) {
-    // Fallback to optimistic concurrency with strict hospital and step pinning
     const { data: directWorkflow, error: directError } = await supabase
       .from('discharge_workflows')
       .update({
-        current_step: nextStep,
-        status: nextStatus,
+        current_step: fallbackStep,
+        status: fallbackStatus,
+        doctor_signed: true,
+        pharmacy_cleared: pharmacyCleared,
+        billing_cleared: billingCleared,
         last_action_by: actor.userId,
         last_action_at: now,
         rejection_reason: null,
@@ -345,13 +419,16 @@ async function approveWorkflow(
         }
       );
     }
-    updatedWorkflow = directWorkflow;
+    updatedWorkflow = directWorkflow as DischargeWorkflowRow;
   }
 
-  await writeAuditTrail(supabase, updatedWorkflow as DischargeWorkflowRow, actor, {
+  const resolvedNextStep = updatedWorkflow.current_step;
+  const resolvedStatus = updatedWorkflow.status;
+
+  await writeAuditTrail(supabase, updatedWorkflow, actor, {
     transitionAction: 'approve',
     fromStep: currentStep,
-    toStep: nextStep,
+    toStep: resolvedNextStep,
     reason: payload.reason ?? null,
     beforeState: {
       status: workflow.status,
@@ -360,11 +437,12 @@ async function approveWorkflow(
     },
   });
 
-  if (nextStep !== 'completed') {
-    const nextRole = nextStep === 'billing' ? 'receptionist' : nextStep;
-    await notifyRole(supabase, updatedWorkflow as DischargeWorkflowRow, nextRole, {
+  // While staging, the other discipline is already working; only notify on a real handoff.
+  if (resolvedStatus !== 'staging' && resolvedNextStep !== 'completed') {
+    const nextRole = resolvedNextStep === 'billing' ? 'receptionist' : resolvedNextStep;
+    await notifyRole(supabase, updatedWorkflow, nextRole, {
       title: 'Discharge workflow advanced',
-      message: `Patient discharge is ready for the ${nextStep} step.`,
+      message: `Patient discharge is ready for the ${resolvedNextStep} step.`,
     });
   }
 

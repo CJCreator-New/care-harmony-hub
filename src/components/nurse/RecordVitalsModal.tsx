@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Heart, 
-  Thermometer, 
-  Activity, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Heart,
+  Thermometer,
+  Activity,
   Droplets,
   Scale,
   Ruler,
@@ -26,6 +38,7 @@ import { toast } from 'sonner';
 import { writeIntakeToPatientRecord } from '@/modules/order-safety';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActiveQueue } from '@/hooks/useQueue';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { usePatients } from '@/lib/hooks/patients';
 import { PredictiveAlerts } from './PredictiveAlerts';
 
@@ -71,9 +84,9 @@ interface VitalsData {
   requires_followup: boolean;
 }
 
-export function RecordVitalsModal({ 
-  open, 
-  onOpenChange, 
+export function RecordVitalsModal({
+  open,
+  onOpenChange,
   patient: initialPatient,
   consultationId,
   showPatientSelector = false,
@@ -84,7 +97,8 @@ export function RecordVitalsModal({
   const { data: queueEntries } = useActiveQueue();
   const { data: patientsData } = usePatients();
   const allPatients = patientsData?.patients || [];
-  
+  const { isOnline, queueAction } = useOfflineSync();
+
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatient);
   const [patientSelectionError, setPatientSelectionError] = useState(false);
   const [chiefComplaintError, setChiefComplaintError] = useState(false);
@@ -130,7 +144,9 @@ export function RecordVitalsModal({
     if (open) {
       // Delay to allow modal to render
       const timer = setTimeout(() => {
-        const firstInput = document.querySelector('[role="dialog"] input, [role="dialog"] [role="combobox"], [role="dialog"] textarea') as HTMLElement;
+        const firstInput = document.querySelector(
+          '[role="dialog"] input, [role="dialog"] [role="combobox"], [role="dialog"] textarea'
+        ) as HTMLElement;
         if (firstInput) {
           firstInput.focus();
         }
@@ -140,35 +156,38 @@ export function RecordVitalsModal({
   }, [open]);
 
   // Get unique patients from queue
-  const patientsInQueue = queueEntries?.filter(
-    (entry, index, self) => 
-      entry.patient && 
-      index === self.findIndex(e => e.patient?.id === entry.patient?.id)
-  ).map(entry => entry.patient as Patient) || [];
+  const patientsInQueue =
+    queueEntries
+      ?.filter(
+        (entry, index, self) =>
+          entry.patient && index === self.findIndex((e) => e.patient?.id === entry.patient?.id)
+      )
+      .map((entry) => entry.patient as Patient) || [];
 
   // Always include all patients, with queue patients at the top
-  const allPatientsMapped = allPatients.map(p => ({ 
-    id: p.id, 
-    first_name: p.first_name, 
-    last_name: p.last_name, 
-    mrn: p.mrn 
+  const allPatientsMapped = allPatients.map((p) => ({
+    id: p.id,
+    first_name: p.first_name,
+    last_name: p.last_name,
+    mrn: p.mrn,
   }));
-  
+
   // Combine: queue patients first, then other patients (avoid duplicates)
-  const queuePatientIds = new Set(patientsInQueue.map(p => p.id));
-  const otherPatients = allPatientsMapped.filter(p => !queuePatientIds.has(p.id));
+  const queuePatientIds = new Set(patientsInQueue.map((p) => p.id));
+  const otherPatients = allPatientsMapped.filter((p) => !queuePatientIds.has(p.id));
   const availablePatients = [...patientsInQueue, ...otherPatients];
 
   // Filter patients based on search term
   const filteredPatients = searchTerm
-    ? availablePatients.filter(p => 
-        `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.mrn.toLowerCase().includes(searchTerm.toLowerCase())
+    ? availablePatients.filter(
+        (p) =>
+          `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.mrn.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : availablePatients;
 
   const handleChange = (field: keyof VitalsData, value: string | boolean) => {
-    setVitals(prev => ({ ...prev, [field]: value }));
+    setVitals((prev) => ({ ...prev, [field]: value }));
   };
 
   const calculateBMI = () => {
@@ -179,6 +198,34 @@ export function RecordVitalsModal({
       return (weight / (heightInMeters * heightInMeters)).toFixed(1);
     }
     return null;
+  };
+
+  const resetForm = () => {
+    setVitals({
+      blood_pressure_systolic: '',
+      blood_pressure_diastolic: '',
+      heart_rate: '',
+      temperature: '',
+      respiratory_rate: '',
+      oxygen_saturation: '',
+      weight: '',
+      height: '',
+      pain_level: '',
+      notes: '',
+      chief_complaint: '',
+      allergies: '',
+      current_medications: '',
+      nurse_notes: '',
+      patient_anxious: false,
+      language_barrier: false,
+      family_present: false,
+      requires_assistance: false,
+      pain_management_needed: false,
+      mobility_concerns: false,
+      mark_critical: false,
+      requires_followup: false,
+    });
+    setSelectedPatient(null);
   };
 
   const handleSubmit = async () => {
@@ -199,17 +246,21 @@ export function RecordVitalsModal({
     setIsSubmitting(true);
     try {
       const bmi = calculateBMI();
-      
+
       if (!profile?.id) {
         throw new Error('User profile not loaded. Please log in again.');
       }
-      
-      const { error } = await supabase.from('vital_signs').insert({
+
+      const vitalsPayload = {
         patient_id: selectedPatient.id,
         consultation_id: consultationId || null,
         recorded_by: profile.id,
-        blood_pressure_systolic: vitals.blood_pressure_systolic ? parseInt(vitals.blood_pressure_systolic) : null,
-        blood_pressure_diastolic: vitals.blood_pressure_diastolic ? parseInt(vitals.blood_pressure_diastolic) : null,
+        blood_pressure_systolic: vitals.blood_pressure_systolic
+          ? parseInt(vitals.blood_pressure_systolic)
+          : null,
+        blood_pressure_diastolic: vitals.blood_pressure_diastolic
+          ? parseInt(vitals.blood_pressure_diastolic)
+          : null,
         heart_rate: vitals.heart_rate ? parseInt(vitals.heart_rate) : null,
         temperature: vitals.temperature ? parseFloat(vitals.temperature) : null,
         respiratory_rate: vitals.respiratory_rate ? parseInt(vitals.respiratory_rate) : null,
@@ -218,11 +269,14 @@ export function RecordVitalsModal({
         height: vitals.height ? parseFloat(vitals.height) : null,
         pain_level: vitals.pain_level ? parseInt(vitals.pain_level) : null,
         bmi: bmi ? parseFloat(bmi) : null,
-          notes: [
+        notes:
+          [
             vitals.notes ? `Notes: ${vitals.notes}` : null,
             vitals.chief_complaint ? `Chief Complaint: ${vitals.chief_complaint}` : null,
             vitals.allergies ? `Allergies: ${vitals.allergies}` : null,
-            vitals.current_medications ? `Current Medications: ${vitals.current_medications}` : null,
+            vitals.current_medications
+              ? `Current Medications: ${vitals.current_medications}`
+              : null,
             vitals.nurse_notes ? `Nurse Notes: ${vitals.nurse_notes}` : null,
             vitals.patient_anxious ? `Observation: Patient appears anxious` : null,
             vitals.language_barrier ? `Observation: Language barrier present` : null,
@@ -232,8 +286,25 @@ export function RecordVitalsModal({
             vitals.mobility_concerns ? `Observation: Mobility concerns` : null,
             vitals.mark_critical ? `CRITICAL STATUS MARKED` : null,
             vitals.requires_followup ? `Requires Follow-up` : null,
-          ].filter(Boolean).join('\n') || null,
-      });
+          ]
+            .filter(Boolean)
+            .join('\n') || null,
+      };
+
+      // ADR-0013: bedside vitals are low-risk and may be captured offline.
+      if (!isOnline) {
+        queueAction('create', 'vital_signs', {
+          ...vitalsPayload,
+          client_recorded_at: new Date().toISOString(),
+        });
+        toast.success('Vitals saved offline — they will sync when the connection returns');
+        resetForm();
+        onComplete?.();
+        onOpenChange(false);
+        return;
+      }
+
+      const { error } = await supabase.from('vital_signs').insert(vitalsPayload);
 
       if (error) {
         console.error('Supabase insert error:', { code: error.code, hint: error.hint });
@@ -246,38 +317,17 @@ export function RecordVitalsModal({
         allergies: vitals.allergies,
         currentMedications: vitals.current_medications,
       });
-      if (!intakeWrite.ok) toast.warning('Allergies/medications could not be saved to the patient record. Update the record before prescribing.');
+      if (!intakeWrite.ok)
+        toast.warning(
+          'Allergies/medications could not be saved to the patient record. Update the record before prescribing.'
+        );
 
       toast.success('Vitals recorded successfully');
       queryClient.invalidateQueries({ queryKey: ['vital-signs'] });
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
-      
-      setVitals({
-        blood_pressure_systolic: '',
-        blood_pressure_diastolic: '',
-        heart_rate: '',
-        temperature: '',
-        respiratory_rate: '',
-        oxygen_saturation: '',
-        weight: '',
-        height: '',
-        pain_level: '',
-        notes: '',
-        chief_complaint: '',
-        allergies: '',
-        current_medications: '',
-        nurse_notes: '',
-        patient_anxious: false,
-        language_barrier: false,
-        family_present: false,
-        requires_assistance: false,
-        pain_management_needed: false,
-        mobility_concerns: false,
-        mark_critical: false,
-        requires_followup: false,
-      });
-      setSelectedPatient(null);
+
+      resetForm();
       onComplete?.();
       onOpenChange(false);
     } catch (error) {
@@ -298,7 +348,8 @@ export function RecordVitalsModal({
           <DialogTitle>Patient Preparation</DialogTitle>
           {selectedPatient && !showPatientSelector && (
             <p className="text-sm text-muted-foreground">
-              Patient: {selectedPatient.first_name} {selectedPatient.last_name} ({selectedPatient.mrn})
+              Patient: {selectedPatient.first_name} {selectedPatient.last_name} (
+              {selectedPatient.mrn})
             </p>
           )}
         </DialogHeader>
@@ -306,14 +357,14 @@ export function RecordVitalsModal({
         <div className="space-y-6">
           {/* Predictive Intelligence Integration */}
           {selectedPatient && (
-            <PredictiveAlerts 
+            <PredictiveAlerts
               patientId={selectedPatient.id}
               vitals={{
                 blood_pressure: `${vitals.blood_pressure_systolic}/${vitals.blood_pressure_diastolic}`,
                 heart_rate: vitals.heart_rate,
                 temperature: vitals.temperature,
                 resp_rate: vitals.respiratory_rate,
-                oxygen_sat: vitals.oxygen_saturation
+                oxygen_sat: vitals.oxygen_saturation,
               }}
             />
           )}
@@ -366,7 +417,10 @@ export function RecordVitalsModal({
                 </div>
                 <div className="space-y-3">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                      aria-hidden="true"
+                    />
                     <Input
                       placeholder="Search by name or MRN..."
                       value={searchTerm}
@@ -378,12 +432,18 @@ export function RecordVitalsModal({
                   <Select
                     value={selectedPatient?.id || ''}
                     onValueChange={(value) => {
-                      const patient = availablePatients.find(p => p.id === value);
+                      const patient = availablePatients.find((p) => p.id === value);
                       setSelectedPatient(patient || null);
                       setPatientSelectionError(false);
                     }}
                   >
-                    <SelectTrigger className={patientSelectionError ? 'border-destructive focus-visible:ring-destructive' : undefined}>
+                    <SelectTrigger
+                      className={
+                        patientSelectionError
+                          ? 'border-destructive focus-visible:ring-destructive'
+                          : undefined
+                      }
+                    >
                       <SelectValue placeholder="Select a patient..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -401,7 +461,9 @@ export function RecordVitalsModal({
                     </SelectContent>
                   </Select>
                   {patientSelectionError && (
-                    <p className="text-sm text-destructive">Please select a patient before submitting.</p>
+                    <p className="text-sm text-destructive">
+                      Please select a patient before submitting.
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -591,7 +653,11 @@ export function RecordVitalsModal({
                     className={chiefComplaintError ? 'border-destructive' : ''}
                   />
                   {chiefComplaintError && (
-                    <span id="chief_complaint_error" role="alert" className="text-sm text-destructive">
+                    <span
+                      id="chief_complaint_error"
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
                       Chief complaint is required
                     </span>
                   )}
@@ -631,19 +697,29 @@ export function RecordVitalsModal({
               {/* Quick Templates */}
               <div className="space-y-3 mb-4">
                 <Label className="text-sm font-medium">Quick Templates</Label>
-                <Select onValueChange={(value) => {
-                  const templates = {
-                    stable: "Patient alert and oriented x3. Vital signs stable. No acute distress noted.",
-                    anxious: "Patient appears anxious about procedure. Provided reassurance and education.",
-                    family: "Family member present and updated on patient's condition and plan.",
-                    assistance: "Patient requires assistance with ambulation. Fall risk assessment completed.",
-                    pain: "Patient reporting pain. Pain management interventions initiated.",
-                    language: "Language barrier identified. Interpreter services requested.",
-                  };
-                  if (templates[value as keyof typeof templates]) {
-                    handleChange('nurse_notes', vitals.nurse_notes + (vitals.nurse_notes ? '\n\n' : '') + templates[value as keyof typeof templates]);
-                  }
-                }}>
+                <Select
+                  onValueChange={(value) => {
+                    const templates = {
+                      stable:
+                        'Patient alert and oriented x3. Vital signs stable. No acute distress noted.',
+                      anxious:
+                        'Patient appears anxious about procedure. Provided reassurance and education.',
+                      family: "Family member present and updated on patient's condition and plan.",
+                      assistance:
+                        'Patient requires assistance with ambulation. Fall risk assessment completed.',
+                      pain: 'Patient reporting pain. Pain management interventions initiated.',
+                      language: 'Language barrier identified. Interpreter services requested.',
+                    };
+                    if (templates[value as keyof typeof templates]) {
+                      handleChange(
+                        'nurse_notes',
+                        vitals.nurse_notes +
+                          (vitals.nurse_notes ? '\n\n' : '') +
+                          templates[value as keyof typeof templates]
+                      );
+                    }
+                  }}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Insert common note template..." />
                   </SelectTrigger>
@@ -670,7 +746,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('patient_anxious', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="patient_anxious" className="text-sm">Patient anxious/nervous</Label>
+                    <Label htmlFor="patient_anxious" className="text-sm">
+                      Patient anxious/nervous
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -680,7 +758,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('language_barrier', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="language_barrier" className="text-sm">Language barrier present</Label>
+                    <Label htmlFor="language_barrier" className="text-sm">
+                      Language barrier present
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -690,7 +770,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('family_present', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="family_present" className="text-sm">Family member present</Label>
+                    <Label htmlFor="family_present" className="text-sm">
+                      Family member present
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -700,7 +782,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('requires_assistance', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="requires_assistance" className="text-sm">Requires special assistance</Label>
+                    <Label htmlFor="requires_assistance" className="text-sm">
+                      Requires special assistance
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -710,7 +794,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('pain_management_needed', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="pain_management_needed" className="text-sm">Pain management needed</Label>
+                    <Label htmlFor="pain_management_needed" className="text-sm">
+                      Pain management needed
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -720,7 +806,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('mobility_concerns', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="mobility_concerns" className="text-sm">Mobility concerns</Label>
+                    <Label htmlFor="mobility_concerns" className="text-sm">
+                      Mobility concerns
+                    </Label>
                   </div>
                 </div>
               </div>
@@ -737,7 +825,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('mark_critical', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="mark_critical" className="text-sm text-orange-700">Mark as critical for doctor review</Label>
+                    <Label htmlFor="mark_critical" className="text-sm text-orange-700">
+                      Mark as critical for doctor review
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -747,7 +837,9 @@ export function RecordVitalsModal({
                       onChange={(e) => handleChange('requires_followup', e.target.checked)}
                       className="rounded"
                     />
-                    <Label htmlFor="requires_followup" className="text-sm text-blue-700">Requires follow-up documentation</Label>
+                    <Label htmlFor="requires_followup" className="text-sm text-blue-700">
+                      Requires follow-up documentation
+                    </Label>
                   </div>
                 </div>
               </div>
@@ -800,5 +892,3 @@ export function RecordVitalsModal({
     </Dialog>
   );
 }
-
-

@@ -4,8 +4,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Clock, ArrowRight, AlertTriangle, Users, Play, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import { useActiveQueue, useQueueRealtime, QueueEntry } from '@/hooks/useQueue';
+import {
+  useActiveQueue,
+  useClaimQueuePatient,
+  useQueueRealtime,
+  QueueEntry,
+} from '@/hooks/useQueue';
 import { usePatientChecklists } from '@/hooks/useNurseWorkflow';
+import { useAuth } from '@/contexts/AuthContext';
 import { differenceInMinutes } from 'date-fns';
 import { DataError, DATA_UNAVAILABLE } from '@/components/common/DataStatus';
 
@@ -37,6 +43,9 @@ export function PatientQueue() {
   const { data: queueData, isLoading, isError, refetch } = useActiveQueue();
   const queue = queueData ?? [];
   const { checklists = [] } = usePatientChecklists();
+  const { primaryRole } = useAuth();
+  const claimPatient = useClaimQueuePatient();
+  const canClaim = primaryRole === 'doctor' || primaryRole === 'admin';
 
   // Enable realtime updates
   useQueueRealtime();
@@ -55,7 +64,10 @@ export function PatientQueue() {
 
   // Check if patient has prep checklist completed
   const isPatientReady = (patientId: string, status: string) => {
-    return status === 'waiting' && checklists.some(c => c.patient_id === patientId && c.ready_for_doctor);
+    return (
+      status === 'waiting' &&
+      checklists.some((c) => c.patient_id === patientId && c.ready_for_doctor)
+    );
   };
 
   // Limit to first 5 entries for dashboard view
@@ -67,7 +79,11 @@ export function PatientQueue() {
         <div>
           <h3 className="font-semibold">Patient Queue</h3>
           <p className="text-sm text-muted-foreground">
-            {isError ? `${DATA_UNAVAILABLE} patients active` : isLoading ? 'Loading...' : `${queue.length} patients active`}
+            {isError
+              ? `${DATA_UNAVAILABLE} patients active`
+              : isLoading
+                ? 'Loading...'
+                : `${queue.length} patients active`}
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -83,7 +99,11 @@ export function PatientQueue() {
           <DataError resource="the patient queue" onRetry={() => refetch()} />
         </div>
       ) : isLoading ? (
-        <div role="status" aria-label="Loading patient queue" className="flex flex-col items-center justify-center py-12 text-center">
+        <div
+          role="status"
+          aria-label="Loading patient queue"
+          className="flex flex-col items-center justify-center py-12 text-center"
+        >
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3" />
           <p className="text-muted-foreground">Loading queue...</p>
         </div>
@@ -91,7 +111,9 @@ export function PatientQueue() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Users className="w-12 h-12 text-muted-foreground/50 mb-3" />
           <p className="text-muted-foreground font-medium">No patients in queue</p>
-          <p className="text-sm text-muted-foreground/70">Patients will appear here when checked in</p>
+          <p className="text-sm text-muted-foreground/70">
+            Patients will appear here when checked in
+          </p>
         </div>
       ) : (
         <div className="divide-y divide-border">
@@ -100,7 +122,9 @@ export function PatientQueue() {
               key={entry.id}
               className={cn(
                 'flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors',
-                index === 0 && (entry.priority === 'emergency' || entry.priority === 'urgent') && 'bg-destructive/5'
+                index === 0 &&
+                  (entry.priority === 'emergency' || entry.priority === 'urgent') &&
+                  'bg-destructive/5'
               )}
             >
               <div className="relative">
@@ -123,6 +147,11 @@ export function PatientQueue() {
                   {entry.priority === 'emergency' && (
                     <AlertTriangle className="w-4 h-4 text-destructive animate-pulse" />
                   )}
+                  {entry.emergency_bypass && (
+                    <Badge variant="destructive" className="text-[10px]">
+                      Bypass — pinned
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>{entry.patient?.mrn}</span>
@@ -138,6 +167,16 @@ export function PatientQueue() {
               </div>
 
               <div className="flex items-center gap-3">
+                {canClaim && (entry.status === 'waiting' || entry.status === 'called') && (
+                  <Button
+                    size="sm"
+                    onClick={() => claimPatient.mutate(entry.id)}
+                    disabled={claimPatient.isPending}
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />
+                    Claim
+                  </Button>
+                )}
                 <div className="text-right">
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Clock className="w-3.5 h-3.5" />

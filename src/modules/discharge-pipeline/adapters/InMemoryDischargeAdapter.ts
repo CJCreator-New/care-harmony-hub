@@ -35,7 +35,10 @@ export class InMemoryDischargeAdapter
     step: DischargeQueueStep
   ): Promise<readonly DischargeWorkflow[]> {
     return Array.from(this.workflows.values()).filter(
-      (w) => w.hospital_id === hospitalId && w.status === 'in_progress' && w.current_step === step
+      (w) =>
+        w.hospital_id === hospitalId &&
+        (w.status === 'in_progress' || w.status === 'staging') &&
+        w.current_step === step
     );
   }
 

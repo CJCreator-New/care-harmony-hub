@@ -38,7 +38,11 @@ import {
   usePendingAppointmentRequests,
   useScheduledAppointments,
 } from '@/hooks/useReceptionistStats';
-import { useUpdateAppointmentRequest, useAutoApproveAppointmentRequests, useDoctorAvailability } from '@/lib/hooks/appointments';
+import {
+  useUpdateAppointmentRequest,
+  useAutoApproveAppointmentRequests,
+  useDoctorAvailability,
+} from '@/lib/hooks/appointments';
 import { PatientCheckInModal } from '@/components/receptionist/PatientCheckInModal';
 import { PatientCheckOutModal } from '@/components/receptionist/PatientCheckOutModal';
 import { WalkInRegistrationModal } from '@/components/receptionist/WalkInRegistrationModal';
@@ -79,11 +83,7 @@ export function ReceptionistDashboard() {
     isError: scheduledError,
     refetch: refetchScheduled,
   } = useScheduledAppointments();
-  const {
-    data: queueData,
-    isError: queueError,
-    refetch: refetchQueue,
-  } = useActiveQueue();
+  const { data: queueData, isError: queueError, refetch: refetchQueue } = useActiveQueue();
   const {
     data: doctorAvailabilityData,
     isError: availabilityError,
@@ -106,32 +106,55 @@ export function ReceptionistDashboard() {
   }, []);
 
   // Memoize handlers to prevent unnecessary re-renders
-  const handleApproveRequest = useCallback((requestId: string) => {
-    if (!profile?.id) return;
-    updateRequest.mutate({
-      id: requestId,
-      status: 'approved',
-      reviewed_by: profile.id,
-    });
-  }, [profile?.id, updateRequest]);
+  const handleApproveRequest = useCallback(
+    (requestId: string) => {
+      if (!profile?.id) return;
+      updateRequest.mutate({
+        id: requestId,
+        status: 'approved',
+        reviewed_by: profile.id,
+      });
+    },
+    [profile?.id, updateRequest]
+  );
+
+  // ADR-0015: front desk asks for a different slot instead of confirming.
+  const handleRequestReschedule = useCallback(
+    (requestId: string) => {
+      if (!profile?.id) return;
+      updateRequest.mutate({
+        id: requestId,
+        status: 'reschedule_requested',
+        reviewed_by: profile.id,
+        reason: 'Front desk requested an alternate slot',
+      });
+    },
+    [profile?.id, updateRequest]
+  );
 
   // Rejects with a reason. Throws on failure so the confirmation stays open with the reason.
-  const handleRejectRequest = useCallback(async (requestId: string, reason: string) => {
-    if (!profile?.id) return;
-    await updateRequest.mutateAsync({
-      id: requestId,
-      status: 'rejected',
-      reviewed_by: profile.id,
-      reason,
-    });
-  }, [profile?.id, updateRequest]);
+  const handleRejectRequest = useCallback(
+    async (requestId: string, reason: string) => {
+      if (!profile?.id) return;
+      await updateRequest.mutateAsync({
+        id: requestId,
+        status: 'rejected',
+        reviewed_by: profile.id,
+        reason,
+      });
+    },
+    [profile?.id, updateRequest]
+  );
 
   // Memoize queue stats to avoid recalculating on every render
-  const queueStats = useMemo(() => ({
-    waiting: queue.filter(q => q.status === 'waiting').length,
-    called: queue.filter(q => q.status === 'called').length,
-    inService: queue.filter(q => q.status === 'in_service').length,
-  }), [queue]);
+  const queueStats = useMemo(
+    () => ({
+      waiting: queue.filter((q) => q.status === 'waiting').length,
+      called: queue.filter((q) => q.status === 'called').length,
+      inService: queue.filter((q) => q.status === 'in_service').length,
+    }),
+    [queue]
+  );
 
   const getPriorityBadge = useCallback((priority: string | null) => {
     switch (priority) {
@@ -148,509 +171,588 @@ export function ReceptionistDashboard() {
   return (
     <DashboardPageTransition className="space-y-8">
       <DashboardSection>
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">
-              {greeting}, {profile?.first_name?.trim() || 'Receptionist'}!
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Appointments, check-ins, and billing overview.
-            </p>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                {greeting}, {profile?.first_name?.trim() || 'Receptionist'}!
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Appointments, check-ins, and billing overview.
+              </p>
+            </div>
+            <Badge variant="receptionist" className="w-fit text-sm py-1.5 px-4">
+              Receptionist
+            </Badge>
           </div>
-          <Badge variant="receptionist" className="w-fit text-sm py-1.5 px-4">
-            Receptionist
-          </Badge>
         </div>
-      </div>
       </DashboardSection>
 
       <DashboardSection>
-      {/* Quick Actions */}
-      <div className="flex flex-wrap items-center gap-3 mb-8">
-        {/* Primary patient flow */}
-        <Button onClick={() => setCheckInOpen(true)}>
-          <LogIn className="h-4 w-4 mr-2" />
-          Check-In Patient
-        </Button>
-        <Button variant="outline" onClick={() => setCheckOutOpen(true)}>
-          <LogOut className="h-4 w-4 mr-2" />
-          Check-Out Patient
-        </Button>
-        <Button variant="outline" onClick={() => setWalkInOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Walk-In Registration
-        </Button>
-        <Separator orientation="vertical" className="h-9 hidden sm:block" />
-        {/* Utilities */}
-        <Button variant="ghost" asChild>
-          <Link to="/receptionist/smart-scheduler">
-            <Sparkles className="h-4 w-4 mr-2" />
-            Smart Scheduler
-          </Link>
-        </Button>
-        <Button variant="ghost" asChild>
-          <Link to="/appointments">
-            <Calendar className="h-4 w-4 mr-2" />
-            New Appointment
-          </Link>
-        </Button>
-        <Button variant="ghost" onClick={() => setKioskMode(true)}>
-          <Monitor className="h-4 w-4 mr-2" />
-          Kiosk Mode
-        </Button>
-      </div>
+        {/* Quick Actions */}
+        <div className="flex flex-wrap items-center gap-3 mb-8">
+          {/* Primary patient flow */}
+          <Button onClick={() => setCheckInOpen(true)}>
+            <LogIn className="h-4 w-4 mr-2" />
+            Check-In Patient
+          </Button>
+          <Button variant="outline" onClick={() => setCheckOutOpen(true)}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Check-Out Patient
+          </Button>
+          <Button variant="outline" onClick={() => setWalkInOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Walk-In Registration
+          </Button>
+          <Separator orientation="vertical" className="h-9 hidden sm:block" />
+          {/* Utilities */}
+          <Button variant="ghost" asChild>
+            <Link to="/receptionist/smart-scheduler">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Smart Scheduler
+            </Link>
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link to="/appointments">
+              <Calendar className="h-4 w-4 mr-2" />
+              New Appointment
+            </Link>
+          </Button>
+          <Button variant="ghost" onClick={() => setKioskMode(true)}>
+            <Monitor className="h-4 w-4 mr-2" />
+            Kiosk Mode
+          </Button>
+        </div>
       </DashboardSection>
 
       <DashboardSection>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="appointment-management" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Appointments
-          </TabsTrigger>
-          <TabsTrigger value="queue-optimization" className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Queue Optimization
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Analytics
-          </TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="appointment-management" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Appointments
+            </TabsTrigger>
+            <TabsTrigger value="queue-optimization" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Queue Optimization
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="overview" className="space-y-8">
-          {/* Stats Grid */}
-          {statsError && <DataError resource="today's figures" onRetry={() => refetchStats()} />}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard
-          title="Today's Appointments"
-          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.todayAppointments })}
-          subtitle="Scheduled"
-          icon={Calendar}
-          variant="primary"
-        />
-        <StatsCard
-          title="Checked In"
-          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.checkedIn })}
-          subtitle="Waiting for doctor"
-          icon={CheckSquare}
-          variant="success"
-        />
-        <StatsCard
-          title="In Queue"
-          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.waitingInQueue })}
-          subtitle={stats?.avgWaitTime ? `~${stats.avgWaitTime} min avg wait` : 'Waiting'}
-          icon={Users}
-          variant="info"
-        />
-        <StatsCard
-          title="Pending Requests"
-          value={displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pendingRequests })}
-          subtitle="Awaiting review"
-          icon={Bell}
-          variant="warning"
-        />
-      </div>
+          <TabsContent value="overview" className="space-y-8">
+            {/* Stats Grid */}
+            {statsError && <DataError resource="today's figures" onRetry={() => refetchStats()} />}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <StatsCard
+                title="Today's Appointments"
+                value={displayStat({
+                  isLoading: statsLoading,
+                  isError: statsError,
+                  value: stats?.todayAppointments,
+                })}
+                subtitle="Scheduled"
+                icon={Calendar}
+                variant="primary"
+              />
+              <StatsCard
+                title="Checked In"
+                value={displayStat({
+                  isLoading: statsLoading,
+                  isError: statsError,
+                  value: stats?.checkedIn,
+                })}
+                subtitle="Waiting for doctor"
+                icon={CheckSquare}
+                variant="success"
+              />
+              <StatsCard
+                title="In Queue"
+                value={displayStat({
+                  isLoading: statsLoading,
+                  isError: statsError,
+                  value: stats?.waitingInQueue,
+                })}
+                subtitle={stats?.avgWaitTime ? `~${stats.avgWaitTime} min avg wait` : 'Waiting'}
+                icon={Users}
+                variant="info"
+              />
+              <StatsCard
+                title="Pending Requests"
+                value={displayStat({
+                  isLoading: statsLoading,
+                  isError: statsError,
+                  value: stats?.pendingRequests,
+                })}
+                subtitle="Awaiting review"
+                icon={Bell}
+                variant="warning"
+              />
+            </div>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Enhanced Check-In & Appointments */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Enhanced Check-In */}
-          <EnhancedCheckIn />
+            {/* Main Content Grid */}
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Left Column - Enhanced Check-In & Appointments */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Enhanced Check-In */}
+                <EnhancedCheckIn />
 
-          {/* Pending Appointment Requests */}
-          {pendingRequests.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-warning" />
-                  Pending Appointment Requests
-                  <Badge variant="warning" className="ml-2">{pendingRequests.length}</Badge>
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => autoApprove.mutate(pendingRequests.map(r => r.id))}
-                    disabled={autoApprove.isPending}
-                  >
-                    {autoApprove.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Auto-Approve Eligible
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {requestsError && <DataError resource="appointment requests" onRetry={() => refetchRequests()} />}
-                <ScrollArea className="h-[280px]">
-                  <div className="space-y-3">
-                    {pendingRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {request.patient?.first_name} {request.patient?.last_name}
-                            </p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>MRN: {request.patient?.mrn}</span>
-                              <span>•</span>
-                              <span>{request.appointment_type}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              {request.preferred_date && (
-                                <>
-                                  <Calendar className="h-3 w-3" />
-                                  <span>{format(parseISO(request.preferred_date), 'MMM d, yyyy')}</span>
-                                </>
-                              )}
-                              {request.preferred_time && (
-                                <>
-                                  <Clock className="h-3 w-3 ml-2" />
-                                  <span>{request.preferred_time}</span>
-                                </>
-                              )}
-                            </div>
-                            {request.reason_for_visit && (
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                {request.reason_for_visit}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <ConfirmDestructiveAction
-                            trigger={
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive hover:text-destructive"
-                                disabled={updateRequest.isPending}
-                                aria-label={`Reject appointment request for ${request.patient?.first_name ?? 'patient'} ${request.patient?.last_name ?? ''}`.trim()}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            }
-                            title="Reject this appointment request?"
-                            description={
-                              <p>
-                                The request will be marked as rejected. The reason is saved in the audit history.
-                              </p>
-                            }
-                            confirmLabel="Reject request"
-                            isPending={updateRequest.isPending}
-                            onConfirm={(reason) => handleRejectRequest(request.id, reason)}
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => handleApproveRequest(request.id)}
-                            disabled={updateRequest.isPending}
-                          >
-                            {updateRequest.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Today's Scheduled Appointments */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Today's Scheduled Appointments
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {scheduledError ? (
-                <DataError resource="scheduled appointments" onRetry={() => refetchScheduled()} />
-              ) : scheduledAppointments.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>No scheduled appointments remaining</p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[320px]">
-                  <div className="space-y-3">
-                    {scheduledAppointments.map((apt) => (
-                      <div
-                        key={apt.id}
-                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="text-center min-w-[60px]">
-                            <p className="text-lg font-bold text-primary">{apt.scheduled_time}</p>
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {apt.patient?.first_name} {apt.patient?.last_name}
-                            </p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>MRN: {apt.patient?.mrn}</span>
-                              {apt.doctor && (
-                                <>
-                                  <span>•</span>
-                                  <span>Dr. {apt.doctor.last_name}</span>
-                                </>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">
-                                {apt.appointment_type}
-                              </Badge>
-                              {apt.priority && apt.priority !== 'normal' && getPriorityBadge(apt.priority)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {apt.patient?.phone && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              aria-label="Call patient"
-                            >
-                              <Phone className="h-4 w-4" />
-                            </Button>
+                {/* Pending Appointment Requests */}
+                {pendingRequests.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-warning" />
+                        Pending Appointment Requests
+                        <Badge variant="warning" className="ml-2">
+                          {pendingRequests.length}
+                        </Badge>
+                      </CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => autoApprove.mutate(pendingRequests.map((r) => r.id))}
+                          disabled={autoApprove.isPending}
+                        >
+                          {autoApprove.isPending && (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           )}
-                          <Button
-                            size="sm"
-                            onClick={() => setCheckInOpen(true)}
-                          >
-                            Check In
-                          </Button>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Auto-Approve Eligible
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {requestsError && (
+                        <DataError
+                          resource="appointment requests"
+                          onRetry={() => refetchRequests()}
+                        />
+                      )}
+                      <ScrollArea className="h-[280px]">
+                        <div className="space-y-3">
+                          {pendingRequests.map((request) => (
+                            <div
+                              key={request.id}
+                              className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <User className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">
+                                    {request.patient?.first_name} {request.patient?.last_name}
+                                  </p>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <span>MRN: {request.patient?.mrn}</span>
+                                    <span>•</span>
+                                    <span>{request.appointment_type}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                    {request.verification_tier === 'tier1' && (
+                                      <Badge variant="warning" className="text-[10px]">
+                                        Portal — ID check required
+                                      </Badge>
+                                    )}
+                                    {request.status === 'pending_confirmation' && (
+                                      <Badge variant="outline" className="text-[10px]">
+                                        Pending front-desk review
+                                      </Badge>
+                                    )}
+                                    {request.matched_patient_id && (
+                                      <Badge variant="destructive" className="text-[10px]">
+                                        Possible duplicate (phone match) — verify MRN
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                    {request.preferred_date && (
+                                      <>
+                                        <Calendar className="h-3 w-3" />
+                                        <span>
+                                          {format(parseISO(request.preferred_date), 'MMM d, yyyy')}
+                                        </span>
+                                      </>
+                                    )}
+                                    {request.preferred_time && (
+                                      <>
+                                        <Clock className="h-3 w-3 ml-2" />
+                                        <span>{request.preferred_time}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {request.reason_for_visit && (
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                      {request.reason_for_visit}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  title="Request reschedule"
+                                  aria-label={`Request reschedule for ${request.patient?.first_name ?? 'patient'} ${request.patient?.last_name ?? ''}`.trim()}
+                                  onClick={() => handleRequestReschedule(request.id)}
+                                  disabled={updateRequest.isPending}
+                                >
+                                  <Calendar className="h-4 w-4" />
+                                </Button>
+                                <ConfirmDestructiveAction
+                                  trigger={
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-destructive hover:text-destructive"
+                                      disabled={updateRequest.isPending}
+                                      aria-label={`Reject appointment request for ${request.patient?.first_name ?? 'patient'} ${request.patient?.last_name ?? ''}`.trim()}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  }
+                                  title="Reject this appointment request?"
+                                  description={
+                                    <p>
+                                      The request will be marked as rejected. The reason is saved in
+                                      the audit history.
+                                    </p>
+                                  }
+                                  confirmLabel="Reject request"
+                                  isPending={updateRequest.isPending}
+                                  onConfirm={(reason) => handleRejectRequest(request.id, reason)}
+                                />
+                                <Button
+                                  size="sm"
+                                  title="Confirm & allocate slot"
+                                  aria-label={`Confirm and allocate slot for ${request.patient?.first_name ?? 'patient'} ${request.patient?.last_name ?? ''}`.trim()}
+                                  onClick={() => handleApproveRequest(request.id)}
+                                  disabled={updateRequest.isPending}
+                                >
+                                  {updateRequest.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Check className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Quick Actions & Queue */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-primary" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline" onClick={() => setWalkInOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Walk-in Registration
-              </Button>
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link to="/appointments">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Schedule Appointment
-                </Link>
-              </Button>
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link to="/billing">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Generate Invoice
-                </Link>
-              </Button>
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link to="/queue">
-                  <Users className="h-4 w-4 mr-2" />
-                  Manage Queue
-                </Link>
-              </Button>
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link to="/patients">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Register New Patient
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Doctor Availability Widget */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                Doctor Availability
-              </CardTitle>
-              <CardDescription>
-                Real-time doctor status and next available slots
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {availabilityError ? (
-                  <DataError resource="doctor availability" onRetry={() => refetchAvailability()} />
-                ) : doctorAvailability.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No doctors available</p>
-                  </div>
-                ) : (
-                  doctorAvailability.slice(0, 5).map((doctor) => (
-                    <div
-                      key={doctor.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`h-3 w-3 rounded-full ${
-                          doctor.status === 'available' ? 'bg-success' :
-                          doctor.status === 'in_consultation' ? 'bg-warning' :
-                          doctor.status === 'break' ? 'bg-info' :
-                          'bg-muted'
-                        }`} />
-                        <div>
-                          <p className="text-sm font-medium">
-                            Dr. {doctor.last_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {doctor.status.replace('_', ' ')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {doctor.next_available && (
-                          <p className="text-xs text-muted-foreground">
-                            Next: {doctor.next_available}
-                          </p>
-                        )}
-                        {doctor.current_patient_count !== undefined && (
-                          <p className="text-xs text-muted-foreground">
-                            {doctor.current_patient_count} in queue
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
                 )}
+
+                {/* Today's Scheduled Appointments */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      Today's Scheduled Appointments
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {scheduledError ? (
+                      <DataError
+                        resource="scheduled appointments"
+                        onRetry={() => refetchScheduled()}
+                      />
+                    ) : scheduledAppointments.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                        <p>No scheduled appointments remaining</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[320px]">
+                        <div className="space-y-3">
+                          {scheduledAppointments.map((apt) => (
+                            <div
+                              key={apt.id}
+                              className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="text-center min-w-[60px]">
+                                  <p className="text-lg font-bold text-primary">
+                                    {apt.scheduled_time}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium">
+                                    {apt.patient?.first_name} {apt.patient?.last_name}
+                                  </p>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <span>MRN: {apt.patient?.mrn}</span>
+                                    {apt.doctor && (
+                                      <>
+                                        <span>•</span>
+                                        <span>Dr. {apt.doctor.last_name}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="secondary" className="text-xs">
+                                      {apt.appointment_type}
+                                    </Badge>
+                                    {apt.priority &&
+                                      apt.priority !== 'normal' &&
+                                      getPriorityBadge(apt.priority)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {apt.patient?.phone && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8"
+                                    aria-label="Call patient"
+                                  >
+                                    <Phone className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button size="sm" onClick={() => setCheckInOpen(true)}>
+                                  Check In
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Quick Payment Widget */}
-          <QuickPaymentWidget />
+              {/* Right Column - Quick Actions & Queue */}
+              <div className="space-y-6">
+                {/* Quick Actions */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <CheckSquare className="h-5 w-5 text-primary" />
+                      Quick Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button
+                      className="w-full justify-start"
+                      variant="outline"
+                      onClick={() => setWalkInOpen(true)}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Walk-in Registration
+                    </Button>
+                    <Button className="w-full justify-start" variant="outline" asChild>
+                      <Link to="/appointments">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Schedule Appointment
+                      </Link>
+                    </Button>
+                    <Button className="w-full justify-start" variant="outline" asChild>
+                      <Link to="/billing">
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Generate Invoice
+                      </Link>
+                    </Button>
+                    <Button className="w-full justify-start" variant="outline" asChild>
+                      <Link to="/queue">
+                        <Users className="h-4 w-4 mr-2" />
+                        Manage Queue
+                      </Link>
+                    </Button>
+                    <Button className="w-full justify-start" variant="outline" asChild>
+                      <Link to="/patients">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Register New Patient
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
 
-          {/* Internal Messaging */}
-          <ReceptionistMessaging compact />
+                {/* Doctor Availability Widget */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      Doctor Availability
+                    </CardTitle>
+                    <CardDescription>
+                      Real-time doctor status and next available slots
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {availabilityError ? (
+                        <DataError
+                          resource="doctor availability"
+                          onRetry={() => refetchAvailability()}
+                        />
+                      ) : doctorAvailability.length === 0 ? (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No doctors available</p>
+                        </div>
+                      ) : (
+                        doctorAvailability.slice(0, 5).map((doctor) => (
+                          <div
+                            key={doctor.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`h-3 w-3 rounded-full ${
+                                  doctor.status === 'available'
+                                    ? 'bg-success'
+                                    : doctor.status === 'in_consultation'
+                                      ? 'bg-warning'
+                                      : doctor.status === 'break'
+                                        ? 'bg-info'
+                                        : 'bg-muted'
+                                }`}
+                              />
+                              <div>
+                                <p className="text-sm font-medium">Dr. {doctor.last_name}</p>
+                                <p className="text-xs text-muted-foreground capitalize">
+                                  {doctor.status.replace('_', ' ')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              {doctor.next_available && (
+                                <p className="text-xs text-muted-foreground">
+                                  Next: {doctor.next_available}
+                                </p>
+                              )}
+                              {doctor.current_patient_count !== undefined && (
+                                <p className="text-xs text-muted-foreground">
+                                  {doctor.current_patient_count} in queue
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
 
-          {/* Performance Analytics */}
-          <ReceptionistAnalytics compact />
+                {/* Quick Payment Widget */}
+                <QuickPaymentWidget />
 
-          {/* Queue Status */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5 text-warning" />
-                Queue Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {queueError ? (
-                <DataError resource="the patient queue" onRetry={() => refetchQueue()} />
-              ) : queue.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No patients in queue</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Waiting</span>
-                    <Badge variant="warning">{queueStats.waiting}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Called</span>
-                    <Badge variant="info">{queueStats.called}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">In Service</span>
-                    <Badge variant="success">{queueStats.inService}</Badge>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                    <Link to="/queue">View Full Queue</Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                {/* Internal Messaging */}
+                <ReceptionistMessaging compact />
 
-          {/* Today's Summary */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-success" />
-                Today's Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Patients Served</span>
-                  <span className="font-medium">
-                    {displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.completedToday })}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Revenue Collected</span>
-                  <span className="font-medium text-success">
-                    {statsError
-                      ? DATA_UNAVAILABLE
-                      : statsLoading
-                        ? '...'
-                        : `₹${(stats?.totalRevenue ?? 0).toLocaleString('en-IN')}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Pending Invoices</span>
-                  <span className="font-medium text-warning">
-                    {displayStat({ isLoading: statsLoading, isError: statsError, value: stats?.pendingInvoices })}
-                  </span>
-                </div>
-                <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                  <Link to="/billing">View Billing</Link>
-                </Button>
+                {/* Performance Analytics */}
+                <ReceptionistAnalytics compact />
+
+                {/* Queue Status */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-warning" />
+                      Queue Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {queueError ? (
+                      <DataError resource="the patient queue" onRetry={() => refetchQueue()} />
+                    ) : queue.length === 0 ? (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No patients in queue</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">Waiting</span>
+                          <Badge variant="warning">{queueStats.waiting}</Badge>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">Called</span>
+                          <Badge variant="info">{queueStats.called}</Badge>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">In Service</span>
+                          <Badge variant="success">{queueStats.inService}</Badge>
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full mt-2" asChild>
+                          <Link to="/queue">View Full Queue</Link>
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Today's Summary */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-success" />
+                      Today's Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Patients Served</span>
+                        <span className="font-medium">
+                          {displayStat({
+                            isLoading: statsLoading,
+                            isError: statsError,
+                            value: stats?.completedToday,
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Revenue Collected</span>
+                        <span className="font-medium text-success">
+                          {statsError
+                            ? DATA_UNAVAILABLE
+                            : statsLoading
+                              ? '...'
+                              : `₹${(stats?.totalRevenue ?? 0).toLocaleString('en-IN')}`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Pending Invoices</span>
+                        <span className="font-medium text-warning">
+                          {displayStat({
+                            isLoading: statsLoading,
+                            isError: statsError,
+                            value: stats?.pendingInvoices,
+                          })}
+                        </span>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full mt-2" asChild>
+                        <Link to="/billing">View Billing</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-        </TabsContent>
+            </div>
+          </TabsContent>
 
-        <TabsContent value="appointment-management">
-        {/* The calendar opens its own appointment details dialog on click. */}
-        <AppointmentCalendarView onNewAppointment={() => setWalkInOpen(true)} />
-      </TabsContent>
+          <TabsContent value="appointment-management">
+            {/* The calendar opens its own appointment details dialog on click. */}
+            <AppointmentCalendarView onNewAppointment={() => setWalkInOpen(true)} />
+          </TabsContent>
 
-        <TabsContent value="queue-optimization">
-          <QueueOptimizer />
-        </TabsContent>
+          <TabsContent value="queue-optimization">
+            <QueueOptimizer />
+          </TabsContent>
 
-        <TabsContent value="analytics">
-          <ReceptionistAnalytics />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="analytics">
+            <ReceptionistAnalytics />
+          </TabsContent>
+        </Tabs>
       </DashboardSection>
 
       {/* Modals */}

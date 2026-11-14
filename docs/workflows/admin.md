@@ -1,4 +1,4 @@
-# Administrator Workflow Guide — CareSync HIMS
+# Administrator Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -22,6 +22,7 @@
 ## Role Overview
 
 **Primary Responsibilities**:
+
 - Create and manage user accounts (all roles)
 - Configure hospital settings and preferences
 - Manage staff schedules and shift assignments
@@ -32,6 +33,7 @@
 - Handle system backups and disaster recovery
 
 **Permissions Held**:
+
 - `users:create` - Create new user accounts
 - `users:delete` - Deactivate/remove users
 - `users:edit_role` - Assign roles to users
@@ -46,6 +48,7 @@
 - `backup:manage` - Manage system backups
 
 **Cannot Do**:
+
 - Create hospital accounts (only super-admin)
 - Override RLS policies (only system architect)
 - Access other hospitals' data
@@ -163,11 +166,11 @@ Email verification: lisa.wong@metrohospital.net
 Initial password option:
 ├─ Option A: Generate temporary password + send via email
 ├─ Option B: User creates password on first login
-   
+
 Selected: Option A
 
 System generates temporary password: Temp#Pass2026$Wong
-└─ Send email: "Your CareSync HIMS account is ready. 
+└─ Send email: "Your CareHarmony HIMS account is ready.
                Temporary password: [sent separately]
                First login: https://...hims.metrohospital.net"
 
@@ -202,11 +205,11 @@ USER ACCOUNT CONFIRMATION
 
 Email received by Dr. Wong:
 
-Subject: Your CareSync HIMS Account is Ready
+Subject: Your CareHarmony HIMS Account is Ready
 
 Hello Dr. Lisa Wong,
 
-Your CareSync HIMS account has been created and is ready to use.
+Your CareHarmony HIMS account has been created and is ready to use.
 
 Hospital: Metro Hospital
 Role: Doctor
@@ -220,7 +223,7 @@ LOGIN INSTRUCTIONS:
    - Set up 2-factor authentication (2FA)
    - Create a new permanent password
    - Accept terms and conditions
-5. Start using CareSync
+5. Start using CareHarmony
 
 Questions? Contact IT Support: it-support@metrohospital.net
 
@@ -351,7 +354,7 @@ Email address: lisa.wong@metrohospital.net
 
 Email received:
 
-Subject: Reset Your CareSync Password
+Subject: Reset Your CareHarmony Password
 
 Hello Dr. Lisa Wong,
 
@@ -525,7 +528,7 @@ Tuesday, April 15:
 
 Friday, April 18:
   Doctors:      Dr. Lisa Wong (NEW), Dr. James Lee, Dr. Sarah Chen
-  Nurses:       Jane, Tom, Susan, Jessica  
+  Nurses:       Jane, Tom, Susan, Jessica
   Reception:    [2 staff scheduled]
   Pharmacy:     [Coverage OK]
 
@@ -577,8 +580,8 @@ SCHEDULE CONFLICT EXAMPLE
 Conflict detected: Jane scheduled Friday evening, but marked as leave
 
 System warning:
-"Error: Jane marked unavailable (pre-approved leave) but 
- scheduled for Friday 2pm-10pm. Remove from schedule or 
+"Error: Jane marked unavailable (pre-approved leave) but
+ scheduled for Friday 2pm-10pm. Remove from schedule or
  cancel leave approval."
 
 Admin action:
@@ -674,7 +677,7 @@ Current status: Normal operations
 
 DATABASE MAINTENANCE
 
-Last full backup: Today, 4:00 AM  
+Last full backup: Today, 4:00 AM
 Last incremental backup: Today, 8:00 AM (automated every 4 hours)
 Next scheduled backup: Today, 12:00 PM
 
@@ -816,7 +819,7 @@ Unusual access?
 ├─ Admin access (6 times) - Note: Routine maintenance tasks
 └─ Result: All accesses documented, justified, within policy
 
-Conclusion: ✓ Compliant - All accesses documented, justified, 
+Conclusion: ✓ Compliant - All accesses documented, justified,
            and within expected range for hospitalized patient.
 
 Report generated: April 8, 2026, 10:30 AM
@@ -865,8 +868,8 @@ Permissions to modify:
 ☑ vitals:view - Keep enabled
 
 Reason for modification (required):
-"Disciplinary action on 4/7/2026 - Cannot approve other 
- doctors' prescriptions pending peer review completion. 
+"Disciplinary action on 4/7/2026 - Cannot approve other
+ doctors' prescriptions pending peer review completion.
  Can still prescribe for own patients."
 
 Effective date: April 8, 2026
@@ -876,7 +879,7 @@ Supervisor approval: Dr. Medical Director (recorded)
 
 System updates:
 ├─ Permission revoked timestamp: April 8, 2026, 10:32 AM
-├─ Audit log: "User admin-name removed prescriptions:approve 
+├─ Audit log: "User admin-name removed prescriptions:approve
    permission from Dr. James Lee. Reason: Disciplinary action."
 ├─ Effective: Immediate (Dr. Lee can no longer approve scripts)
 ├─ System behavior: Any attempt to approve prescription now denied
@@ -893,12 +896,14 @@ Next, admin schedules peer review completion date:
 ---
 
 **Key Contacts**:
+
 - System Architect: For RLS policy modifications
 - Database Administrator: For emergency database issues
 - Security Officer: For access control reviews
 - Hospital Director: For major policy changes
 
 **Related Documentation**:
+
 - [SYSTEM_ARCHITECTURE.md](../product/SYSTEM_ARCHITECTURE.md) - For user role hierarchy
 - [RBAC_PERMISSIONS.md](../RBAC_PERMISSIONS.md) - For complete permissions reference
 - See [API_REFERENCE.md](../product/API_REFERENCE.md) for API user management endpoints

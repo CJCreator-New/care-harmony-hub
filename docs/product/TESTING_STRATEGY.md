@@ -1,4 +1,4 @@
-# CareSync HIMS - Testing Strategy & Automation Guide
+# CareHarmony HIMS - Testing Strategy & Automation Guide
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -21,7 +21,7 @@
 
 ## Testing Pyramid
 
-CareSync HIMS follows the standard testing pyramid:
+CareHarmony HIMS follows the standard testing pyramid:
 
 ```
          /\
@@ -839,7 +839,7 @@ npm run test:e2e -- create-prescription.spec.ts --debug
 
 ### Flaky Test Detection
 
-CareSync's CI monitors test flakiness:
+CareHarmony's CI monitors test flakiness:
 
 ```bash
 npm run analyze:flaky-tests

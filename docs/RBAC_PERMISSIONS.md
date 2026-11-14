@@ -1,20 +1,33 @@
-# CareSync HIMS - RBAC & Access Control
+# CareHarmony HIMS - RBAC & Access Control
 
 **Last Updated**: April 10, 2026  
 **Security Level**: CRITICAL - Healthcare Data Classification  
 **References**: Phase 3 Security Audit (removed; see git history)
 
+> [!IMPORTANT]
+> **Canonical roles (ADR-0002, reviewed 2026-11-13).** The seven roles are
+> `admin`, `doctor`, `nurse`, `receptionist`, `pharmacist`, `lab_technician` and
+> `patient` — the single source of truth is `src/types/rbac.ts`.
+> There is **no "Billing / Finance" role**: point-of-care billing is a receptionist
+> capability and billing governance belongs to admin. The Billing section and
+> matrix column below are retained for historical context. The seventh role,
+> **patient**, is scoped to their own portal records (ADR-0008, ADR-0015).
+>
+> The SQL examples in this page are illustrative. Production policies resolve the
+> caller's hospital through `user_belongs_to_hospital()` (which also requires
+> `profiles.is_active = true`), not raw `auth.jwt()->'role'` parsing.
+
 ---
 
 ## 🔐 Quick Overview
 
-CareSync implements **three-layer access control**:
+CareHarmony implements **three-layer access control**:
 
 1. **Frontend Layer**: React role checks via `usePermissions()`
 2. **API Layer**: Supabase RLS policies enforce data boundaries
 3. **Database Layer**: Row-level security prevents unauthorized access
 
-This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core roles and 40+ permission categories.
+This document covers **Role-Based Access Control (RBAC)** for CareHarmony's 7 core roles and 40+ permission categories.
 
 ---
 
@@ -32,10 +45,12 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 ## 👥 Core Roles
 
 ### 1. Doctor (Physician)
+
 **Scope**: Patient diagnosis, treatment orders, treatment oversight  
 **Hospital Scope**: Multi-hospital capable with assignment
 
 **Permissions**:
+
 - ✅ View patient records (full)
 - ✅ Create/update diagnoses
 - ✅ Create/approve prescriptions
@@ -50,10 +65,12 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 ---
 
 ### 2. Nurse (Clinical Staff)
+
 **Scope**: Patient vitals, medication administration, care coordination  
 **Hospital Scope**: Single hospital assigned
 
 **Permissions**:
+
 - ✅ View patient records (vitals + history)
 - ✅ Record vital signs & patient intake
 - ✅ Administer medications (verify against prescribed)
@@ -68,10 +85,12 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 ---
 
 ### 3. Laboratory Technician
+
 **Scope**: Lab order processing, result entry for assigned tests  
 **Hospital Scope**: Single hospital with lab assignment
 
 **Permissions**:
+
 - ✅ View lab orders (assigned only)
 - ✅ Enter lab results
 - ✅ Flag critical values
@@ -86,10 +105,12 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 ---
 
 ### 4. Pharmacist / Pharmacy Staff
+
 **Scope**: Prescription fulfillment, drug interactions, medication verification  
 **Hospital Scope**: Single hospital or multi-hospital chain
 
 **Permissions**:
+
 - ✅ View prescriptions (pharmacy queue)
 - ✅ Verify medications against guidelines
 - ✅ Check drug-drug interactions
@@ -105,10 +126,12 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 ---
 
 ### 5. Receptionist / Front Desk
+
 **Scope**: Appointment scheduling, patient check-in, basic demographics  
 **Hospital Scope**: Single hospital assigned
 
 **Permissions**:
+
 - ✅ Schedule appointments
 - ✅ Check-in/check-out patients
 - ✅ View appointment calendar
@@ -122,11 +145,13 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 
 ---
 
-### 6. Billing / Finance
+### 6. Billing capabilities (Receptionist and Admin — not a separate role)
+
 **Scope**: Invoicing, insurance claims, payment processing  
-**Hospital Scope**: Multi-hospital (enterprise view possible)
+**Hospital Scope**: Single hospital per staff account
 
 **Permissions**:
+
 - ✅ View treatment summaries (for billing only)
 - ✅ Create/process invoices
 - ✅ Process insurance claims
@@ -144,10 +169,12 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 ---
 
 ### 7. Hospital Administrator
+
 **Scope**: System configuration, user management, audit logs  
 **Hospital Scope**: Single hospital
 
 **Permissions**:
+
 - ✅ Manage users (create, disable, role assignment)
 - ✅ View audit logs
 - ✅ Configure hospital settings
@@ -163,56 +190,63 @@ This document covers **Role-Based Access Control (RBAC)** for CareSync's 7 core 
 
 ## 📊 Permission Matrix
 
-| Permission | Doctor | Nurse | Lab Tech | Pharmacy | Reception | Billing | Admin |
-|-----------|--------|-------|----------|----------|-----------|---------|-------|
-| **Patient Records** | | | | | | | |
-| View full record | ✅ | ⚠️* | ❌ | ❌ | ❌ | ❌ | ✅ |
-| View vitals only | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| View diagnoses | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| View medication hx | ✅ | ✅ | ❌ | ✅ | ❌ | ✅* | ✅ |
-| | | | | | | | |
-| **Prescriptions** | | | | | | | |
-| Create | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Approve | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Dispense | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Cancel | ✅ | ❌ | ❌ | ⚠️** | ❌ | ❌ | ❌ |
-| | | | | | | | |
-| **Lab Orders** | | | | | | | |
-| Create | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View orders | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Enter results | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Flag critical | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Cancel | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| | | | | | | | |
-| **Patient Management** | | | | | | | |
-| Admit patient | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Discharge | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Update vitals | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| | | | | | | | |
-| **Appointments** | | | | | | | |
-| Schedule | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Check-in | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Reschedule | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| | | | | | | | |
-| **Billing** | | | | | | | |
-| View invoices | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Create invoice | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Process payment | ❌ | ❌ | ❌ | ❌ | ⚠️* | ✅ | ❌ |
-| | | | | | | | |
-| **System** | | | | | | | |
-| View audit logs | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Manage users | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Configure system | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Permission             | Doctor | Nurse | Lab Tech | Pharmacy | Reception | Billing | Admin |
+| ---------------------- | ------ | ----- | -------- | -------- | --------- | ------- | ----- |
+| **Patient Records**    |        |       |          |          |           |         |       |
+| View full record       | ✅     | ⚠️*   | ❌       | ❌       | ❌        | ❌      | ✅    |
+| View vitals only       | ✅     | ✅    | ❌       | ❌       | ❌        | ❌      | ✅    |
+| View diagnoses         | ✅     | ✅    | ❌       | ❌       | ❌        | ❌      | ✅    |
+| View medication hx     | ✅     | ✅    | ❌       | ✅       | ❌        | ✅*     | ✅    |
+|                        |        |       |          |          |           |         |       |
+| **Prescriptions**      |        |       |          |          |           |         |       |
+| Create                 | ✅     | ❌    | ❌       | ❌       | ❌        | ❌      | ❌    |
+| Approve                | ✅     | ❌    | ❌       | ❌       | ❌        | ❌      | ❌    |
+| Dispense               | ❌     | ❌    | ❌       | ✅       | ❌        | ❌      | ❌    |
+| Cancel                 | ✅     | ❌    | ❌       | ⚠️**     | ❌        | ❌      | ❌    |
+|                        |        |       |          |          |           |         |       |
+| **Lab Orders**         |        |       |          |          |           |         |       |
+| Create                 | ✅     | ❌    | ❌       | ❌       | ❌        | ❌      | ❌    |
+| View orders            | ✅     | ✅    | ✅       | ❌       | ❌        | ❌      | ✅    |
+| Enter results          | ❌     | ❌    | ✅       | ❌       | ❌        | ❌      | ❌    |
+| Flag critical          | ❌     | ❌    | ✅       | ❌       | ❌        | ❌      | ❌    |
+| Cancel                 | ✅     | ❌    | ❌       | ❌       | ❌        | ❌      | ❌    |
+|                        |        |       |          |          |           |         |       |
+| **Patient Management** |        |       |          |          |           |         |       |
+| Admit patient          | ✅     | ❌    | ❌       | ❌       | ✅        | ❌      | ❌    |
+| Discharge              | ✅     | ❌    | ❌       | ❌       | ❌        | ❌      | ❌    |
+| Update vitals          | ❌     | ✅    | ❌       | ❌       | ❌        | ❌      | ❌    |
+|                        |        |       |          |          |           |         |       |
+| **Appointments**       |        |       |          |          |           |         |       |
+| Schedule               | ✅     | ❌    | ❌       | ❌       | ✅        | ❌      | ❌    |
+| Check-in               | ❌     | ✅    | ❌       | ❌       | ✅        | ❌      | ❌    |
+| Reschedule             | ✅     | ❌    | ❌       | ❌       | ✅        | ❌      | ❌    |
+|                        |        |       |          |          |           |         |       |
+| **Billing**            |        |       |          |          |           |         |       |
+| View invoices          | ❌     | ❌    | ❌       | ❌       | ❌        | ✅      | ✅    |
+| Create invoice         | ❌     | ❌    | ❌       | ❌       | ❌        | ✅      | ❌    |
+| Process payment        | ❌     | ❌    | ❌       | ❌       | ⚠️*       | ✅      | ❌    |
+|                        |        |       |          |          |           |         |       |
+| **System**             |        |       |          |          |           |         |       |
+| View audit logs        | ❌     | ❌    | ❌       | ❌       | ❌        | ❌      | ✅    |
+| Manage users           | ❌     | ❌    | ❌       | ❌       | ❌        | ❌      | ✅    |
+| Configure system       | ❌     | ❌    | ❌       | ❌       | ❌        | ❌      | ✅    |
 
 **Legend**:
+
 - ✅ = Full access
-- ⚠️ = Limited/scoped access  
-- ❌ = No access  
+- ⚠️ = Limited/scoped access
+- ❌ = No access
 
 **Footnotes**:
+
 - `*` Nurse views only assigned patients' vitals
 - `**` Pharmacy can flag for cancellation, doctor cancels
 - `*` Receptionist processes small copays only
+- The **Billing** column represents billing capabilities held by the receptionist
+  (point of care) and admin (governance), not an eighth role (ADR-0002).
+- The canonical seventh role, **Patient**, is absent from this staff matrix: portal
+  access is limited to the patient's own records and depends on identity tier
+  (ADR-0008, ADR-0015).
 
 ---
 
@@ -226,40 +260,40 @@ CREATE POLICY "patients_role_access" ON public.patients
 FOR SELECT
 USING (
   -- Doctors see all patients they're assigned to
-  CASE 
+  CASE
     WHEN auth.jwt()->'role'->0 = '"doctor"'
       THEN hospital_id = auth.jwt()->'hospital_id'
-    
+
     -- Nurses see only patients on their assigned unit
     WHEN auth.jwt()->'role'->0 = '"nurse"'
       THEN hospital_id = auth.jwt()->'hospital_id'
         AND unit_id = auth.jwt()->'unit_id'
-    
+
     -- Lab techs see only patients with ordered tests
     WHEN auth.jwt()->'role'->0 = '"lab_technician"'
       THEN id IN (
-        SELECT DISTINCT patient_id 
-        FROM lab_orders 
+        SELECT DISTINCT patient_id
+        FROM lab_orders
         WHERE hospital_id = auth.jwt()->'hospital_id'
       )
-    
+
     -- Pharmacists see only patients with prescriptions
     WHEN auth.jwt()->'role'->0 = '"pharmacist"'
       THEN id IN (
-        SELECT DISTINCT patient_id 
-        FROM prescriptions 
+        SELECT DISTINCT patient_id
+        FROM prescriptions
         WHERE hospital_id = auth.jwt()->'hospital_id'
       )
-    
+
     -- Receptionists see only check-in patients
     WHEN auth.jwt()->'role'->0 = '"receptionist"'
       THEN id IN (
-        SELECT DISTINCT patient_id 
-        FROM appointments 
+        SELECT DISTINCT patient_id
+        FROM appointments
         WHERE hospital_id = auth.jwt()->'hospital_id'
           AND status = 'checked_in'
       )
-    
+
     ELSE FALSE
   END
 );
@@ -275,16 +309,16 @@ USING (
   CASE
     -- Creators see all their prescriptions
     WHEN created_by = auth.uid() THEN TRUE
-    
+
     -- Pharmacists see prescriptions for their hospital
     WHEN auth.jwt()->'role'->0 = '"pharmacist"'
       THEN hospital_id = auth.jwt()->'hospital_id'
-    
+
     -- Nurses see active prescriptions for their patients
     WHEN auth.jwt()->'role'->0 = '"nurse"'
       THEN hospital_id = auth.jwt()->'hospital_id'
         AND status IN ('active', 'dispensing')
-    
+
     ELSE FALSE
   END
 );
@@ -318,7 +352,7 @@ USING (
   -- Doctors & nurses assigned to the patient
   (auth.jwt()->'role'->0 IN ('"doctor"', '"nurse"')
     AND hospital_id = auth.jwt()->'hospital_id')
-  
+
   -- Lab tech who entered the result
   OR created_by = auth.uid()
 );
@@ -455,7 +489,7 @@ if (!canApprovePrescription) {
 // 2. API: Role check + hospital scope
 export async function approvePrescription(prescriptionId: string) {
   const { user, role, hospital_id } = useAuth();
-  
+
   if (role !== 'doctor') {
     throw new Error('Only doctors can approve prescriptions');
   }
@@ -490,9 +524,9 @@ export function usePatients() {
         .select('*')
         .eq('hospital_id', hospital_id) // CRITICAL: Hospital filter
         .order('created_at', { ascending: false });
-      
+
       return data;
-    }
+    },
   });
 }
 ```
@@ -514,6 +548,7 @@ export function usePatients() {
 ### Audit Requirements
 
 All data access is logged via audit trail:
+
 - **Who**: User ID + role
 - **What**: Record accessed (patient ID, data type)
 - **When**: Timestamp with RFC3339 format
@@ -577,7 +612,7 @@ interface UserRole {
 
 ```typescript
 // Pharmacy can flag for cancellation (not execute)
-CREATE POLICY "prescriptions_flag_cancellation" 
+CREATE POLICY "prescriptions_flag_cancellation"
   ON public.prescriptions
 FOR UPDATE
 USING (

@@ -1,4 +1,11 @@
-# CareSync HIMS: Standardized Forms Quick Reference
+# CareHarmony HIMS: Standardized Forms Quick Reference
+
+> [!WARNING]
+> **Partially outdated (reviewed 2026-11-13).** `@/lib/hooks/useFormStandardized`
+> does not exist. Build forms with a local Zod 4 schema + `zodResolver`
+> (`@hookform/resolvers` v7) and `@/components/common/FormField`; see
+> `src/components/patients/PatientRegistrationModal.tsx` for a working example.
+> See [PRODUCT_GUIDE.md](../PRODUCT_GUIDE.md) §12 (gap G5).
 
 ## One-Minute Setup for New Forms
 
@@ -14,7 +21,7 @@ export function MyForm() {
       await api.save(data);
     },
   });
-  
+
   // Done! No manual toast/error handling needed
 }
 ```
@@ -27,57 +34,53 @@ import { Input } from '@/components/ui/input';
 
 <Form {...form}>
   <form onSubmit={form.handleSubmit} className="space-y-6">
-    <StandardizedFormField
-      control={form.control}
-      name="patient_id"
-      label="Patient"
-      required
-    >
+    <StandardizedFormField control={form.control} name="patient_id" label="Patient" required>
       <Input placeholder="Search..." {...form.register('patient_id')} />
     </StandardizedFormField>
-    
+
     <Button type="submit" disabled={form.isSubmitting}>
       {form.isSubmitting ? 'Saving...' : 'Save'}
     </Button>
   </form>
-</Form>
+</Form>;
 ```
 
 ---
 
 ## Available Form Schemas
 
-| Schema | Use Case | File |
-|--------|----------|------|
+| Schema                      | Use Case                      | File              |
+| --------------------------- | ----------------------------- | ----------------- |
 | `patientDemographicsSchema` | Patient registration, updates | formValidation.ts |
-| `prescriptionFormSchema` | Create/edit prescriptions | formValidation.ts |
-| `vitalSignsFormSchema` | Record vital signs | formValidation.ts |
-| `labOrderFormSchema` | Create lab orders | formValidation.ts |
-| `appointmentFormSchema` | Schedule appointments | formValidation.ts |
-| `clinicalNoteFormSchema` | Write clinical notes | formValidation.ts |
+| `prescriptionFormSchema`    | Create/edit prescriptions     | formValidation.ts |
+| `vitalSignsFormSchema`      | Record vital signs            | formValidation.ts |
+| `labOrderFormSchema`        | Create lab orders             | formValidation.ts |
+| `appointmentFormSchema`     | Schedule appointments         | formValidation.ts |
+| `clinicalNoteFormSchema`    | Write clinical notes          | formValidation.ts |
 
 ---
 
 ## Available Field Schemas
 
-| Schema | Range | File |
-|--------|-------|------|
-| `clinicalEmailSchema` | Email format, max 254 chars | formValidation.ts |
-| `phoneNumberSchema` | Flexible phone format | formValidation.ts |
-| `strongPasswordSchema` | 8+ chars, uppercase, lowercase, number, special | formValidation.ts |
-| `dateOfBirthSchema` | Ages 0-150, past only | formValidation.ts |
-| `dosageSchema` | 0.001-10,000 | formValidation.ts |
-| `mrnSchema` | 6-20 alphanumeric | formValidation.ts |
-| `heartRateSchema` | 20-200 bpm | formValidation.ts |
-| `bloodPressureSystolicSchema` | 50-250 mmHg | formValidation.ts |
-| `temperatureSchema` | 95-106°F | formValidation.ts |
-| `bloodGlucoseSchema` | 40-500 mg/dL | formValidation.ts |
+| Schema                        | Range                                           | File              |
+| ----------------------------- | ----------------------------------------------- | ----------------- |
+| `clinicalEmailSchema`         | Email format, max 254 chars                     | formValidation.ts |
+| `phoneNumberSchema`           | Flexible phone format                           | formValidation.ts |
+| `strongPasswordSchema`        | 8+ chars, uppercase, lowercase, number, special | formValidation.ts |
+| `dateOfBirthSchema`           | Ages 0-150, past only                           | formValidation.ts |
+| `dosageSchema`                | 0.001-10,000                                    | formValidation.ts |
+| `mrnSchema`                   | 6-20 alphanumeric                               | formValidation.ts |
+| `heartRateSchema`             | 20-200 bpm                                      | formValidation.ts |
+| `bloodPressureSystolicSchema` | 50-250 mmHg                                     | formValidation.ts |
+| `temperatureSchema`           | 95-106°F                                        | formValidation.ts |
+| `bloodGlucoseSchema`          | 40-500 mg/dL                                    | formValidation.ts |
 
 ---
 
 ## Common Patterns
 
 ### Type-Safe Data Handling
+
 ```tsx
 import { Prescription } from '@/lib/schemas/formValidation';
 
@@ -89,21 +92,21 @@ const handleSave = async (data: Prescription) => {
 ```
 
 ### Conditional Fields
+
 ```tsx
 const appointmentType = form.watch('appointment_type');
 
-{appointmentType === 'procedure' && (
-  <StandardizedFormField
-    control={form.control}
-    name="procedure_code"
-    label="Procedure Code"
-  >
-    <Input {...form.register('procedure_code')} />
-  </StandardizedFormField>
-)}
+{
+  appointmentType === 'procedure' && (
+    <StandardizedFormField control={form.control} name="procedure_code" label="Procedure Code">
+      <Input {...form.register('procedure_code')} />
+    </StandardizedFormField>
+  );
+}
 ```
 
 ### Custom Success Message
+
 ```tsx
 const form = useFormStandardized(mySchema, {
   onSuccess: handleSave,
@@ -112,6 +115,7 @@ const form = useFormStandardized(mySchema, {
 ```
 
 ### Manual Error Handling (if needed)
+
 ```tsx
 const form = useFormStandardized(mySchema, {
   showErrorToast: false, // Disable auto toast
@@ -129,18 +133,21 @@ const form = useFormStandardized(mySchema, {
 ## Validation Rules Built-In
 
 ### Clinical Safety
+
 - ✅ Vital signs ranges enforced
 - ✅ Dosage limits prevent overdose entry
 - ✅ Duration limits for prescriptions
 - ✅ Age-appropriate calculations
 
 ### PHI Protection
+
 - ✅ No sensitive data in console logs
 - ✅ Email/phone validation for safety
 - ✅ Encryption metadata support
 - ✅ Audit trail logging
 
 ### Type Safety
+
 - ✅ TypeScript strict mode
 - ✅ Zero `any` types
 - ✅ Type inference from Zod schemas
@@ -171,13 +178,13 @@ export const myFormSchema = z.object({
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Form not submitting | Check `form.hasErrors` - fix validation errors first |
-| Toast not appearing | Verify `showErrorToast: true` (default) in options |
-| Type errors | Import type: `import { MyFormData } from '@/lib/schemas/formValidation'` |
-| Field not validating | Check schema match - field name must be exact |
-| PHI in console | Never use `console.log(data)` - use `sanitizeForLog(data)` |
+| Issue                | Solution                                                                 |
+| -------------------- | ------------------------------------------------------------------------ |
+| Form not submitting  | Check `form.hasErrors` - fix validation errors first                     |
+| Toast not appearing  | Verify `showErrorToast: true` (default) in options                       |
+| Type errors          | Import type: `import { MyFormData } from '@/lib/schemas/formValidation'` |
+| Field not validating | Check schema match - field name must be exact                            |
+| PHI in console       | Never use `console.log(data)` - use `sanitizeForLog(data)`               |
 
 ---
 
@@ -194,16 +201,20 @@ export const myFormSchema = z.object({
 ## Performance Tips
 
 ✅ **Good**:
+
 ```tsx
 const schema = useMemo(() => prescriptionFormSchema, []);
 const form = useFormStandardized(schema);
 ```
 
 ❌ **Avoid**:
+
 ```tsx
 // New function on every render - causes re-renders
 const form = useFormStandardized(schema, {
-  onSuccess: () => { /* ... */ }
+  onSuccess: () => {
+    /* ... */
+  },
 });
 ```
 
@@ -214,4 +225,3 @@ const form = useFormStandardized(schema, {
 - See: `docs/product/FORMS_DEVELOPMENT_GUIDE.md` (comprehensive guide)
 - Review: `src/components/patients/PatientRegistrationModal.STANDARDIZED.tsx` (full example)
 - Run tests: `npm run test:unit -- src/test/form-validation.test.ts`
-

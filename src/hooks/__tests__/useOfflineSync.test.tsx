@@ -14,6 +14,20 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/hooks/use-toast', () => ({ toast: vi.fn(), useToast: () => ({ toast: vi.fn() }) }));
 
+// Reconnect now performs a real Supabase replay; the network is mocked as healthy.
+vi.mock('@/integrations/supabase/client', () => {
+  const eq = vi.fn().mockResolvedValue({ error: null });
+  return {
+    supabase: {
+      from: () => ({
+        insert: vi.fn().mockResolvedValue({ error: null }),
+        update: vi.fn(() => ({ eq })),
+        delete: vi.fn(() => ({ eq })),
+      }),
+    },
+  };
+});
+
 vi.mock('@/modules/offline-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/modules/offline-store')>();
   return {
@@ -37,7 +51,13 @@ vi.mock('@/modules/offline-store', async (importOriginal) => {
 
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 
-const PHI_FIELD_NAMES = ['patient_id', 'systolic_bp', 'chief_complaint', 'clinical_notes', 'first_name'];
+const PHI_FIELD_NAMES = [
+  'patient_id',
+  'systolic_bp',
+  'chief_complaint',
+  'clinical_notes',
+  'first_name',
+];
 
 describe('useOfflineSync (SECF-06)', () => {
   beforeEach(() => {
@@ -47,7 +67,11 @@ describe('useOfflineSync (SECF-06)', () => {
   it('queues offline, replays online, shares state across instances and keeps PHI out of web storage', async () => {
     window.localStorage.setItem(
       'care-harmony-offline-cache',
-      JSON.stringify({ pendingActions: [{ type: 'create', table: 'vitals', data: { first_name: 'Legacy' }, timestamp: 1 }] }),
+      JSON.stringify({
+        pendingActions: [
+          { type: 'create', table: 'vitals', data: { first_name: 'Legacy' }, timestamp: 1 },
+        ],
+      })
     );
 
     const a = renderHook(() => useOfflineSync());
@@ -95,14 +119,19 @@ describe('useOfflineSync (SECF-06)', () => {
       result.current.queueAction('create', 'vital_signs', { patient_id: 'pt-1' });
     });
     await waitFor(() =>
-      expect((shared.adapter as { peek(): { records: unknown[] } }).peek().records.length).toBeGreaterThan(0),
+      expect(
+        (shared.adapter as { peek(): { records: unknown[] } }).peek().records.length
+      ).toBeGreaterThan(0)
     );
 
     auth.user = null;
     rerender();
     await waitFor(() => expect(result.current.pendingActionCount).toBe(0));
     await waitFor(() =>
-      expect((shared.adapter as { peek(): unknown }).peek()).toEqual({ key: undefined, records: [] }),
+      expect((shared.adapter as { peek(): unknown }).peek()).toEqual({
+        key: undefined,
+        records: [],
+      })
     );
   });
 });

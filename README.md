@@ -49,6 +49,7 @@ The system has been finalized with advanced production optimizations:
 
 **Documentation Hub**: start at the documentation index.
 
+- 🧭 [Product guide](./docs/PRODUCT_GUIDE.md) — End-to-end guide: roles, patient journey, architecture, setup, testing and known doc gaps
 - 📚 [Documentation index](./docs/INDEX.md) — All current business, technical, security and operational docs
 - 🏛️ [Architecture decisions](./docs/adr/) — ADR-0001 sets the Supabase-native runtime
 - 📖 [Development standards](./docs/product/DEVELOPMENT_STANDARDS.md) — Code patterns and development standards
@@ -198,9 +199,9 @@ care-harmony-hub/
 
 | Document                                                               | Description                         |
 | ---------------------------------------------------------------------- | ----------------------------------- |
+| [Product guide](docs/PRODUCT_GUIDE.md)                                 | Consolidated end-to-end guide       |
 | [Architecture](docs/product/SYSTEM_ARCHITECTURE.md)                    | System architecture & design        |
-| [Database Schema](docs/DATABASE.md)                                    | Database structure & relations      |
-| [API Reference](docs/product/API_REFERENCE.md)                         | Edge functions & endpoints          |
+| [Data Model](docs/product/DATA_MODEL.md)                               | Database structure & relations      |
 | [RBAC & permissions](docs/RBAC_PERMISSIONS.md)                         | Roles, permissions & access control |
 | [Security checklist](docs/product/SECURITY_CHECKLIST.md)               | Security review checklist           |
 | [Staging deployment](docs/operations/STAGING_DEPLOYMENT_VALIDATION.md) | Staging deployment validation       |

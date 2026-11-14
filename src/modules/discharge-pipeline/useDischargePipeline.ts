@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasAnyAllowedRole } from '@/lib/permissions';
+import { assertOnlineForCriticalAction } from '@/modules/offline-store';
 import {
   DischargeQueueStep,
   DischargeRejectionType,
@@ -81,13 +82,20 @@ export function useDischargePipeline(workflowId?: string, queueStepOverride?: Di
     queryFn: async () => {
       if (!hospital?.id || !currentRoleStep) return [];
 
-      const { data, error } = await supabase
-        .from('discharge_workflows')
-        .select('*')
-        .eq('hospital_id', hospital.id)
-        .eq('status', 'in_progress')
-        .eq('current_step', currentRoleStep)
-        .order('updated_at', { ascending: false });
+      let query = supabase.from('discharge_workflows').select('*').eq('hospital_id', hospital.id);
+
+      if (currentRoleStep === 'pharmacist' || currentRoleStep === 'billing') {
+        // ADR-0014: each discipline sees a staging workflow until its own clearance is recorded.
+        const clearanceColumn =
+          currentRoleStep === 'pharmacist' ? 'pharmacy_cleared' : 'billing_cleared';
+        query = query.or(
+          `and(status.eq.in_progress,current_step.eq.${currentRoleStep}),and(status.eq.staging,${clearanceColumn}.eq.false)`
+        );
+      } else {
+        query = query.in('status', ['in_progress', 'staging']).eq('current_step', currentRoleStep);
+      }
+
+      const { data, error } = await query.order('updated_at', { ascending: false });
 
       if (error) throw error;
       return (data || []) as DischargeWorkflow[];
@@ -106,6 +114,11 @@ export function useDischargePipeline(workflowId?: string, queueStepOverride?: Di
       const allowedRoles = ['doctor', 'pharmacist', 'receptionist', 'admin', 'nurse'] as const;
       if (!hasAnyAllowedRole(primaryRole ? [primaryRole] : [], [...allowedRoles])) {
         throw new Error('You do not have permission to act on discharge workflows');
+      }
+
+      // ADR-0013 / ADR-0003: the nursing release gate must validate against live server state.
+      if (action === 'approve' && primaryRole === 'nurse') {
+        assertOnlineForCriticalAction('discharge:complete');
       }
 
       const requestMetadata =

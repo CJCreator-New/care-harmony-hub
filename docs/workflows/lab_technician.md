@@ -1,4 +1,4 @@
-# Laboratory Technician Workflow Guide — CareSync HIMS
+# Laboratory Technician Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -22,6 +22,7 @@
 ## Role Overview
 
 **Primary Responsibilities**:
+
 - Receive and process lab orders from physicians
 - Collect blood & body fluid specimens from patients
 - Prepare samples and run diagnostic tests
@@ -31,6 +32,7 @@
 - Maintain equipment calibration
 
 **Permissions Held**:
+
 - `lab_orders:view_all` - See all pending lab orders
 - `lab_orders:assign` - Mark order as in-progress
 - `specimens:record` - Log specimen collection
@@ -40,6 +42,7 @@
 - `equipment:calibrate` - Record instrument calibration
 
 **Cannot Do**:
+
 - Create lab orders (only doctors)
 - Approve final results (only medical director/supervising physician)
 - Order lab equipment
@@ -142,7 +145,7 @@ Tech prepares supplies:
 
 PATIENT VERIFICATION & CONSENT
 
-Tech: "Hi, I'm the lab tech. I need to draw some blood 
+Tech: "Hi, I'm the lab tech. I need to draw some blood
 for your tests. Can I verify your name and date of birth?"
 
 Patient: "I'm John Smith, born May 20, 1975."
@@ -153,7 +156,7 @@ Tech verifies:
 ✓ Matches tube labels
 ✓ Patient identified with wristband (hospital ID #hosp-123)
 
-Tech explains: "I'm going to draw blood from your arm. 
+Tech explains: "I'm going to draw blood from your arm.
 You might feel a small pinch. Let me know if you feel faint."
 
 Patient consents (already consented in system during order placement).
@@ -197,7 +200,7 @@ Tech steps:
 5. Post-collection
    ├─ Apply pressure to puncture site (2-3 minutes)
    ├─ Apply pressure dressing or bandage
-   ├─ Tell patient: "Keep pressure on site. You can remove 
+   ├─ Tell patient: "Keep pressure on site. You can remove
    │   the bandage in 30 minutes."
    └─ Dispose needle in sharps container
 
@@ -267,7 +270,7 @@ Verification:
 └─ ✓ ACCEPTED
 
 If specimen is contaminated or inadequate:
-"This specimen appears contaminated (visible particles). 
+"This specimen appears contaminated (visible particles).
 We need a fresh clean-catch specimen. Can you try again?"
 
 System logs:
@@ -364,7 +367,7 @@ SHIFT START QC (Before running patient samples)
 Procedure for each analyzer:
 
 1. Hematology Analyzer (CBC machine)
-   
+
    Tech performs known sample test:
    ├─ QC material: Commercial control samples (normal, low, high values)
    ├─ Run Level 1 (normal range): Expected results within ±2 SD
@@ -381,7 +384,7 @@ Procedure for each analyzer:
       └─ After calibration, rerun QC to verify PASS
 
 2. Chemistry Analyzer (Metabolic panel machine)
-   
+
    Same process:
    ├─ Run QC samples (normal level)
    ├─ Check glucose, electrolytes, kidney function values
@@ -419,7 +422,7 @@ Tech action:
 3. Rerun QC → Result: glucose 101 (now in range) ✓ PASS
 4. Document:
    "Chemistry analyzer out of calibration. Recalibrated at 7:10 AM.
-    QC results now within range. All patient samples processed after 
+    QC results now within range. All patient samples processed after
     this time are acceptable."
 5. Analyzer released for patient samples
 ```
@@ -501,7 +504,7 @@ Queue of results awaiting physician signature:
 ├─ Blood Culture (Michael Johnson) - Pending (culture grows overnight)
 └─ Lipid Panel (Robert Wilson) - All normal
 
-Supervising Physician (Dr. Clinical Lab): 
+Supervising Physician (Dr. Clinical Lab):
 Reviews flagged results:
 
 METABOLIC PANEL - Jane Doe
@@ -536,7 +539,7 @@ Once physician approves:
 ### Identifying and Reporting Critical Values
 
 ```
-Definition: Critical values (panic values) are results that 
+Definition: Critical values (panic values) are results that
 indicate life-threatening conditions requiring immediate action.
 
 CRITICAL VALUE THRESHOLDS
@@ -605,9 +608,9 @@ LAB-TO-PHYSICIAN COMMUNICATION (Critical Values)
 
 If critical value confirmed, Tech/Director calls physician immediately:
 
-"Dr. Chen, this is Dr. [Lab director] from the lab. 
-CRITICAL ALERT on patient Jane Doe: 
-Potassium level is critically LOW at 2.3 mEq/L. 
+"Dr. Chen, this is Dr. [Lab director] from the lab.
+CRITICAL ALERT on patient Jane Doe:
+Potassium level is critically LOW at 2.3 mEq/L.
 This was just received. Recommend STAT EKG and possible IV potassium replacement.
 I'm releasing this result to the EHR now."
 
@@ -726,9 +729,9 @@ Tech action:
    └─ Specimen type: Serum (SST tube)
 
 2. Notify phlebotomist on night shift
-   "John, I need a STAT collection on Robert Wilson in the ER. 
+   "John, I need a STAT collection on Robert Wilson in the ER.
     Troponin for possible MI. Can you draw?"
-   
+
    Phlebotomist: "Yes, heading over now."
 
 3. Tech prepares analyzer
@@ -757,7 +760,7 @@ Status: 🔴 ELEVATED (abnormal)
 Result: POSITIVE for myocardial injury
 
 6. Tech immediately notifies:
-   ├─ Phones ER physician: "Troponin is elevated at 0.08. 
+   ├─ Phones ER physician: "Troponin is elevated at 0.08.
       Concerning for MI."
    ├─ Enters result in EHR
    ├─ Sets status to STAT (so alerts propagate immediately)
@@ -775,11 +778,13 @@ Patient care significantly improved by rapid testing
 
 ---
 
-**Key Reference**: 
+**Key Reference**:
+
 - See [API_REFERENCE.md](../product/API_REFERENCE.md) for lab orders and results data structures
 - Contact lab director for policy questions or unusual specimens
 
 **Emergency Contacts**:
+
 - Lab Director: [On-call list in hospital system]
 - Quality Assurance: ext. 4567
 - Infection Control: ext. 2891

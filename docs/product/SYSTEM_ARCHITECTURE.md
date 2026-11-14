@@ -1,4 +1,4 @@
-# CareSync HIMS - System Architecture & Technical Overview
+# CareHarmony HIMS - System Architecture & Technical Overview
 
 **Last Updated**: April 8, 2026  
 **Version**: 1.2.1  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-**CareSync** is a comprehensive, enterprise-grade Hospital Information Management System (HIMS) built on modern cloud-native technologies. It provides unified operations across OPD (Out-Patient Department), IPD (In-Patient Department), Operating Theater, Pharmacy, Laboratory, and Billing—all accessible through role-based web dashboards and a patient portal.
+**CareHarmony** is a comprehensive, enterprise-grade Hospital Information Management System (HIMS) built on modern cloud-native technologies. It provides unified operations across OPD (Out-Patient Department), IPD (In-Patient Department), Operating Theater, Pharmacy, Laboratory, and Billing—all accessible through role-based web dashboards and a patient portal.
 
 ### Key System Characteristics
 
@@ -37,34 +37,25 @@
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  STATE MANAGEMENT & DATA LAYER                             │
-│  ├─ TanStack Query (React Query) - HTTP cache              │
-│  ├─ Zustand - State (if needed for UI state)               │
-│  ├─ Context API - Auth, Theme, Testing                     │
+│  ├─ TanStack Query (React Query) - query cache             │
+│  ├─ Context API - Auth, Theme, Video modal                 │
 │  └─ Real-time - Supabase Realtime subscriptions            │
 └─────────────────────────────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
-│  API LAYER                                                 │
-│  Kong API Gateway (8000) - Rate limiting, auth forwarding  │
-│  Supabase REST API (Postgres via PostgREST)               │
-│  ├─ Real-time subscriptions (WebSocket)                    │
-│  ├─ Auth (JWT, 2FA, Biometric)                             │
-│  └─ File storage (buckets for documents, images)           │
-└─────────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────────┐
-│  BACKEND SERVICES (Docker Microservices)                   │
-│  ├─ patient-service (patient registry, demographics)       │
-│  ├─ appointment-service (scheduling, queue mgmt)           │
-│  ├─ clinical-service (vitals, consultation notes, orders)  │
-│  ├─ laboratory-service (lab orders, results, critical val) │
-│  └─ pharmacy-service (dispensing, inventory, interactions) │
+│  BACKEND — SUPABASE-NATIVE (ADR-0001, ADR-0007)            │
+│  No API gateway and no microservice tier.                  │
+│  Supabase PostgREST + Realtime + Auth + Storage            │
+│  ├─ PostgreSQL: RLS policies, triggers, RPCs               │
+│  ├─ Deno edge functions (supabase/functions/)              │
+│  ├─ Auth (JWT, MFA/2FA)                                    │
+│  └─ Storage buckets (documents, images)                    │
 └─────────────────────────────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  DATABASE LAYER                                            │
 │  PostgreSQL (Supabase-hosted)                              │
-│  ├─ 50+ migrations defining RLS policies                   │
+│  ├─ 70+ migrations defining RLS policies                   │
 │  ├─ Audit trail tables (append-only)                       │
 │  ├─ Hospital-scoped multi-tenancy                          │
 │  └─ Encryption metadata for PHI protection                 │
@@ -82,9 +73,9 @@
 
 ### Deployment Model
 
-**Development**: Docker Compose (local services)  
-**Staging**: Kubernetes cluster with Kong ingress  
-**Production**: Multi-zone HA setup with automated failover
+**Development**: `npm run dev` against a Supabase project (or the local Supabase CLI stack)  
+**Staging**: isolated Supabase project + static frontend host, validated with `docs/operations/STAGING_DEPLOYMENT_VALIDATION.md`  
+**Production**: Supabase-hosted PostgreSQL/Auth/Storage/Edge Functions + static SPA hosting with PWA support
 
 ---
 

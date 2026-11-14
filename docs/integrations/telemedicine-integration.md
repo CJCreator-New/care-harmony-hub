@@ -1,4 +1,4 @@
-# Telemedicine Integration Guide — CareSync HIMS
+# Telemedicine Integration Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -21,14 +21,14 @@
 
 ### Supported Telemedicine Providers
 
-CareSync HIMS integrates with the following telemedicine providers:
+CareHarmony HIMS integrates with the following telemedicine providers:
 
-| Provider | Type | Latency | Features | Cost |
-|----------|------|---------|----------|------|
-| Twilio Video | SDKs | <150ms | Screen share, recording, 100+ users | $0.01-0.05/min |
-| Jitsi Meet | Open source | <200ms | Self-hosted, bandwidth efficient | Free |
-| Zoom SDK | Enterprise | <100ms | Exam room, whiteboard, waiting room | $0.13-0.50/min |
-| WebRTC (custom) | Custom | <100ms | Full control, low cost | Infrastructure only |
+| Provider        | Type        | Latency | Features                            | Cost                |
+| --------------- | ----------- | ------- | ----------------------------------- | ------------------- |
+| Twilio Video    | SDKs        | <150ms  | Screen share, recording, 100+ users | $0.01-0.05/min      |
+| Jitsi Meet      | Open source | <200ms  | Self-hosted, bandwidth efficient    | Free                |
+| Zoom SDK        | Enterprise  | <100ms  | Exam room, whiteboard, waiting room | $0.13-0.50/min      |
+| WebRTC (custom) | Custom      | <100ms  | Full control, low cost              | Infrastructure only |
 
 **Current implementation**: Twilio Video + Jitsi (fallback)
 
@@ -82,27 +82,27 @@ export async function generateVideoToken(params: {
   userId: string;
 }) {
   const { appointmentId, role, userId } = params;
-  
+
   // Room name: stable identifier for this appointment
   const roomName = `apt-${appointmentId}`;
-  
+
   // Generate token valid for 1 hour
   const token = twilio.jwt.AccessToken(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_API_KEY,
     process.env.TWILIO_API_SECRET
   );
-  
+
   // Grant video permission
   const videoGrant = new twilio.jwt.AccessToken.VideoGrant({
     room: roomName
   });
-  
+
   token.addGrant(videoGrant);
-  
+
   // Customize participant name & identity
   token.identity = `${role}-${userId}`;
-  
+
   return token.toJwt();
 }
 
@@ -147,12 +147,12 @@ Step 2: Frontend establishes WebRTC connection
 
 Code: frontend/components/TelemedicineConsult.tsx
 
-import { connect, createLocalAudioTrack, createLocalVideoTrack } 
+import { connect, createLocalAudioTrack, createLocalVideoTrack }
   from 'twilio-video';
 
 export function TelemedicineConsult({ token, roomName }) {
   const [room, setRoom] = useState(null);
-  
+
   useEffect(() => {
     // Request permissions first
     navigator.mediaDevices
@@ -179,19 +179,19 @@ export function TelemedicineConsult({ token, roomName }) {
       .then(room => {
         console.log(`Joined room: ${room.name}`);
         setRoom(room);
-        
+
         // Participant join handler
         room.on('participantConnected', participant => {
           console.log(`Participant connected: ${participant.sid}`);
         });
-        
+
         // Participant disconnect handler
         room.on('participantDisconnected', participant => {
           console.log(`Participant disconnected: ${participant.sid}`);
         });
-        
+
         return () => {
-          room.localParticipant.videoTracks.forEach(track => 
+          room.localParticipant.videoTracks.forEach(track =>
             track.stop()
           );
           room.disconnect();
@@ -201,17 +201,17 @@ export function TelemedicineConsult({ token, roomName }) {
         console.error('Error connecting to room:', error);
       });
   }, [token, roomName]);
-  
+
   return (
     <div className="telemedicine-container">
       {room && (
         <>
-          <Participant key={room.localParticipant.sid} 
+          <Participant key={room.localParticipant.sid}
                         participant={room.localParticipant} />
           <div className="remote-participants">
             {Array.from(room.participants.values()).map(
               participant => (
-                <Participant key={participant.sid} 
+                <Participant key={participant.sid}
                               participant={participant} />
               )
             )}
@@ -288,31 +288,31 @@ CREATE TABLE telemedicine_sessions (
   hospital_id UUID REFERENCES hospitals(id),
   room_name VARCHAR(255) UNIQUE,  -- "apt-123"
   status VARCHAR(50),             -- pending, awaiting_doc, etc.
-  
+
   -- Call details
   started_at TIMESTAMP,
   ended_at TIMESTAMP,
   duration_minutes INTEGER,
-  
+
   -- Recording
   recording_sid VARCHAR(255),     -- Twilio recording ID
   recording_url TEXT,             -- Download URL
   recording_stored BOOLEAN,       -- Moved to cold storage?
   transcription TEXT,             -- AI-generated transcript
-  
+
   -- Quality metrics
   doctor_avg_latency_ms INTEGER,
   patient_avg_latency_ms INTEGER,
   max_packet_loss NUMERIC(5,2),
-  
+
   -- Clinical notes
   clinical_notes_id UUID,
   prescription_ids UUID[],        -- Associated prescriptions
-  
+
   created_at TIMESTAMP,
   updated_at TIMESTAMP,
   created_by UUID REFERENCES auth.users(id),
-  
+
   -- RLS: Token scoping
   hospital_scoped_id TEXT GENERATED ALWAYS AS (
     hospital_id::text || ':' || id::text
@@ -366,29 +366,29 @@ export async function handleParticipantDisconnect(
   participantRole: 'doctor' | 'patient'
 ) {
   // Update status
-  await updateSessionStatus(sessionId, 
-    participantRole === 'doctor' 
-      ? 'DOCTOR_RECONNECTING' 
+  await updateSessionStatus(sessionId,
+    participantRole === 'doctor'
+      ? 'DOCTOR_RECONNECTING'
       : 'PATIENT_RECONNECTING'
   );
-  
+
   // Start 30-second timer
   const reconnectTimer = setTimeout(async () => {
     const session = await getSession(sessionId);
     if (session.status === 'DOCTOR_RECONNECTING') {
       // Still disconnected after 30 sec - end session
       await endTelemedicineSession(sessionId);
-      await updateAppointmentStatus(session.appointment_id, 
+      await updateAppointmentStatus(session.appointment_id,
         'incomplete'
       );
       // Notify both parties
-      await sendNotification(session.doctor_id, 
+      await sendNotification(session.doctor_id,
         'Consultation ended: connection lost');
-      await sendNotification(session.patient_id, 
+      await sendNotification(session.patient_id,
         'Consultation ended: doctor connection lost');
     }
   }, 30000);
-  
+
   // If reconnected before timer: clear timer
   session.on('reconnect', () => {
     clearTimeout(reconnectTimer);
@@ -478,7 +478,7 @@ Recording lifecycle:
 1. Recording starts automatically when consultation begins
 2. Recording stops when last participant leaves
 3. Twilio processes: transcodes to MP4, generates SID
-4. CareSync downloads and stores in secure storage
+4. CareHarmony downloads and stores in secure storage
 
 Retrieve recording:
 
@@ -766,11 +766,13 @@ curl http://localhost:3000/admin/telemedicine/sessions \
 ---
 
 **Related Documentation**:
+
 - [SECURITY_CHECKLIST.md](../product/SECURITY_CHECKLIST.md) - Deployment security review
 - Twilio Video API: https://www.twilio.com/video/api
 - HIPAA Compliance: https://www.hipaa.gov/telemedicine
 
 **Support Contacts**:
+
 - Twilio Support: https://support.twilio.com
 - Clinical IT: [internal contact]
 - Security Team: [contact info]

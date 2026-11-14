@@ -53,6 +53,10 @@ export class DischargePipelineEngine {
       last_action_by: null,
       last_action_at: null,
       rejection_reason: null,
+      doctor_signed: false,
+      pharmacy_cleared: false,
+      billing_cleared: false,
+      staging_started_at: null,
       metadata: params.metadata ?? {},
       created_at: now,
       updated_at: now,
@@ -67,6 +71,10 @@ export class DischargePipelineEngine {
       ...draftWorkflow,
       current_step: validation.nextStep,
       status: validation.nextStatus,
+      doctor_signed: true,
+      pharmacy_cleared: false,
+      billing_cleared: false,
+      staging_started_at: now,
       last_action_by: actor.id,
       last_action_at: now,
       updated_at: now,
@@ -126,10 +134,13 @@ export class DischargePipelineEngine {
 
     const now = new Date().toISOString();
     const previousStep = workflow.current_step;
+    const clearedStep = validation.actingStep ?? previousStep;
     const updatedWorkflow: DischargeWorkflow = {
       ...workflow,
       current_step: validation.nextStep,
       status: validation.nextStatus,
+      pharmacy_cleared: workflow.pharmacy_cleared || clearedStep === 'pharmacist',
+      billing_cleared: workflow.billing_cleared || clearedStep === 'billing',
       last_action_by: actor.id,
       last_action_at: now,
       rejection_reason: null,
@@ -201,6 +212,9 @@ export class DischargePipelineEngine {
       last_action_by: actor.id,
       last_action_at: now,
       rejection_reason: params.reason.trim(),
+      doctor_signed: validation.nextStep !== 'doctor',
+      pharmacy_cleared: false,
+      billing_cleared: false,
       metadata: {
         ...workflow.metadata,
         ...(params.metadata ?? {}),

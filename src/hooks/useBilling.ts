@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { executeWithRateLimitBackoff } from '@/utils/rateLimitBackoff';
 import { useWorkflowOrchestrator, WORKFLOW_EVENT_TYPES } from '@/hooks/useWorkflowOrchestrator';
 import { hasPermission } from '@/lib/permissions';
+import { assertOnlineForCriticalAction } from '@/modules/offline-store';
 
 export type InvoiceStatus = 'pending' | 'partial' | 'paid' | 'cancelled';
 
@@ -208,6 +209,8 @@ export function useCreateInvoice() {
       if (!hasPermission(primaryRole ?? undefined, 'billing:write')) {
         throw new Error('You do not have permission to create invoices');
       }
+      // ADR-0013: invoice/fee finalization is fail-closed while offline.
+      assertOnlineForCriticalAction('billing:finalize');
       if (!hospital?.id) throw new Error('No hospital context');
 
       return withBillingRateLimit(async () => {

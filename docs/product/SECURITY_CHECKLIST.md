@@ -1,4 +1,4 @@
-# CareSync HIMS - Security Review Checklist
+# CareHarmony HIMS - Security Review Checklist
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -128,10 +128,10 @@ Security Review Checklist:
   ✓ Server-side validation (not just frontend)
   ✓ Whitelist approach (allow good data, reject bad)
   ✗ WRONG: Blacklist approach (block known bad patterns)
-  
+
   Example ✓ GOOD:
   const email = z.string().email().parse(userInput);
-  
+
   Example ✗ WRONG:
   if (!userInput.includes('<script>')) process(userInput);
 
@@ -139,23 +139,23 @@ Security Review Checklist:
   ✓ HTML entities escaped in rendered text
   ✓ React auto-escapes by default (safe)
   ✓ JSON responses properly formatted
-  
+
   Example ✓ GOOD:
   <div>{userText}</div>  // React escapes
-  
+
   Example ✗ WRONG:
   <div dangerouslySetInnerHTML={{__html: userText}} />
 
 □ SQL Injection Prevention
   ✓ Parameterized queries used (no string concatenation)
   ✓ ORM (Supabase PostgREST) handles escaping
-  
+
   Example ✓ GOOD:
   const { data } = await supabase
     .from('patients')
     .select('*')
     .eq('id', patientId);  // Parameterized: safe
-  
+
   Example ✗ WRONG:
   const query = `SELECT * FROM patients WHERE id = '${patientId}'`;
   // SQL injection vulnerable!
@@ -165,11 +165,11 @@ Security Review Checklist:
   ✓ Token expiry enforced (< 1 hour for access, < 7 days refresh)
   ✓ Token refresh doesn't require password
   ✓ Logout clears tokens properly
-  
+
   Example ✓ GOOD:
   const decoded = verify(token, JWT_SECRET);
   if (Date.now() > decoded.exp * 1000) throw 'Token expired';
-  
+
   Example ✗ WRONG:
   // Accepting token without expiry check
   const decoded = jwt.decode(token);
@@ -177,20 +177,20 @@ Security Review Checklist:
 □ Authorization (RBAC)
   ✓ Permission checked before action
   ✓ Checked at all 3 layers (frontend, API, database)
-  
+
   Example ✓ GOOD:
   // Frontend UX
   if (!hasPermission('prescriptions:approve')) return null;
-  
+
   // API validation
   if (!user.permissions.includes('prescriptions:approve'))
     return 403 Forbidden;
-  
+
   // Database RLS policy
   CREATE POLICY "Only pharmacist can approve"
   ON prescriptions
   WHERE (approved_by_role = 'pharmacist');
-  
+
   Example ✗ WRONG:
   // Only frontend check
   if (!userRole === 'pharmacist') return null;
@@ -201,14 +201,14 @@ Security Review Checklist:
   ✓ sanitizeForLog() used for sensitive data
   ✓ No SSN, credit card in console or errors
   ✓ Exception messages don't expose internal details
-  
+
   Example ✓ GOOD:
   logger.info('Patient created', { patientId });
-  logger.error('Patient fetch failed', { 
+  logger.error('Patient fetch failed', {
     error: error.message,
     patientId  // Never: patientSSN, patientDate
   });
-  
+
   Example ✗ WRONG:
   logger.info(`Patient ${patient.ssn} created`);
   // Exposing PHI in logs!
@@ -217,12 +217,12 @@ Security Review Checklist:
   ✓ PHI encrypted with AES-256-GCM
   ✓ Encryption keys from vault (not hardcoded)
   ✓ Decryption only when needed
-  
+
   Example ✓ GOOD:
   const { encrypted, iv } = encryptPHI(patient.ssn);
   // Store: {encrypted, iv, encryption_key_id}
   // Decrypt only when displaying to authorized user
-  
+
   Example ✗ WRONG:
   patient.ssn = encrypt(patient.ssn, hardcodedKey);
   // Key in code = compromised!
@@ -231,27 +231,27 @@ Security Review Checklist:
   ✓ Rate limits enforced (100-1000 req/min by endpoint)
   ✓ 429 Too Many Requests response sent
   ✓ Rate limit headers in response
-  
+
   Example ✓ GOOD:
   Response: 429 Too Many Requests
   Headers:
     X-RateLimit-Limit: 100
     X-RateLimit-Remaining: 0
     X-RateLimit-Reset: 1618506000
-  
+
   Example ✗ WRONG:
   No rate limiting → DDoS susceptibility
 
 □ CORS Configuration
   ✓ CORS whitelist configured (not `Access-Control-Allow-Origin: *`)
   ✓ Credentials: 'include' only for same-origin
-  
+
   Example ✓ GOOD:
   app.use(cors({
     origin: ['https://hospital.caresync.local'],
     credentials: true
   }));
-  
+
   Example ✗ WRONG:
   app.use(cors({
     origin: '*'  // Any domain can access!
@@ -261,7 +261,7 @@ Security Review Checklist:
   ✓ Don't expose stack traces to users
   ✓ Log full error server-side for debugging
   ✓ Return generic error message to client
-  
+
   Example ✓ GOOD:
   try {
     // operation
@@ -269,7 +269,7 @@ Security Review Checklist:
     logger.error('Operation failed', { error: error.stack });
     res.status(500).json({ error: 'Internal server error' });
   }
-  
+
   Example ✗ WRONG:
   res.status(500).json({ error: error.stack });
   // Exposes internal details to attacker!
@@ -278,12 +278,12 @@ Security Review Checklist:
   ✓ npm audit shows no critical vulnerabilities
   ✓ Outdated dependencies updated regularly
   ✓ Lock file committed for reproducibility
-  
+
   Example ✓ GOOD:
   $ npm audit
   // audited 245 packages in 2s
   // found 0 vulnerabilities
-  
+
   Example ✗ WRONG:
   $ npm audit
   // found 3 high severity vulnerabilities in 2 packages
@@ -315,7 +315,7 @@ Security Review Checklist:
   □ HTTPS/TLS 1.2+ enforced
   □ Certificate from trusted CA (not self-signed)
   □ Mixed content disabled (no http on https page)
-  
+
 □ Encryption at Rest
   □ Database encryption enabled
   □ Backup encryption enabled
@@ -332,7 +332,7 @@ Security Review Checklist:
   □ All PHI access logged (who, when, what data)
   □ Audit logs tamper-proof (append-only)
   □ Audit logs kept for 7 years minimum
-  
+
   Fields logged:
   - user_id: who accessed
   - timestamp: when
@@ -415,7 +415,7 @@ Security Review Checklist:
     1. Frontend (UX): Hide controls from unauthorized users
     2. API (Validation): Reject unauthorized requests
     3. Database (RLS): Final enforcement, data isolation
-    
+
   Example flow:
   - Frontend: User doesn't see "Approve" button (no permission)
   - If bypasses frontend: API rejects request 403 Forbidden
@@ -595,18 +595,18 @@ Contact Information:
 
 ## Quick Reference: Common Vulnerabilities
 
-| Vulnerability | Prevention |
-|---|---|
-| **SQL Injection** | Parameterized queries, ORM, never concatenate SQL |
-| **XSS (Cross-Site Scripting)** | React auto-escapes, CSP headers, sanitize on output |
-| **CSRF (Cross-Site Request Forgery)** | SameSite cookies, CSRF tokens, verify origin |
-| **Broken Auth** | Strong passwords, 2FA, session timeout, JWT validation |
-| **Broken Access Control** | RBAC, RLS policies, 3-layer enforcement, test perms |
-| **Sensitive Data Exposure** | Encryption in transit (HTTPS) & at rest (AES-256) |
-| **Weak Crypto** | AES-256-GCM for encryption, bcrypt for passwords |
-| **Insecure Deserialization** | Use JSON, avoid pickle/Marshal, validate input |
-| **Using Vulnerable Components** | npm audit regularly, update dependencies |
-| **Insufficient Logging** | Audit trail on all PHI access, tamper-proof logs |
+| Vulnerability                         | Prevention                                             |
+| ------------------------------------- | ------------------------------------------------------ |
+| **SQL Injection**                     | Parameterized queries, ORM, never concatenate SQL      |
+| **XSS (Cross-Site Scripting)**        | React auto-escapes, CSP headers, sanitize on output    |
+| **CSRF (Cross-Site Request Forgery)** | SameSite cookies, CSRF tokens, verify origin           |
+| **Broken Auth**                       | Strong passwords, 2FA, session timeout, JWT validation |
+| **Broken Access Control**             | RBAC, RLS policies, 3-layer enforcement, test perms    |
+| **Sensitive Data Exposure**           | Encryption in transit (HTTPS) & at rest (AES-256)      |
+| **Weak Crypto**                       | AES-256-GCM for encryption, bcrypt for passwords       |
+| **Insecure Deserialization**          | Use JSON, avoid pickle/Marshal, validate input         |
+| **Using Vulnerable Components**       | npm audit regularly, update dependencies               |
+| **Insufficient Logging**              | Audit trail on all PHI access, tamper-proof logs       |
 
 ---
 
@@ -641,12 +641,12 @@ Contact Information:
 
 ## Escalation Matrix
 
-| Severity | Examples | Response Time | Action |
-|----------|----------|---|---|
-| **CRITICAL** | Unauthorized data access, RCE, ransomware | 15 min | Isolate systems, notify CEO |
-| **HIGH** | SQL injection found, password db compromised | 1 hour | Patch, rotate credentials, monitor |
-| **MEDIUM** | Missing audit log, weak password policy | 24 hours | Review, document fix plan |
-| **LOW** | Minor code issue, documentation gap | 1 week | Schedule fix in sprint |
+| Severity     | Examples                                     | Response Time | Action                             |
+| ------------ | -------------------------------------------- | ------------- | ---------------------------------- |
+| **CRITICAL** | Unauthorized data access, RCE, ransomware    | 15 min        | Isolate systems, notify CEO        |
+| **HIGH**     | SQL injection found, password db compromised | 1 hour        | Patch, rotate credentials, monitor |
+| **MEDIUM**   | Missing audit log, weak password policy      | 24 hours      | Review, document fix plan          |
+| **LOW**      | Minor code issue, documentation gap          | 1 week        | Schedule fix in sprint             |
 
 ---
 

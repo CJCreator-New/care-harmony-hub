@@ -1,4 +1,4 @@
-# Doctor Workflow Guide — CareSync HIMS
+# Doctor Workflow Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -27,7 +27,9 @@
 **Objective**: Access patient queue and today's schedule
 
 **Steps**:
+
 1. **Login**
+
    ```
    Visit https://hospital.caresync.local/login
    Email: doctor@hospital.com
@@ -45,17 +47,17 @@
    - `Pending Lab Results` (count badge with critical alerts)
    - `Prescription Approvals Needed` (count badge)
    - `Critical Alerts` (real-time, updates sub-ms)
-   
+
 ### Dashboard Widgets
 
-| Widget | Updated | Notes |
-|--------|---------|-------|
-| Patient Queue | Per check-in | Shows patients checked in, waiting |
-| Upcoming Appointments | Real-time | Next 5 appointments in next 2 hours |
-| Lab Results | Real-time | Sorted: Pending > Critical > Normal |
-| Prescriptions Awaiting Approval | Real-time | From other doctors/nurses |
-| Team On Duty | Per 15 min | Other doctors, nurses, pharmacists logged in |
-| Missed Follow-ups | Daily | Patients who missed appointment |
+| Widget                          | Updated      | Notes                                        |
+| ------------------------------- | ------------ | -------------------------------------------- |
+| Patient Queue                   | Per check-in | Shows patients checked in, waiting           |
+| Upcoming Appointments           | Real-time    | Next 5 appointments in next 2 hours          |
+| Lab Results                     | Real-time    | Sorted: Pending > Critical > Normal          |
+| Prescriptions Awaiting Approval | Real-time    | From other doctors/nurses                    |
+| Team On Duty                    | Per 15 min   | Other doctors, nurses, pharmacists logged in |
+| Missed Follow-ups               | Daily        | Patients who missed appointment              |
 
 ---
 
@@ -68,6 +70,7 @@
 **Source**: Receptionist marks patient as "checked in"
 
 **Doctor sees**:
+
 - Patient card appears in "Checked In" column
 - Patient vitals collected by nurse (if already done)
 - Patient's chief complaint noted
@@ -139,6 +142,7 @@ Left Panel Sections:
 ```
 
 **How to navigate**:
+
 - Click section header to expand/collapse
 - Click any field to see details/history
 - `[View Full History]` button opens modal with 1+ years data
@@ -275,7 +279,7 @@ Section: Plan
 // Medication prescription
 Subsection: Medications
 - [+ Add Medication]
-  
+
   Each medication entry:
   ├── Drug Name (searchable, required)
   ├── Dose (required, e.g., "500 mg")
@@ -288,13 +292,13 @@ Subsection: Medications
   ├── Refills (0-11 options)
   ├── [AI: Check Interactions] → Green/Yellow/Red alert
   └── [Delete] button
-  
+
   Note: AI is ALWAYS run for drug interactions before submission
 
 // Lab orders
 Subsection: Lab Orders
 - [+ Order Lab Test]
-  
+
   Each lab order:
   ├── Test Name (searchable, e.g., "CBC", "CMP", "TSH")
   ├── Urgency (dropdown: Routine, Stat)
@@ -306,7 +310,7 @@ Subsection: Lab Orders
 // Imaging orders
 Subsection: Imaging
 - [+ Order Imaging]
-  
+
   Each imaging order:
   ├── Imaging Type (searchable, e.g., "Chest X-Ray", "CT Scan")
   ├── Urgency (Routine / Stat)
@@ -317,7 +321,7 @@ Subsection: Imaging
 // Referrals
 Subsection: Referrals
 - [+ Refer to Specialist]
-  
+
   Each referral:
   ├── Specialty (searchable, e.g., "Cardiology", "ENT")
   ├── Urgency (Routine / Soon / STAT)
@@ -327,7 +331,7 @@ Subsection: Referrals
 // Procedures
 Subsection: Procedures
 - [+ Schedule Procedure]
-  
+
   Each procedure:
   ├── Procedure Name (searchable)
   ├── Urgency (Routine / Stat)
@@ -386,6 +390,7 @@ After signing:
 ```
 
 **Permissions required**:
+
 - `consultations:sign` for e-signature
 - `prescriptions:create` if writing prescriptions
 - `lab_orders:create` if ordering labs
@@ -404,6 +409,7 @@ After signing:
 **Scenario**: Another doctor created prescription; needs senior doctor approval
 
 **Steps**:
+
 1. Doctor sees badge on dashboard: `Prescriptions Awaiting (5)`
 2. Clicks badge → Approval queue opens
 3. Views prescription with:
@@ -425,6 +431,7 @@ After signing:
 **Scenario**: Patient's medication needs adjustment
 
 **Steps**:
+
 1. Click on prescription in patient's medication list
 2. Choose action:
    - Edit (changes dose/frequency)
@@ -457,6 +464,7 @@ After signing:
 **Location**: Left panel, "Recent Vitals" section
 
 **How to use**:
+
 - Vitals auto-populate from last 2 hours
 - Shows trend: ↑ (worse), ↓ (better), → (stable) with color coding
 - Click any vital → View 30-day history graph
@@ -465,6 +473,7 @@ After signing:
 ### If Vitals Need Re-checking
 
 **During consultation**:
+
 1. Click `[Recalculate Vitals?]` button
 2. Enter new readings for vitals that changed
 3. System validates (alerts if BP changed >20 mmHg, etc.)
@@ -473,6 +482,7 @@ After signing:
 ### AI-Powered Critical Value Alerts
 
 **Automatic**: If any vital is critically abnormal
+
 - Temperature > 103°F or < 95°F → RED alert
 - Systolic BP > 180 or < 80 → RED alert
 - Heart rate > 120 or < 40 → RED alert
@@ -480,11 +490,13 @@ After signing:
 - Respiratory rate > 30 or < 10 → RED alert
 
 **Doctor sees**:
+
 - RED badge on dashboard
 - Detailed alert with suggested actions
 - Alert remains until acknowledged
 
 **Doctor action**:
+
 1. Read alert
 2. Acknowledge if expected (e.g., "Patient with fever, monitoring")
 3. Take action if needed (escalate, call patient, admit, etc.)
@@ -502,11 +514,13 @@ After signing:
 **When**: Results come in from lab
 
 **Doctor notified by**:
+
 - Badge on dashboard: `Pending Lab Results (3)`
 - Real-time notification (sub-ms Supabase realtime update)
 - Optional: SMS alert if critical value
 
 **Steps**:
+
 1. Click badge → Lab results queue
 2. View result with:
    - Patient name, test date
@@ -542,6 +556,7 @@ After signing:
 ### Making Specialist Referrals
 
 **During consultation**:
+
 - Add to "Referrals" section (Step 6)
 - Choose specialty, urgency, reason
 - Auto-sends to specialist with patient info
@@ -553,6 +568,7 @@ After signing:
 **Doctor sees**: Badge `Consultations Requested (2)`
 
 **Steps**:
+
 1. Click badge → View consultation request
 2. Contains:
    - Referring doctor, specialty
@@ -575,27 +591,30 @@ After signing:
 
 ### Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl + K` | Open quick search (patient, medication, etc.) |
-| `Cmd/Ctrl + N` | New consultation |
-| `Cmd/Ctrl + S` | Save consultation draft |
-| `Cmd/Ctrl + Enter` | Sign & submit consultation |
-| `Cmd/Ctrl + R` | Start new referral |
+| Shortcut           | Action                                        |
+| ------------------ | --------------------------------------------- |
+| `Cmd/Ctrl + K`     | Open quick search (patient, medication, etc.) |
+| `Cmd/Ctrl + N`     | New consultation                              |
+| `Cmd/Ctrl + S`     | Save consultation draft                       |
+| `Cmd/Ctrl + Enter` | Sign & submit consultation                    |
+| `Cmd/Ctrl + R`     | Start new referral                            |
 
 ### Speed Features
 
 **Quick Consultation** (for simple visits):
+
 - Click patient → Opens simple form
 - Chief complaint → Diagnosis → Plan
 - 2-minute completion time
 
 **Repeat Prescription**:
+
 - Click patient → Medications tab
 - Click on past prescription → `[Repeat Same]`
 - Defaults to same dose/frequency, confirm and sign
 
 **Copy from Previous**:
+
 - Click patient → Consultations tab
 - Click past consultation → `[Use as Template]`
 - Populates form with same structure, doctor edits as needed
@@ -682,19 +701,20 @@ After signing:
 
 ## Common Issues & Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| "Patient not found" | Check spelling, ask receptionist for ID |
+| Issue                            | Solution                                                    |
+| -------------------------------- | ----------------------------------------------------------- |
+| "Patient not found"              | Check spelling, ask receptionist for ID                     |
 | Drug interaction warning appears | Review AI recommendation, discuss with pharmacist if unsure |
-| Can't save consultation | Ensure chief complaint & diagnosis filled |
-| Critical value alert | Review immediately, call patient if concerning |
-| E-signature fails | Try again, restart browser if persists |
+| Can't save consultation          | Ensure chief complaint & diagnosis filled                   |
+| Critical value alert             | Review immediately, call patient if concerning              |
+| E-signature fails                | Try again, restart browser if persists                      |
 
 ---
 
 ## Compliance & Best Practices
 
 ✅ **Always**:
+
 - Review allergy list before prescribing
 - Use AI to check drug interactions
 - Document assessment clearly
@@ -702,6 +722,7 @@ After signing:
 - Sign consultations before leaving patient
 
 ❌ **Never**:
+
 - Prescribe without reviewing allergies
 - Skip drug interaction check for routine meds (AI catches most)
 - Leave consultations unsigned

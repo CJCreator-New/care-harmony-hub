@@ -1,4 +1,4 @@
-# Frontend Development Guide — CareSync HIMS
+# Frontend Development Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -177,11 +177,11 @@ export function PatientSearch(props: PatientSearchProps) {
         onChange={(e) => setQuery(e.target.value)}
         disabled={props.isLoading}
       />
-      
+
       {props.error && (
         <div className="error">{props.error}</div>
       )}
-      
+
       {props.isLoading ? (
         <Skeleton />
       ) : (
@@ -261,11 +261,11 @@ function withAuthRequired<P extends object>(
 ) {
   return (props: P) => {
     const { user } = useAuth();
-    
+
     if (!user) {
       return <Navigate to="/login" />;
     }
-    
+
     return <Component {...props} />;
   };
 }
@@ -375,7 +375,7 @@ export function usePatients(hospitalId: string) {
         .from('patients')
         .select('*')
         .eq('hospital_id', hospitalId);
-      
+
       if (error) throw error;
       return data;
     },
@@ -413,7 +413,7 @@ export function useCreatePrescription() {
         .from('prescriptions')
         .insert([prescription])
         .select();
-      
+
       if (error) throw error;
       return data[0];
     },
@@ -422,7 +422,7 @@ export function useCreatePrescription() {
       queryClient.invalidateQueries({
         queryKey: ['prescriptions', newPrescription.doctor_id]
       });
-      
+
       // Show success toast
       showToast('Prescription created', 'success');
     },
@@ -725,11 +725,11 @@ export function useCreatePrescription() {
     mutationFn: async (rx: NewPrescription) => {
       // Validation done before mutation
       validatePrescription(rx);
-      
+
       const { data, error } = await supabase
         .from('prescriptions')
         .insert([rx]);
-      
+
       if (error) throw error;
       return data;
     },
@@ -870,7 +870,7 @@ export function VitalSignDisplay({
         <span className="text-sm font-medium text-gray-600">
           {label}
         </span>
-        
+
         <div className={cn(
           'text-lg font-bold',
           isSevere && 'animate-pulse text-red-600',
@@ -968,7 +968,7 @@ function CreatePrescriptionForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      
+
       {/* Patient Selection */}
       <div>
         <label className="block text-sm font-medium">Patient</label>
@@ -1147,7 +1147,7 @@ export function useAsyncError() {
   const throwAsyncError = useCallback((error: Error | string) => {
     const err = typeof error === 'string' ? new Error(error) : error;
     setError(err);
-    
+
     // Rethrow to trigger Error Boundary
     setTimeout(() => { throw err; }, 0);
   }, []);
@@ -1305,11 +1305,13 @@ test('doctor can create and send prescription', async ({ page }) => {
 ---
 
 **Related Documentation**:
+
 - [DEVELOPMENT_STANDARDS.md](DEVELOPMENT_STANDARDS.md) - Code style & naming
 - [TESTING_STRATEGY.md](TESTING_STRATEGY.md) - Test pyramid & CI/CD
 - See [API_REFERENCE.md](API_REFERENCE.md) for backend API contracts
 
 **Common Libraries**:
+
 - TanStack Query: https://tanstack.com/query
 - React Hook Form: https://react-hook-form.com
 - Zod: https://zod.dev

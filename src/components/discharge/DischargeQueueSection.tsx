@@ -143,6 +143,43 @@ export function DischargeQueueSection({
                   </div>
                 </div>
 
+                {workflow.status === 'staging' && (
+                  <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                    <p className="font-semibold">
+                      Preparation running in parallel. Patient release locked until all clearances
+                      complete.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-md border bg-background/70 px-2 py-1.5">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Pharmacy
+                        </div>
+                        <div className="flex items-center gap-1 font-medium">
+                          {workflow.pharmacy_cleared ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Clock3 className="h-3.5 w-3.5 text-amber-500" />
+                          )}
+                          {workflow.pharmacy_cleared ? 'Cleared' : 'Pending reconciliation'}
+                        </div>
+                      </div>
+                      <div className="rounded-md border bg-background/70 px-2 py-1.5">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Billing
+                        </div>
+                        <div className="flex items-center gap-1 font-medium">
+                          {workflow.billing_cleared ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Clock3 className="h-3.5 w-3.5 text-amber-500" />
+                          )}
+                          {workflow.billing_cleared ? 'Cleared' : 'Pending invoice'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {workflow.rejection_reason && (
                   <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive">
                     <div className="font-bold flex items-center gap-1.5 mb-0.5">

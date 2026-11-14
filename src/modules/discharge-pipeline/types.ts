@@ -9,7 +9,7 @@ export type DischargeWorkflowStep =
   'doctor' | 'pharmacist' | 'billing' | 'nurse' | 'completed' | 'completed_ama' | 'cancelled';
 
 export type DischargeWorkflowStatus =
-  'draft' | 'in_progress' | 'completed' | 'completed_ama' | 'cancelled';
+  'draft' | 'in_progress' | 'staging' | 'completed' | 'completed_ama' | 'cancelled';
 
 export type DischargeWorkflowQueueStep = Extract<
   DischargeWorkflowStep,
@@ -51,6 +51,11 @@ export interface DischargeWorkflow {
   last_action_by: string | null;
   last_action_at: string | null;
   rejection_reason: string | null;
+  /** ADR-0014: doctor signature unlocks parallel pharmacy/billing staging. */
+  doctor_signed: boolean;
+  pharmacy_cleared: boolean;
+  billing_cleared: boolean;
+  staging_started_at: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;

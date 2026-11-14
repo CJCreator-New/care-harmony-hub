@@ -1,4 +1,4 @@
-# CareSync HIMS - Development Standards & Best Practices
+# CareHarmony HIMS - Development Standards & Best Practices
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -92,15 +92,15 @@ src/
 
 ### Naming Conventions
 
-| Item | Convention | Example |
-|------|-----------|---------|
-| Components | PascalCase | `PatientDashboard.tsx`, `VitalSignsChart.tsx` |
-| Hooks | camelCase, prefix `use` | `usePatients()`, `usePrescriptionApproval()` |
-| Types/Interfaces | PascalCase | `Patient`, `Prescription`, `LabResult` |
-| Constants | UPPER_SNAKE_CASE | `MAX_RETRIES`, `CACHE_TIMEOUT_MS` |
-| Variables | camelCase | `patientId`, `isLoading`, `handleSubmit` |
-| Files | Match export name | `Patient.ts` exports `export default Patient` |
-| Directories | kebab-case | `src/components/patient-forms/` |
+| Item             | Convention              | Example                                       |
+| ---------------- | ----------------------- | --------------------------------------------- |
+| Components       | PascalCase              | `PatientDashboard.tsx`, `VitalSignsChart.tsx` |
+| Hooks            | camelCase, prefix `use` | `usePatients()`, `usePrescriptionApproval()`  |
+| Types/Interfaces | PascalCase              | `Patient`, `Prescription`, `LabResult`        |
+| Constants        | UPPER_SNAKE_CASE        | `MAX_RETRIES`, `CACHE_TIMEOUT_MS`             |
+| Variables        | camelCase               | `patientId`, `isLoading`, `handleSubmit`      |
+| Files            | Match export name       | `Patient.ts` exports `export default Patient` |
+| Directories      | kebab-case              | `src/components/patient-forms/`               |
 
 ---
 
@@ -123,19 +123,16 @@ interface Patient {
 const patient = useQuery({
   queryFn: async () => {
     const { data } = await supabase.from('patients').select();
-    return data;  // ← Type is 'any', lose type safety
-  }
+    return data; // ← Type is 'any', lose type safety
+  },
 });
 
 // ✅ CORRECT: Explicit return type
 const { data: patients } = useQuery<Patient[]>({
   queryFn: async (): Promise<Patient[]> => {
-    const { data } = await supabase
-      .from('patients')
-      .select('*')
-      .returns<Patient[]>();
+    const { data } = await supabase.from('patients').select('*').returns<Patient[]>();
     return data || [];
-  }
+  },
 });
 ```
 
@@ -197,7 +194,7 @@ export const PatientList: FC<PatientListProps> = ({
 }) => {
   const { hasPermission } = usePermissions();
   const [page, setPage] = useState(1);
-  
+
   // Data fetching
   const { data: patients, isLoading, error } = useQuery({
     queryKey: ['patients', filterStatus, page],
@@ -211,14 +208,14 @@ export const PatientList: FC<PatientListProps> = ({
       return data || [];
     }
   });
-  
+
   if (!hasPermission('patients:read')) {
     return <div>Access Denied</div>;
   }
-  
+
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
-  
+
   return (
     <div>
       <h2>Patients</h2>
@@ -247,23 +244,23 @@ interface UsePatientOptions {
 export function usePatients(options: UsePatientOptions = {}) {
   const { hospital } = useAuthContext();
   const { enabled = true, staleTime = 5 * 60 * 1000 } = options;
-  
+
   return useQuery({
     queryKey: ['patients', hospital?.id],
     queryFn: async () => {
       if (!hospital?.id) return [];
-      
+
       const { data, error } = await supabase
         .from('patients')
         .select('*')
-        .eq('hospital_id', hospital.id)  // ← MULTI-TENANCY
+        .eq('hospital_id', hospital.id) // ← MULTI-TENANCY
         .order('last_name');
-      
+
       if (error) throw error;
       return data || [];
     },
     enabled: enabled && !!hospital?.id,
-    staleTime
+    staleTime,
   });
 }
 ```
@@ -325,7 +322,7 @@ const queryKeys = {
   patients: ['patients'] as const,
   patientsList: (hospitalId: UUID) => [...queryKeys.patients, 'list', hospitalId] as const,
   patientsDetail: (id: UUID) => [...queryKeys.patients, 'detail', id] as const,
-  
+
   prescriptions: ['prescriptions'] as const,
   prescriptionsList: (hospitalId: UUID) => [...queryKeys.prescriptions, 'list', hospitalId],
   prescriptionsForPatient: (patientId: UUID) => [...queryKeys.prescriptions, 'patient', patientId],
@@ -334,7 +331,7 @@ const queryKeys = {
 // Usage
 useQuery({
   queryKey: queryKeys.patientsList(hospital.id),
-  queryFn: () => fetchPatients(hospital.id)
+  queryFn: () => fetchPatients(hospital.id),
 });
 
 // Invalidate
@@ -348,7 +345,7 @@ queryClient.invalidateQueries({ queryKey: queryKeys.patients });
 export function useCreatePrescription() {
   const queryClient = useQueryClient();
   const { hospital } = useAuthContext();
-  
+
   return useMutation({
     mutationFn: async (data: Partial<Prescription>) => {
       const { data: result, error } = await supabase
@@ -356,11 +353,11 @@ export function useCreatePrescription() {
         .insert({
           ...data,
           hospital_id: hospital?.id,
-          created_at: new Date()
+          created_at: new Date(),
         })
         .select()
         .single();
-      
+
       if (error) throw error;
       return result;
     },
@@ -369,7 +366,7 @@ export function useCreatePrescription() {
     },
     onError: (error) => {
       logger.error('Prescription creation failed', { error });
-    }
+    },
   });
 }
 ```
@@ -391,7 +388,7 @@ logger.info('Patient loaded', { patientId });
 // Warning level
 logger.warn('No prescription available', { patientId, reason: 'Allergic reaction' });
 
-// Error level  
+// Error level
 logger.error('Failed to fetch results', { patientId, error });
 
 // Debug level (development only)
@@ -407,13 +404,13 @@ try {
   const { data } = await supabase.from('patients').select();
 } catch (error) {
   const message = error instanceof Error ? error.message : 'Unknown error';
-  
+
   // ❌ WRONG: Leaking PHI
   // toast.error(`Failed for patient ${patientId}: ${message}`);
-  
+
   // ✅ CORRECT: Sanitized message
   toast.error('Failed to load patient data. Please try again.');
-  
+
   logger.error('Patient fetch failed', { error });
 }
 ```
@@ -453,7 +450,10 @@ const PatientSchema = z.object({
   last_name: z.string().min(1).max(128),
   date_of_birth: z.string().pipe(z.coerce.date()),
   email: z.string().email().optional(),
-  phone: z.string().regex(/^\+?[\d\s\-()]{10,20}$/).optional(),
+  phone: z
+    .string()
+    .regex(/^\+?[\d\s\-()]{10,20}$/)
+    .optional(),
 });
 
 const validatedData = PatientSchema.parse(formData);
@@ -470,7 +470,7 @@ import { sanitizeForLog } from '@/lib/sanitization';
 
 logger.info('Created patient', {
   patientId: patient.id,
-  ...sanitizeForLog(patient)  // Strips SSN, etc
+  ...sanitizeForLog(patient), // Strips SSN, etc
 });
 ```
 
@@ -508,12 +508,12 @@ const DoctorDashboard = lazy(() => import('./doctor/DoctorDashboard'));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,      // 5 min: data considered fresh
-      gcTime: 10 * 60 * 1000,        // 10 min: keep in memory
+      staleTime: 5 * 60 * 1000, // 5 min: data considered fresh
+      gcTime: 10 * 60 * 1000, // 10 min: keep in memory
       retry: 1,
-      refetchOnWindowFocus: false
-    }
-  }
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 ```
 
@@ -530,7 +530,7 @@ export function PatientAnalytics({ patients }: Props) {
       avgAge: patients.reduce((sum, p) => sum + getAge(p.dob), 0) / patients.length
     };
   }, [patients]);
-  
+
   return <div>Total: {stats.total}</div>;
 }
 ```
@@ -555,17 +555,17 @@ test('usePatients fetches patientlist for hospital', async () => {
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           order: vi.fn().mockReturnValue({
-            data: [{ id: '1', first_name: 'John' }]
-          })
-        })
-      })
-    })
+            data: [{ id: '1', first_name: 'John' }],
+          }),
+        }),
+      }),
+    }),
   } as any);
-  
+
   const { result } = renderHook(() => usePatients(), {
-    wrapper: AuthProvider  // Provide context
+    wrapper: AuthProvider, // Provide context
   });
-  
+
   await waitFor(() => {
     expect(result.current.data).toHaveLength(1);
   });
@@ -584,20 +584,20 @@ test('Doctor can create and sign prescription', async ({ page }) => {
   await page.fill('[name="email"]', 'doctor@hospital.com');
   await page.fill('[name="password"]', 'password');
   await page.click('button:has-text("Login")');
-  
+
   await page.goto('/prescriptions/new');
-  
+
   // Create prescription
   await page.fill('[name="drug"]', 'Metformin');
   await page.fill('[name="dose"]', '500');
   await page.selectOption('[name="unit"]', 'mg');
-  
+
   // Check interactions
   await expect(page.locator('text=No interactions found')).toBeVisible();
-  
+
   // Sign
   await page.click('button:has-text("Sign")');
-  
+
   // Verify success
   await expect(page.locator('text=Prescription signed')).toBeVisible();
 });
@@ -694,14 +694,14 @@ Related to #567
 
 ## Troubleshooting Guide
 
-| Issue | Diagnosis | Fix |
-|-------|-----------|-----|
-| "Permission Denied" on read | Missing permission check | Add `hasPermission()` + RLS policy |
-| Query returns empty | Hospital_id filter missing | Add `.eq('hospital_id', hospital.id)` |
-| Component re-renders endlessly | Missing dependency in useEffect | Add all deps to dependency array |
-| E2E test timing out | Race condition | Add `page.waitForLoadState()` |
-| Slow query | Missing index | Add index on filter/sort columns |
-| Bundle size > 1MB | No lazy loading | Move feature to separate chunk |
+| Issue                          | Diagnosis                       | Fix                                   |
+| ------------------------------ | ------------------------------- | ------------------------------------- |
+| "Permission Denied" on read    | Missing permission check        | Add `hasPermission()` + RLS policy    |
+| Query returns empty            | Hospital_id filter missing      | Add `.eq('hospital_id', hospital.id)` |
+| Component re-renders endlessly | Missing dependency in useEffect | Add all deps to dependency array      |
+| E2E test timing out            | Race condition                  | Add `page.waitForLoadState()`         |
+| Slow query                     | Missing index                   | Add index on filter/sort columns      |
+| Bundle size > 1MB              | No lazy loading                 | Move feature to separate chunk        |
 
 ---
 

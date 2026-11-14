@@ -89,7 +89,8 @@ describe('DischargePipelineEngine (ADR-0003 Sequential Multi-Role Pipeline)', ()
 
       expect(initResult.success).toBe(true);
       expect(initResult.workflow?.current_step).toBe('pharmacist');
-      expect(initResult.workflow?.status).toBe('in_progress');
+      expect(initResult.workflow?.status).toBe('staging');
+      expect(initResult.workflow?.doctor_signed).toBe(true);
       const workflowId = initResult.workflow!.id;
 
       // 2. Pharmacist reconciles medications & approves
@@ -101,7 +102,9 @@ describe('DischargePipelineEngine (ADR-0003 Sequential Multi-Role Pipeline)', ()
 
       expect(pharmResult.success).toBe(true);
       expect(pharmResult.workflow?.current_step).toBe('billing');
-      expect(pharmResult.workflow?.status).toBe('in_progress');
+      expect(pharmResult.workflow?.status).toBe('staging');
+      expect(pharmResult.workflow?.pharmacy_cleared).toBe(true);
+      expect(pharmResult.workflow?.billing_cleared).toBe(false);
 
       // 3. Billing collects copay & approves
       const billingResult = await engine.approve(billingActor, {
@@ -254,6 +257,70 @@ describe('DischargePipelineEngine (ADR-0003 Sequential Multi-Role Pipeline)', ()
       expect(staleApproval.error).toMatch(
         /Concurrency conflict: Expected step "pharmacist", but workflow is at "billing"/
       );
+    });
+  });
+
+  describe('Concurrent Staging with Sequential Exit Gate (ADR-0014)', () => {
+    it('lets billing clear first and waits for pharmacy before nursing release', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-staging' });
+      const workflowId = initResult.workflow!.id;
+
+      // Billing clears while pharmacy is still preparing:
+      const billingFirst = await engine.approve(billingActor, {
+        workflowId,
+        expectedCurrentStep: 'billing',
+      });
+      expect(billingFirst.success).toBe(true);
+      expect(billingFirst.workflow?.billing_cleared).toBe(true);
+      expect(billingFirst.workflow?.current_step).toBe('pharmacist');
+      expect(billingFirst.workflow?.status).toBe('staging');
+
+      // Pharmacy clears second, which unlocks the nurse step:
+      const pharmacySecond = await engine.approve(pharmacistActor, {
+        workflowId,
+        expectedCurrentStep: 'pharmacist',
+      });
+      expect(pharmacySecond.success).toBe(true);
+      expect(pharmacySecond.workflow?.pharmacy_cleared).toBe(true);
+      expect(pharmacySecond.workflow?.current_step).toBe('nurse');
+      expect(pharmacySecond.workflow?.status).toBe('in_progress');
+    });
+
+    it('blocks nursing handover when a clearance flag is missing', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-locked' });
+      const workflowId = initResult.workflow!.id;
+
+      // Simulate a legacy workflow parked at nursing without pharmacy clearance:
+      await adapter.save({
+        ...initResult.workflow!,
+        current_step: 'nurse',
+        status: 'in_progress',
+        pharmacy_cleared: false,
+        billing_cleared: true,
+      });
+
+      const blocked = await engine.approve(nurseActor, { workflowId });
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toMatch(/Discharge release locked/);
+
+      const stillLocked = await engine.getWorkflow(workflowId);
+      expect(stillLocked?.status).toBe('in_progress');
+    });
+
+    it('resets clearances when a discipline rejects during staging', async () => {
+      const initResult = await engine.initiate(doctorActor, { patientId: 'pat-staging' });
+      const workflowId = initResult.workflow!.id;
+
+      await engine.approve(pharmacistActor, { workflowId });
+      const rejected = await engine.reject(billingActor, {
+        workflowId,
+        reason: 'Insurance pre-authorization missing for take-home medication',
+      });
+
+      expect(rejected.success).toBe(true);
+      expect(rejected.workflow?.current_step).toBe('pharmacist');
+      expect(rejected.workflow?.pharmacy_cleared).toBe(false);
+      expect(rejected.workflow?.billing_cleared).toBe(false);
     });
   });
 

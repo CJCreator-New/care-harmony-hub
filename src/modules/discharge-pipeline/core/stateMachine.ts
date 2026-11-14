@@ -65,6 +65,8 @@ export interface TransitionValidationResult {
   readonly error?: string;
   readonly nextStep?: DischargeWorkflowStep;
   readonly nextStatus?: DischargeWorkflow['status'];
+  /** ADR-0014: the discipline actually clearing when acting during staging. */
+  readonly actingStep?: DischargeQueueStep;
 }
 
 export function validateStepTransition(
@@ -99,10 +101,24 @@ export function validateStepTransition(
 
   // 3. Optimistic Concurrency Guard
   if (options?.expectedCurrentStep && workflow.current_step !== options.expectedCurrentStep) {
-    return {
-      valid: false,
-      error: `Concurrency conflict: Expected step "${options.expectedCurrentStep}", but workflow is at "${workflow.current_step}"`,
-    };
+    // ADR-0014: during staging the other discipline may still be clearing in parallel.
+    const stagingParallelClearance =
+      workflow.status === 'staging' &&
+      ((workflow.current_step === 'pharmacist' &&
+        options.expectedCurrentStep === 'billing' &&
+        !workflow.billing_cleared &&
+        isActorAuthorizedForStep(actor.role, 'billing')) ||
+        (workflow.current_step === 'billing' &&
+          options.expectedCurrentStep === 'pharmacist' &&
+          !workflow.pharmacy_cleared &&
+          isActorAuthorizedForStep(actor.role, 'pharmacist')));
+
+    if (!stagingParallelClearance) {
+      return {
+        valid: false,
+        error: `Concurrency conflict: Expected step "${options.expectedCurrentStep}", but workflow is at "${workflow.current_step}"`,
+      };
+    }
   }
 
   // 4. Action Specific Validations
@@ -123,12 +139,27 @@ export function validateStepTransition(
       return {
         valid: true,
         nextStep: 'pharmacist',
-        nextStatus: 'in_progress',
+        nextStatus: 'staging',
       };
     }
 
     case 'approve': {
-      const currentStep = workflow.current_step as DischargeQueueStep;
+      // ADR-0014: while staging, the discipline that is not the parked step may
+      // still record its clearance.
+      const parallelStep: DischargeQueueStep | null =
+        workflow.status === 'staging' &&
+        workflow.current_step === 'pharmacist' &&
+        !workflow.billing_cleared &&
+        isActorAuthorizedForStep(actor.role, 'billing')
+          ? 'billing'
+          : workflow.status === 'staging' &&
+              workflow.current_step === 'billing' &&
+              !workflow.pharmacy_cleared &&
+              isActorAuthorizedForStep(actor.role, 'pharmacist')
+            ? 'pharmacist'
+            : null;
+
+      const currentStep = parallelStep ?? (workflow.current_step as DischargeQueueStep);
       if (!isActorAuthorizedForStep(actor.role, currentStep)) {
         const allowedRoles = STEP_ROLE_MAP[currentStep] || [];
         return {
@@ -137,12 +168,41 @@ export function validateStepTransition(
         };
       }
 
-      const next = NEXT_STEP[currentStep];
-      const nextStatus = next === 'completed' ? 'completed' : 'in_progress';
+      // The workflow advances to nursing only when both clearances are recorded.
+      if (currentStep === 'pharmacist') {
+        return workflow.billing_cleared
+          ? { valid: true, nextStep: 'nurse', nextStatus: 'in_progress', actingStep: currentStep }
+          : { valid: true, nextStep: 'billing', nextStatus: 'staging', actingStep: currentStep };
+      }
+
+      if (currentStep === 'billing') {
+        return workflow.pharmacy_cleared
+          ? { valid: true, nextStep: 'nurse', nextStatus: 'in_progress', actingStep: currentStep }
+          : { valid: true, nextStep: 'pharmacist', nextStatus: 'staging', actingStep: currentStep };
+      }
+
+      if (currentStep === 'nurse') {
+        if (!workflow.doctor_signed || !workflow.pharmacy_cleared || !workflow.billing_cleared) {
+          return {
+            valid: false,
+            error:
+              'Discharge release locked: doctor signature, pharmacy clearance, and billing clearance are all required before nursing handover.',
+          };
+        }
+
+        return {
+          valid: true,
+          nextStep: 'completed',
+          nextStatus: 'completed',
+          actingStep: currentStep,
+        };
+      }
+
       return {
         valid: true,
-        nextStep: next,
-        nextStatus,
+        nextStep: NEXT_STEP[currentStep],
+        nextStatus: 'in_progress',
+        actingStep: currentStep,
       };
     }
 

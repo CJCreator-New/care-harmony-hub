@@ -4,13 +4,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { devLog } from '@/utils/sanitize';
 import {
   getOfflineSyncStore,
+  isOfflineReplayAllowed,
   MAX_RETRY_ATTEMPTS,
+  normalizeOfflineTable,
   type ActionExecutor,
   type OfflineCacheKind,
   type OfflineEvent,
   type PendingAction,
   type SyncStatus,
 } from '@/modules/offline-store';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * SECF-06: offline caches and the pending-write queue live in an encrypted,
@@ -28,13 +31,57 @@ export interface OfflineCache {
   pendingActions: PendingAction[];
 }
 
+interface ReplayResult {
+  error: { message?: string } | null;
+}
+
+interface ReplayQuery {
+  insert(data: Record<string, unknown>): PromiseLike<ReplayResult>;
+  update(data: Record<string, unknown>): {
+    eq(column: string, value: string): PromiseLike<ReplayResult>;
+  };
+  delete(): { eq(column: string, value: string): PromiseLike<ReplayResult> };
+}
+
+const replayClient = supabase as unknown as { from(table: string): ReplayQuery };
+
 /**
- * Replays a queued write. NOTE: this is still the pre-existing simulation
- * (no Supabase call is made); only metadata is logged, never the payload.
+ * Replays a queued bedside write against Supabase (ADR-0013). Only the
+ * whitelisted low-risk tables are replayed; anything else fails closed and
+ * stays in the encrypted queue. Payloads are never logged.
  */
 const replayAction: ActionExecutor = async (action) => {
-  devLog(`[offline-sync] replay ${action.type} ${action.table} (${action.id})`);
-  return true;
+  const table = normalizeOfflineTable(action.table);
+  if (!isOfflineReplayAllowed(table)) {
+    devLog(`[offline-sync] refused replay for non-whitelisted table (${action.id})`);
+    return false;
+  }
+
+  const recordId = typeof action.data.id === 'string' ? action.data.id : null;
+  const payload = { ...action.data };
+  if (recordId) delete payload.id;
+
+  try {
+    let result: ReplayResult;
+    if (action.type === 'create') {
+      result = await replayClient.from(table).insert(action.data);
+    } else if (action.type === 'update') {
+      if (!recordId) return false;
+      result = await replayClient.from(table).update(payload).eq('id', recordId);
+    } else {
+      if (!recordId) return false;
+      result = await replayClient.from(table).delete().eq('id', recordId);
+    }
+
+    if (result.error) {
+      devLog(`[offline-sync] replay failed for ${action.type} (${action.id})`);
+      return false;
+    }
+    return true;
+  } catch {
+    devLog(`[offline-sync] replay threw for ${action.type} (${action.id})`);
+    return false;
+  }
 };
 
 const store = getOfflineSyncStore(replayAction);
@@ -45,13 +92,21 @@ const notify = (event: OfflineEvent) => {
       toast({ title: 'Back online', description: 'Syncing pending actions...' });
       break;
     case 'offline':
-      toast({ title: 'Offline mode', description: 'Changes will sync when online', variant: 'destructive' });
+      toast({
+        title: 'Offline mode',
+        description: 'Changes will sync when online',
+        variant: 'destructive',
+      });
       break;
     case 'queued':
       toast({ title: 'Action queued', description: 'Will sync when online' });
       break;
     case 'action-too-large':
-      toast({ title: 'Action too large', description: 'Please try again when online', variant: 'destructive' });
+      toast({
+        title: 'Action too large',
+        description: 'Please try again when online',
+        variant: 'destructive',
+      });
       break;
     case 'synced':
       toast({ title: 'Sync complete', description: `Successfully synced ${event.count} actions` });
@@ -90,16 +145,13 @@ export const useOfflineSync = () => {
     (type: 'create' | 'update' | 'delete', table: string, data: Record<string, unknown>) => {
       store.queueAction(type, table, data);
     },
-    [],
+    []
   );
 
   // Legacy API: cache read-side data only while offline (unchanged behaviour).
-  const cacheData = useCallback(
-    (type: OfflineCacheKind, data: Record<string, unknown>) => {
-      if (!store.getSnapshot().isOnline) store.cacheData(type, data);
-    },
-    [],
-  );
+  const cacheData = useCallback((type: OfflineCacheKind, data: Record<string, unknown>) => {
+    if (!store.getSnapshot().isOnline) store.cacheData(type, data);
+  }, []);
 
   const syncData = useCallback(() => store.sync(), []);
 

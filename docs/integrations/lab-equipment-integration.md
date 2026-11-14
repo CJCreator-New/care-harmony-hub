@@ -1,4 +1,4 @@
-# Laboratory Equipment Integration Guide — CareSync HIMS
+# Laboratory Equipment Integration Guide — CareHarmony HIMS
 
 **Document Version**: 1.2.1  
 **Last Updated**: April 8, 2026  
@@ -21,18 +21,19 @@
 
 ### Supported Laboratory Equipment
 
-CareSync integrates with automated laboratory analyzers through industry-standard protocols:
+CareHarmony integrates with automated laboratory analyzers through industry-standard protocols:
 
-| Equipment Type | Manufacturers | Protocol | Latency |
-|---|---|---|---|
-| Hematology Analyzer | Sysmex, ADVIA, Mindray | LIS HL7 | <30 sec |
-| Chemistry Analyzer | Roche, Abbott, Beckman | LIS HL7 | <1 min |
-| Urinalysis | Siemens, ARKRAY | LIS HL7 | <1 min |
-| Blood Bank | IH, Abbott ID | LIS HL7 | <2 min |
+| Equipment Type      | Manufacturers            | Protocol  | Latency   |
+| ------------------- | ------------------------ | --------- | --------- |
+| Hematology Analyzer | Sysmex, ADVIA, Mindray   | LIS HL7   | <30 sec   |
+| Chemistry Analyzer  | Roche, Abbott, Beckman   | LIS HL7   | <1 min    |
+| Urinalysis          | Siemens, ARKRAY          | LIS HL7   | <1 min    |
+| Blood Bank          | IH, Abbott ID            | LIS HL7   | <2 min    |
 | Point-of-care (POC) | i-STAT, Nova, GlucoTrack | HL7 + API | Real-time |
 
 **Integration methods**:
-1. **Bidirectional HL7** - Lab analyzer ↔ CareSync server (preferred)
+
+1. **Bidirectional HL7** - Lab analyzer ↔ CareHarmony server (preferred)
 2. **API integration** - POC devices → REST API
 3. **Manual upload** - CSV parser + validation
 
@@ -66,7 +67,7 @@ Lab Analyzer Request (Step 1):
         [MLLP encode on TCP/2575]
                   ↓
 ┌─────────────────────────────────────┐
-│   CareSync HIMS Server              │
+│   CareHarmony HIMS Server              │
 │   (Middleware/Translator)           │
 │                                     │
 │   HL7 Parser receives ORM^          │
@@ -104,12 +105,12 @@ Lab Analyzer ← Result Send (Step 2):
         [MLLP encode on TCP/2575]
                   ↓
 ┌─────────────────────────────────────┐
-│   CareSync HIMS Server              │
+│   CareHarmony HIMS Server              │
 │   (Middleware/Translator)           │
 │                                     │
 │   HL7 Parser receives ORU^          │
 │   Parse: Extract all results        │
-│   Map: LOINC codes to CareSync IDs  │
+│   Map: LOINC codes to CareHarmony IDs  │
 │   Validate: Check ranges            │
 │   Store: Results in database        │
 │   Notify: Send to physician         │
@@ -130,6 +131,7 @@ HL7 MESSAGE STRUCTURE EXAMPLE
 Incoming ORM^ (Order Message):
 
 ```
+
 MSH|^~\&|LAB-SYSMEX|MetroHosp|CARESYNC|MetroHosp|20260408143200||ORM^O01|MSG-123456|P|2.5
 PID|||12345^^^METROHOPS||Smith^John^||19750520|M
 ORC|NE|LAB-2026-0424||||||||||Dr. Chen
@@ -137,6 +139,7 @@ OBR|1|LAB-2026-0424||CBC^COMPLETE BLOOD COUNT|||20260408143000|||||||||^10^||||
 OBX|1|CE|WBC^White Blood Cell Count||7.5|K/uL|4.5-11.0|N|||F
 OBX|2|CE|RBC^Red Blood Cell Count||5.2|M/uL|4.5-5.9|M|||F
 OBX|3|CE|HGB^Hemoglobin||15.2|g/dL|13.5-17.5|M|||F
+
 ```
 
 Segment meanings:
@@ -157,16 +160,16 @@ export async function processIncomingHL7(hl7Message: string) {
   const cleanMessage = hl7Message
     .replace(/^\x0b/, '')  // Remove MLLP start
     .replace(/\x1c\x0d$/, '');  // Remove MLLP end
-  
+
   try {
     // Parse HL7 structure
     const parsed = parseHL7Message(cleanMessage);
-    
+
     // Extract key fields
     const messageType = parsed.MSH.messageType;
     const patientId = parsed.PID.patientId;
     const timestamp = parsed.MSH.timestamp;
-    
+
     if (messageType === 'ORM^O01') {
       // Order message - validate test request
       return handleOrderMessage(parsed);
@@ -184,14 +187,14 @@ export async function processIncomingHL7(hl7Message: string) {
 async function handleResultMessage(parsed: any) {
   // Extract results from OBX segments
   const results = extractResults(parsed.OBX);
-  
-  // Find patient in CareSync
+
+  // Find patient in CareHarmony
   const patient = await findPatientByLabId(parsed.PID.patientId);
   if (!patient) {
     return generateNegativeACK('AE', 'Patient not found');
   }
-  
-  // Map HL7 LOINC codes to CareSync test definitions
+
+  // Map HL7 LOINC codes to CareHarmony test definitions
   const mappedResults = results.map(result => ({
     loincCode: result.code,
     value: result.value,
@@ -199,24 +202,24 @@ async function handleResultMessage(parsed: any) {
     referenceRange: result.referenceRange,
     testId: mapLoincToTestId(result.code)
   }));
-  
+
   // Validate each result
   for (const result of mappedResults) {
     if (!validateResultValue(result)) {
-      return generateNegativeACK('AR', 
+      return generateNegativeACK('AR',
         `Invalid value: ${result.loincCode}`);
     }
   }
-  
+
   // Store results
   const labResults = await storeLabResults(patient.id, mappedResults);
-  
+
   // Check for critical values
   const criticalValues = flagCriticalValues(labResults);
   if (criticalValues.length > 0) {
     await notifyPhysician(patient, criticalValues);
   }
-  
+
   // Generate positive ACK
   return generatePositiveACK(parsed.MSH.messageId);
 }
@@ -225,15 +228,19 @@ ACK MESSAGES
 
 Positive ACK (Success):
 ```
+
 MSH|^~\&|CARESYNC|MetroHosp|LAB-SYSMEX|MetroHosp|20260408143205||ACK^O01|ACK-123456|P|2.5
 MSA|AA|MSG-123456|Results received and stored
+
 ```
 AA = Application Accept (success)
 
 Negative ACK (Error):
 ```
+
 MSH|^~\&|CARESYNC|MetroHosp|LAB-SYSMEX|MetroHosp|20260408143205||ACK^O01|ACK-123456|P|2.5
 MSA|AE|MSG-123456|Patient not found in system
+
 ```
 AE = Application Error
 
@@ -300,40 +307,40 @@ export async function handlePOCResult(
   const deviceId = req.headers['x-device-id'];
   const apiKey = req.headers['x-api-key'];
   const device = await authenticateDevice(deviceId, apiKey);
-  
+
   if (!device) {
-    return res.status(401).json({ 
-      error: 'Invalid device credentials' 
+    return res.status(401).json({
+      error: 'Invalid device credentials'
     });
   }
-  
+
   // Extract and validate
   const { patient_id, results, timestamp } = req.body;
-  
+
   // Decrypt patient_id (hospital scoped)
   const patient = await decryptAndFindPatient(patient_id);
-  
+
   // Validate results
-  const validated = results.map(result => 
+  const validated = results.map(result =>
     validatePOCResult(result, device.calibration_date)
   );
-  
+
   if (validated.some(r => !r.valid)) {
     return res.status(400).json({
       error: 'Invalid results detected',
       details: validated.filter(r => !r.valid)
     });
   }
-  
+
   // Store results
   const stored = await storeLabResults(patient.id, validated.map(r => r.data));
-  
+
   // Flag critical if needed
   const critical = flagCriticalValues(stored);
   if (critical.length > 0) {
     await notifyPhysician(patient, critical);
   }
-  
+
   // Return success
   return res.status(201).json({
     status: 'success',
@@ -408,10 +415,10 @@ CREATE TABLE laboratory_tests (
   specimen_type VARCHAR(100),  -- "Serum", "Plasma", etc.
   turnaround_time_minutes INT,
   active BOOLEAN DEFAULT true,
-  
+
   -- Machine compatibility
   device_compatibility JSONB,  -- {"Sysmex XN-550": true, "Roche Cobas": true}
-  
+
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
@@ -471,41 +478,41 @@ Code: backend/integrations/csv-laboratory.ts
 export async function importLabCSV(file: File, metadata: any) {
   const csv = await file.text();
   const rows = csv.split('\n').slice(1);  // Skip header
-  
+
   const results = [];
   const errors = [];
-  
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i].split(',');
-    
+
     // Validate structure
     if (row.length < 5) {
       errors.push(`Row ${i + 1}: Missing columns`);
       continue;
     }
-    
+
     const [patientId, testCode, value, unit, refLow, refHigh] = row;
-    
+
     // Lookup patient
     const patient = await findPatient(patientId);
     if (!patient) {
       errors.push(`Row ${i + 1}: Patient ${patientId} not found`);
       continue;
     }
-    
+
     // Lookup test
     const test = await findTestByCode(testCode);
     if (!test) {
       errors.push(`Row ${i + 1}: Test ${testCode} not configured`);
       continue;
     }
-    
+
     // Validate numeric values
     if (isNaN(Number(value))) {
       errors.push(`Row ${i + 1}: Invalid numeric value: ${value}`);
       continue;
     }
-    
+
     // Store result
     results.push({
       patient_id: patient.id,
@@ -515,7 +522,7 @@ export async function importLabCSV(file: File, metadata: any) {
       reference_range: { low: refLow, high: refHigh }
     });
   }
-  
+
   if (errors.length > 0) {
     return {
       status: 'partial',
@@ -523,12 +530,12 @@ export async function importLabCSV(file: File, metadata: any) {
       errors: errors
     };
   }
-  
+
   // Store all results
   const stored = await Promise.all(
     results.map(r => storeLabResult(r))
   );
-  
+
   return {
     status: 'success',
     imported: stored.length,
@@ -559,7 +566,7 @@ VALIDATION CHECKLIST
 For each lab result:
 
 1. Patient identification
-   ├─ Patient ID must exist in CareSync
+   ├─ Patient ID must exist in CareHarmony
    ├─ Patient not deleted
    ├─ Patient belongs to same hospital
    └─ Hospital Scope Match: Result.hospital_id == Patient.hospital_id
@@ -607,23 +614,23 @@ CODE: Critical value detection
 
 async function checkCriticalVaues(results: LabResult[]) {
   const criticalResults = [];
-  
+
   for (const result of results) {
     const test = await findTest(result.test_id);
-    
+
     if (result.value < test.critical_low ||
         result.value > test.critical_high) {
-      
+
       criticalResults.push({
         patient_id: result.patient_id,
         test_name: test.test_name,
         value: result.value,
-        critical_threshold: result.value < test.critical_low 
-          ? `<${test.critical_low}` 
+        critical_threshold: result.value < test.critical_low
+          ? `<${test.critical_low}`
           : `>${test.critical_high}`,
         severity: 'CRITICAL'
       });
-      
+
       // Immediate notification
       await notifyPhysicianOfCriticalValue(
         result.patient_id,
@@ -632,7 +639,7 @@ async function checkCriticalVaues(results: LabResult[]) {
       );
     }
   }
-  
+
   return criticalResults;
 }
 
@@ -678,20 +685,20 @@ CREATE TABLE lab_devices (
   serial_number VARCHAR(100),
   device_ip VARCHAR(15),
   device_port INT DEFAULT 2575,
-  
+
   -- Calibration
   last_calibration_date DATE,
   next_calibration_due DATE,
   calibration_status VARCHAR(50),  -- "Calibrated", "Due", "Overdue"
-  
+
   -- Operations
   status VARCHAR(50),  -- "Online", "Offline", "Maintenance"
   last_heartbeat TIMESTAMP,
-  
+
   -- Configuration
   integration_type VARCHAR(50),  -- "HL7", "REST", "CSV"
   lis_configured BOOLEAN,
-  
+
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
@@ -776,16 +783,19 @@ Response: 200 OK
 ---
 
 **Related Documentation**:
+
 - [DATA_MODEL.md](../product/DATA_MODEL.md) - Laboratory tables schema
 - [TESTING_STRATEGY.md](../product/TESTING_STRATEGY.md) - Integration test patterns
 - See [API_REFERENCE.md](../product/API_REFERENCE.md) for lab API endpoints
 
 **HL7 Standards**:
+
 - HL7 v2.5 specification: https://www.hl7.org
 - LOINC database: https://loinc.org
 - MLLP protocol: RFC 1571
 
 **Support**:
+
 - Vendor support for specific analyzers
 - HL7 vendor integration team: [contact info]
 - Lab IT: [contact info]
